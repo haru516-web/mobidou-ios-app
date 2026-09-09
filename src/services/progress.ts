@@ -1,5 +1,12 @@
 // Pure progression rules, shared by the device and the isolated demo book.
-export const SHRINE_IDS = ['star', 'moon', 'rain', 'forest', 'cloud', 'flower'] as const;
+export const SHRINE_IDS = [
+  'star', 'moon', 'rain', 'forest', 'cloud', 'flower',
+  'akatsuki', 'shionagi', 'kazewatari', 'sunamoon', 'yukishiro', 'mizusumi', 'kirikakushi', 'kagaribi',
+  'nijiayumu', 'mebuki', 'hibikiishi', 'takekaze', 'kinboshi', 'gindrop', 'yoi', 'tsubaki',
+  'aoba', 'wakaba', 'akane', 'tomoshibi', 'asatsuyu', 'yume', 'amenagi', 'kaori',
+  'tsubasa', 'morika', 'kujira', 'hagoromo', 'sabaku', 'mine', 'oto', 'hikari',
+  'yumeakari', 'ayakanade', 'tsukikage', 'morikage',
+] as const;
 export const DAILY_TARGETS = [1000, 3000, 5000] as const;
 export type Reward = { id: string; date: string; steps: number; threshold: number };
 export type Progress = { day: string; steps: number; dayStart: number; rewards: Reward[]; pending: string[] };

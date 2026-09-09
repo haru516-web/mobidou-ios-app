@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshProgress, updateSteps, rollDay, localDay, normalizeProgress, SHRINE_IDS } from '../src/services/progress.ts';
+import { freshProgress, updateSteps, rollDay, localDay, normalizeProgress, SHRINE_IDS, DAILY_TARGETS } from '../src/services/progress.ts';
 const day = new Date(2026, 8, 9, 12);
 const tomorrow = new Date(2026, 8, 10, 0, 1);
 test('no reward at 999; first reward at exactly 1000; no duplicate on repeated refresh', () => {
@@ -34,10 +34,13 @@ test('unfinished day continues at next uncollected shrine on the following day',
   assert.equal(next.rewards[1].date, '2026-09-10');
   assert.equal(next.rewards[1].threshold, 1000);
 });
-test('all six complete across two days; future days cannot duplicate them', () => {
-  const p = updateSteps(updateSteps(freshProgress(day), 5000, day), 5000, tomorrow);
+test('the full collection completes in order; future days cannot duplicate it', () => {
+  let p = freshProgress(day);
+  for (let offset = 0; offset < SHRINE_IDS.length / DAILY_TARGETS.length; offset += 1) {
+    p = updateSteps(p, 5000, new Date(2026, 8, 9 + offset));
+  }
   assert.deepEqual(p.rewards.map(r => r.id), [...SHRINE_IDS]);
-  assert.equal(updateSteps(p, 20000, new Date(2026, 8, 13)).rewards.length, 6);
+  assert.equal(updateSteps(p, 20000, new Date(2026, 9, 1)).rewards.length, SHRINE_IDS.length);
 });
 test('step corrections never revoke awards; invalid input cannot earn rewards', () => {
   const p = updateSteps(freshProgress(day), 3000, day);

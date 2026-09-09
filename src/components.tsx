@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, ScrollView, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, ScrollView, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path, G } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { PetCharacter } from './petCatalog';
+import { PullableCompanion } from './components/PullableCompanion';
 import { STAMP_IMAGES, type Shrine } from './data/shrines';
 import { reactionLine, type ReactionKind } from './data/reactions';
 import * as Haptics from 'expo-haptics';
@@ -36,33 +37,234 @@ export function useReducedMotion() {
   useEffect(() => { void AccessibilityInfo.isReduceMotionEnabled().then(setReduced); const s = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced); return () => s.remove(); }, []);
   return reduced;
 }
-export function Companion({ pet, haptics, bond, onBond }: { pet: PetCharacter; haptics: boolean; bond: number; onBond: () => void }) {
+
+function useCompanionPointerCapture() {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return undefined;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const pullTarget = target.closest('#mobidou-companion-pull-target') as (HTMLElement & { setPointerCapture?: (pointerId: number) => void }) | null;
+      pullTarget?.setPointerCapture?.(event.pointerId);
+    };
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+  }, []);
+}
+
+function captureCompanionPointer(event: any) {
+  if (Platform.OS !== 'web') return;
+  const nativeEvent = event?.nativeEvent ?? event;
+  const pointerId = nativeEvent?.pointerId;
+  const target = event?.currentTarget as (HTMLElement & { setPointerCapture?: (pointerId: number) => void }) | null;
+  if (typeof pointerId === 'number') target?.setPointerCapture?.(pointerId);
+}
+
+function preventCompanionPointerMove(event: any) {
+  if (Platform.OS === 'web') event?.preventDefault?.();
+}
+
+type CompanionReactionOptions = { bypassCooldown?: boolean; skipBounce?: boolean; skipHaptic?: boolean; special?: boolean };
+
+function LegacyCompanion({ pet, haptics, bond, onBond }: { pet: PetCharacter; haptics: boolean; bond: number; onBond: () => void }) {
   const [line, setLine] = useState('今日も、きみの歩幅でいこう。');
   const [kind, setKind] = useState<ReactionKind | null>(null);
+  const [pullStatus, setPullStatus] = useState<'idle' | 'pulling' | 'released'>('idle');
+  const [pullSpecial, setPullSpecial] = useState(false);
   const bounce = useRef(new Animated.Value(0)).current;
   const float = useRef(new Animated.Value(0)).current;
-  const count = useRef(0); const last = useRef(0); const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pullX = useRef(new Animated.Value(0)).current;
+  const pullY = useRef(new Animated.Value(0)).current;
+  const pullScaleX = useRef(new Animated.Value(1)).current;
+  const pullScaleY = useRef(new Animated.Value(1)).current;
+  const pullRotation = useRef(new Animated.Value(0)).current;
+  const pullBurst = useRef(new Animated.Value(0)).current;
+  const count = useRef(0);
+  const pullCount = useRef(0);
+  const last = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draggingRef = useRef(false);
+  const pointerReleaseRef = useRef<(() => void) | null>(null);
+  const smoothedPullRef = useRef({ dx: 0, dy: 0 });
+  const pullVelocityRef = useRef({ x: 0, y: 0 });
+  const lastMoveAtRef = useRef(0);
+  const mediumThresholdRef = useRef(false);
   const reduced = useReducedMotion();
-  useEffect(() => { setLine(`${pet.name}だよ。いっしょに歩こう！`); count.current = 0; }, [pet.id]);
+  const useNativeDriver = Platform.OS !== 'web';
+  useCompanionPointerCapture();
+
+  useEffect(() => {
+    setLine(`${pet.name}だよ。いっしょに歩こう！`);
+    setKind(null);
+    setPullStatus('idle');
+    setPullSpecial(false);
+    count.current = 0;
+    pullCount.current = 0;
+    pullX.setValue(0);
+    pullY.setValue(0);
+    pullScaleX.setValue(1);
+    pullScaleY.setValue(1);
+    pullRotation.setValue(0);
+    pullBurst.setValue(0);
+  }, [pet.id, pet.name, pullBurst, pullRotation, pullScaleX, pullScaleY, pullX, pullY]);
+
   useEffect(() => {
     if (reduced) return;
-    const animation = Animated.loop(Animated.sequence([Animated.timing(float, { toValue: -6, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }), Animated.timing(float, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true })]));
-    animation.start(); return () => animation.stop();
-  }, [float, reduced]);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); bounce.stopAnimation(); }, [bounce]);
-  const react = (next: ReactionKind) => {
-    if (Date.now() - last.current < 700) return; last.current = Date.now();
-    setLine(reactionLine(pet.id, next, count.current++)); setKind(next); onBond();
-    if (haptics) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setKind(null), 2000);
-    bounce.stopAnimation(); bounce.setValue(0);
-    if (!reduced) Animated.sequence([Animated.timing(bounce, { toValue: 1, duration: 180, useNativeDriver: true }), Animated.spring(bounce, { toValue: 0, friction: 3, useNativeDriver: true })]).start();
-  };
+    const animation = Animated.loop(Animated.sequence([Animated.timing(float, { toValue: -6, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: useNativeDriver }), Animated.timing(float, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: useNativeDriver })]));
+    animation.start();
+    return () => animation.stop();
+  }, [float, reduced, useNativeDriver]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
+    const handlePointerUp = () => pointerReleaseRef.current?.();
+    window.addEventListener('pointerup', handlePointerUp, true);
+    return () => window.removeEventListener('pointerup', handlePointerUp, true);
+  }, []);
+
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+    bounce.stopAnimation();
+    pullBurst.stopAnimation();
+  }, [bounce, pullBurst]);
+
+  const emitReaction = useCallback((next: ReactionKind, options: CompanionReactionOptions = {}) => {
+    const now = Date.now();
+    if (!options.bypassCooldown && now - last.current < 700) return false;
+    last.current = now;
+    setLine(reactionLine(pet.id, next, count.current++));
+    setKind(next);
+    setPullSpecial(next === 'pull' ? Boolean(options.special) : false);
+    onBond();
+    if (haptics && !options.skipHaptic) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => { setKind(null); setPullSpecial(false); }, next === 'pull' ? 2300 : 2000);
+    if (options.skipBounce) return true;
+    bounce.stopAnimation();
+    bounce.setValue(0);
+    if (!reduced) Animated.sequence([Animated.timing(bounce, { toValue: 1, duration: 180, useNativeDriver }), Animated.spring(bounce, { toValue: 0, friction: 3, useNativeDriver })]).start();
+    return true;
+  }, [bounce, haptics, onBond, pet.id, reduced, useNativeDriver]);
+
+  const restorePullPose = useCallback((onComplete?: () => void) => {
+    const finish = () => onComplete?.();
+    if (reduced) {
+      pullX.setValue(0);
+      pullY.setValue(0);
+      pullScaleX.setValue(1);
+      pullScaleY.setValue(1);
+      pullRotation.setValue(0);
+      finish();
+      return;
+    }
+    Animated.parallel([
+      Animated.spring(pullX, { toValue: 0, velocity: pullVelocityRef.current.x, useNativeDriver, speed: 16, bounciness: 15 }),
+      Animated.spring(pullY, { toValue: 0, velocity: pullVelocityRef.current.y, useNativeDriver, speed: 16, bounciness: 15 }),
+      Animated.spring(pullScaleX, { toValue: 1, useNativeDriver, speed: 18, bounciness: 13 }),
+      Animated.spring(pullScaleY, { toValue: 1, useNativeDriver, speed: 18, bounciness: 13 }),
+      Animated.spring(pullRotation, { toValue: 0, velocity: pullVelocityRef.current.x / 18, useNativeDriver, speed: 16, bounciness: 15 }),
+    ]).start(({ finished }) => { if (finished) finish(); });
+  }, [pullRotation, pullScaleX, pullScaleY, pullX, pullY, reduced, useNativeDriver]);
+
+  const finishPull = useCallback(() => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    pointerReleaseRef.current = null;
+    const { dx, dy } = smoothedPullRef.current;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 4) {
+      emitReaction('pet');
+      restorePullPose(() => setPullStatus('idle'));
+      return;
+    }
+    const nextPullCount = pullCount.current + 1;
+    pullCount.current = nextPullCount;
+    const special = nextPullCount % 10 === 0;
+    setPullStatus('released');
+    emitReaction('pull', { bypassCooldown: true, skipBounce: true, skipHaptic: true, special });
+    if (haptics) void Haptics.impactAsync(special ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    pullBurst.stopAnimation();
+    pullBurst.setValue(0);
+    if (!reduced) Animated.timing(pullBurst, { toValue: 1, duration: special ? 1050 : 760, easing: Easing.out(Easing.cubic), useNativeDriver }).start();
+    restorePullPose(() => setPullStatus('idle'));
+  }, [emitReaction, haptics, pullBurst, reduced, restorePullPose, useNativeDriver]);
+
+  const panResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => Math.hypot(gesture.dx, gesture.dy) > 4,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => {
+      draggingRef.current = true;
+      pointerReleaseRef.current = finishPull;
+      setPullStatus('pulling');
+      mediumThresholdRef.current = false;
+      smoothedPullRef.current = { dx: 0, dy: 0 };
+      pullVelocityRef.current = { x: 0, y: 0 };
+      lastMoveAtRef.current = Date.now();
+      pullX.stopAnimation();
+      pullY.stopAnimation();
+      pullScaleX.stopAnimation();
+      pullScaleY.stopAnimation();
+      pullRotation.stopAnimation();
+    },
+    onPanResponderMove: (_event, gesture) => {
+      const maxPull = 96;
+      const rawDx = gesture.dx;
+      const rawDy = gesture.dy;
+      const dx = Math.max(-maxPull, Math.min(maxPull, rawDx));
+      const dy = Math.max(-maxPull, Math.min(maxPull, rawDy));
+      const previous = smoothedPullRef.current;
+      const now = Date.now();
+      const deltaMs = Math.max(8, now - lastMoveAtRef.current);
+      pullVelocityRef.current = { x: (dx - previous.dx) * 1000 / deltaMs, y: (dy - previous.dy) * 1000 / deltaMs };
+      smoothedPullRef.current = { dx, dy };
+      lastMoveAtRef.current = now;
+      pullX.setValue(dx * 0.22);
+      pullY.setValue(dy * 0.13);
+      const horizontalStretch = Math.min(0.2, Math.abs(dx) / maxPull * 0.2);
+      pullScaleX.setValue(1 + horizontalStretch);
+      pullScaleY.setValue(1 - Math.min(0.08, horizontalStretch * 0.4));
+      pullRotation.setValue(Math.max(-6, Math.min(6, dx / maxPull * 6)));
+      if (haptics && Math.hypot(dx, dy) >= 12 && !mediumThresholdRef.current) {
+        mediumThresholdRef.current = true;
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
+    },
+    onPanResponderRelease: finishPull,
+    onPanResponderTerminate: () => {
+      if (Platform.OS === 'web') {
+        // React Native Web can report a responder termination instead of the
+        // final release when a captured pointer crosses the image boundary.
+        // Finishing here keeps a completed drag from staying in the pulling
+        // state; the ref guard prevents a later pointerup from double firing.
+        finishPull();
+        return;
+      }
+      draggingRef.current = false;
+      pointerReleaseRef.current = null;
+      restorePullPose(() => setPullStatus('idle'));
+    },
+  }), [finishPull, haptics, pullRotation, pullScaleX, pullScaleY, pullX, pullY, restorePullPose]);
+
+  const react = (next: ReactionKind) => { emitReaction(next); };
+  const bounceLift = bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -18] });
+  const bounceTilt = bounce.interpolate({ inputRange: [0, 1], outputRange: [0, kind === 'snack' ? -7 : 7] });
+  const totalTranslateY = Animated.add(float, Animated.add(pullY, bounceLift));
+  const totalRotation = Animated.add(pullRotation, bounceTilt).interpolate({ inputRange: [-14, -7, 0, 7, 14], outputRange: ['-14deg', '-7deg', '0deg', '7deg', '14deg'] });
+  const pullBurstOpacity = pullBurst.interpolate({ inputRange: [0, 0.12, 0.72, 1], outputRange: [0, 0.95, 0.65, 0], extrapolate: 'clamp' });
+  const pullBurstScale = pullBurst.interpolate({ inputRange: [0, 0.32, 1], outputRange: [0.45, 1.15, 1.7], extrapolate: 'clamp' });
+
   return <View style={S.companion}><Landscape /><View style={S.bubble}><Text accessibilityLiveRegion="polite" style={S.bubbleText}>{line}</Text><View style={S.bubbleTail} /></View>
-    <View style={S.petStage}><View style={S.petShadow} /><Animated.View style={{ transform: [{ translateY: Animated.add(float, bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -18] })) }, { rotate: bounce.interpolate({ inputRange: [0, 1], outputRange: ['0deg', kind === 'snack' ? '-7deg' : '7deg'] }) }, { scale: bounce.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) }] }}><Pressable accessibilityRole="button" accessibilityLabel={`${pet.name}をなでる`} onPress={() => react('pet')}><Image source={pet.image} style={S.pet} contentFit="contain" /></Pressable></Animated.View>{kind && <View pointerEvents="none" style={S.reactionMark}><Text style={{ fontSize: 27 }}>{kind === 'pet' ? '♡' : kind === 'snack' ? '🍡' : '✧'}</Text></View>}</View>
+    <View style={S.petStage}><View style={S.petShadow} /><Animated.View {...panResponder.panHandlers} nativeID="mobidou-companion-pull-target" onPointerDown={captureCompanionPointer} onPointerMove={preventCompanionPointerMove} accessibilityRole="button" accessibilityLabel={`${pet.name}をなでる。ほっぺを引っ張る`} accessibilityHint="タップでなでる。キャラをドラッグするとほっぺがのびます" onAccessibilityTap={() => react('pet')} style={{ transform: [{ translateX: pullX }, { translateY: totalTranslateY }, { rotate: totalRotation }, { scaleX: pullScaleX }, { scaleY: pullScaleY }, { scale: bounce.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) }] }}><Image pointerEvents="none" source={pet.image} style={S.pet} contentFit="contain" /></Animated.View>{kind && <View pointerEvents="none" style={kind === 'pull' ? S.pullReactionMark : S.reactionMark}><Text style={kind === 'pull' ? S.pullReactionText : { fontSize: 27 }}>{kind === 'pet' ? '♡' : kind === 'snack' ? '🍡' : kind === 'talk' ? '✧' : 'びよーん！'}</Text></View>}{kind === 'pull' && <Animated.View pointerEvents="none" style={[S.pullBurst, { opacity: pullBurstOpacity, transform: [{ scale: pullBurstScale }] }]}><Text style={S.pullBurstText}>{pullSpecial ? '✦' : '✧'}</Text></Animated.View>}{pullStatus !== 'idle' && <View pointerEvents="none" style={S.pullStatus}><Text style={S.pullStatusText}>{pullStatus === 'pulling' ? 'ほっぺをびよーん…' : 'びよーん！'}</Text></View>}</View>
     <View style={S.bond}><Icon name="heart" size={12} color={C.red} /><Text style={S.bondText}>{bond < 5 ? 'はじめまして' : bond < 20 ? 'ちょっとなかよし' : bond < 50 ? 'いつものふたり' : '大切な相棒'}</Text><Text style={[S.bondText, { color: C.muted }]}> · {pet.name}</Text></View>
     <View style={S.reactions}>{([['pet', 'hand-left-outline', 'なでる'], ['snack', 'cafe-outline', 'おやつ'], ['talk', 'chatbubble-outline', '話す']] as const).map(([key, icon, title]) => <Pressable accessibilityRole="button" key={key} onPress={() => react(key)} style={({ pressed }) => [S.reactionButton, pressed && { backgroundColor: C.pale }]}><Icon name={icon} size={16} color={C.red} /><Text style={S.reactionText}>{title}</Text></Pressable>)}</View>
+    <View style={S.pullHint}><Icon name="hand-left-outline" size={13} color={C.muted} /><Text style={S.pullHintText}>キャラのほっぺをドラッグしてみて</Text></View>
   </View>;
+}
+export function Companion({ pet, haptics, onBond }: { pet: PetCharacter; haptics: boolean; onBond: () => void }) {
+  return <PullableCompanion pet={pet} haptics={haptics} onBond={onBond} />;
 }
 export function Award({ shrine, pet, haptics, demo, onClose }: { shrine: Shrine; pet: PetCharacter; haptics: boolean; demo: boolean; onClose: () => void }) {
   const progress = useRef(new Animated.Value(0)).current;
@@ -92,6 +294,6 @@ const S = StyleSheet.create({
   section: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 17, marginTop: 26 }, sectionTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink, letterSpacing: 1 }, eyebrow: { color: C.muted, fontSize: 10, letterSpacing: 1.5, marginTop: 5 }, link: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 3 }, linkText: { color: C.red, fontSize: 11 },
   track: { height: 6, backgroundColor: '#E3DDD2', borderRadius: 8, overflow: 'hidden' }, fill: { height: '100%', borderRadius: 8 }, stamp: { width: '100%', aspectRatio: 2 / 3, backgroundColor: '#F5EFDF', borderRadius: 5, overflow: 'hidden' }, lock: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 7 }, lockText: { fontSize: 10, color: '#6B655B', letterSpacing: 1 },
   companion: { alignItems: 'center', paddingTop: 12, marginHorizontal: -24, overflow: 'hidden', paddingBottom: 18 }, bubble: { borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFCF5', borderRadius: 17, paddingHorizontal: 18, paddingVertical: 11, zIndex: 2, maxWidth: '88%' }, bubbleText: { fontFamily: SERIF, fontSize: 13, color: '#5D554A', textAlign: 'center' }, bubbleTail: { position: 'absolute', width: 10, height: 10, backgroundColor: '#FFFCF5', borderBottomWidth: 1, borderRightWidth: 1, borderColor: C.line, transform: [{ rotate: '45deg' }], bottom: -6, alignSelf: 'center' },
-  petStage: { width: 270, height: 218, justifyContent: 'center', alignItems: 'center', marginTop: 7 }, pet: { width: 210, height: 214 }, petShadow: { position: 'absolute', width: 108, height: 14, bottom: 5, borderRadius: 100, backgroundColor: '#66705819' }, reactionMark: { position: 'absolute', top: 20, right: 12 }, bond: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }, bondText: { fontSize: 10, color: '#705F52' }, reactions: { flexDirection: 'row', gap: 10, marginTop: 15 }, reactionButton: { paddingHorizontal: 17, minHeight: 39, flexDirection: 'row', gap: 7, alignItems: 'center', backgroundColor: '#FBF8F0DE', borderRadius: 30, borderWidth: 1, borderColor: '#E0D9C9' }, reactionText: { color: '#675B4B', fontSize: 11 },
+  petStage: { width: 270, height: 218, justifyContent: 'center', alignItems: 'center', marginTop: 7 }, pet: { width: 210, height: 214 }, petShadow: { position: 'absolute', width: 108, height: 14, bottom: 5, borderRadius: 100, backgroundColor: '#66705819' }, reactionMark: { position: 'absolute', top: 20, right: 12 }, pullReactionMark: { position: 'absolute', top: 18, right: 2, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 12, backgroundColor: '#FFF6E7E8', borderWidth: 1, borderColor: '#D8B98A' }, pullReactionText: { color: C.red, fontFamily: SERIF, fontSize: 12 }, pullBurst: { position: 'absolute', top: 8, alignItems: 'center', justifyContent: 'center' }, pullBurstText: { color: C.gold, fontSize: 42, fontWeight: '700' }, pullStatus: { position: 'absolute', bottom: 2, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: '#FFF9EFDD', borderWidth: 1, borderColor: '#E3DACE' }, pullStatusText: { color: C.red, fontSize: 11, fontFamily: SERIF }, bond: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }, bondText: { fontSize: 10, color: '#705F52' }, reactions: { flexDirection: 'row', gap: 10, marginTop: 15 }, reactionButton: { paddingHorizontal: 17, minHeight: 39, flexDirection: 'row', gap: 7, alignItems: 'center', backgroundColor: '#FBF8F0DE', borderRadius: 30, borderWidth: 1, borderColor: '#E0D9C9' }, reactionText: { color: '#675B4B', fontSize: 11 }, pullHint: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 }, pullHintText: { color: C.muted, fontSize: 10 },
   award: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 20 }, awardEyebrow: { color: '#D2BA98', fontSize: 11, letterSpacing: 2 }, awardTitle: { fontFamily: SERIF, fontSize: 21, color: '#FFF8EA', marginBottom: 10, textAlign: 'center' }, awardName: { fontFamily: SERIF, fontSize: 25, color: '#FFF5E3' }, awardTheme: { color: '#D6C9B8', fontSize: 12 }, awardSeal: { borderWidth: 3, borderColor: '#B85E48', position: 'absolute', right: -14, bottom: -6, padding: 8, transform: [{ rotate: '-12deg' }], backgroundColor: '#FAF2DFE8', borderRadius: 7 }, awardSealText: { color: C.red, fontFamily: SERIF, fontSize: 22 }, awardCompanion: { flexDirection: 'row', gap: 10, alignItems: 'center' },
 });
