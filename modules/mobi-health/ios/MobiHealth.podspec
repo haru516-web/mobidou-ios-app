@@ -1,0 +1,16 @@
+Pod::Spec.new do |s|
+  s.name = 'MobiHealth'
+  s.version = '1.0.0'
+  s.summary = 'Read-only daily HealthKit steps for Mobidou'
+  s.description = 'On-device HealthKit step statistics.'
+  s.author = 'Mobby'
+  s.homepage = 'https://expo.dev'
+  s.license = { :type => 'MIT' }
+  s.platforms = { :ios => '15.1' }
+  s.source = { :git => '' }
+  s.static_framework = true
+  s.dependency 'ExpoModulesCore'
+  s.frameworks = 'HealthKit'
+  s.swift_version = '5.9'
+  s.source_files = '**/*.{h,m,mm,swift}'
+end

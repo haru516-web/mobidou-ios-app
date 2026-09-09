@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+dist/
+dist-ios/
+ios/
+android/
+!modules/mobi-health/ios/
+!modules/mobi-health/ios/**
+*.log
+.DS_Store
+test-results/
