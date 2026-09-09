@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "もび道",
+    "slug": "mobidou",
+    "scheme": "mobidou",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "jp.mobby.mobidou",
+      "entitlements": { "com.apple.developer.healthkit": true },
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "今日の歩数を読み取り、もびの世界の御朱印を集めるために使用します。データは端末内に保存します。",
+        "NSMotionUsageDescription": "今日の歩数を読み取り、歩いた分だけ御朱印を集めるために使用します。",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": ["expo-font", ["expo-sensors", { "motionPermission": "歩数に合わせて、もびの世界の御朱印を集めるために使用します。" }]],
+    "web": { "bundler": "metro", "name": "もび道 — 歩く、集める、好きになる。" }
+  }
+}
