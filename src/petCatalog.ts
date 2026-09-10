@@ -12,15 +12,7 @@ export type PetId =
   | 'babumoby'
   | 'bearmobby'
   | 'boymobby'
-  | 'cat1mobby'
-  | 'cat2mobby'
-  | 'cat3mobby'
-  | 'cat4mobby'
   | 'dogmobby'
-  | 'fashionablemobby'
-  | 'gamermobby'
-  | 'garibenmobby'
-  | 'koreamobby'
   | 'lanimobby'
   | 'ojimobby'
   | 'reamobby'
@@ -130,76 +122,12 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     meaningTemplates: ['{meaning}ってこと！ いいね、またひとつ使える言葉が増えた。', '{meaning}って意味だよ。次に見つけたらすぐ使ってみよう！'],
   },
   {
-    id: 'cat1mobby',
-    name: 'ねこモビー1',
-    catchphrase: '好奇心いっぱいのねこ',
-    accent: '#F5C89D',
-    image: require('../assets/mobies/cat1mobby.png'),
-    meaningTemplates: ['{meaning}って意味。にゃ、なんだか面白い響きだね。', '{meaning}ってことだよ。気になったら、もう一回ゆっくり見てみよ。'],
-  },
-  {
-    id: 'cat2mobby',
-    name: 'ねこモビー2',
-    catchphrase: '夜ふかし黒ねこ',
-    accent: '#D0C2E8',
-    image: require('../assets/mobies/cat2mobby.png'),
-    meaningTemplates: ['{meaning}って意味……夜に聞くと、ちょっと秘密っぽいね。', '{meaning}ってこと。ふふ、覚えておくと便利かも。'],
-  },
-  {
-    id: 'cat3mobby',
-    name: 'ねこモビー3',
-    catchphrase: 'ふわふわ三毛ねこ',
-    accent: '#EBD6C1',
-    image: require('../assets/mobies/cat3mobby.png'),
-    meaningTemplates: ['{meaning}という意味だよ。今日の気分にちょうどいい言葉だね。', '{meaning}ってこと。にゃんとなく覚えられそう？'],
-  },
-  {
-    id: 'cat4mobby',
-    name: 'ねこモビー4',
-    catchphrase: 'いたずら好きのしまねこ',
-    accent: '#E8B46A',
-    image: require('../assets/mobies/cat4mobby.png'),
-    meaningTemplates: ['{meaning}って意味！ じゃあ次は、その言葉でちょっと遊んでみよう。', '{meaning}ってことだね。ぼくなら、さらっと会話に混ぜるかな。'],
-  },
-  {
     id: 'dogmobby',
     name: 'いぬモビー',
     catchphrase: 'まっすぐなわんこ',
     accent: '#D9A66C',
     image: require('../assets/mobies/dogmobby.png'),
     meaningTemplates: ['{meaning}って意味だよ！ わかったら、しっぽを振りたくなるね。', '{meaning}ってこと。大丈夫、何度でも一緒に覚えよう！'],
-  },
-  {
-    id: 'fashionablemobby',
-    name: 'おしゃれモビー',
-    catchphrase: 'こだわり派のファッショニスタ',
-    accent: '#C9B5A5',
-    image: require('../assets/mobies/fashionablemobby.png'),
-    meaningTemplates: ['{meaning}って意味。言葉もコーディネートみたいに、場面で選ぶと素敵よ。', '{meaning}ということね。響きまで含めて、きれいに使いたい言葉だわ。'],
-  },
-  {
-    id: 'gamermobby',
-    name: 'ゲーモビー',
-    catchphrase: '集中型の夜更かしゲーマー',
-    accent: '#B5A5F5',
-    image: require('../assets/mobies/gamermobby.png'),
-    meaningTemplates: ['{meaning}って意味。ここ、覚えたら次のステージに進めるやつ。', '{meaning}ってこと。実戦で使えるか、今の会話で試してみよう。'],
-  },
-  {
-    id: 'garibenmobby',
-    name: 'ガリ勉モビー',
-    catchphrase: '知識を集める努力家',
-    accent: '#C7D5E0',
-    image: require('../assets/mobies/garibenmobby.png'),
-    meaningTemplates: ['{meaning}という意味です。用例まで押さえると、記憶に定着しやすいですよ。', '{meaning}ということですね。似た表現との違いも、あとで整理しておきましょう。'],
-  },
-  {
-    id: 'koreamobby',
-    name: 'コリアモビー',
-    catchphrase: 'トレンドに敏感なストリート派',
-    accent: '#C9D6E8',
-    image: require('../assets/mobies/koreamobby.png'),
-    meaningTemplates: ['{meaning}って意味。カジュアルな会話なら、こんなふうにさらっと使えるよ。', '{meaning}ってことだね。響きも今っぽくて、覚えやすいと思わない？'],
   },
   {
     id: 'lanimobby',

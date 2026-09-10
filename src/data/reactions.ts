@@ -15,8 +15,6 @@ const special: Record<string, Partial<Record<ReactionKind, string[]>>> = {
   reomoby: { talk: ['君と歩く道は、どこでも特別さ。'] },
   potemoby: { talk: ['あのベンチで、ひと休みしよ〜。'], snack: ['食べて、休んで、またちょっと歩こ。'] },
   babumoby: { pet: ['きゃっきゃ！ すきだばぶ〜。'], talk: ['いっぽ、いっぽ、ばぶっ！'] },
-  gamermobby: { talk: ['この寄り道、隠しルートかも。'] },
-  koreamobby: { talk: ['次の角まで、一緒に行こう。いい光だね。'] },
   shikamobby: { talk: ['葉っぱの音、聞こえる？'] },
   wolfmobby: { talk: ['急がなくていい。隣にいる。'] },
 };

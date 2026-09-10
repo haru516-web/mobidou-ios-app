@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500Medium';
@@ -14,15 +15,34 @@ import { DAILY_TARGETS } from './src/services/progress';
 import { sourceLabel } from './src/services/steps';
 import { useJourney } from './src/services/useJourney';
 import { BACKGROUND_OPTIONS, BACKGROUND_SEASONS, getBackgroundOption, type BackgroundSeason } from './src/data/backgrounds';
+import { PET_BACKGROUNDS } from './src/data/petBackgrounds';
 
 type Tab = 'home' | 'book' | 'walk' | 'pets';
 const TABS = [{ id: 'home', title: 'ホーム', icon: 'home-outline' }, { id: 'book', title: '御朱印帳', icon: 'book-outline' }, { id: 'walk', title: 'おでかけ', icon: 'footsteps-outline' }, { id: 'pets', title: 'モビー', icon: 'paw-outline' }] as const;
 const fmt = (n: number) => n.toLocaleString('ja-JP');
 const MOBIBOU_PEEK = require('./assets/mobies/mobibou-peek.png');
 const WALK_TORII_TOP = require('./assets/foreground/mobidou-torii-top.png');
-const OPENING_BACKGROUND = require('./assets/backgrounds/mobidou-opening.png');
 const OPENING_WORDMARK = require('./assets/mobidou-wordmark-brush.png');
 const OPENING_ICON = require('./assets/mobidou-icon.png');
+const OPENING_EMBLEM = require('./assets/mobidou-opening-emblem.png');
+const OPENING_TIMELINE = [
+  { id: '0500-pre-dawn', time: '05:00', label: '明け方', image: require('./assets/backgrounds/opening-cycle/01-0500-pre-dawn.png') },
+  { id: '0600-sunrise', time: '06:00', label: '朝焼け', image: require('./assets/backgrounds/opening-cycle/02-0600-sunrise.png') },
+  { id: '0700-morning', time: '07:00', label: '朝', image: require('./assets/backgrounds/opening-cycle/03-0700-morning.png') },
+  { id: '0830-morning', time: '08:30', label: '朝', image: require('./assets/backgrounds/opening-cycle/04-0830-morning.png') },
+  { id: '1000-late-morning', time: '10:00', label: '午前', image: require('./assets/backgrounds/opening-cycle/05-1000-late-morning.png') },
+  { id: '1130-before-noon', time: '11:30', label: '昼前', image: require('./assets/backgrounds/opening-cycle/06-1130-before-noon.png') },
+  { id: '1300-noon', time: '13:00', label: '正午', image: require('./assets/backgrounds/opening-cycle/07-1300-noon.png') },
+  { id: '1430-afternoon', time: '14:30', label: '午後', image: require('./assets/backgrounds/opening-cycle/08-1430-afternoon.png') },
+  { id: '1600-late-afternoon', time: '16:00', label: '昼下がり', image: require('./assets/backgrounds/opening-cycle/09-1600-late-afternoon.png') },
+  { id: '1730-golden-hour', time: '17:30', label: '黄金時間', image: require('./assets/backgrounds/opening-cycle/10-1730-golden-hour.png') },
+  { id: '1830-sunset', time: '18:30', label: '夕陽', image: require('./assets/backgrounds/opening-cycle/11-1830-sunset.png') },
+  { id: '1930-blue-hour', time: '19:30', label: '宵', image: require('./assets/backgrounds/opening-cycle/12-1930-blue-hour.png') },
+  { id: '2100-night', time: '21:00', label: '夜', image: require('./assets/backgrounds/opening-cycle/13-2100-night.png') },
+  { id: '2300-late-night', time: '23:00', label: '月夜', image: require('./assets/backgrounds/opening-cycle/14-2300-late-night.png') },
+  { id: '0200-midnight', time: '02:00', label: '深夜', image: require('./assets/backgrounds/opening-cycle/15-0200-midnight.png') },
+  { id: '0430-before-dawn', time: '04:30', label: '夜明け前', image: require('./assets/backgrounds/opening-cycle/16-0430-before-dawn.png') },
+] as const;
 function displayDate(day: string) { const [y, m, d] = day.split('-'); return `${y}年${Number(m)}月${Number(d)}日`; }
 
 function StepRing({ steps, goal }: { steps: number; goal: number }) {
@@ -39,6 +59,173 @@ function StepRing({ steps, goal }: { steps: number; goal: number }) {
     <View style={S.walkRingCenter}><Text style={S.walkRingCount}>{fmt(steps)}</Text><Text style={S.walkRingUnit}>歩</Text><Text style={S.walkRingGoal}>目標 {fmt(goal)}歩</Text></View>
   </View>;
 }
+
+function OpeningScene({ scene, width, frameIndex, progress }: { scene: (typeof OPENING_TIMELINE)[number]; width: number; frameIndex: number; progress: Animated.Value }) {
+  const lastFrameIndex = OPENING_TIMELINE.length - 1;
+  const inputRange = frameIndex === 0
+    ? [0, 1]
+    : frameIndex === lastFrameIndex
+      ? [lastFrameIndex - 1, lastFrameIndex]
+      : [frameIndex - 1, frameIndex, frameIndex + 1];
+  const outputRange = frameIndex === 0
+    ? [1, 0]
+    : frameIndex === lastFrameIndex
+      ? [0, 1]
+      : [0, 1, 0];
+  return <Animated.View style={[S.openingScene, { width, opacity: progress.interpolate({ inputRange, outputRange, extrapolate: 'clamp' }) }]}>
+    <Image source={scene.image} contentFit="cover" style={S.openingSceneImage} />
+  </Animated.View>;
+}
+
+function OpeningExperience({ onEnter, error }: { onEnter: () => void; error?: string | null }) {
+  const [width, setWidth] = useState(0);
+  const [index, setIndex] = useState(0);
+  const indexRef = useRef(0);
+  const frameProgress = useRef(new Animated.Value(0)).current;
+  const enteringRef = useRef(false);
+  const autoRunningRef = useRef(false);
+  const gestureCommittedRef = useRef(false);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoAnimationRef = useRef<{ stop: () => void } | null>(null);
+
+  const complete = useCallback(() => {
+    if (enteringRef.current) return;
+    enteringRef.current = true;
+    settleTimerRef.current = setTimeout(onEnter, 420);
+  }, [onEnter]);
+
+  useEffect(() => () => {
+    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    autoAnimationRef.current?.stop();
+  }, []);
+
+  useEffect(() => {
+    const listenerId = frameProgress.addListener(({ value }) => {
+      if (!autoRunningRef.current) return;
+      const visualIndex = Math.max(0, Math.min(OPENING_TIMELINE.length - 1, Math.round(value)));
+      if (visualIndex !== indexRef.current) {
+        indexRef.current = visualIndex;
+        setIndex(visualIndex);
+      }
+    });
+    return () => frameProgress.removeListener(listenerId);
+  }, [frameProgress]);
+
+  const animateTo = useCallback((nextIndex: number, shouldEnter = false) => {
+    const clamped = Math.max(0, Math.min(OPENING_TIMELINE.length - 1, nextIndex));
+    indexRef.current = clamped;
+    setIndex(clamped);
+    Animated.timing(frameProgress, {
+      toValue: clamped,
+      duration: shouldEnter ? 900 : 650,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished && shouldEnter) complete();
+    });
+  }, [complete, frameProgress]);
+
+  const startAutoJourney = useCallback(() => {
+    if (width <= 0 || autoRunningRef.current || enteringRef.current) return;
+    autoRunningRef.current = true;
+    gestureCommittedRef.current = true;
+    frameProgress.stopAnimation();
+    const startIndex = indexRef.current;
+    const finalIndex = OPENING_TIMELINE.length - 1;
+    setIndex(startIndex);
+    const animation = Animated.timing(frameProgress, {
+      toValue: finalIndex,
+      duration: Math.max(3200, (finalIndex - startIndex) * 600),
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    });
+    autoAnimationRef.current = animation;
+    animation.start(({ finished }) => {
+      autoAnimationRef.current = null;
+      if (!finished) return;
+      indexRef.current = finalIndex;
+      setIndex(finalIndex);
+      complete();
+    });
+  }, [complete, frameProgress, width]);
+
+  const finishGesture = useCallback((gesture: { dx: number }) => {
+    if (width <= 0 || autoRunningRef.current) return;
+    if (gestureCommittedRef.current) {
+      gestureCommittedRef.current = false;
+      return;
+    }
+    const threshold = Math.max(48, width * .18);
+    let nextIndex = indexRef.current;
+    if (gesture.dx < -threshold && nextIndex < OPENING_TIMELINE.length - 1) nextIndex += 1;
+    if (gesture.dx > threshold && nextIndex > 0) nextIndex -= 1;
+    animateTo(nextIndex, nextIndex === OPENING_TIMELINE.length - 1 && nextIndex !== indexRef.current && gesture.dx < -threshold);
+  }, [animateTo, width]);
+
+  const pan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => !enteringRef.current && !autoRunningRef.current,
+    onStartShouldSetPanResponderCapture: () => !enteringRef.current && !autoRunningRef.current,
+    onMoveShouldSetPanResponder: (_, gesture) => !enteringRef.current && !autoRunningRef.current && Math.abs(gesture.dx) > Math.abs(gesture.dy) + 8 && Math.abs(gesture.dx) > 4,
+    onMoveShouldSetPanResponderCapture: (_, gesture) => !enteringRef.current && !autoRunningRef.current && Math.abs(gesture.dx) > Math.abs(gesture.dy) + 8 && Math.abs(gesture.dx) > 4,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => {
+      gestureCommittedRef.current = false;
+      frameProgress.stopAnimation();
+    },
+    onPanResponderMove: (_, gesture) => {
+      if (width <= 0 || autoRunningRef.current) return;
+      if (gestureCommittedRef.current) return;
+      const threshold = Math.max(48, width * .18);
+      if (Math.abs(gesture.dx) >= threshold) {
+        if (gesture.dx < 0) {
+          gestureCommittedRef.current = true;
+          startAutoJourney();
+          return;
+        }
+        const nextIndex = Math.max(0, indexRef.current - 1);
+        if (nextIndex !== indexRef.current) {
+          gestureCommittedRef.current = true;
+          animateTo(nextIndex);
+        }
+      }
+    },
+    onPanResponderRelease: (_, gesture) => finishGesture(gesture),
+    onPanResponderTerminate: (_, gesture) => finishGesture(gesture),
+  }), [animateTo, finishGesture, frameProgress, startAutoJourney, width]);
+
+  return <SafeAreaView
+    accessibilityRole="adjustable"
+    accessibilityLabel="オープニング。05:00の明け方から04:30の夜明け前まで16段階でスワイプ"
+    accessibilityHint="左へ一度スワイプすると、16枚の背景が時間の流れに沿って自動で切り替わり、その後アプリを開始します"
+    style={[S.opening, Platform.OS === 'web' ? ({ touchAction: 'pan-y', userSelect: 'none' } as any) : null]}
+    onLayout={event => setWidth(event.nativeEvent.layout.width)}
+    {...pan.panHandlers}
+  >
+    <View pointerEvents="none" style={[S.openingTrack, { width: Math.max(1, width) }]}>
+      {OPENING_TIMELINE.map((scene, sceneIndex) => <OpeningScene key={scene.id} scene={scene} width={width} frameIndex={sceneIndex} progress={frameProgress} />)}
+    </View>
+    <View pointerEvents="none" style={S.openingContent}>
+      <View style={S.openingBrand}><Image source={OPENING_WORDMARK} contentFit="contain" style={S.openingWordmark} /><Image source={OPENING_ICON} contentFit="contain" style={S.openingIcon} /></View>
+      <Text style={S.openingEnglish}>A LITTLE WALK, A LITTLE WONDER.</Text>
+      <View style={S.openingMiddleSpace}><Image source={OPENING_EMBLEM} contentFit="contain" style={S.openingEmblem} /></View>
+      <View style={S.openingCopy}>
+        <Text style={S.openingTagline}>歩くたび、小さな旅。</Text>
+        <Text style={S.openingSubline}>モビーと歩いて、もびの世界へ。</Text>
+        <Text style={S.openingStage}>{OPENING_TIMELINE[index].time}  {OPENING_TIMELINE[index].label}</Text>
+     </View>
+     {!!error && <Text style={[S.errorText, S.openingError]}>{error}</Text>}
+      <View style={S.openingSwipeControl}>
+        <LinearGradient pointerEvents="none" colors={['#F5F8FBD9', '#B9C4CFB8', '#6A7683A8']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={S.openingSliderTrack}>
+          <View pointerEvents="none" style={S.openingSliderShine} />
+          <Text style={S.openingSwipeText}>左へスライドして開始</Text>
+          <View pointerEvents="none" style={S.openingSliderHandle}><Icon name="arrow-back" size={20} color="#53606B" /></View>
+        </LinearGradient>
+      </View>
+     <Text style={S.openingFoot}>いつもの一歩が、御朱印になる。</Text>
+    </View>
+  </SafeAreaView>;
+}
+
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({ Shippori: ShipporiMincho_500Medium, ShipporiBold: ShipporiMincho_700Bold });
   return <SafeAreaProvider><StatusBar style="dark" /><Main fontsReady={fontsLoaded || !!fontError} /></SafeAreaProvider>;
@@ -53,6 +240,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [settings, setSettings] = useState(false);
   const [overlayBusy, setOverlayBusy] = useState(false);
   const [info, setInfo] = useState<'privacy' | 'about' | null>(null);
+  const [openingVisible, setOpeningVisible] = useState(true);
   const [backgroundSeason, setBackgroundSeason] = useState<BackgroundSeason>(() => getBackgroundOption(data.backgroundId).season);
   const scroll = useRef<ScrollView>(null);
   const pet = getPetCharacter(data.pet);
@@ -68,10 +256,42 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const latest = collected[collected.length - 1] ?? SHRINES[0];
   const latestReward = progress.rewards.find(r => r.id === latest.id);
   const visible = SHRINES.filter(s => filter === 'all' || (filter === 'collected' ? collected.includes(s) : !collected.includes(s)));
-  const selected = collected[featured % Math.max(1, collected.length)] ?? SHRINES[0];
+  const selectedIndex = featured % SHRINES.length;
+  const selected = SHRINES[selectedIndex] ?? SHRINES[0];
   const selectedReward = progress.rewards.find(r => r.id === selected.id);
+  const [turning, setTurning] = useState(false);
+  const [turnSnapshot, setTurnSnapshot] = useState<Shrine | null>(null);
+  const [turnDirection, setTurnDirection] = useState<1 | -1>(1);
+  const pageTurn = useRef(new Animated.Value(0)).current;
   const pending = SHRINES.find(s => s.id === progress.pending[0]);
   const move = (value: Tab) => { setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
+  const enterApp = () => { setOpeningVisible(false); journey.enter(false); };
+  const turnPage = useCallback((direction: 1 | -1) => {
+    if (turning || SHRINES.length < 2) return;
+    setTurnSnapshot(selected);
+    setTurnDirection(direction);
+    setFeatured((selectedIndex + direction + SHRINES.length) % SHRINES.length);
+    setTurning(true);
+    pageTurn.setValue(0);
+    Animated.timing(pageTurn, { toValue: 1, duration: 430, easing: Easing.inOut(Easing.cubic), useNativeDriver: false }).start(() => {
+      setTurnSnapshot(null);
+      setTurning(false);
+    });
+  }, [pageTurn, selected, selectedIndex, turning]);
+  const bookPanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 12 && Math.abs(gesture.dx) > 18,
+    onPanResponderRelease: (_, gesture) => {
+      if (Math.abs(gesture.dx) > 46) turnPage(gesture.dx < 0 ? 1 : -1);
+    },
+  }), [turnPage]);
+  const renderBookSpread = (book: Shrine, reward: (typeof progress.rewards)[number] | undefined) => <View style={S.openBook}>
+    <View style={S.bookLeft}><Stamp shrine={book} locked={!reward} /><View style={S.bookBinding} /></View>
+    <View style={S.bookRight}>
+      <Text style={S.bookReading}>{book.reading}</Text><Text style={S.bookName}>{book.name}</Text><View style={S.shortRule} /><Text style={S.bookTheme}>{book.theme}</Text><Text style={S.bookDescription}>{book.description}</Text>
+      <View style={S.inline}><Torii size={16} color={C.muted} /><Text style={S.bookLocation}>{book.place}</Text></View>
+      <Pressable accessibilityRole="button" onPress={() => setDetail(book)} style={S.bookDetail}><Text style={S.bookDetailText}>{reward ? 'このご縁をみる' : 'まだ見ぬご縁をみる'}</Text><Icon name="chevron-forward" color="#FFF9EE" size={13} /></Pressable>
+    </View>
+  </View>;
   useEffect(() => { setBackgroundSeason(currentBackground.season); }, [currentBackground.season]);
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
@@ -108,18 +328,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       {tab === 'book' && <>
         <View style={S.pageHeading}><Text style={S.pageTitle}>御朱印帳</Text><Text style={S.subtitle}>めぐった日々の、やさしいご縁。</Text></View>
         <View style={S.bookWrap}>
-          <View style={S.bookTop}><Text style={S.bookNumber}>MOBIDOU COLLECTION</Text><Text style={S.bookNumber}>{String(SHRINES.indexOf(selected) + 1).padStart(2, '0')} / {String(SHRINES.length).padStart(2, '0')}</Text></View>
-          <View style={S.openBook}>
-            <View style={S.bookLeft}><Stamp shrine={selected} /><View style={S.bookBinding} /></View>
-            <View style={S.bookRight}>
-              <Text style={S.bookReading}>{selected.reading}</Text><Text style={S.bookName}>{selected.name}</Text><View style={S.shortRule} /><Text style={S.bookTheme}>{selected.theme}</Text><Text style={S.bookDescription}>{selected.description}</Text>
-              <View style={S.inline}><Torii size={16} color={C.muted} /><Text style={S.bookLocation}>{selected.place}</Text></View>
-              <Pressable accessibilityRole="button" onPress={() => setDetail(selected)} style={S.bookDetail}><Text style={S.bookDetailText}>{selectedReward ? 'このご縁をみる' : 'まだ見ぬご縁をみる'}</Text><Icon name="chevron-forward" color="#FFF9EE" size={13} /></Pressable>
-            </View>
+          <View style={S.bookTop}><Text style={S.bookNumber}>MOBIDOU GOSHUIN BOOK</Text><Text style={S.bookNumber}>{String(selectedIndex + 1).padStart(2, '0')} / {String(SHRINES.length).padStart(2, '0')}</Text></View>
+          <View {...bookPanResponder.panHandlers} style={S.bookViewport}>
+            {renderBookSpread(selected, selectedReward)}
+            {turnSnapshot && <Animated.View pointerEvents="none" style={[S.bookFlip, { transform: [{ perspective: 950 }, { rotateY: pageTurn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', turnDirection === 1 ? '-86deg' : '86deg'] }) }, { translateX: pageTurn.interpolate({ inputRange: [0, 1], outputRange: [0, turnDirection * 7] }) }] }]}>{renderBookSpread(turnSnapshot, progress.rewards.find(r => r.id === turnSnapshot.id))}</Animated.View>}
           </View>
-          <View style={S.bookBottom}><Text style={S.bookDate}>{selectedReward ? `${displayDate(selectedReward.date)} 結縁` : 'これからの一歩が、この一枚に。'}</Text><Torii size={19} color={C.red} /></View>
+          <View style={S.bookBottom}><Text style={S.bookDate}>{selectedReward ? `${displayDate(selectedReward.date)} 結縁` : 'これからの一歩が、この一枚に。'}</Text><Text style={S.bookSwipeHint}>スワイプでもめくれます</Text><Torii size={19} color={C.red} /></View>
         </View>
-        {collected.length > 1 && <View style={S.pager}><Pressable accessibilityRole="button" accessibilityLabel="前の御朱印" onPress={() => setFeatured(x => (x - 1 + collected.length) % collected.length)} style={S.pagerButton}><Icon name="chevron-back" size={16} /></Pressable>{collected.map((s, i) => <View key={s.id} style={[S.pageDot, i === featured % collected.length && { backgroundColor: C.red }]} />)}<Pressable accessibilityRole="button" accessibilityLabel="次の御朱印" onPress={() => setFeatured(x => (x + 1) % collected.length)} style={S.pagerButton}><Icon name="chevron-forward" size={16} /></Pressable></View>}
+        <View style={S.pager}><Pressable accessibilityRole="button" accessibilityLabel="前の御朱印ページ" disabled={turning} onPress={() => turnPage(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><View style={S.pageCounter}><Text style={S.pageCounterText}>{String(selectedIndex + 1).padStart(2, '0')} / {String(SHRINES.length).padStart(2, '0')}</Text><Text style={S.pageCounterHint}>左右の矢印でページをめくる</Text></View><Pressable accessibilityRole="button" accessibilityLabel="次の御朱印ページ" disabled={turning} onPress={() => turnPage(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
         <View style={S.collectionProgress}><Icon name="flower" size={26} color={C.red} /><View style={{ flex: 1 }}><View style={[S.between, { marginBottom: 10 }]}><Text style={S.progressLabel}>集めたご縁</Text><Text style={S.count}><Text style={S.countRed}>{collected.length}</Text> / {SHRINES.length}<Text style={S.tiny}> 印</Text></Text></View><Meter value={collected.length / SHRINES.length} /></View></View>
         <View style={S.filters}>{([['all', 'すべて', SHRINES.length], ['collected', '集めた', collected.length], ['locked', 'これから', SHRINES.length - collected.length]] as const).map(([key, label, total]) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: filter === key }} onPress={() => setFilter(key)} style={[S.filter, filter === key && S.filterActive]}><Text style={[S.filterText, filter === key && { color: '#FFFCF5' }]}>{label} ({total})</Text></Pressable>)}</View>
         {visible.length === 0 && <View style={S.empty}><Torii size={42} color={C.gold} /><Text style={S.emptyTitle}>{filter === 'locked' ? 'すべてのご縁が、つながりました。' : '最初の一枚を、ゆっくりと。'}</Text><Text style={S.emptyText}>{filter === 'locked' ? '御朱印帳をひらいて、歩いた日々を振り返ろう。' : '1,000歩から、モビーとの物語が始まります。'}</Text><Button title="おでかけをみる" secondary onPress={() => move('walk')} /></View>}
@@ -141,9 +357,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
       {tab === 'pets' && <>
         <View style={S.pageHeading}><Text style={S.pageTitle}>いっしょに、もび道。</Text><Text style={S.subtitle}>気になる子と、今日を歩こう。</Text></View>
-        <View style={S.chosenPet}><Image source={pet.image} style={{ width: 100, height: 110 }} contentFit="contain" /><View style={{ flex: 1 }}><Text style={S.smallTag}>あなたの相棒</Text><Text style={S.chosenName}>{pet.name}</Text><Text style={S.latestText}>{pet.catchphrase}</Text><Text style={S.affection}>♡ ふれあい {(data.affection[data.pet] ?? 0)} 回</Text></View></View>
-        <Section title="モビーたち" subtitle="26体、みんな最初から選べます。" />
-        <View style={S.petGrid}>{PET_CHARACTERS.map(p => <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={`${p.name}を相棒にする`} accessibilityState={{ selected: data.pet === p.id }} onPress={() => journey.choosePet(p.id)} style={[S.petCard, data.pet === p.id && S.petCardActive]}><View style={[S.petBackdrop, { backgroundColor: p.accent + '65' }]} /><Image source={p.image} style={S.petThumb} contentFit="contain" /><Text style={S.petName}>{p.name}</Text>{data.pet === p.id && <View style={S.petCheck}><Icon name="checkmark" size={11} color="#FFF" /></View>}</Pressable>)}</View>
+        <View style={S.chosenPet}><Image source={PET_BACKGROUNDS[pet.id]} style={S.chosenPetBackdrop} contentFit="cover" pointerEvents="none" /><View pointerEvents="none" style={S.chosenPetWash} /><Image source={pet.image} style={{ width: 100, height: 110 }} contentFit="contain" /><View style={{ flex: 1 }}><Text style={S.smallTag}>あなたの相棒</Text><Text style={S.chosenName}>{pet.name}</Text><Text style={S.latestText}>{pet.catchphrase}</Text><Text style={S.affection}>♡ ふれあい {(data.affection[data.pet] ?? 0)} 回</Text></View></View>
+        <Section title="モビーたち" subtitle={`${PET_CHARACTERS.length}体、みんな最初から選べます。`} />
+        <View style={S.petGrid}>{PET_CHARACTERS.map(p => <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={`${p.name}を相棒にする`} accessibilityState={{ selected: data.pet === p.id }} onPress={() => journey.choosePet(p.id)} style={[S.petCard, data.pet === p.id && S.petCardActive]}><Image source={PET_BACKGROUNDS[p.id]} style={S.petBackdropImage} contentFit="cover" pointerEvents="none" /><View pointerEvents="none" style={S.petBackdropWash} /><View pointerEvents="none" style={[S.petBackdropTint, { backgroundColor: p.accent + '35' }]} /><Image source={p.image} style={S.petThumb} contentFit="contain" /><Text style={S.petName}>{p.name}</Text>{data.pet === p.id && <View style={S.petCheck}><Icon name="checkmark" size={11} color="#FFF" /></View>}</Pressable>)}</View>
         <Button title={`${pet.name}とふれあう`} onPress={() => move('home')} style={{ marginTop: 22 }} />
       </>}
     </ScrollView>
@@ -165,19 +381,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
 
 
-    <Modal visible={!data.onboarded} animationType="fade" onRequestClose={() => journey.enter(false)}><SafeAreaView style={S.opening}>
-      <Image source={OPENING_BACKGROUND} contentFit="cover" style={S.openingBackground} pointerEvents="none" />
-      <View pointerEvents="none" style={S.openingVeil} />
-      <View style={S.openingContent}>
-        <View style={S.openingBrand}><Image source={OPENING_WORDMARK} contentFit="contain" style={S.openingWordmark} /><Image source={OPENING_ICON} contentFit="contain" style={S.openingIcon} /></View>
-        <Text style={S.openingEnglish}>A LITTLE WALK, A LITTLE WONDER.</Text>
-        <View style={S.openingMiddleSpace} />
-        <View style={S.openingCopy}><Text style={S.openingTagline}>歩くたび、小さな旅。</Text><Text style={S.openingSubline}>モビーと歩いて、もびの世界へ。</Text></View>
-        {!!journey.error && <Text style={[S.errorText, S.openingError]}>{journey.error}</Text>}
-        <Pressable accessibilityRole="button" accessibilityLabel="もび道をはじめる" onPress={() => journey.enter(false)} style={({ pressed }) => [S.openingButton, { opacity: pressed ? .78 : 1 }]}><Text style={S.openingButtonText}>歩きはじめる</Text><Icon name="arrow-forward" size={18} color="#FFF9EF" /></Pressable>
-        <Text style={S.openingFoot}>いつもの一歩が、御朱印になる。</Text>
-      </View>
-    </SafeAreaView></Modal>
+    <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
     <Modal visible={!!pending && data.onboarded && !settings && !detail && !overlayBusy} animationType="fade" onRequestClose={journey.acknowledge}>{pending && <Award shrine={pending} pet={pet} demo={data.demo} haptics={data.haptics} onClose={() => { journey.acknowledge(); setFeatured(Math.max(0, collected.length - progress.pending.length)); move('book'); }} />}</Modal>
   </SafeAreaView></View>;
 }
@@ -193,13 +397,13 @@ const S = StyleSheet.create({
   stepsCard: { padding: 20, backgroundColor: '#FFFCF5', borderWidth: 1, borderColor: C.line, borderRadius: 19, marginTop: 7 }, between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, eyebrow: { fontSize: 10, color: C.muted, letterSpacing: 1 }, refresh: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 24 }, tiny: { fontSize: 9, color: C.muted }, stepValueRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 17, gap: 7 }, stepValue: { fontSize: 52, fontWeight: '300', color: C.ink, letterSpacing: 1 }, stepUnit: { fontFamily: SERIF, fontSize: 16, color: C.muted }, stepFlower: { marginLeft: 'auto', alignSelf: 'center', marginRight: 6 }, stepCaption: { color: '#746959', fontSize: 11 },
   latest: { borderRadius: 13, borderWidth: 1, borderColor: C.line, padding: 13, backgroundColor: '#FFFCF5', flexDirection: 'row', gap: 18, alignItems: 'center' }, latestName: { fontFamily: SERIF, fontSize: 20, color: C.ink }, latestText: { color: C.muted, fontSize: 10, lineHeight: 18 }, smallTag: { color: C.red, fontSize: 10, letterSpacing: 1 }, inline: { flexDirection: 'row', alignItems: 'center', gap: 6 }, linkText: { color: C.red, fontSize: 12 }, footerNote: { marginTop: 25, textAlign: 'center', color: '#9A9081', fontSize: 9, lineHeight: 19 },
   pageHeading: { paddingTop: 9, paddingBottom: 23, alignItems: 'center' }, pageTitle: { fontFamily: SERIF, color: C.ink, fontSize: 28, letterSpacing: 2 }, subtitle: { color: C.muted, fontSize: 11, letterSpacing: 1, marginTop: 9 },
-  bookWrap: { marginHorizontal: -10, backgroundColor: '#A25040', borderRadius: 9, padding: 5, shadowColor: '#624532', shadowOffset: { width: 0, height: 5 }, shadowOpacity: .13, shadowRadius: 7, elevation: 3 }, bookTop: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 11, paddingVertical: 8 }, bookNumber: { fontSize: 7, color: '#F8DFCB', letterSpacing: 1.5 }, openBook: { flexDirection: 'row', backgroundColor: '#FBF5E8', borderRadius: 3, overflow: 'hidden', minHeight: 276 }, bookLeft: { flex: 1, padding: 8, justifyContent: 'center', backgroundColor: '#F2EBDC', borderRightWidth: 1, borderColor: '#D4C5B0' }, bookBinding: { position: 'absolute', right: 0, height: '100%', width: 4, backgroundColor: '#AF91721C' }, bookRight: { flex: 1.02, padding: 12, justifyContent: 'center', gap: 9 }, bookReading: { fontSize: 7, color: C.muted, letterSpacing: 1 }, bookName: { fontFamily: 'ShipporiBold', fontSize: 21, color: C.ink, lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: SERIF, fontSize: 12, lineHeight: 21, color: C.red }, bookDescription: { fontFamily: SERIF, fontSize: 9, lineHeight: 20, color: '#6C6050' }, bookLocation: { flex: 1, fontSize: 8, lineHeight: 14, color: '#887B68' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 7, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 9 }, bookBottom: { borderBottomLeftRadius: 5, borderBottomRightRadius: 5, padding: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#E9DEC9' }, bookDate: { color: '#8D7960', fontSize: 8 },
-  pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginVertical: 14 }, pageDot: { width: 6, height: 6, borderRadius: 4, backgroundColor: '#D9CEBC' }, pagerButton: { width: 40, height: 32, alignItems: 'center', justifyContent: 'center' }, collectionProgress: { flexDirection: 'row', gap: 17, alignItems: 'center', paddingVertical: 19, paddingHorizontal: 4 }, progressLabel: { color: '#766754', fontSize: 12, fontFamily: SERIF }, count: { fontSize: 16, color: C.ink }, countRed: { color: C.red, fontSize: 26, fontFamily: SERIF }, filters: { flexDirection: 'row', gap: 8, marginBottom: 17 }, filter: { flex: 1, minHeight: 37, backgroundColor: '#EEE8DC', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, filterActive: { backgroundColor: C.red }, filterText: { color: '#7D705F', fontSize: 11 }, stampGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, stampCard: { width: '48%', flexGrow: 1, maxWidth: '49%', backgroundColor: '#FFFCF5', borderRadius: 10, padding: 9, borderWidth: 1, borderColor: '#E5DDCF' }, stampLabel: { paddingTop: 9, paddingBottom: 5, alignItems: 'center' }, stampName: { fontFamily: SERIF, color: C.ink, fontSize: 15 }, stampTheme: { fontSize: 8, color: C.muted, marginTop: 6 }, ownedDot: { position: 'absolute', top: 14, right: 14, width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF9EE', alignItems: 'center', justifyContent: 'center' },
+  bookWrap: { marginHorizontal: -10, backgroundColor: '#8F4035', borderRadius: 12, padding: 7, borderWidth: 1, borderColor: '#713229', shadowColor: '#624532', shadowOffset: { width: 0, height: 7 }, shadowOpacity: .2, shadowRadius: 10, elevation: 4 }, bookTop: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 8 }, bookNumber: { fontSize: 7, color: '#F8DFCB', letterSpacing: 1.5 }, bookViewport: { position: 'relative', overflow: 'hidden', borderRadius: 4, minHeight: 306 }, openBook: { flexDirection: 'row', backgroundColor: '#FBF5E8', borderRadius: 4, overflow: 'hidden', minHeight: 306, height: 306 }, bookFlip: { ...StyleSheet.absoluteFillObject, zIndex: 3, backfaceVisibility: 'hidden' }, bookLeft: { flex: 1, padding: 9, justifyContent: 'center', backgroundColor: '#F2EBDC', borderRightWidth: 1, borderColor: '#D4C5B0' }, bookBinding: { position: 'absolute', right: -1, top: 0, bottom: 0, width: 7, backgroundColor: '#AF917226', borderLeftWidth: 1, borderColor: '#8E6E4A20' }, bookRight: { flex: 1.02, padding: 15, justifyContent: 'center', gap: 9, backgroundColor: '#FCF7EC' }, bookReading: { fontSize: 7, color: C.muted, letterSpacing: 1 }, bookName: { fontFamily: 'ShipporiBold', fontSize: 21, color: C.ink, lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: SERIF, fontSize: 12, lineHeight: 21, color: C.red }, bookDescription: { fontFamily: SERIF, fontSize: 9, lineHeight: 20, color: '#6C6050' }, bookLocation: { flex: 1, fontSize: 8, lineHeight: 14, color: '#887B68' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 9 }, bookBottom: { borderBottomLeftRadius: 6, borderBottomRightRadius: 6, paddingHorizontal: 10, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#E9DEC9' }, bookDate: { color: '#8D7960', fontSize: 8, flex: 1 }, bookSwipeHint: { color: '#AA7B61', fontSize: 8, letterSpacing: .3, marginRight: 8 },
+  pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 150 }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 }, pageCounterHint: { color: '#958675', fontSize: 8, marginTop: 4, letterSpacing: .4 }, collectionProgress: { flexDirection: 'row', gap: 17, alignItems: 'center', paddingVertical: 19, paddingHorizontal: 4 }, progressLabel: { color: '#766754', fontSize: 12, fontFamily: SERIF }, count: { fontSize: 16, color: C.ink }, countRed: { color: C.red, fontSize: 26, fontFamily: SERIF }, filters: { flexDirection: 'row', gap: 8, marginBottom: 17 }, filter: { flex: 1, minHeight: 37, backgroundColor: '#EEE8DC', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, filterActive: { backgroundColor: C.red }, filterText: { color: '#7D705F', fontSize: 11 }, stampGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, stampCard: { width: '48%', flexGrow: 1, maxWidth: '49%', backgroundColor: '#FFFCF5', borderRadius: 10, padding: 9, borderWidth: 1, borderColor: '#E5DDCF' }, stampLabel: { paddingTop: 9, paddingBottom: 5, alignItems: 'center' }, stampName: { fontFamily: SERIF, color: C.ink, fontSize: 15 }, stampTheme: { fontSize: 8, color: C.muted, marginTop: 6 }, ownedDot: { position: 'absolute', top: 14, right: 14, width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF9EE', alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingVertical: 36, gap: 17 }, emptyTitle: { color: C.ink, fontFamily: SERIF, fontSize: 19, textAlign: 'center' }, emptyText: { fontSize: 11, color: C.muted, textAlign: 'center', lineHeight: 22 },
   walkMinimal: { alignItems: 'center', minHeight: 660, paddingTop: 23, paddingBottom: 18 }, walkMinimalHeader: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }, walkMinimalTitle: { fontFamily: SERIF, color: C.ink, fontSize: 27, letterSpacing: 2 }, walkMinimalSubtitle: { color: C.muted, fontSize: 10, letterSpacing: 1, marginTop: 4 }, walkRefresh: { minHeight: 38, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 18, backgroundColor: '#FFFCF5D9', borderWidth: 1, borderColor: C.line }, walkRefreshText: { color: C.red, fontSize: 11 }, walkRingWrap: { width: 248, height: 248, alignItems: 'center', justifyContent: 'center', marginTop: 3 }, walkRingSvg: { position: 'absolute' }, walkRingCenter: { alignItems: 'center', justifyContent: 'center' }, walkRingCount: { fontSize: 49, fontWeight: '300', color: C.ink, letterSpacing: 1 }, walkRingUnit: { fontFamily: SERIF, fontSize: 16, color: C.muted, marginTop: -2 }, walkRingGoal: { fontSize: 10, color: C.muted, marginTop: 9, letterSpacing: 1 }, walkPeekStage: { width: '100%', height: 330, alignItems: 'center', justifyContent: 'flex-end', overflow: 'hidden', marginTop: -4 }, walkMobibouPeekImage: { position: 'absolute', width: '118%', height: 330, bottom: 0, zIndex: 3 }, walkPeekImage: { position: 'absolute', width: 322, height: 322, bottom: 50, zIndex: 3 }, walkToriiTop: { position: 'absolute', width: '118%', height: 210, bottom: -10, zIndex: 2 }, walkDemoButton: { width: '100%', marginTop: -8 }, walkMinimalAction: { width: '100%', marginTop: 6 }, walkSummary: { alignItems: 'center', borderRadius: 20, backgroundColor: '#EEE8DC', padding: 25, marginBottom: 27 }, walkCount: { fontSize: 40, fontWeight: '300', color: C.ink, marginTop: 12 }, walkBlurb: { color: C.muted, fontSize: 11, marginTop: 8 }, route: { gap: 0 }, routeItem: { flexDirection: 'row', gap: 13 }, routeRail: { width: 26, alignItems: 'center' }, routeNode: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: '#C5AA92', alignItems: 'center', justifyContent: 'center', backgroundColor: C.paper, marginTop: 18 }, routeLine: { width: 1, flex: 1, backgroundColor: '#D5C4AF' }, routeCard: { flex: 1, padding: 15, borderWidth: 1, borderColor: C.line, borderRadius: 14, backgroundColor: '#FFFCF5', flexDirection: 'row', gap: 12, marginBottom: 17 }, routeThreshold: { color: C.red, fontSize: 13, fontWeight: '600', marginBottom: 8 }, routeStatus: { fontSize: 8, color: C.muted, fontWeight: '400' }, routeName: { fontFamily: SERIF, color: C.ink, fontSize: 19, marginBottom: 5 }, demoHelp: { textAlign: 'center', color: C.muted, fontSize: 9, lineHeight: 19 }, walkNote: { padding: 17, borderRadius: 14, backgroundColor: '#EEE8DB', flexDirection: 'row', gap: 12, marginTop: 24 }, walkNoteText: { fontSize: 10, lineHeight: 22, color: '#837662', flex: 1 },
-  chosenPet: { flexDirection: 'row', gap: 15, backgroundColor: '#EEE7DA', borderRadius: 18, padding: 17, alignItems: 'center' }, chosenName: { fontFamily: SERIF, fontSize: 24, color: C.ink, marginVertical: 7 }, affection: { color: C.red, fontSize: 10, marginTop: 7 }, petGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, petCard: { width: '31%', flexGrow: 1, maxWidth: '32%', paddingTop: 8, paddingBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2DACC', borderRadius: 13, backgroundColor: '#FFFCF5', overflow: 'hidden' }, petCardActive: { borderColor: C.red, backgroundColor: '#F3E5D7', borderWidth: 1.5 }, petBackdrop: { position: 'absolute', top: 15, width: 66, height: 66, borderRadius: 33 }, petThumb: { width: 85, height: 95 }, petName: { fontSize: 10, color: '#675B4D', marginTop: 3 }, petCheck: { position: 'absolute', right: 6, top: 6, backgroundColor: C.red, borderRadius: 9, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
-  nav: { flexDirection: 'row', backgroundColor: '#FCF9F1', borderTopWidth: 1, borderColor: '#E3DACB', paddingTop: 12, paddingBottom: 3 }, navItem: { flex: 1, alignItems: 'center', gap: 6, minHeight: 55 }, navText: { color: '#81796D', fontSize: 10, letterSpacing: 1 }, navIndicator: { width: 17, height: 3, backgroundColor: C.red, borderRadius: 4, marginTop: 1 },
+  chosenPet: { flexDirection: 'row', gap: 15, backgroundColor: '#EEE7DA', borderRadius: 18, padding: 17, alignItems: 'center', overflow: 'hidden' }, chosenPetBackdrop: { ...StyleSheet.absoluteFillObject, opacity: .72 }, chosenPetWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9E9A8' }, chosenName: { fontFamily: SERIF, fontSize: 24, color: C.ink, marginVertical: 7 }, affection: { color: C.red, fontSize: 10, marginTop: 7 }, petGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, petCard: { width: '31%', flexGrow: 1, maxWidth: '32%', paddingTop: 8, paddingBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2DACC', borderRadius: 13, backgroundColor: '#FFF9F0', overflow: 'hidden' }, petCardActive: { borderColor: C.red, backgroundColor: '#F3E5D7', borderWidth: 1.5 }, petBackdropImage: { ...StyleSheet.absoluteFillObject, opacity: .72 }, petBackdropWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9E9A8' }, petBackdropTint: { ...StyleSheet.absoluteFillObject }, petThumb: { width: 85, height: 95 }, petName: { fontSize: 10, color: '#675B4D', marginTop: 3 }, petCheck: { position: 'absolute', right: 6, top: 6, backgroundColor: C.red, borderRadius: 9, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
+  nav: { flexDirection: 'row', backgroundColor: '#FCF9F1', borderWidth: 1, borderColor: '#E3DACB', borderRadius: 24, marginHorizontal: 12, marginBottom: 8, overflow: 'hidden', paddingTop: 12, paddingBottom: 3 }, navItem: { flex: 1, alignItems: 'center', gap: 6, minHeight: 55 }, navText: { color: '#81796D', fontSize: 10, letterSpacing: 1 }, navIndicator: { width: 17, height: 3, backgroundColor: C.red, borderRadius: 4, marginTop: 1 },
   modal: { flex: 1, backgroundColor: C.paper, width: '100%', maxWidth: 600, alignSelf: 'center' }, modalHeader: { padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: C.line }, modalTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink }, close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, detailContent: { padding: 25, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 11, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: SERIF, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: SERIF, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 29, color: '#6D6354', textAlign: 'center', marginTop: 18 }, detailMeta: { backgroundColor: C.pale, padding: 18, borderRadius: 15, gap: 16, marginTop: 24 }, meta: { flexDirection: 'row', gap: 11, alignItems: 'center' }, metaText: { fontSize: 12, color: '#776B59', flex: 1, lineHeight: 20 },
   settingsContent: { padding: 24, paddingBottom: 50 }, settingCard: { backgroundColor: '#FFFCF5', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: C.line }, settingHelp: { fontSize: 12, color: C.muted, lineHeight: 22, marginVertical: 13 }, settingRow: { flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: C.line, paddingVertical: 22 }, settingLabel: { color: C.ink, fontSize: 15 }, seasonTabs: { flexDirection: 'row', gap: 7, marginTop: 2, marginBottom: 11 }, seasonTab: { flex: 1, minHeight: 38, borderRadius: 11, borderWidth: 1, borderColor: C.line, backgroundColor: '#F1ECE3', alignItems: 'center', justifyContent: 'center' }, seasonTabText: { color: '#786D5E', fontFamily: SERIF, fontSize: 13 }, backgroundGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 11 }, backgroundOption: { width: '48%', aspectRatio: 1.06, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: C.line, backgroundColor: C.pale }, backgroundOptionActive: { borderWidth: 2, borderColor: C.red }, backgroundImage: { ...StyleSheet.absoluteFillObject }, backgroundOptionShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 52, backgroundColor: '#2B241A70' }, backgroundOptionCopy: { position: 'absolute', left: 10, right: 10, bottom: 8 }, backgroundOptionLabel: { color: '#FFF9EF', fontFamily: SERIF, fontSize: 14 }, backgroundOptionNote: { color: '#FFF9EFCF', fontSize: 9, marginTop: 2 }, backgroundCheck: { position: 'absolute', top: 9, right: 9, width: 24, height: 24, borderRadius: 12, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' }, infoBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241AB0', justifyContent: 'center', alignItems: 'center', padding: 24 }, infoCard: { width: '100%', maxWidth: 420, backgroundColor: C.paper, borderRadius: 22, padding: 25, gap: 20 }, infoText: { fontSize: 13, lineHeight: 24, color: '#726653' },
-  opening: { flex: 1, width: '100%', maxWidth: 600, alignSelf: 'center', backgroundColor: '#F8EEDC', overflow: 'hidden' }, openingBackground: { ...StyleSheet.absoluteFillObject }, openingVeil: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF8E91F' }, openingContent: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 22 }, openingBrand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, openingWordmark: { width: 230, height: 82 }, openingIcon: { width: 40, height: 40, borderRadius: 7, transform: [{ rotate: '8deg' }] }, openingEnglish: { fontSize: 8, letterSpacing: 2.1, color: '#7E5D48', marginTop: 3 }, openingMiddleSpace: { flex: 1, minHeight: 290 }, openingCopy: { alignItems: 'center', paddingHorizontal: 12, marginBottom: 13 }, openingTagline: { fontFamily: SERIF, fontSize: 25, letterSpacing: 3, color: C.ink }, openingSubline: { fontSize: 11, letterSpacing: 1.5, color: '#765E4B', marginTop: 9 }, openingError: { marginBottom: 10, textAlign: 'center' }, openingButton: { minHeight: 52, width: '100%', maxWidth: 350, borderRadius: 18, backgroundColor: '#A54E42E8', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, shadowColor: '#5D3226', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .18, shadowRadius: 8, elevation: 3 }, openingButtonText: { color: '#FFF9EF', fontFamily: SERIF, fontSize: 16, letterSpacing: 2 }, openingFoot: { fontSize: 9, color: '#765E4B', marginTop: 11, letterSpacing: 1 },
+  opening: { flex: 1, width: '100%', maxWidth: 600, alignSelf: 'center', backgroundColor: '#F8EEDC', overflow: 'hidden' }, openingTrack: { ...StyleSheet.absoluteFillObject }, openingScene: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' }, openingSceneImage: { ...StyleSheet.absoluteFillObject }, openingContent: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 22 }, openingBrand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, openingWordmark: { width: 230, height: 82 }, openingIcon: { width: 40, height: 40, borderRadius: 7, transform: [{ rotate: '8deg' }] }, openingEnglish: { fontSize: 8, letterSpacing: 2.1, color: '#7E5D48', marginTop: 3 }, openingMiddleSpace: { flex: 1, minHeight: 290, width: '100%', alignItems: 'center', justifyContent: 'center' }, openingEmblem: { width: 220, height: 220, opacity: .96 }, openingCopy: { alignItems: 'center', paddingHorizontal: 12, marginBottom: 13 }, openingTagline: { fontFamily: SERIF, fontSize: 25, letterSpacing: 3, color: C.ink }, openingSubline: { fontSize: 11, letterSpacing: 1.5, color: '#765E4B', marginTop: 9 }, openingStage: { fontFamily: SERIF, fontSize: 12, letterSpacing: 2.5, color: '#765E4B', marginTop: 13 }, openingError: { marginBottom: 10, textAlign: 'center' }, openingSwipeControl: { height: 54, width: '100%', maxWidth: 350, borderRadius: 13, padding: 3, backgroundColor: '#1E2C3A88', borderWidth: 1, borderColor: '#FFFFFF66', overflow: 'hidden', shadowColor: '#182430', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .25, shadowRadius: 9, elevation: 4 }, openingSliderTrack: { flex: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }, openingSliderShine: { position: 'absolute', left: 7, right: 7, top: 3, height: 1, borderRadius: 1, backgroundColor: '#FFFFFFB8' }, openingSwipeText: { color: '#F7FAFC', fontFamily: SERIF, fontSize: 14, letterSpacing: 1.2, paddingRight: 42, textShadowColor: '#44515D99', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }, openingSliderHandle: { position: 'absolute', right: 4, width: 44, height: 44, borderRadius: 9, backgroundColor: '#E8EEF3E8', borderWidth: 1, borderColor: '#FFFFFFCC', alignItems: 'center', justifyContent: 'center', shadowColor: '#33414D', shadowOffset: { width: 0, height: 2 }, shadowOpacity: .28, shadowRadius: 3, elevation: 3 }, openingFoot: { fontSize: 9, color: '#765E4B', marginTop: 11, letterSpacing: 1 },
 });

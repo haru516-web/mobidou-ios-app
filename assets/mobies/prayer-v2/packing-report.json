@@ -1,0 +1,740 @@
+{
+  "mobirin": {
+    "idleBounds": {
+      "x": 67,
+      "y": 33,
+      "w": 907,
+      "h": 914,
+      "bottom": 947
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/mobirin/source.png",
+        "firstBounds": {
+          "x": 3,
+          "y": 39,
+          "w": 253,
+          "h": 296,
+          "bottom": 335
+        },
+        "scale": 1.5439189189189189,
+        "scaleX": 1.7924901185770752,
+        "desiredWidth": 453.5,
+        "desiredHeight": 457,
+        "desiredBottom": 473.5
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/mobirin/source.png",
+        "firstBounds": {
+          "x": 4,
+          "y": 21,
+          "w": 254,
+          "h": 298,
+          "bottom": 319
+        },
+        "scale": 1.5335570469798658,
+        "scaleX": 1.7854330708661417,
+        "desiredWidth": 453.5,
+        "desiredHeight": 457,
+        "desiredBottom": 473.5
+      }
+    }
+  },
+  "mobichi": {
+    "idleBounds": {
+      "x": 90,
+      "y": 117,
+      "w": 851,
+      "h": 804,
+      "bottom": 921
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/mobichi/source.png",
+        "firstBounds": {
+          "x": 7,
+          "y": 78,
+          "w": 241,
+          "h": 280,
+          "bottom": 358
+        },
+        "scale": 1.4357142857142857,
+        "scaleX": 1.7655601659751037,
+        "desiredWidth": 425.5,
+        "desiredHeight": 402,
+        "desiredBottom": 460.5
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/mobichi/source.png",
+        "firstBounds": {
+          "x": 6,
+          "y": 49,
+          "w": 242,
+          "h": 282,
+          "bottom": 331
+        },
+        "scale": 1.425531914893617,
+        "scaleX": 1.7582644628099173,
+        "desiredWidth": 425.5,
+        "desiredHeight": 402,
+        "desiredBottom": 460.5
+      }
+    }
+  },
+  "yami": {
+    "idleBounds": {
+      "x": 50,
+      "y": 77,
+      "w": 932,
+      "h": 869,
+      "bottom": 946
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/yami/source.png",
+        "firstBounds": {
+          "x": 6,
+          "y": 86,
+          "w": 242,
+          "h": 281,
+          "bottom": 367
+        },
+        "scale": 1.5462633451957295,
+        "scaleX": 1.9256198347107438,
+        "desiredWidth": 466,
+        "desiredHeight": 434.5,
+        "desiredBottom": 473
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/yami/source.png",
+        "firstBounds": {
+          "x": 7,
+          "y": 53,
+          "w": 241,
+          "h": 280,
+          "bottom": 333
+        },
+        "scale": 1.5517857142857143,
+        "scaleX": 1.933609958506224,
+        "desiredWidth": 466,
+        "desiredHeight": 434.5,
+        "desiredBottom": 473
+      }
+    }
+  },
+  "mobiyan": {
+    "idleBounds": {
+      "x": 40,
+      "y": 57,
+      "w": 914,
+      "h": 914,
+      "bottom": 971
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/mobiyan/source.png",
+        "firstBounds": {
+          "x": 6,
+          "y": 66,
+          "w": 242,
+          "h": 300,
+          "bottom": 366
+        },
+        "scale": 1.5233333333333334,
+        "scaleX": 1.8884297520661157,
+        "desiredWidth": 457,
+        "desiredHeight": 457,
+        "desiredBottom": 485.5
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/mobiyan/source.png",
+        "firstBounds": {
+          "x": 7,
+          "y": 43,
+          "w": 241,
+          "h": 301,
+          "bottom": 344
+        },
+        "scale": 1.5182724252491695,
+        "scaleX": 1.896265560165975,
+        "desiredWidth": 457,
+        "desiredHeight": 457,
+        "desiredBottom": 485.5
+      }
+    }
+  },
+  "mobiyura": {
+    "idleBounds": {
+      "x": 176,
+      "y": 97,
+      "w": 910,
+      "h": 1041,
+      "bottom": 1138
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/mobiyura/source.png",
+        "firstBounds": {
+          "x": 10,
+          "y": 56,
+          "w": 237,
+          "h": 331,
+          "bottom": 387
+        },
+        "scale": 1.284089102184189,
+        "scaleX": 1.5677090693746256,
+        "desiredWidth": 371.54704944178627,
+        "desiredHeight": 425.03349282296654,
+        "desiredBottom": 464.6379585326954
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/mobiyura/source.png",
+        "firstBounds": {
+          "x": 10,
+          "y": 28,
+          "w": 236,
+          "h": 330,
+          "bottom": 358
+        },
+        "scale": 1.2879802812817167,
+        "scaleX": 1.5743519044143486,
+        "desiredWidth": 371.54704944178627,
+        "desiredHeight": 425.03349282296654,
+        "desiredBottom": 464.6379585326954
+      }
+    }
+  },
+  "reomoby": {
+    "idleBounds": {
+      "x": 92,
+      "y": 96,
+      "w": 1116,
+      "h": 1037,
+      "bottom": 1133
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/reomoby/source.png",
+        "firstBounds": {
+          "x": 10,
+          "y": 59,
+          "w": 238,
+          "h": 303,
+          "bottom": 362
+        },
+        "scale": 1.39736078871045,
+        "scaleX": 1.914518917614893,
+        "desiredWidth": 455.6555023923445,
+        "desiredHeight": 423.40031897926633,
+        "desiredBottom": 462.5964912280702
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/reomoby/source.png",
+        "firstBounds": {
+          "x": 11,
+          "y": 42,
+          "w": 237,
+          "h": 300,
+          "bottom": 342
+        },
+        "scale": 1.4113343965975544,
+        "scaleX": 1.9225970565077826,
+        "desiredWidth": 455.6555023923445,
+        "desiredHeight": 423.40031897926633,
+        "desiredBottom": 462.5964912280702
+      }
+    }
+  },
+  "potemoby": {
+    "idleBounds": {
+      "x": 50,
+      "y": 193,
+      "w": 1132,
+      "h": 918,
+      "bottom": 1111
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/potemoby/source.png",
+        "firstBounds": {
+          "x": 12,
+          "y": 118,
+          "w": 236,
+          "h": 248,
+          "bottom": 366
+        },
+        "scale": 1.5113443432628493,
+        "scaleX": 1.958424566809937,
+        "desiredWidth": 462.18819776714514,
+        "desiredHeight": 374.8133971291866,
+        "desiredBottom": 453.6140350877193
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/potemoby/source.png",
+        "firstBounds": {
+          "x": 11,
+          "y": 58,
+          "w": 237,
+          "h": 247,
+          "bottom": 305
+        },
+        "scale": 1.5174631462720107,
+        "scaleX": 1.9501611720132705,
+        "desiredWidth": 462.18819776714514,
+        "desiredHeight": 374.8133971291866,
+        "desiredBottom": 453.6140350877193
+      }
+    }
+  },
+  "mobibou": {
+    "idleBounds": {
+      "x": 102,
+      "y": 81,
+      "w": 1049,
+      "h": 1069,
+      "bottom": 1150
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/actions/mobibou/mobibou-rei-storyboard.png",
+        "firstBounds": {
+          "x": 14,
+          "y": 189,
+          "w": 246,
+          "h": 345,
+          "bottom": 534
+        },
+        "scale": 1.265117999214109,
+        "scaleX": 1.7410562622372636,
+        "desiredWidth": 428.29984051036683,
+        "desiredHeight": 436.46570972886764,
+        "desiredBottom": 469.53748006379584
+      },
+      "hakushu": {
+        "source": "assets/mobies/actions/mobibou/mobibou-hakushu-storyboard.png",
+        "firstBounds": {
+          "x": 14,
+          "y": 189,
+          "w": 245,
+          "h": 346,
+          "bottom": 535
+        },
+        "scale": 1.2614615888117562,
+        "scaleX": 1.748162614328028,
+        "desiredWidth": 428.29984051036683,
+        "desiredHeight": 436.46570972886764,
+        "desiredBottom": 469.53748006379584
+      }
+    }
+  },
+  "babumoby": {
+    "idleBounds": {
+      "x": 177,
+      "y": 138,
+      "w": 886,
+      "h": 989,
+      "bottom": 1127
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/babumoby/source.png",
+        "firstBounds": {
+          "x": 4,
+          "y": 72,
+          "w": 244,
+          "h": 301,
+          "bottom": 373
+        },
+        "scale": 1.341535657325131,
+        "scaleX": 1.4825737966376447,
+        "desiredWidth": 361.7480063795853,
+        "desiredHeight": 403.8022328548644,
+        "desiredBottom": 460.14673046251994
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/babumoby/source.png",
+        "firstBounds": {
+          "x": 6,
+          "y": 40,
+          "w": 242,
+          "h": 300,
+          "bottom": 340
+        },
+        "scale": 1.346007442849548,
+        "scaleX": 1.4948264726429146,
+        "desiredWidth": 361.7480063795853,
+        "desiredHeight": 403.8022328548644,
+        "desiredBottom": 460.14673046251994
+      }
+    }
+  },
+  "bearmobby": {
+    "idleBounds": {
+      "x": 70,
+      "y": 74,
+      "w": 1117,
+      "h": 1045,
+      "bottom": 1119
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/bearmobby/source.png",
+        "firstBounds": {
+          "x": 5,
+          "y": 86,
+          "w": 243,
+          "h": 264,
+          "bottom": 350
+        },
+        "scale": 1.6161616161616161,
+        "scaleX": 1.876805744252138,
+        "desiredWidth": 456.06379585326954,
+        "desiredHeight": 426.6666666666667,
+        "desiredBottom": 456.88038277511964
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/bearmobby/source.png",
+        "firstBounds": {
+          "x": 6,
+          "y": 53,
+          "w": 242,
+          "h": 266,
+          "bottom": 319
+        },
+        "scale": 1.6040100250626568,
+        "scaleX": 1.8845611398895437,
+        "desiredWidth": 456.06379585326954,
+        "desiredHeight": 426.6666666666667,
+        "desiredBottom": 456.88038277511964
+      }
+    }
+  },
+  "boymobby": {
+    "idleBounds": {
+      "x": 70,
+      "y": 85,
+      "w": 1121,
+      "h": 1086,
+      "bottom": 1171
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/boymobby/source.png",
+        "firstBounds": {
+          "x": 9,
+          "y": 63,
+          "w": 239,
+          "h": 310,
+          "bottom": 373
+        },
+        "scale": 1.4303441889180428,
+        "scaleX": 1.915050082414099,
+        "desiredWidth": 457.6969696969697,
+        "desiredHeight": 443.4066985645933,
+        "desiredBottom": 478.1116427432217
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/boymobby/source.png",
+        "firstBounds": {
+          "x": 9,
+          "y": 59,
+          "w": 239,
+          "h": 309,
+          "bottom": 368
+        },
+        "scale": 1.4349731345132468,
+        "scaleX": 1.915050082414099,
+        "desiredWidth": 457.6969696969697,
+        "desiredHeight": 443.4066985645933,
+        "desiredBottom": 478.1116427432217
+      }
+    }
+  },
+  "dogmobby": {
+    "idleBounds": {
+      "x": 69,
+      "y": 62,
+      "w": 1153,
+      "h": 1066,
+      "bottom": 1128
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/dogmobby/source.png",
+        "firstBounds": {
+          "x": 3,
+          "y": 89,
+          "w": 242,
+          "h": 292,
+          "bottom": 381
+        },
+        "scale": 1.4905507854318236,
+        "scaleX": 1.9452990101097976,
+        "desiredWidth": 470.762360446571,
+        "desiredHeight": 435.2408293460925,
+        "desiredBottom": 460.555023923445
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/dogmobby/source.png",
+        "firstBounds": {
+          "x": 2,
+          "y": 39,
+          "w": 243,
+          "h": 289,
+          "bottom": 328
+        },
+        "scale": 1.5060236309553372,
+        "scaleX": 1.9372936643891812,
+        "desiredWidth": 470.762360446571,
+        "desiredHeight": 435.2408293460925,
+        "desiredBottom": 460.555023923445
+      }
+    }
+  },
+  "lanimobby": {
+    "idleBounds": {
+      "x": 25,
+      "y": 83,
+      "w": 1220,
+      "h": 1050,
+      "bottom": 1133
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/lanimobby/source.png",
+        "firstBounds": {
+          "x": 14,
+          "y": 59,
+          "w": 258,
+          "h": 277,
+          "bottom": 336
+        },
+        "scale": 1.5476827941201874,
+        "scaleX": 1.9306900090253825,
+        "desiredWidth": 498.11802232854865,
+        "desiredHeight": 428.7081339712919,
+        "desiredBottom": 462.5964912280702
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/lanimobby/source.png",
+        "firstBounds": {
+          "x": 14,
+          "y": 52,
+          "w": 258,
+          "h": 279,
+          "bottom": 331
+        },
+        "scale": 1.5365882938039135,
+        "scaleX": 1.9306900090253825,
+        "desiredWidth": 498.11802232854865,
+        "desiredHeight": 428.7081339712919,
+        "desiredBottom": 462.5964912280702
+      }
+    }
+  },
+  "ojimobby": {
+    "idleBounds": {
+      "x": 89,
+      "y": 64,
+      "w": 1085,
+      "h": 1063,
+      "bottom": 1127
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/ojimobby/source.png",
+        "firstBounds": {
+          "x": 6,
+          "y": 84,
+          "w": 242,
+          "h": 285,
+          "bottom": 369
+        },
+        "scale": 1.5228629788186574,
+        "scaleX": 1.8305719219159846,
+        "desiredWidth": 442.9984051036683,
+        "desiredHeight": 434.0159489633174,
+        "desiredBottom": 460.14673046251994
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/ojimobby/source.png",
+        "firstBounds": {
+          "x": 5,
+          "y": 40,
+          "w": 243,
+          "h": 283,
+          "bottom": 323
+        },
+        "scale": 1.5336252613544783,
+        "scaleX": 1.8230387041303222,
+        "desiredWidth": 442.9984051036683,
+        "desiredHeight": 434.0159489633174,
+        "desiredBottom": 460.14673046251994
+      }
+    }
+  },
+  "reamobby": {
+    "idleBounds": {
+      "x": 90,
+      "y": 57,
+      "w": 1136,
+      "h": 1110,
+      "bottom": 1167
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/reamobby/source.png",
+        "firstBounds": {
+          "x": 4,
+          "y": 67,
+          "w": 244,
+          "h": 291,
+          "bottom": 358
+        },
+        "scale": 1.5574080468274716,
+        "scaleX": 1.9009072607001856,
+        "desiredWidth": 463.8213716108453,
+        "desiredHeight": 453.20574162679424,
+        "desiredBottom": 476.47846889952154
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/reamobby/source.png",
+        "firstBounds": {
+          "x": 6,
+          "y": 33,
+          "w": 242,
+          "h": 294,
+          "bottom": 327
+        },
+        "scale": 1.5415161279822933,
+        "scaleX": 1.9166172380613442,
+        "desiredWidth": 463.8213716108453,
+        "desiredHeight": 453.20574162679424,
+        "desiredBottom": 476.47846889952154
+      }
+    }
+  },
+  "shikamobby": {
+    "idleBounds": {
+      "x": 127,
+      "y": 29,
+      "w": 1051,
+      "h": 1094,
+      "bottom": 1123
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/shikamobby/source.png",
+        "firstBounds": {
+          "x": 17,
+          "y": 85,
+          "w": 231,
+          "h": 291,
+          "bottom": 376
+        },
+        "scale": 1.5349589218281567,
+        "scaleX": 1.857646872000939,
+        "desiredWidth": 429.1164274322169,
+        "desiredHeight": 446.67304625199364,
+        "desiredBottom": 458.5135566188198
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/shikamobby/source.png",
+        "firstBounds": {
+          "x": 18,
+          "y": 42,
+          "w": 230,
+          "h": 289,
+          "bottom": 331
+        },
+        "scale": 1.545581474920393,
+        "scaleX": 1.8657235975313777,
+        "desiredWidth": 429.1164274322169,
+        "desiredHeight": 446.67304625199364,
+        "desiredBottom": 458.5135566188198
+      }
+    }
+  },
+  "uyumobby": {
+    "idleBounds": {
+      "x": 162,
+      "y": 82,
+      "w": 1021,
+      "h": 971,
+      "bottom": 1053
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/uyumobby/source.png",
+        "firstBounds": {
+          "x": 5,
+          "y": 79,
+          "w": 243,
+          "h": 293,
+          "bottom": 372
+        },
+        "scale": 1.3530817425195008,
+        "scaleX": 1.7155046238866902,
+        "desiredWidth": 416.86762360446573,
+        "desiredHeight": 396.45295055821373,
+        "desiredBottom": 429.933014354067
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/uyumobby/source.png",
+        "firstBounds": {
+          "x": 5,
+          "y": 46,
+          "w": 243,
+          "h": 293,
+          "bottom": 339
+        },
+        "scale": 1.3530817425195008,
+        "scaleX": 1.7155046238866902,
+        "desiredWidth": 416.86762360446573,
+        "desiredHeight": 396.45295055821373,
+        "desiredBottom": 429.933014354067
+      }
+    }
+  },
+  "wolfmobby": {
+    "idleBounds": {
+      "x": 99,
+      "y": 52,
+      "w": 1112,
+      "h": 1080,
+      "bottom": 1132
+    },
+    "actions": {
+      "rei": {
+        "source": "assets/mobies/prayer-v2/wolfmobby/source.png",
+        "firstBounds": {
+          "x": 14,
+          "y": 63,
+          "w": 234,
+          "h": 303,
+          "bottom": 366
+        },
+        "scale": 1.4553034250793502,
+        "scaleX": 1.940266361318993,
+        "desiredWidth": 454.02232854864434,
+        "desiredHeight": 440.9569377990431,
+        "desiredBottom": 462.18819776714514
+      },
+      "hakushu": {
+        "source": "assets/mobies/prayer-v2/wolfmobby/source.png",
+        "firstBounds": {
+          "x": 17,
+          "y": 36,
+          "w": 231,
+          "h": 306,
+          "bottom": 342
+        },
+        "scale": 1.4410357444413173,
+        "scaleX": 1.965464625751707,
+        "desiredWidth": 454.02232854864434,
+        "desiredHeight": 440.9569377990431,
+        "desiredBottom": 462.18819776714514
+      }
+    }
+  }
+}

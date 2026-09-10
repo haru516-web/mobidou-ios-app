@@ -1,0 +1,75 @@
+{
+  "mobirin": {
+    "idle": "assets/mobies/mobirin.webp",
+    "source": "assets/mobies/prayer-v2/mobirin/source.png"
+  },
+  "mobichi": {
+    "idle": "assets/mobies/mobichi.webp",
+    "source": "assets/mobies/prayer-v2/mobichi/source.png"
+  },
+  "yami": {
+    "idle": "assets/mobies/yami-mobby.webp",
+    "source": "assets/mobies/prayer-v2/yami/source.png"
+  },
+  "mobiyan": {
+    "idle": "assets/mobies/mobiyan.webp",
+    "source": "assets/mobies/prayer-v2/mobiyan/source.png"
+  },
+  "mobiyura": {
+    "idle": "assets/mobies/mobiyura.webp",
+    "source": "assets/mobies/prayer-v2/mobiyura/source.png"
+  },
+  "reomoby": {
+    "idle": "assets/mobies/reomoby.webp",
+    "source": "assets/mobies/prayer-v2/reomoby/source.png"
+  },
+  "potemoby": {
+    "idle": "assets/mobies/potemoby.webp",
+    "source": "assets/mobies/prayer-v2/potemoby/source.png"
+  },
+  "mobibou": {
+    "idle": "assets/mobies/mobibou.webp",
+    "rei": "assets/mobies/actions/mobibou/mobibou-rei-storyboard.png",
+    "hakushu": "assets/mobies/actions/mobibou/mobibou-hakushu-storyboard.png"
+  },
+  "babumoby": {
+    "idle": "assets/mobies/babumoby.webp",
+    "source": "assets/mobies/prayer-v2/babumoby/source.png"
+  },
+  "bearmobby": {
+    "idle": "assets/mobies/bearmobby.png",
+    "source": "assets/mobies/prayer-v2/bearmobby/source.png"
+  },
+  "boymobby": {
+    "idle": "assets/mobies/boymobby.png",
+    "source": "assets/mobies/prayer-v2/boymobby/source.png"
+  },
+  "dogmobby": {
+    "idle": "assets/mobies/dogmobby.png",
+    "source": "assets/mobies/prayer-v2/dogmobby/source.png"
+  },
+  "lanimobby": {
+    "idle": "assets/mobies/lanimobby.png",
+    "source": "assets/mobies/prayer-v2/lanimobby/source.png"
+  },
+  "ojimobby": {
+    "idle": "assets/mobies/ojimobby.png",
+    "source": "assets/mobies/prayer-v2/ojimobby/source.png"
+  },
+  "reamobby": {
+    "idle": "assets/mobies/reamobby.png",
+    "source": "assets/mobies/prayer-v2/reamobby/source.png"
+  },
+  "shikamobby": {
+    "idle": "assets/mobies/shikamobby.png",
+    "source": "assets/mobies/prayer-v2/shikamobby/source.png"
+  },
+  "uyumobby": {
+    "idle": "assets/mobies/uyumobby.png",
+    "source": "assets/mobies/prayer-v2/uyumobby/source.png"
+  },
+  "wolfmobby": {
+    "idle": "assets/mobies/wolfmobby.png",
+    "source": "assets/mobies/prayer-v2/wolfmobby/source.png"
+  }
+}

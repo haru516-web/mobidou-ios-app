@@ -8,6 +8,7 @@ import type { PetCharacter } from '../petCatalog';
 import { reactionLine, type ReactionKind } from '../data/reactions';
 import { PULL_ASSETS, type CoreMobbyId, type MobbyPullAsset, type PullFrame } from '../data/mobbyPullAssets';
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
+import { PRAYER_ATLASES, PRAYER_ACTION_ORDER, PRAYER_FRAME_COUNT } from '../data/prayerAtlasesV2';
 
 const C = {
   paper: '#F8F4EB',
@@ -120,6 +121,9 @@ export function PullableCompanion({
   const mobbyId = isCoreMobbyId(pet.id) ? pet.id : null;
   const pullAsset = mobbyId ? PULL_ASSETS[mobbyId] : null;
   const reactionFrames = mobbyId ? PULL_REACTION_FRAMES[mobbyId] : undefined;
+  const prayerSequence = PRAYER_ATLASES[pet.id];
+  const [prayerLoaded, setPrayerLoaded] = useState<Record<string, boolean>>({});
+  const prayerReady = prayerLoaded[`${pet.id}/rei`] && prayerLoaded[`${pet.id}/hakushu`];
   const reduced = useReducedMotionLocal();
   const useNativeDriver = Platform.OS !== 'web';
 
@@ -130,6 +134,7 @@ export function PullableCompanion({
   const [specialReaction, setSpecialReaction] = useState(false);
   const [eyeIndex, setEyeIndex] = useState(-1);
   const [mouthIndex, setMouthIndex] = useState(-1);
+  const [prayerFrame, setPrayerFrame] = useState<number | null>(null);
 
   const float = useRef(new Animated.Value(0)).current;
   const bounce = useRef(new Animated.Value(0)).current;
@@ -156,6 +161,7 @@ export function PullableCompanion({
   const strongHapticRef = useRef(false);
   const sectorRef = useRef(0);
   const strongRef = useRef(false);
+  const prayerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearReactionTimers = useCallback(() => {
     reactionTimersRef.current.forEach(clearTimeout);
@@ -169,11 +175,17 @@ export function PullableCompanion({
     lineTimerRef.current = null;
   }, []);
 
+  const clearPrayerTimer = useCallback(() => {
+    if (prayerTimerRef.current) clearInterval(prayerTimerRef.current);
+    prayerTimerRef.current = null;
+  }, []);
+
   const resetExpression = useCallback(() => {
     sectorRef.current = 0;
     strongRef.current = false;
     setEyeIndex(-1);
     setMouthIndex(-1);
+    setPrayerFrame(null);
   }, []);
 
   const resetPose = useCallback((onComplete?: () => void) => {
@@ -208,12 +220,14 @@ export function PullableCompanion({
     setEyeIndex(-1);
     setMouthIndex(-1);
     countRef.current = 0;
+    setPrayerFrame(null);
     pullCountRef.current = 0;
     lastReactionFrameRef.current = -1;
     reactionMotion.setValue(0);
     specialMotion.setValue(0);
     resetPose();
-  }, [clearLineTimer, clearReactionTimers, mobbyId, pet.name, reactionMotion, resetPose, specialMotion]);
+    clearPrayerTimer();
+  }, [clearLineTimer, clearPrayerTimer, clearReactionTimers, mobbyId, pet.name, reactionMotion, resetPose, specialMotion]);
 
   useEffect(() => {
     if (reduced) return undefined;
@@ -235,9 +249,10 @@ export function PullableCompanion({
   useEffect(() => () => {
     clearReactionTimers();
     clearLineTimer();
+    clearPrayerTimer();
     bounce.stopAnimation();
     float.stopAnimation();
-  }, [bounce, clearLineTimer, clearReactionTimers, float]);
+  }, [bounce, clearLineTimer, clearPrayerTimer, clearReactionTimers, float]);
 
   const haptic = useCallback((style: Haptics.ImpactFeedbackStyle) => {
     if (haptics) void Haptics.impactAsync(style).catch(() => {});
@@ -272,6 +287,46 @@ export function PullableCompanion({
     onBond();
     haptic(Haptics.ImpactFeedbackStyle.Light);
   }, [haptic, onBond, setReactionLine]);
+
+  const startPrayer = useCallback(() => {
+    if (!prayerSequence || prayerFrame !== null) return;
+    if (!prayerReady) {
+      setStatus('idle');
+      resetPose();
+      setLine('お参りの準備中です。少し待ってからタップしてね。');
+      return;
+    }
+    const now = Date.now();
+    if (now - lastActionRef.current < 700) return;
+    lastActionRef.current = now;
+    clearReactionTimers();
+    clearLineTimer();
+    clearPrayerTimer();
+    setKind(null);
+    setSpecialReaction(false);
+    setReactionFrame(null);
+    reactionMotion.setValue(0);
+    specialMotion.setValue(0);
+    resetPose();
+    setStatus('reacting');
+    setPrayerFrame(0);
+    setLine(`${pet.name}のお参り。`);
+    onBond();
+    haptic(Haptics.ImpactFeedbackStyle.Medium);
+    let index = 0;
+    prayerTimerRef.current = setInterval(() => {
+      index += 1;
+      if (index >= PRAYER_FRAME_COUNT) {
+        clearPrayerTimer();
+        setPrayerFrame(null);
+        setStatus('idle');
+        setLine('きれいにお参りできたな。');
+        return;
+      }
+      setPrayerFrame(index);
+      if (index === 19 || index === 27) haptic(Haptics.ImpactFeedbackStyle.Light);
+    }, 90);
+  }, [clearLineTimer, clearPrayerTimer, clearReactionTimers, haptic, onBond, pet.name, prayerFrame, prayerSequence, prayerReady, reactionMotion, specialMotion, resetPose]);
 
   const finishReaction = useCallback(() => {
     setReactionFrame(null);
@@ -321,6 +376,10 @@ export function PullableCompanion({
 
   const release = useCallback((dx: number, dy: number) => {
     if (Math.hypot(dx, dy) < 4) {
+      if (prayerSequence) {
+        startPrayer();
+        return;
+      }
       triggerButtonReaction('pet');
       resetPose(() => setStatus('idle'));
       return;
@@ -357,7 +416,7 @@ export function PullableCompanion({
         resetExpression();
       }, 550));
     }
-  }, [clearReactionTimers, haptic, onBond, reactionFrames, resetExpression, resetPose, setReactionLine, startReactionAnimation, triggerButtonReaction]);
+  }, [clearReactionTimers, haptic, onBond, prayerSequence, reactionFrames, resetExpression, resetPose, setReactionLine, startPrayer, startReactionAnimation, triggerButtonReaction]);
 
   const finishPointerPull = useCallback(() => {
     if (!draggingRef.current) return;
@@ -368,10 +427,10 @@ export function PullableCompanion({
   }, [release]);
 
   const panResponder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onStartShouldSetPanResponderCapture: () => Platform.OS !== 'web',
-    onMoveShouldSetPanResponderCapture: () => Platform.OS !== 'web',
+    onStartShouldSetPanResponder: () => prayerFrame === null,
+    onMoveShouldSetPanResponder: () => prayerFrame === null,
+    onStartShouldSetPanResponderCapture: () => prayerFrame === null && Platform.OS !== 'web',
+    onMoveShouldSetPanResponderCapture: () => prayerFrame === null && Platform.OS !== 'web',
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
       clearReactionTimers();
@@ -379,7 +438,6 @@ export function PullableCompanion({
       setSpecialReaction(false);
       reactionMotion.setValue(0);
       specialMotion.setValue(0);
-      setStatus('pulling');
       draggingRef.current = true;
       pointerReleaseRef.current = finishPointerPull;
       mediumThresholdRef.current = false;
@@ -415,6 +473,7 @@ export function PullableCompanion({
 
       const magnitude = Math.hypot(dx, dy);
       if (magnitude >= 4) {
+        setStatus('pulling');
         if (haptics) {
           if (!mediumThresholdRef.current) {
             mediumThresholdRef.current = true;
@@ -440,16 +499,17 @@ export function PullableCompanion({
       resetPose(() => setStatus('idle'));
       resetExpression();
     },
-  }), [clearReactionTimers, finishPointerPull, haptic, haptics, pullAsset, pullRotation, pullTranslateX, pullTranslateY, reactionMotion, resetExpression, resetPose, scaleX, scaleY, specialMotion]);
+  }), [clearReactionTimers, finishPointerPull, haptic, haptics, prayerFrame, pullAsset, pullRotation, pullTranslateX, pullTranslateY, reactionMotion, resetExpression, resetPose, scaleX, scaleY, specialMotion]);
 
   const triggerAccessibleReaction = useCallback(() => {
     release(Math.max(12, 210 * 0.08), 0);
   }, [release]);
 
   const isPullReaction = Boolean(reactionFrames && reactionFrame !== null);
+  const isPrayer = prayerFrame !== null;
   const showFixedAccessoryParts = status === 'pulling'
     || status === 'released'
-    || (status === 'reacting' && specialReaction && reactionFrame === null);
+    || (status === 'reacting' && specialReaction && reactionFrame === null && !isPrayer);
   const displayBody = status === 'idle' || !pullAsset ? pet.image : pullAsset.body;
   const defaultEye = pullAsset?.defaultEye ?? pullAsset?.eyes[0];
   const activeEye = pullAsset && (eyeIndex >= 0 ? pullAsset.eyes[eyeIndex] ?? defaultEye : defaultEye);
@@ -482,16 +542,29 @@ export function PullableCompanion({
             onPointerDown={capturePointer}
             onPointerMove={preventPointerMove}
             accessibilityRole="button"
-            accessibilityLabel={pet.name + 'のほっぺを引っ張る'}
-            accessibilityHint="タップすると引っ張った時のリアクション、ドラッグするとほっぺの伸びを表示します"
-            onAccessibilityTap={triggerAccessibleReaction}
+            accessibilityLabel={prayerSequence ? `${pet.name}。タップで二礼二拍手一礼` : pet.name + 'のほっぺを引っ張る'}
+            accessibilityHint={prayerSequence ? 'タップでお参りのアクションを再生します。ドラッグするとほっぺが伸びます' : 'タップすると引っ張った時のリアクション、ドラッグするとほっぺの伸びを表示します'}
+            onAccessibilityTap={prayerSequence ? startPrayer : triggerAccessibleReaction}
             style={[styles.characterSlot, {
-              opacity: isPullReaction ? 0 : 1,
+              opacity: isPullReaction || isPrayer ? 0 : 1,
               transform: [{ translateX: pullTranslateX }, { translateY: totalTranslateY }, { rotate: pullRotationDeg }, { scaleX }, { scaleY }, { scale: totalScale }],
             }]}
           >
             <Image pointerEvents="none" source={displayBody} style={styles.pet} contentFit="contain" transition={0} />
           </Animated.View>
+          {prayerSequence ? <Animated.View pointerEvents="none" style={[styles.prayerLayer, { opacity: isPrayer ? 1 : 0, overflow: 'hidden', transform: [{ translateY: float }] }]}>
+            {(['rei', 'hakushu'] as const).map(action => (
+              <Image
+                key={`${pet.id}/${action}`}
+                source={prayerSequence[action]}
+                onLoad={() => setPrayerLoaded(previous => ({ ...previous, [`${pet.id}/${action}`]: true }))}
+                contentFit="fill"
+                transition={0}
+                style={{ position: 'absolute', top: 0, left: -210 * ((prayerFrame ?? 0) % 8), width: 1680, height: 210,
+                  opacity: PRAYER_ACTION_ORDER[Math.floor((prayerFrame ?? 0) / 8)] === action ? 1 : 0 }}
+              />
+            ))}
+          </Animated.View> : null}
           {pullAsset?.fixedAccessoryParts ? (
             <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.fixedParts, { opacity: showFixedAccessoryParts ? 1 : 0 }]}>
               <Image source={pullAsset.fixedAccessoryParts.lens} contentFit="contain" style={styles.overlayImage} />
@@ -501,7 +574,7 @@ export function PullableCompanion({
             </View>
           ) : null}
           {!isPullReaction && pullAsset && activeEye && eyeFrame ? (
-            <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.faceLayer, { opacity: status === 'idle' ? 0 : 1 }]}>
+            <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.faceLayer, { opacity: status === 'idle' || isPrayer ? 0 : 1 }]}>
               <Image source={activeEye} contentFit={eyeIndex >= 0 ? pullAsset.eyeResizeMode ?? 'contain' : 'contain'} style={pullFaceFrameStyle(eyeFrame, pullAsset, 210)} />
               {activeMouth ? <Image source={activeMouth} contentFit="contain" style={pullFaceFrameStyle(pullAsset.mouthFrame, pullAsset, 210)} /> : null}
             </View>
@@ -522,7 +595,7 @@ export function PullableCompanion({
             </Animated.View>
           ) : null}
         </Animated.View>
-        {status !== 'idle' ? <View pointerEvents="none" style={styles.pullStatus}><Text style={styles.pullStatusText}>{status === 'pulling' ? 'のびてる……' : specialReaction ? '10回目のスペシャル反応！' : 'びよーん！'}</Text></View> : null}
+        {status !== 'idle' && !isPrayer ? <View pointerEvents="none" style={styles.pullStatus}><Text style={styles.pullStatusText}>{status === 'pulling' ? 'のびてる……' : specialReaction ? '10回目のスペシャル反応！' : 'びよーん！'}</Text></View> : null}
       </View>
     </View>
   );
@@ -540,6 +613,7 @@ const styles = StyleSheet.create({
   fixedParts: { ...StyleSheet.absoluteFillObject },
   faceLayer: { ...StyleSheet.absoluteFillObject },
   reactionLayer: { ...StyleSheet.absoluteFillObject },
+  prayerLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   overlayImage: { ...StyleSheet.absoluteFillObject, width: 210, height: 210 },
   pullSpark: { position: 'absolute', top: -24, right: -15, alignItems: 'center', justifyContent: 'center' },
   pullSparkText: { color: C.gold, fontSize: 42, fontWeight: '700' },
