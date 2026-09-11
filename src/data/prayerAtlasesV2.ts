@@ -2,7 +2,8 @@ import type { ImageSourcePropType } from 'react-native';
 
 export const PRAYER_ACTION_ORDER = ['rei', 'rei', 'hakushu', 'hakushu', 'rei'] as const;
 export const PRAYER_FRAME_COUNT = 40;
-// Packed 4096 x 512 atlases; eight equal cells, matched to the idle artwork.
+// Packed 4112 x 514 atlases; eight equal cells with a transparent one-pixel
+// gutter, matched to the idle artwork.
 export const PRAYER_ATLASES: Record<string, { rei: ImageSourcePropType; hakushu: ImageSourcePropType }> = {
   mobirin: { rei: require('../../assets/mobies/prayer-v2/mobirin/rei.png'), hakushu: require('../../assets/mobies/prayer-v2/mobirin/hakushu.png') },
   mobichi: { rei: require('../../assets/mobies/prayer-v2/mobichi/rei.png'), hakushu: require('../../assets/mobies/prayer-v2/mobichi/hakushu.png') },
@@ -23,4 +24,3 @@ export const PRAYER_ATLASES: Record<string, { rei: ImageSourcePropType; hakushu:
   uyumobby: { rei: require('../../assets/mobies/prayer-v2/uyumobby/rei.png'), hakushu: require('../../assets/mobies/prayer-v2/uyumobby/hakushu.png') },
   wolfmobby: { rei: require('../../assets/mobies/prayer-v2/wolfmobby/rei.png'), hakushu: require('../../assets/mobies/prayer-v2/wolfmobby/hakushu.png') },
 };
-

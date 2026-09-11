@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, type Progress } from './progress';
+import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, startRoute, resumeRoute, type Progress } from './progress';
+import { getPilgrimage } from '../data/pilgrimages';
 import { connectSteps, readTodaySteps, type StepSource } from './steps';
 import { isPetId, type PetId } from '../petCatalog';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
 
 const KEY = '@mobidou/journey/v1';
-type Saved = { version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId };
+type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId };
 const initial = (): Saved => ({ version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId() });
 export function useJourney() {
   const [data, setData] = useState<Saved>(initial);
@@ -35,7 +36,7 @@ export function useJourney() {
       if (raw) {
         const p = JSON.parse(raw) as Saved;
         if (p.version !== 1) throw new Error('Unsupported save');
-        const loaded: Saved = { ...initial(), onboarded: p.onboarded === true, demo: p.demo === true, real: normalizeProgress(p.real), trial: normalizeProgress(p.trial), pet: isPetId(p.pet) ? p.pet : 'mobibou', haptics: p.haptics !== false, source: ['healthkit', 'motion'].includes(p.source) ? p.source : 'none', backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : initial().backgroundId, affection: Object.fromEntries(Object.entries(p.affection ?? {}).filter(([k, v]) => isPetId(k) && Number.isFinite(v) && v >= 0)) };
+        const loaded: Saved = { ...initial(), onboarded: p.onboarded === true, demo: p.demo === true, real: normalizeProgress(p.real), trial: normalizeProgress(p.trial), pet: isPetId(p.pet) ? p.pet : 'mobibou', haptics: p.haptics !== false, source: ['healthkit', 'motion'].includes(p.source) ? p.source : 'none', backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : initial().backgroundId, routes: Object.fromEntries(Object.entries(p.routes ?? {}).map(([key, value]) => [key, normalizeProgress(value)])), affection: Object.fromEntries(Object.entries(p.affection ?? {}).filter(([k, v]) => isPetId(k) && Number.isFinite(v) && v >= 0)) };
         current.current = loaded; setData(loaded);
       }
     }).catch(() => { readOnly.current = true; if (mounted.current) setError('保存した記録を読み込めませんでした。元のデータは上書きせず、アプリを開き直してください。'); })
@@ -82,8 +83,18 @@ export function useJourney() {
     dismissError: () => setError(''),
     enter: (demo: boolean) => { epoch.current++; change(p => ({ ...p, onboarded: true, demo })); },
     demoWalk: () => change(p => ({ ...p, trial: updateSteps(p.trial, rollDay(p.trial).steps + 1000) })),
-    demoTomorrow: () => change(p => ({ ...p, trial: { ...p.trial, steps: 0, dayStart: p.trial.rewards.length, day: localDay() } })),
+    demoTomorrow: () => change(p => ({ ...p, trial: { ...p.trial, steps: 0, baseline: 0, highWater: 0, dayStart: p.trial.rewards.length, day: localDay() } })),
     acknowledge: () => change(p => p.demo ? { ...p, trial: { ...p.trial, pending: p.trial.pending.slice(1) } } : { ...p, real: { ...p.real, pending: p.real.pending.slice(1) } }),
+    selectRoute: (routeId: string) => change(p => {
+      if (!getPilgrimage(routeId)) return p;
+      const field = p.demo ? 'trial' : 'real';
+      const active = rollDay(p[field]);
+      if (active.routeId === routeId) return p;
+      const routes = { ...p.routes, [field + ':' + (active.routeId ?? 'legacy')]: active };
+      const saved = routes[field + ':' + routeId];
+      const restored = saved ? rollDay(saved) : startRoute(routeId, active.steps);
+      return { ...p, routes, [field]: resumeRoute(active, restored) };
+    }),
     choosePet: (pet: PetId) => change(p => ({ ...p, pet })),
     chooseBackground: (backgroundId: BackgroundId) => change(p => ({ ...p, backgroundId })),
     bond: () => change(p => ({ ...p, affection: { ...p.affection, [p.pet]: Math.min(9999, (p.affection[p.pet] ?? 0) + 1) } })),

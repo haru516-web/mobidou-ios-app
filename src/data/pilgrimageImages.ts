@@ -1,0 +1,16 @@
+export const PILGRIMAGE_IMAGES: Record<string, number> = {
+  sanctuary: require('../../assets/pilgrimage-v2/route-sanctuary.png'),
+  mountain: require('../../assets/pilgrimage-v2/route-mountain.png'),
+  circuit: require('../../assets/pilgrimage-v2/route-circuit.png'),
+  compassion: require('../../assets/pilgrimage-v2/route-compassion.png'),
+  vow: require('../../assets/pilgrimage-v2/route-vow.png'),
+  festival: require('../../assets/pilgrimage-v2/route-festival.png'),
+  story: require('../../assets/pilgrimage-v2/route-story.png'),
+  sanctuaryDawn: require('../../assets/pilgrimage-v2/route-sanctuary.png'),
+  mountainRidge: require('../../assets/pilgrimage-v2/route-mountain.png'),
+  circuitWater: require('../../assets/pilgrimage-v2/route-circuit.png'),
+  compassionMoon: require('../../assets/pilgrimage-v2/route-compassion.png'),
+  vowSevenLights: require('../../assets/pilgrimage-v2/route-vow.png'),
+  festivalSnow: require('../../assets/pilgrimage-v2/route-festival.png'),
+  storyRiver: require('../../assets/pilgrimage-v2/route-story.png'),
+};

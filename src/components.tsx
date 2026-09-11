@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, ScrollView, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path, G } from 'react-native-svg';
@@ -9,6 +9,7 @@ import { PullableCompanion } from './components/PullableCompanion';
 import { STAMP_IMAGES, type Shrine } from './data/shrines';
 import { reactionLine, type ReactionKind } from './data/reactions';
 import * as Haptics from 'expo-haptics';
+import { WashiArt, WashiPressable as Pressable } from './components/Washi';
 export const C = { paper: '#F8F4EB', ink: '#322F29', red: '#A54E42', muted: '#8A8174', line: '#E3DACE', pale: '#EFE8DD', gold: '#AF9368' };
 export const SERIF = 'Shippori';
 export function Icon({ name, size = 21, color = C.ink }: { name: React.ComponentProps<typeof Ionicons>['name']; size?: number; color?: string }) { return <Ionicons name={name} size={size} color={color} />; }
@@ -27,7 +28,7 @@ export function Clouds() { return <Svg pointerEvents="none" width="100%" height=
 export function Button({ title, onPress, secondary, disabled, icon, style }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean; icon?: React.ComponentProps<typeof Ionicons>['name']; style?: StyleProp<ViewStyle> }) {
   return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [S.button, secondary && S.secondary, { opacity: disabled ? .45 : pressed ? .75 : 1 }, style]}>{icon && <Icon name={icon} color={secondary ? C.red : '#FFF9EF'} size={18} />}<Text style={[S.buttonText, secondary && { color: C.red }]}>{title}</Text></Pressable>;
 }
-export function Section({ title, subtitle, action, onPress }: { title: string; subtitle?: string; action?: string; onPress?: () => void }) { return <View style={S.section}><View><Text style={S.sectionTitle}>{title}</Text>{subtitle && <Text style={S.eyebrow}>{subtitle}</Text>}</View>{action && <Pressable accessibilityRole="button" onPress={onPress} style={S.link}><Text style={S.linkText}>{action}</Text><Icon name="chevron-forward" size={14} color={C.red} /></Pressable>}</View>; }
+export function Section({ title, subtitle, action, onPress, actionArtwork = true }: { title: string; subtitle?: string; action?: string; onPress?: () => void; actionArtwork?: boolean }) { return <View style={S.section}><View><Text style={S.sectionTitle}>{title}</Text>{subtitle && <Text style={S.eyebrow}>{subtitle}</Text>}</View>{action && <Pressable artwork={actionArtwork} accessibilityRole="button" onPress={onPress} style={S.link}><Text style={S.linkText}>{action}</Text><Icon name="chevron-forward" size={14} color={C.red} /></Pressable>}</View>; }
 export function Meter({ value, color = C.red }: { value: number; color?: string }) { return <View style={S.track}><View style={[S.fill, { width: `${Math.max(0, Math.min(100, value * 100))}%`, backgroundColor: color }]} /></View>; }
 export function Stamp({ shrine, locked, style }: { shrine: Shrine; locked?: boolean; style?: StyleProp<ViewStyle> }) {
   return <View style={[S.stamp, style]}><Image accessibilityLabel={`${shrine.name}の御朱印${locked ? '・未取得' : ''}`} source={STAMP_IMAGES[shrine.id]} style={{ width: '100%', height: '100%', opacity: locked ? .2 : 1 }} contentFit="cover" />{locked && <View style={S.lock}><Icon name="lock-closed-outline" color={C.muted} size={20} /><Text style={S.lockText}>まだ見ぬご縁</Text></View>}</View>;

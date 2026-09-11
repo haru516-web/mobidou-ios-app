@@ -1,0 +1,492 @@
+{
+  "babumoby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 223,
+    "cropWidth": 380,
+    "cropHeight": 558
+  },
+  "bearmobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 289,
+    "cropWidth": 384,
+    "cropHeight": 453
+  },
+  "boymobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 227,
+    "cropWidth": 384,
+    "cropHeight": 568
+  },
+  "dogmobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 78,
+    "cropWidth": 384,
+    "cropHeight": 890
+  },
+  "lanimobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 283,
+    "cropWidth": 384,
+    "cropHeight": 460
+  },
+  "mobibou/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 239,
+    "cropWidth": 384,
+    "cropHeight": 558
+  },
+  "mobichi/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 261,
+    "cropWidth": 384,
+    "cropHeight": 524
+  },
+  "mobirin/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 253,
+    "cropWidth": 384,
+    "cropHeight": 530
+  },
+  "mobiyan/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 231,
+    "cropWidth": 384,
+    "cropHeight": 566
+  },
+  "mobiyura/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 250,
+    "cropWidth": 376,
+    "cropHeight": 550
+  },
+  "potemoby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 3,
+    "top": 317,
+    "cropWidth": 377,
+    "cropHeight": 443
+  },
+  "reomoby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 3,
+    "top": 225,
+    "cropWidth": 382,
+    "cropHeight": 551
+  },
+  "yami/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 277,
+    "cropWidth": 384,
+    "cropHeight": 522
+  },
+  "babumoby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 71,
+    "top": 54,
+    "cropWidth": 372,
+    "cropHeight": 412
+  },
+  "babumoby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 70,
+    "top": 54,
+    "cropWidth": 373,
+    "cropHeight": 412
+  },
+  "bearmobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 24,
+    "top": 29,
+    "cropWidth": 465,
+    "cropHeight": 434
+  },
+  "bearmobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 22,
+    "top": 29,
+    "cropWidth": 468,
+    "cropHeight": 434
+  },
+  "boymobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 17,
+    "top": 33,
+    "cropWidth": 481,
+    "cropHeight": 451
+  },
+  "boymobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 17,
+    "top": 33,
+    "cropWidth": 481,
+    "cropHeight": 451
+  },
+  "dogmobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 16,
+    "top": 24,
+    "cropWidth": 483,
+    "cropHeight": 443
+  },
+  "dogmobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 17,
+    "top": 24,
+    "cropWidth": 481,
+    "cropHeight": 443
+  },
+  "lanimobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 0,
+    "top": 32,
+    "cropWidth": 514,
+    "cropHeight": 436
+  },
+  "lanimobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 0,
+    "top": 32,
+    "cropWidth": 514,
+    "cropHeight": 436
+  },
+  "mobibou/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 37,
+    "top": 26,
+    "cropWidth": 441,
+    "cropHeight": 449
+  },
+  "mobibou/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 36,
+    "top": 26,
+    "cropWidth": 443,
+    "cropHeight": 449
+  },
+  "mobichi/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 38,
+    "top": 57,
+    "cropWidth": 437,
+    "cropHeight": 410
+  },
+  "mobichi/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 38,
+    "top": 57,
+    "cropWidth": 437,
+    "cropHeight": 410
+  },
+  "mobirin/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 25,
+    "top": 15,
+    "cropWidth": 463,
+    "cropHeight": 464
+  },
+  "mobirin/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 26,
+    "top": 15,
+    "cropWidth": 462,
+    "cropHeight": 464
+  },
+  "mobiyan/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 20,
+    "top": 27,
+    "cropWidth": 474,
+    "cropHeight": 464
+  },
+  "mobiyan/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 23,
+    "top": 27,
+    "cropWidth": 470,
+    "cropHeight": 464
+  },
+  "mobiyura/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 64,
+    "top": 38,
+    "cropWidth": 384,
+    "cropHeight": 432
+  },
+  "mobiyura/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 65,
+    "top": 38,
+    "cropWidth": 383,
+    "cropHeight": 432
+  },
+  "ojimobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 27,
+    "top": 24,
+    "cropWidth": 460,
+    "cropHeight": 441
+  },
+  "ojimobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 32,
+    "top": 24,
+    "cropWidth": 452,
+    "cropHeight": 441
+  },
+  "potemoby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 11,
+    "top": 75,
+    "cropWidth": 492,
+    "cropHeight": 385
+  },
+  "potemoby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 24,
+    "top": 75,
+    "cropWidth": 469,
+    "cropHeight": 385
+  },
+  "reamobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 19,
+    "top": 21,
+    "cropWidth": 477,
+    "cropHeight": 461
+  },
+  "reamobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 17,
+    "top": 21,
+    "cropWidth": 481,
+    "cropHeight": 461
+  },
+  "reomoby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 17,
+    "top": 36,
+    "cropWidth": 481,
+    "cropHeight": 433
+  },
+  "reomoby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 16,
+    "top": 36,
+    "cropWidth": 483,
+    "cropHeight": 433
+  },
+  "shikamobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 24,
+    "top": 11,
+    "cropWidth": 467,
+    "cropHeight": 453
+  },
+  "shikamobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 23,
+    "top": 11,
+    "cropWidth": 469,
+    "cropHeight": 453
+  },
+  "uyumobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 42,
+    "top": 33,
+    "cropWidth": 431,
+    "cropHeight": 403
+  },
+  "uyumobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 42,
+    "top": 33,
+    "cropWidth": 431,
+    "cropHeight": 403
+  },
+  "wolfmobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 20,
+    "top": 19,
+    "cropWidth": 469,
+    "cropHeight": 449
+  },
+  "wolfmobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 18,
+    "top": 19,
+    "cropWidth": 473,
+    "cropHeight": 449
+  },
+  "yami/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 15,
+    "top": 38,
+    "cropWidth": 482,
+    "cropHeight": 443
+  },
+  "yami/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 15,
+    "top": 38,
+    "cropWidth": 481,
+    "cropHeight": 443
+  }
+}

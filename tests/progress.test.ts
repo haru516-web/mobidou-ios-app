@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshProgress, updateSteps, rollDay, localDay, normalizeProgress, SHRINE_IDS, DAILY_TARGETS } from '../src/services/progress.ts';
+import { freshProgress, updateSteps, rollDay, localDay, normalizeProgress, startRoute, SHRINE_IDS, DAILY_TARGETS } from '../src/services/progress.ts';
+import { PILGRIMAGES } from '../src/data/pilgrimages.ts';
 const day = new Date(2026, 8, 9, 12);
 const tomorrow = new Date(2026, 8, 10, 0, 1);
 test('no reward at 999; first reward at exactly 1000; no duplicate on repeated refresh', () => {
@@ -60,4 +61,52 @@ test('local date uses local calendar components; demo updates are immutable', ()
   const real = freshProgress(day);
   const trial = updateSteps(freshProgress(day), 5000, day);
   assert.equal(real.steps, 0); assert.equal(real.rewards.length, 0); assert.equal(trial.rewards.length, 3);
+});
+test('a selected pilgrimage starts from the departure step count without retroactive rewards', () => {
+  const started = startRoute('mountain', 4321, day);
+  assert.equal(updateSteps(started, 4321, day).rewards.length, 0);
+  const first = updateSteps(started, 6321, day);
+  assert.deepEqual(first.rewards.map(reward => reward.id), ['hibikiishi']);
+});
+test('route targets repeat daily and completing the last stop records 結願', () => {
+  let route = startRoute('sanctuary', 0, day);
+  route = updateSteps(route, 5000, day);
+  assert.deepEqual(route.rewards.map(reward => reward.id), ['rain', 'forest', 'takekaze']);
+  route = updateSteps(route, 3000, tomorrow);
+  assert.deepEqual(route.rewards.map(reward => reward.id), ['rain', 'forest', 'takekaze', 'morika', 'morikage']);
+  assert.equal(route.completedAt, '2026-09-10');
+  assert.deepEqual(normalizeProgress(JSON.parse(JSON.stringify(route)), tomorrow), route);
+});
+test('seven-visit vow route awards one visit per day', () => {
+  let route = startRoute('vow', 0, day);
+  route = updateSteps(route, 9000, day);
+  assert.deepEqual(route.rewards.map(reward => reward.id), ['kinboshi']);
+  route = updateSteps(route, 1000, tomorrow);
+  assert.deepEqual(route.rewards.map(reward => reward.id), ['kinboshi', 'sunamoon']);
+});
+test('all pilgrimage points are unique across routes', () => {
+  const ids = PILGRIMAGES.flatMap(route => route.ids);
+  assert.equal(PILGRIMAGES.length, 12);
+  assert.equal(ids.length, 74);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const type of ['神域参詣', '山岳修行', '札所周回', '観音巡礼', '七願掛け', '物語の聖地巡礼']) {
+    assert.equal(PILGRIMAGES.filter(route => route.type === type).length, 2);
+  }
+  assert.equal(SHRINE_IDS.length, 74);
+  assert.equal(new Set(SHRINE_IDS).size, SHRINE_IDS.length);
+  assert.ok(ids.every(id => (SHRINE_IDS as readonly string[]).includes(id)));
+});
+test('legacy numbered vow rewards migrate to named shrine IDs', () => {
+  const legacy = {
+    ...startRoute('vow', 1000, tomorrow),
+    dayStart: 1,
+    rewards: [
+      { id: 'kinboshi~1', date: '2026-09-09', steps: 1000, threshold: 1000 },
+      { id: 'kinboshi~2', date: '2026-09-10', steps: 1000, threshold: 1000 },
+    ],
+    pending: ['kinboshi~2'],
+  };
+  const normalized = normalizeProgress(legacy, tomorrow);
+  assert.deepEqual(normalized.rewards.map(reward => reward.id), ['kinboshi', 'sunamoon']);
+  assert.deepEqual(normalized.pending, ['sunamoon']);
 });

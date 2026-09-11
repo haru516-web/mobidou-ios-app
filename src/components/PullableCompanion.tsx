@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
@@ -8,7 +8,37 @@ import type { PetCharacter } from '../petCatalog';
 import { reactionLine, type ReactionKind } from '../data/reactions';
 import { PULL_ASSETS, type CoreMobbyId, type MobbyPullAsset, type PullFrame } from '../data/mobbyPullAssets';
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
+import { MOBIBOU_ACTION_FRAMES } from '../data/mobibouActionFrames';
 import { PRAYER_ATLASES, PRAYER_ACTION_ORDER, PRAYER_FRAME_COUNT } from '../data/prayerAtlasesV2';
+import { WashiPressable as Pressable } from './Washi';
+
+const MOBIBOU_REI_FRAME_LAYOUTS = [
+  [16.06, -72.47, 178.54, 347.34],
+  [16.39, -72.47, 176.56, 347.34],
+  [16.39, -72.47, 176.56, 347.34],
+  [16.72, -72.47, 177.22, 347.34],
+  [15.07, -72.47, 177.22, 347.34],
+  [16.06, -72.47, 176.56, 347.34],
+  [17.05, -72.47, 176.56, 347.34],
+  [16.06, -72.47, 178.54, 347.34],
+] as const;
+const MOBIBOU_HAKUSHU_FRAME_LAYOUTS = [
+  [15.65, -72.23, 179.36, 346.42],
+  [16.65, -72.23, 177.37, 346.42],
+  [16.65, -72.23, 177.37, 346.42],
+  [16.32, -72.23, 178.03, 346.42],
+  [16.32, -72.23, 178.03, 346.42],
+  [16.65, -72.23, 177.37, 346.42],
+  [16.65, -72.23, 177.37, 346.42],
+  [15.65, -72.23, 179.36, 346.42],
+] as const;
+const MOBIBOU_PRAYER_FRAME_LAYOUTS = [
+  ...MOBIBOU_REI_FRAME_LAYOUTS,
+  ...MOBIBOU_REI_FRAME_LAYOUTS,
+  ...MOBIBOU_HAKUSHU_FRAME_LAYOUTS,
+  ...MOBIBOU_HAKUSHU_FRAME_LAYOUTS,
+  ...MOBIBOU_REI_FRAME_LAYOUTS,
+] as const;
 
 const C = {
   paper: '#F8F4EB',
@@ -121,9 +151,11 @@ export function PullableCompanion({
   const mobbyId = isCoreMobbyId(pet.id) ? pet.id : null;
   const pullAsset = mobbyId ? PULL_ASSETS[mobbyId] : null;
   const reactionFrames = mobbyId ? PULL_REACTION_FRAMES[mobbyId] : undefined;
-  const prayerSequence = PRAYER_ATLASES[pet.id];
+  const isMobibouPrayer = pet.id === 'mobibou';
+  const prayerAtlas = PRAYER_ATLASES[pet.id];
+  const prayerSequence = isMobibouPrayer ? MOBIBOU_ACTION_FRAMES : prayerAtlas;
   const [prayerLoaded, setPrayerLoaded] = useState<Record<string, boolean>>({});
-  const prayerReady = prayerLoaded[`${pet.id}/rei`] && prayerLoaded[`${pet.id}/hakushu`];
+  const prayerReady = isMobibouPrayer || Boolean(prayerLoaded[`${pet.id}/rei`] && prayerLoaded[`${pet.id}/hakushu`]);
   const reduced = useReducedMotionLocal();
   const useNativeDriver = Platform.OS !== 'web';
 
@@ -326,7 +358,7 @@ export function PullableCompanion({
       setPrayerFrame(index);
       if (index === 19 || index === 27) haptic(Haptics.ImpactFeedbackStyle.Light);
     }, 90);
-  }, [clearLineTimer, clearPrayerTimer, clearReactionTimers, haptic, onBond, pet.name, prayerFrame, prayerSequence, prayerReady, reactionMotion, specialMotion, resetPose]);
+  }, [clearLineTimer, clearPrayerTimer, clearReactionTimers, haptic, onBond, pet.name, prayerFrame, prayerReady, prayerSequence, reactionMotion, resetPose, specialMotion]);
 
   const finishReaction = useCallback(() => {
     setReactionFrame(null);
@@ -553,17 +585,28 @@ export function PullableCompanion({
             <Image pointerEvents="none" source={displayBody} style={styles.pet} contentFit="contain" transition={0} />
           </Animated.View>
           {prayerSequence ? <Animated.View pointerEvents="none" style={[styles.prayerLayer, { opacity: isPrayer ? 1 : 0, overflow: 'hidden', transform: [{ translateY: float }] }]}>
-            {(['rei', 'hakushu'] as const).map(action => (
+            {isMobibouPrayer ? MOBIBOU_ACTION_FRAMES.map((source, index) => {
+              const [left, top, width, height] = MOBIBOU_PRAYER_FRAME_LAYOUTS[index];
+              return (
+                <Image
+                  key={`prayer-${pet.id}-${index}`}
+                  source={source}
+                  contentFit="fill"
+                  transition={0}
+                  style={[styles.prayerFrame, { left, top, width, height, opacity: prayerFrame === index ? 1 : 0 }]}
+                />
+              );
+            }) : prayerAtlas ? (['rei', 'hakushu'] as const).map(action => (
               <Image
                 key={`${pet.id}/${action}`}
-                source={prayerSequence[action]}
+                source={prayerAtlas[action]}
                 onLoad={() => setPrayerLoaded(previous => ({ ...previous, [`${pet.id}/${action}`]: true }))}
                 contentFit="fill"
                 transition={0}
                 style={{ position: 'absolute', top: 0, left: -210 * ((prayerFrame ?? 0) % 8), width: 1680, height: 210,
                   opacity: PRAYER_ACTION_ORDER[Math.floor((prayerFrame ?? 0) / 8)] === action ? 1 : 0 }}
               />
-            ))}
+            )) : null}
           </Animated.View> : null}
           {pullAsset?.fixedAccessoryParts ? (
             <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.fixedParts, { opacity: showFixedAccessoryParts ? 1 : 0 }]}>
@@ -614,6 +657,9 @@ const styles = StyleSheet.create({
   faceLayer: { ...StyleSheet.absoluteFillObject },
   reactionLayer: { ...StyleSheet.absoluteFillObject },
   prayerLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  // Mobibou's standalone PNG frames use a fixed measured placement; other
+  // characters retain the existing atlas path below.
+  prayerFrame: { position: 'absolute' },
   overlayImage: { ...StyleSheet.absoluteFillObject, width: 210, height: 210 },
   pullSpark: { position: 'absolute', top: -24, right: -15, alignItems: 'center', justifyContent: 'center' },
   pullSparkText: { color: C.gold, fontSize: 42, fontWeight: '700' },

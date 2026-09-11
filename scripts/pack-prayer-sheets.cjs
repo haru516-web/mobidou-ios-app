@@ -5,6 +5,11 @@ const path = require('node:path');
 const sharp = require(process.env.SHARP_MODULE || 'sharp');
 const manifest = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const size = 512;
+// Keep a transparent gutter around every source cell. Without it, the browser
+// can sample pixels from the neighbouring pose when the atlas is translated
+// by a fractional CSS pixel during display.
+const atlasGutter = 1;
+const atlasCell = size + atlasGutter * 2;
 async function read(file) {
   return sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 }
@@ -65,18 +70,22 @@ function isolateCell(cell) {
    const scaleX=desiredWidth/first.w;
    const layers=[];
    for(let i=0;i<8;i++) {
-    const cell=cells[i],b=bounds(cell);
+    const cell=cells[i];
     const w=Math.max(1,Math.round(cell.info.width*scaleX)),h=Math.max(1,Math.round(cell.info.height*scale));
-    const pixels=await sharp(cell.data,{raw:cell.info}).resize(w,h,{fit:'fill'}).png().toBuffer();
-    const x=Math.round(size/2-(b.x+b.w/2)*scaleX);
-    const y=Math.round(desiredBottom-b.bottom*scale);
+    const resized=await sharp(cell.data,{raw:cell.info}).resize(w,h,{fit:'fill'}).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+    const resizedBounds=bounds(resized);
+    // Re-measure after resizing so rounding/anti-aliasing cannot reintroduce
+    // a per-frame horizontal drift or a one-pixel baseline jump.
+    const x=Math.round(size/2-(resizedBounds.x+resizedBounds.w/2));
+    const y=Math.round(desiredBottom-resizedBounds.bottom);
+    const pixels=await sharp(resized.data,{raw:resized.info}).png().toBuffer();
     // Clip to one square cell before packing, so adjacent poses never leak.
     const left=Math.max(0,-x),t=Math.max(0,-y);
     const cw=Math.min(w-left,size-Math.max(0,x)),ch=Math.min(h-t,size-Math.max(0,y));
     const clipped=await sharp(pixels).extract({left,top:t,width:cw,height:ch}).png().toBuffer();
-    layers.push({input:clipped,left:i*size+Math.max(0,x),top:Math.max(0,y)});
+    layers.push({input:clipped,left:i*atlasCell+atlasGutter+Math.max(0,x),top:atlasGutter+Math.max(0,y)});
    }
-   await sharp({create:{width:size*8,height:size,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite(layers).png().toFile(path.join(target,action+'.png'));
+   await sharp({create:{width:atlasCell*8,height:size+atlasGutter*2,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite(layers).png().toFile(path.join(target,action+'.png'));
    report[id].actions[action]={source,firstBounds:first,scale,scaleX,desiredWidth,desiredHeight,desiredBottom};
   }
   if(entry.source && path.resolve(entry.source)!==path.resolve(target,'source.png')) fs.copyFileSync(entry.source,path.join(target,'source.png'));

@@ -17,6 +17,17 @@ const out = __dirname;
   await page.goto('http://localhost:8083', {waitUntil:'networkidle',timeout:90000});
   await page.getByText('ご縁の支度をしています').waitFor({state:'hidden',timeout:60000});
   await page.evaluate(() => document.fonts.ready);
+  const opening = page.getByRole('slider', {name:/オープニング/});
+  if (await opening.isVisible().catch(() => false)) {
+    const box = await opening.boundingBox();
+    if (!box) throw new Error('Opening slider was visible but had no layout box.');
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width - 24, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 24, y, {steps: 16});
+    await page.mouse.up();
+    await opening.waitFor({state:'hidden',timeout:30000});
+  }
   const capture = async name => {
     await page.waitForTimeout(900);
     await page.screenshot({path:path.join(out,'raw',`${name}.png`),animations:'disabled'});
