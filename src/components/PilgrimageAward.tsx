@@ -9,6 +9,7 @@ import { PRAYER_ACTION_ORDER, PRAYER_ATLASES } from '../data/prayerAtlasesV2';
 import rawMetrics from '../data/pilgrimageSpriteMetrics.json';
 import { Button, C, SERIF, Stamp } from '../components';
 import { WashiArt } from './Washi';
+import { SPECIAL_DROP_RATE, hasExchangePass, type PassKind, type SpecialCollection, type SpecialKind } from '../services/specialRewards';
 
 const PHASES = [
   { key: 'approach', frames: 18, label: '鳥居へ、とことこ' },
@@ -40,7 +41,7 @@ function Sprite({ source, metric, frame, size, onLoad }: { source: ImageSourcePr
   </View>;
 }
 
-export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route, stopIndex, onClose }: { shrine: Shrine; pet: PetCharacter; walkSource?: ImageSourcePropType; demo: boolean; haptics: boolean; route?: Pilgrimage; stopIndex: number; onClose: () => void }) {
+export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route, stopIndex, special, onPurchasePass, onRedeemPass, onClose }: { shrine: Shrine; pet: PetCharacter; walkSource?: ImageSourcePropType; demo: boolean; haptics: boolean; route?: Pilgrimage; stopIndex: number; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; onRedeemPass: (shrineId: string, kind: SpecialKind) => void; onClose: () => void }) {
   // This is the core acquisition ceremony, so keep the authored sequence
   // visible even when the browser has prefers-reduced-motion enabled. Users
   // who want to leave early can use the explicit skip control below.
@@ -86,6 +87,9 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const action = phase.key === 'pray' ? PRAYER_ACTION_ORDER[Math.floor(prayerFrame / 8)] : 'rei';
   const facingLeft = phase.key === 'return' || phase.key === 'leave';
   const showAward = phase.key === 'reveal';
+  const specialResult = special.rolls[shrine.id];
+  const passAvailable = hasExchangePass(special);
+  const missingSpecial = specialResult ? (['keychain', 'sparkle'] as const).filter(kind => !specialResult[kind]) : [];
   const sprites = [
     { id: 'walk', source: walkSource, frame: phase.local % 4, visible: walking },
     { id: 'rei', source: prayer?.rei, frame: prayerFrame % 8, visible: !walking && action === 'rei' },
@@ -112,6 +116,25 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     {showAward && <>
       <Animated.View style={[S.reward, { opacity: reveal, transform: [{ scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [.88, 1] }) }] }]}><WashiArt /><Stamp shrine={shrine} style={{ width: 145 }} /><View style={S.seal}><Text style={S.sealText}>{complete ? '結願' : '結縁'}</Text></View></Animated.View>
       <Text style={S.name}>{shrine.name}</Text><Text style={S.theme}>{route?.chapters[stopIndex] ?? shrine.theme}</Text>
+      <View style={S.specialCard}><WashiArt />
+        <Text style={S.specialEyebrow}>特別なご縁 · 各{Math.round(SPECIAL_DROP_RATE * 100)}%</Text>
+        <Text style={S.specialTitle}>今回のドロップ</Text>
+        <View style={S.specialRows}>
+          <View style={S.specialRow}><Text style={S.specialLabel}>ミニチュアキーホルダー</Text><Text style={[S.specialStatus, specialResult?.keychain && S.specialWon]}>{specialResult?.keychain ? `獲得 ×${special.keychains[shrine.id] ?? 0}` : 'ドロップなし'}</Text></View>
+          <View style={S.specialRow}><Text style={S.specialLabel}>キラキラ御朱印</Text><Text style={[S.specialStatus, specialResult?.sparkle && S.specialWon]}>{specialResult?.sparkle ? `獲得 ×${special.sparkles[shrine.id] ?? 0}` : 'ドロップなし'}</Text></View>
+        </View>
+        <Text style={S.passOwned}>所持パス：10回券 {special.passes.ten}回 · 50回券 {special.passes.fifty}回 · サブスク {special.passes.subscription ? '有効' : 'なし'}</Text>
+        {missingSpecial.length > 0 && passAvailable && <View style={S.exchangeActions}>{missingSpecial.map(kind => <Button key={kind} title={`交換パスで${kind === 'keychain' ? 'キーホルダー' : 'キラキラ御朱印'}を受け取る`} secondary onPress={() => onRedeemPass(shrine.id, kind)} style={S.specialButton} />)}</View>}
+        {missingSpecial.length > 0 && !passAvailable && <>
+          <Text style={S.noPass}>交換パスは未所持です。ここで仮購入できます。</Text>
+          <View style={S.purchaseActions}>
+            <Button title="10回券を仮購入" secondary onPress={() => onPurchasePass('ten')} style={S.purchaseButton} />
+            <Button title="50回券を仮購入" secondary onPress={() => onPurchasePass('fifty')} style={S.purchaseButton} />
+            <Button title="サブスクを仮購入" secondary onPress={() => onPurchasePass('subscription')} style={S.purchaseButton} />
+          </View>
+          <Text style={S.fakePurchase}>仮購入のため決済は発生しません</Text>
+        </>}
+      </View>
       {complete && <View style={S.completion}><WashiArt /><Text style={S.completionTitle}>{route!.gift}</Text><Text style={S.completionText}>「{route!.title}」</Text><Text style={S.completionText}>旅の証を、御朱印帳に綴りました。</Text></View>}
       <Button title="御朱印帳にしまう" onPress={onClose} style={{ width: '100%', maxWidth: 350 }} />
     </>}
@@ -122,4 +145,5 @@ const S = StyleSheet.create({
   eyebrow: { color: '#D5BD98', fontSize: 11, letterSpacing: 2 }, title: { color: '#FFF8E9', fontFamily: SERIF, fontSize: 23, textAlign: 'center', minHeight: 32 }, stage: { width: '100%', maxWidth: 520, overflow: 'hidden', borderRadius: 14, backgroundColor: '#D9CAB2' },
   phaseTrack: { flexDirection: 'row', gap: 9, padding: 7 }, phaseDot: { height: 4, width: 18, borderRadius: 2 }, skip: { backgroundColor: '#FFF5E8', maxWidth: 350, minHeight: 44 }, reward: { alignItems: 'center', padding: 13, borderRadius: 10, backgroundColor: '#FFF8E9', overflow: 'hidden' }, seal: { position: 'absolute', right: 4, bottom: 9, borderWidth: 3, borderColor: C.red, padding: 6, transform: [{ rotate: '-10deg' }], backgroundColor: '#FFF6E8DD' }, sealText: { color: C.red, fontFamily: SERIF, fontSize: 19 },
   name: { color: '#FFF5E2', fontFamily: SERIF, fontSize: 21, textAlign: 'center' }, theme: { color: '#E6D8C5', fontSize: 12, lineHeight: 22, textAlign: 'center' }, completion: { padding: 18, borderRadius: 12, backgroundColor: '#FAF1DF', alignItems: 'center', overflow: 'hidden', width: '100%', maxWidth: 350, gap: 8 }, completionTitle: { fontFamily: SERIF, fontSize: 20, color: C.red }, completionText: { fontSize: 12, color: C.ink },
+  specialCard: { width: '100%', maxWidth: 350, borderRadius: 14, backgroundColor: '#FFF7E7', padding: 15, overflow: 'hidden' }, specialEyebrow: { color: '#9a6851', fontSize: 9, letterSpacing: 1.2 }, specialTitle: { color: C.ink, fontFamily: SERIF, fontSize: 17, marginTop: 3, marginBottom: 9 }, specialRows: { gap: 7 }, specialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, specialLabel: { color: '#6b5d4b', fontSize: 10, flex: 1 }, specialStatus: { color: '#918576', fontSize: 10 }, specialWon: { color: '#a24c3e', fontFamily: SERIF }, passOwned: { color: '#776957', fontSize: 8, lineHeight: 15, marginTop: 11, textAlign: 'center' }, exchangeActions: { gap: 7, marginTop: 10 }, specialButton: { minHeight: 42 }, noPass: { color: '#806f5b', fontSize: 9, lineHeight: 16, marginTop: 10, textAlign: 'center' }, purchaseActions: { gap: 6, marginTop: 8 }, purchaseButton: { minHeight: 40 }, fakePurchase: { color: '#998a76', fontSize: 8, textAlign: 'center', marginTop: 7 },
 });

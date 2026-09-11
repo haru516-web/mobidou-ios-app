@@ -17,7 +17,7 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-    "plugins": ["expo-font", ["expo-sensors", { "motionPermission": "歩数に合わせて、もびの世界の御朱印を集めるために使用します。" }]],
+    "plugins": ["expo-font", ["expo-sensors", { "motionPermission": "歩数に合わせて、もびの世界の御朱印を集めるために使用します。" }], "expo-asset"],
     "web": { "bundler": "metro", "name": "もび道 — 歩く、集める、好きになる。" }
   }
 }

@@ -6,10 +6,23 @@ import { getPilgrimage } from '../data/pilgrimages';
 import { connectSteps, readTodaySteps, type StepSource } from './steps';
 import { isPetId, type PetId } from '../petCatalog';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
+import { emptySpecialCollection, normalizeSpecialCollection, purchasePass, redeemPass, rollSpecialDrop, type PassKind, type SpecialCollection, type SpecialKind } from './specialRewards';
 
 const KEY = '@mobidou/journey/v1';
-type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId };
-const initial = (): Saved => ({ version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId() });
+type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
+type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId };
+const initial = (): Saved => ({ version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: { owned: {}, selected: {} }, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId() });
+
+function addDropsForNewRewards(collection: SpecialCollection, previous: Progress, next: Progress) {
+  return next.rewards.slice(previous.rewards.length).reduce((result, reward) => rollSpecialDrop(result, reward.id), collection);
+}
+
+function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: number, date = new Date()): Saved {
+  const previous = saved[field];
+  const next = updateSteps(previous, steps, date);
+  const specialField = field === 'real' ? 'realSpecial' : 'trialSpecial';
+  return { ...saved, [field]: next, [specialField]: addDropsForNewRewards(saved[specialField], previous, next) };
+}
 export function useJourney() {
   const [data, setData] = useState<Saved>(initial);
   const current = useRef(data);
@@ -36,8 +49,11 @@ export function useJourney() {
       if (raw) {
         const p = JSON.parse(raw) as Saved;
         if (p.version !== 1) throw new Error('Unsupported save');
-        const loaded: Saved = { ...initial(), onboarded: p.onboarded === true, demo: p.demo === true, real: normalizeProgress(p.real), trial: normalizeProgress(p.trial), pet: isPetId(p.pet) ? p.pet : 'mobibou', haptics: p.haptics !== false, source: ['healthkit', 'motion'].includes(p.source) ? p.source : 'none', backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : initial().backgroundId, routes: Object.fromEntries(Object.entries(p.routes ?? {}).map(([key, value]) => [key, normalizeProgress(value)])), affection: Object.fromEntries(Object.entries(p.affection ?? {}).filter(([k, v]) => isPetId(k) && Number.isFinite(v) && v >= 0)) };
+        const loaded: Saved = { ...initial(), onboarded: p.onboarded === true, demo: p.demo === true, real: normalizeProgress(p.real), trial: normalizeProgress(p.trial), realSpecial: normalizeSpecialCollection(p.realSpecial), trialSpecial: normalizeSpecialCollection(p.trialSpecial), bookDesigns: { owned: { ...(p.bookDesigns?.owned ?? {}) }, selected: { ...(p.bookDesigns?.selected ?? {}) } }, pet: isPetId(p.pet) ? p.pet : 'mobibou', haptics: p.haptics !== false, source: ['healthkit', 'motion'].includes(p.source) ? p.source : 'none', backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : initial().backgroundId, routes: Object.fromEntries(Object.entries(p.routes ?? {}).map(([key, value]) => [key, normalizeProgress(value)])), affection: Object.fromEntries(Object.entries(p.affection ?? {}).filter(([k, v]) => isPetId(k) && Number.isFinite(v) && v >= 0)) };
+        loaded.realSpecial = loaded.real.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.realSpecial);
+        loaded.trialSpecial = loaded.trial.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.trialSpecial);
         current.current = loaded; setData(loaded);
+        void AsyncStorage.setItem(KEY, JSON.stringify(loaded));
       }
     }).catch(() => { readOnly.current = true; if (mounted.current) setError('保存した記録を読み込めませんでした。元のデータは上書きせず、アプリを開き直してください。'); })
       .finally(() => { if (mounted.current) setReady(true); });
@@ -52,7 +68,7 @@ export function useJourney() {
     try {
       const result = await readTodaySteps(state.source);
       if (token === epoch.current && localDay(result.at) === localDay()) {
-        change(prev => ({ ...prev, real: updateSteps(prev.real, result.steps, result.at) }));
+        change(prev => updateSavedProgress(prev, 'real', result.steps, result.at));
         setSynced(new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
         setError('');
       }
@@ -73,16 +89,16 @@ export function useJourney() {
       const source = await connectSteps();
       const result = await readTodaySteps(source);
       epoch.current++;
-      change(prev => ({ ...prev, onboarded: true, demo: false, source, real: updateSteps(prev.real, result.steps, result.at) }));
+      change(prev => ({ ...updateSavedProgress(prev, 'real', result.steps, result.at), onboarded: true, demo: false, source }));
       setSynced(new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
     } catch (e) { setError(e instanceof Error ? e.message : '接続できませんでした。'); }
     finally { syncLock.current = false; setBusy(false); }
   };
   return {
-    data, progress: data.demo ? data.trial : data.real, ready, error, busy, synced, refresh, connect,
+    data, progress: data.demo ? data.trial : data.real, special: data.demo ? data.trialSpecial : data.realSpecial, ready, error, busy, synced, refresh, connect,
     dismissError: () => setError(''),
     enter: (demo: boolean) => { epoch.current++; change(p => ({ ...p, onboarded: true, demo })); },
-    demoWalk: () => change(p => ({ ...p, trial: updateSteps(p.trial, rollDay(p.trial).steps + 1000) })),
+    demoWalk: () => change(p => updateSavedProgress(p, 'trial', rollDay(p.trial).steps + 1000)),
     demoTomorrow: () => change(p => ({ ...p, trial: { ...p.trial, steps: 0, baseline: 0, highWater: 0, dayStart: p.trial.rewards.length, day: localDay() } })),
     acknowledge: () => change(p => p.demo ? { ...p, trial: { ...p.trial, pending: p.trial.pending.slice(1) } } : { ...p, real: { ...p.real, pending: p.real.pending.slice(1) } }),
     selectRoute: (routeId: string) => change(p => {
@@ -97,6 +113,16 @@ export function useJourney() {
     }),
     choosePet: (pet: PetId) => change(p => ({ ...p, pet })),
     chooseBackground: (backgroundId: BackgroundId) => change(p => ({ ...p, backgroundId })),
+    purchaseBookDesign: (routeId: string) => change(p => ({ ...p, bookDesigns: { owned: { ...p.bookDesigns.owned, [routeId]: true }, selected: { ...p.bookDesigns.selected, [routeId]: 'route' } } })),
+    selectBookDesign: (routeId: string, design: 'normal' | 'route') => change(p => design === 'route' && !p.bookDesigns.owned[routeId] ? p : ({ ...p, bookDesigns: { ...p.bookDesigns, selected: { ...p.bookDesigns.selected, [routeId]: design } } })),
+    purchasePass: (kind: PassKind) => change(p => {
+      const field = p.demo ? 'trialSpecial' : 'realSpecial';
+      return { ...p, [field]: purchasePass(p[field], kind) };
+    }),
+    redeemPass: (shrineId: string, kind: SpecialKind) => change(p => {
+      const field = p.demo ? 'trialSpecial' : 'realSpecial';
+      return { ...p, [field]: redeemPass(p[field], shrineId, kind) };
+    }),
     bond: () => change(p => ({ ...p, affection: { ...p.affection, [p.pet]: Math.min(9999, (p.affection[p.pet] ?? 0) + 1) } })),
     toggleHaptics: () => change(p => ({ ...p, haptics: !p.haptics })),
   };
