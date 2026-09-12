@@ -22,7 +22,6 @@ export const COLLECTION_SHRINES: Shrine[] = Array.from(new Set(PILGRIMAGES.flatM
 export type CollectionZoom = 'overview' | 'standard' | 'close';
 const OVERVIEW_COLUMNS = 8;
 const COLLECTION_ZOOM_ORDER: readonly CollectionZoom[] = ['overview', 'standard', 'close'];
-const COLLECTION_ZOOM_LABELS: Record<CollectionZoom, string> = { overview: '全体', standard: '標準', close: '拡大' };
 
 type CollectionTouchPoint = { pageX?: number; pageY?: number; locationX?: number; locationY?: number };
 
@@ -167,10 +166,6 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
 
   return (
     <View>
-      <View pointerEvents="none" accessibilityLabel={`展示ズーム：${COLLECTION_ZOOM_LABELS[zoom]}`} style={S.zoomHint}>
-        <Text style={S.zoomHintTitle}>展示ズーム　{COLLECTION_ZOOM_LABELS[zoom]}</Text>
-        <Text style={S.zoomHintText}>2本指で広げると拡大・つまむと全体表示</Text>
-      </View>
       <View onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={[S.roomStage, { width: viewportWidth, height: roomHeight, marginHorizontal: -24 }]}>
         <CollectionRoom itemCount={trackCount} scrollX={scrollX} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} />
         <ScrollView
@@ -251,7 +246,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
 const S = StyleSheet.create({
   rail: { paddingRight: 0 }, displayScroller: { width: '100%', backgroundColor: 'transparent' }, roomTrack: { position: 'relative' }, displayRow: { position: 'absolute', left: 0, top: 0, flexDirection: 'row' }, overviewRow: { flexWrap: 'wrap', alignContent: 'flex-start' }, displayCell: { position: 'relative', flexShrink: 0 },
   passWallet: { borderWidth: 1, borderColor: '#dcc6a8', borderRadius: 18, backgroundColor: '#fff8e9', padding: 14, marginTop: 22, marginBottom: 8, overflow: 'hidden' }, passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, passEyebrow: { color: '#a1604f', fontSize: 9, letterSpacing: 1.5 }, passTitle: { color: '#3c3026', fontFamily: SERIF, fontSize: 18, marginTop: 2 }, passBalances: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 }, passBalance: { color: '#6f6252', fontSize: 9, backgroundColor: '#f0e4d1', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5 }, passButtons: { flexDirection: 'row', gap: 6, marginTop: 11 }, passButton: { flex: 1, minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: '#c8a982', backgroundColor: '#f6ead5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, passButtonText: { color: '#873d36', fontFamily: SERIF, fontSize: 9, textAlign: 'center' }, purchaseNotice: { color: '#7d4939', fontSize: 10, textAlign: 'center', marginTop: 9 }, passNote: { color: '#9a8b77', fontSize: 8, textAlign: 'center', marginTop: 6 },
-  zoomHint: { marginBottom: 8, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }, zoomHintTitle: { color: '#6f3f32', fontFamily: SERIF, fontSize: 12, letterSpacing: 1 }, zoomHintText: { color: '#907b64', fontSize: 9, flexShrink: 1, textAlign: 'right', marginLeft: 8 }, roomStage: { position: 'relative', overflow: 'hidden', backgroundColor: 'transparent' },
+  roomStage: { position: 'relative', overflow: 'hidden', backgroundColor: 'transparent' },
   roomLabel: { position: 'absolute', top: 17, left: 4, right: 4, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 5, zIndex: 2 }, roomNumber: { color: '#f2c681', fontSize: 8, letterSpacing: 1 }, roomName: { color: '#fff1d8', fontFamily: SERIF, fontSize: 11, flexShrink: 1 },
   keychainWrap: { position: 'absolute', alignSelf: 'center', width: 186, height: 255, zIndex: 1 }, detailKeychainWrap: { width: 260, height: 390, marginTop: 6 }, keychainButton: { flex: 1 }, keychain: { width: '100%', height: '100%' }, keychainLocked: { opacity: .28 }, hookContactClip: { position: 'absolute', overflow: 'hidden', zIndex: 3 }, shrineCharm: { position: 'absolute', width: 46, height: 46, borderRadius: 23, left: 70, bottom: 49, borderWidth: 2, backgroundColor: '#fff9ed', overflow: 'hidden', padding: 4 }, shrineCharmLarge: { width: 62, height: 62, borderRadius: 31, left: 99, bottom: 73 }, shrineCharmImage: { width: '100%', height: '100%' }, lock: { position: 'absolute', right: 7, bottom: 28, width: 30, height: 30, borderRadius: 15, backgroundColor: '#6f5540cc', alignItems: 'center', justifyContent: 'center' }, quantity: { position: 'absolute', right: 5, bottom: 27, borderRadius: 12, backgroundColor: '#fff7e8e8', borderWidth: 1, borderColor: '#b38b58', paddingHorizontal: 7, paddingVertical: 4 }, quantityText: { color: '#70462f', fontFamily: SERIF, fontSize: 11 },
   stampStand: { position: 'absolute', bottom: 14, alignSelf: 'center', width: 96, height: 120, overflow: 'hidden' }, stamp: { width: '100%', height: '100%' }, sparkleGlow: { position: 'absolute', inset: -8, borderRadius: 18, backgroundColor: '#ffd87578', shadowColor: '#ffd15a', shadowOpacity: .8, shadowRadius: 14 }, sparkleSweep: { position: 'absolute', top: -12, bottom: -12, width: 23, backgroundColor: '#FFFDF2B8' }, sparkleBadge: { position: 'absolute', right: 0, top: 0, flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 12, backgroundColor: '#fff0bce8', borderWidth: 1, borderColor: '#d0a343', paddingHorizontal: 5, paddingVertical: 3 }, sparkleText: { color: '#7a531e', fontSize: 9, fontWeight: '700' },

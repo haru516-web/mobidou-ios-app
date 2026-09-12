@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useRef } from 'react';
+import React, { Suspense, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { Asset } from 'expo-asset';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber/native';
@@ -79,7 +79,7 @@ function CabinetCell({ x, y, width, height, compact, close, pillarTexture, beamT
   </group>;
 }
 
-function CabinetWorld({ itemCount, zoom, scrollX, viewportWidth, worldHeight, pillarTexture, beamTexture, baseTexture, backTexture, hookTexture, standTexture, worldBackdropTexture }: { itemCount: number; zoom: CollectionZoom; scrollX: Animated.Value; viewportWidth: number; worldHeight: number; pillarTexture: any; beamTexture: any; baseTexture: any; backTexture: any; hookTexture: any; standTexture: any; worldBackdropTexture: any }) {
+function CabinetWorld({ itemCount, zoom, scrollX, viewportWidth, worldHeight, pillarTexture, beamTexture, baseTexture, backTexture, hookTexture, standTexture }: { itemCount: number; zoom: CollectionZoom; scrollX: Animated.Value; viewportWidth: number; worldHeight: number; pillarTexture: any; beamTexture: any; baseTexture: any; backTexture: any; hookTexture: any; standTexture: any }) {
   const worldRef = useRef<any>(null);
   const compact = zoom === 'overview';
   const columns = compact ? OVERVIEW_COLUMNS : zoom === 'close' ? 1 : 3;
@@ -100,10 +100,6 @@ function CabinetWorld({ itemCount, zoom, scrollX, viewportWidth, worldHeight, pi
   const beamWood = () => <meshStandardMaterial map={beamTexture} color="#fff4df" roughness={0.8} metalness={0.03} />;
   const baseWood = () => <meshStandardMaterial map={baseTexture} color="#fff1dd" roughness={0.86} metalness={0.02} />;
   return <group ref={worldRef}>
-    <mesh position={[contentWidth / 2, 0, -1.15]}>
-      <planeGeometry args={[contentWidth, worldHeight]} />
-      <meshBasicMaterial map={worldBackdropTexture} toneMapped={false} />
-    </mesh>
     <mesh position={[contentWidth / 2, worldHeight * 0.445, 0.22]}><boxGeometry args={[contentWidth, Math.max(0.18, worldHeight * 0.027), 0.42]} />{baseWood()}</mesh>
     <mesh position={[contentWidth / 2, -worldHeight * 0.445, 0.22]}><boxGeometry args={[contentWidth, Math.max(0.22, worldHeight * 0.032), 0.46]} />{baseWood()}</mesh>
     <mesh position={[contentWidth / 2, -worldHeight * 0.405, 0.34]}><boxGeometry args={[contentWidth, Math.max(0.18, worldHeight * 0.022), 0.6]} />{beamWood()}</mesh>
@@ -118,14 +114,7 @@ function RoomGeometry({ itemCount, scrollX, zoom, viewportWidth, roomHeight }: C
   const backTexture = useLoader(TextureLoader, Asset.fromModule(CABINET_BACKDROP).uri);
   const hookTexture = useLoader(TextureLoader, Asset.fromModule(WALL_HOOK).uri);
   const standTexture = useLoader(TextureLoader, Asset.fromModule(GOSHUIN_STAND).uri);
-  const worldBackdropTexture = useMemo(() => {
-    const cloned = backTexture.clone();
-    cloned.needsUpdate = true;
-    return cloned;
-  }, [backTexture]);
   const worldHeight = WORLD_WIDTH * roomHeight / viewportWidth;
-  const columns = zoom === 'overview' ? OVERVIEW_COLUMNS : zoom === 'close' ? 1 : 3;
-  const contentWidth = zoom === 'overview' ? WORLD_WIDTH : WORLD_WIDTH * Math.max(3, itemCount) / columns;
 
   pillarTexture.wrapS = ClampToEdgeWrapping;
   pillarTexture.wrapT = RepeatWrapping;
@@ -150,23 +139,18 @@ function RoomGeometry({ itemCount, scrollX, zoom, viewportWidth, roomHeight }: C
   standTexture.wrapS = ClampToEdgeWrapping;
   standTexture.wrapT = ClampToEdgeWrapping;
   standTexture.colorSpace = SRGBColorSpace;
-  worldBackdropTexture.wrapS = RepeatWrapping;
-  worldBackdropTexture.wrapT = ClampToEdgeWrapping;
-  worldBackdropTexture.repeat.set(Math.max(1, contentWidth / WORLD_WIDTH), 1);
-  worldBackdropTexture.colorSpace = SRGBColorSpace;
-
   return <>
     <ambientLight intensity={1.65} />
     <directionalLight position={[2, 6, 7]} intensity={2.1} />
     <directionalLight position={[-4, 1, 3]} intensity={0.7} color="#f6d8a5" />
-    <CabinetWorld itemCount={itemCount} zoom={zoom} scrollX={scrollX} viewportWidth={viewportWidth} worldHeight={worldHeight} pillarTexture={pillarTexture} beamTexture={beamTexture} baseTexture={baseTexture} backTexture={backTexture} hookTexture={hookTexture} standTexture={standTexture} worldBackdropTexture={worldBackdropTexture} />
+    <CabinetWorld itemCount={itemCount} zoom={zoom} scrollX={scrollX} viewportWidth={viewportWidth} worldHeight={worldHeight} pillarTexture={pillarTexture} beamTexture={beamTexture} baseTexture={baseTexture} backTexture={backTexture} hookTexture={hookTexture} standTexture={standTexture} />
   </>;
 }
 
 export function CollectionRoom({ itemCount, scrollX, zoom, viewportWidth, roomHeight }: CollectionRoomProps) {
   const worldHeight = WORLD_WIDTH * roomHeight / viewportWidth;
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { width: viewportWidth, height: roomHeight }]}>
-    <Canvas style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }} orthographic camera={{ left: -WORLD_WIDTH / 2, right: WORLD_WIDTH / 2, top: worldHeight / 2, bottom: -worldHeight / 2, position: [WORLD_WIDTH / 2, 0, 10], rotation: [0, 0, 0], near: 0.1, far: 100 }}>
+    <Canvas gl={{ alpha: true }} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: 'transparent' }} orthographic camera={{ left: -WORLD_WIDTH / 2, right: WORLD_WIDTH / 2, top: worldHeight / 2, bottom: -worldHeight / 2, position: [WORLD_WIDTH / 2, 0, 10], rotation: [0, 0, 0], near: 0.1, far: 100 }}>
       <Suspense fallback={null}>
         <RoomGeometry itemCount={itemCount} scrollX={scrollX} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} />
       </Suspense>
