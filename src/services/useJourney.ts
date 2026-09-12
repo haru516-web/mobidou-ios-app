@@ -23,6 +23,7 @@ function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: numbe
   const specialField = field === 'real' ? 'realSpecial' : 'trialSpecial';
   return { ...saved, [field]: next, [specialField]: addDropsForNewRewards(saved[specialField], previous, next) };
 }
+
 export function useJourney() {
   const [data, setData] = useState<Saved>(initial);
   const current = useRef(data);

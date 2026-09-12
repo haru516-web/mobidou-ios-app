@@ -141,10 +141,12 @@ export function PullableCompanion({
   pet,
   haptics,
   onBond,
+  reactionTrigger,
 }: {
   pet: PetCharacter;
   haptics: boolean;
   onBond: () => void;
+  reactionTrigger?: number;
 }) {
   useWebPointerCapture();
 
@@ -184,6 +186,7 @@ export function PullableCompanion({
   const lineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactionTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const reactionAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const reactionTriggerRef = useRef(reactionTrigger ?? 0);
   const draggingRef = useRef(false);
   const pointerReleaseRef = useRef<(() => void) | null>(null);
   const smoothedPullRef = useRef({ dx: 0, dy: 0 });
@@ -311,14 +314,20 @@ export function PullableCompanion({
     }
   }, [bounce, clearLineTimer, pet.id, reduced, useNativeDriver]);
 
-  const triggerButtonReaction = useCallback((nextKind: ReactionKind) => {
+  const triggerButtonReaction = useCallback((nextKind: ReactionKind, options?: { skipBond?: boolean }) => {
     const now = Date.now();
     if (now - lastActionRef.current < 700) return;
     lastActionRef.current = now;
     setReactionLine(nextKind);
-    onBond();
+    if (!options?.skipBond) onBond();
     haptic(Haptics.ImpactFeedbackStyle.Light);
   }, [haptic, onBond, setReactionLine]);
+
+  useEffect(() => {
+    if (!reactionTrigger || reactionTrigger <= reactionTriggerRef.current) return;
+    reactionTriggerRef.current = reactionTrigger;
+    triggerButtonReaction('pet', { skipBond: true });
+  }, [reactionTrigger, triggerButtonReaction]);
 
   const startPrayer = useCallback(() => {
     if (!prayerSequence || prayerFrame !== null) return;

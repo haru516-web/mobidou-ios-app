@@ -264,8 +264,8 @@ function LegacyCompanion({ pet, haptics, bond, onBond }: { pet: PetCharacter; ha
     <View style={S.pullHint}><Icon name="hand-left-outline" size={13} color={C.muted} /><Text style={S.pullHintText}>キャラのほっぺをドラッグしてみて</Text></View>
   </View>;
 }
-export function Companion({ pet, haptics, onBond }: { pet: PetCharacter; haptics: boolean; onBond: () => void }) {
-  return <PullableCompanion pet={pet} haptics={haptics} onBond={onBond} />;
+export function Companion({ pet, haptics, onBond, reactionTrigger }: { pet: PetCharacter; haptics: boolean; onBond: () => void; reactionTrigger?: number }) {
+  return <PullableCompanion pet={pet} haptics={haptics} onBond={onBond} reactionTrigger={reactionTrigger} />;
 }
 export function Award({ shrine, pet, haptics, demo, onClose }: { shrine: Shrine; pet: PetCharacter; haptics: boolean; demo: boolean; onClose: () => void }) {
   const progress = useRef(new Animated.Value(0)).current;
