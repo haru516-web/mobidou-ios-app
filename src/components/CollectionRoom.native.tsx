@@ -5,31 +5,28 @@ import { Canvas, useLoader } from '@react-three/fiber/native';
 import { RepeatWrapping, SRGBColorSpace, TextureLoader } from 'three';
 
 const WOOD_SURFACE = require('../../assets/collection/collection-wood-washi-surface.png');
-const WALL_SURFACE = require('../../assets/collection/collection-washi-wall-v2.png');
+const ROOM_BACKDROP = require('../../assets/collection/collection-room-backdrop-v2.png');
 
 function RoomGeometry() {
   const texture = useLoader(TextureLoader, Asset.fromModule(WOOD_SURFACE).uri);
-  const wallTexture = useLoader(TextureLoader, Asset.fromModule(WALL_SURFACE).uri);
+  const backdropTexture = useLoader(TextureLoader, Asset.fromModule(ROOM_BACKDROP).uri);
   texture.wrapS = RepeatWrapping;
   texture.wrapT = RepeatWrapping;
   texture.repeat.set(2.4, 1.25);
   texture.colorSpace = SRGBColorSpace;
-  wallTexture.wrapS = RepeatWrapping;
-  wallTexture.wrapT = RepeatWrapping;
-  wallTexture.repeat.set(2, 1.3);
-  wallTexture.colorSpace = SRGBColorSpace;
+  backdropTexture.colorSpace = SRGBColorSpace;
 
-  const wood = <meshStandardMaterial map={texture} color="#d8b781" roughness={0.78} />;
-  const darkWood = <meshStandardMaterial map={texture} color="#8e6748" roughness={0.84} />;
+  const wood = <meshStandardMaterial map={texture} color="#b97842" roughness={0.78} />;
+  const darkWood = <meshStandardMaterial map={texture} color="#68432f" roughness={0.84} />;
   const brass = <meshStandardMaterial color="#b98b4c" metalness={0.72} roughness={0.3} />;
 
   return (
     <group name="collectionWorld">
       <ambientLight intensity={1.9} />
       <directionalLight position={[3, 5, 7]} intensity={2.2} />
-      <mesh position={[0, 0.15, -1.18]}>
-        <boxGeometry args={[8.8, 5.3, 0.18]} />
-        <meshStandardMaterial map={wallTexture} color="#f2eadb" roughness={0.92} />
+      <mesh position={[0, 0.05, -1.28]}>
+        <planeGeometry args={[9.2, 6.13]} />
+        <meshBasicMaterial map={backdropTexture} toneMapped={false} />
       </mesh>
       <mesh position={[-4.38, 0.15, -0.42]}>
         <boxGeometry args={[0.22, 5.3, 1.5]} />
