@@ -11,17 +11,18 @@ const CABINET_BACKDROP = require('../../assets/collection/collection-cabinet-was
 const WALL_HOOK = require('../../assets/collection/collection-wall-hook-v2.png');
 const GOSHUIN_STAND = require('../../assets/collection/collection-goshuin-stand-v1.png');
 
-type CollectionZoom = 'overview' | 'standard' | 'close';
+type CollectionZoom = 'standard' | 'close';
 type CollectionRoomProps = {
   itemCount: number;
   zoom: CollectionZoom;
   viewportWidth: number;
   roomHeight: number;
   contentWidth: number;
+  cellWidth: number;
 };
 
 const WORLD_WIDTH = 10;
-const OVERVIEW_COLUMNS = 8;
+const ROOM_CHUNK_CELLS = 6;
 
 function WallHook({ x, y, scale, texture }: { x: number; y: number; scale: number; texture: any }) {
   const width = 1.12 * scale;
@@ -75,15 +76,12 @@ function CabinetCell({ x, y, width, height, compact, close, pillarTexture, beamT
 }
 
 function CabinetWorld({ itemCount, zoom, worldWidth, worldHeight, pillarTexture, beamTexture, baseTexture, backTexture, hookTexture, standTexture }: { itemCount: number; zoom: CollectionZoom; worldWidth: number; worldHeight: number; pillarTexture: any; beamTexture: any; baseTexture: any; backTexture: any; hookTexture: any; standTexture: any }) {
-  const compact = zoom === 'overview';
-  const rows = compact ? Math.ceil(itemCount / OVERVIEW_COLUMNS) : 1;
+  const rows = 1;
   const contentWidth = worldWidth;
-  const cellWidth = contentWidth / (compact ? OVERVIEW_COLUMNS : Math.max(3, itemCount));
+  const cellWidth = contentWidth / Math.max(1, itemCount);
   const cellHeight = worldHeight / rows;
   const cells = Array.from({ length: itemCount }, (_, index) => {
-    const column = compact ? index % OVERVIEW_COLUMNS : index;
-    const row = compact ? Math.floor(index / OVERVIEW_COLUMNS) : 0;
-    return { index, x: column * cellWidth + cellWidth / 2, y: compact ? worldHeight / 2 - row * cellHeight - cellHeight / 2 : 0 };
+    return { index, x: index * cellWidth + cellWidth / 2, y: 0 };
   });
   const beamWood = () => <meshStandardMaterial map={beamTexture} color="#fff4df" roughness={0.8} metalness={0.03} />;
   const baseWood = () => <meshStandardMaterial map={baseTexture} color="#fff1dd" roughness={0.86} metalness={0.02} />;
@@ -91,7 +89,7 @@ function CabinetWorld({ itemCount, zoom, worldWidth, worldHeight, pillarTexture,
     <mesh position={[contentWidth / 2, worldHeight * 0.445, 0.22]}><boxGeometry args={[contentWidth, Math.max(0.18, worldHeight * 0.027), 0.42]} />{baseWood()}</mesh>
     <mesh position={[contentWidth / 2, -worldHeight * 0.445, 0.22]}><boxGeometry args={[contentWidth, Math.max(0.22, worldHeight * 0.032), 0.46]} />{baseWood()}</mesh>
     <mesh position={[contentWidth / 2, -worldHeight * 0.405, 0.34]}><boxGeometry args={[contentWidth, Math.max(0.18, worldHeight * 0.022), 0.6]} />{beamWood()}</mesh>
-    {cells.map(({ index, x, y }) => <CabinetCell key={index} x={x} y={y} width={cellWidth} height={cellHeight} compact={compact} close={zoom === 'close'} pillarTexture={pillarTexture} beamTexture={beamTexture} baseTexture={baseTexture} backTexture={backTexture} hookTexture={hookTexture} standTexture={standTexture} />)}
+    {cells.map(({ index, x, y }) => <CabinetCell key={index} x={x} y={y} width={cellWidth} height={cellHeight} compact={false} close={zoom === 'close'} pillarTexture={pillarTexture} beamTexture={beamTexture} baseTexture={baseTexture} backTexture={backTexture} hookTexture={hookTexture} standTexture={standTexture} />)}
   </group>;
 }
 
@@ -136,16 +134,26 @@ function RoomGeometry({ itemCount, zoom, viewportWidth, roomHeight, contentWidth
   </>;
 }
 
-export function CollectionRoom({ itemCount, zoom, viewportWidth, roomHeight, contentWidth }: CollectionRoomProps) {
-  const worldWidth = WORLD_WIDTH * contentWidth / Math.max(1, viewportWidth);
-  const worldHeight = WORLD_WIDTH * roomHeight / Math.max(1, viewportWidth);
+export function CollectionRoom({ itemCount, zoom, viewportWidth, roomHeight, contentWidth, cellWidth }: CollectionRoomProps) {
+  const chunkSize = ROOM_CHUNK_CELLS;
+  const chunks = Array.from({ length: Math.ceil(itemCount / chunkSize) }, (_, chunkIndex) => {
+    const start = chunkIndex * chunkSize;
+    const chunkItemCount = Math.min(chunkSize, itemCount - start);
+    return { start, itemCount: chunkItemCount, width: cellWidth * chunkItemCount };
+  });
   return <View pointerEvents="none" style={[S.roomLayer, { width: contentWidth, height: roomHeight }]}>
-    <Canvas gl={{ alpha: true }} style={{ position: 'absolute', left: 0, top: 0, width: contentWidth, height: roomHeight, backgroundColor: 'transparent' }} orthographic camera={{ left: -worldWidth / 2, right: worldWidth / 2, top: worldHeight / 2, bottom: -worldHeight / 2, position: [worldWidth / 2, 0, 10], rotation: [0, 0, 0], near: 0.1, far: 100 }}>
-      <Suspense fallback={null}>
-        <RoomGeometry itemCount={itemCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={contentWidth} />
-      </Suspense>
-    </Canvas>
+    {chunks.map(chunk => {
+      const worldWidth = WORLD_WIDTH * chunk.width / Math.max(1, viewportWidth);
+      const worldHeight = WORLD_WIDTH * roomHeight / Math.max(1, viewportWidth);
+      return <View key={chunk.start} pointerEvents="none" style={[S.roomChunk, { left: chunk.start * cellWidth, width: chunk.width, height: roomHeight }]}>
+        <Canvas gl={{ alpha: true }} style={{ position: 'absolute', left: 0, top: 0, width: chunk.width, height: roomHeight, backgroundColor: 'transparent' }} orthographic camera={{ left: -worldWidth / 2, right: worldWidth / 2, top: worldHeight / 2, bottom: -worldHeight / 2, position: [worldWidth / 2, 0, 10], rotation: [0, 0, 0], near: 0.1, far: 100 }}>
+          <Suspense fallback={null}>
+            <RoomGeometry itemCount={chunk.itemCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={chunk.width} cellWidth={cellWidth} />
+          </Suspense>
+        </Canvas>
+      </View>;
+    })}
   </View>;
 }
 
-const S = StyleSheet.create({ roomLayer: { position: 'absolute', left: 0, top: 0 } });
+const S = StyleSheet.create({ roomLayer: { position: 'absolute', left: 0, top: 0 }, roomChunk: { position: 'absolute', top: 0 } });

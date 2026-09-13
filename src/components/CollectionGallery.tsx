@@ -20,9 +20,8 @@ export const COLLECTION_SHRINES: Shrine[] = Array.from(new Set(PILGRIMAGES.flatM
   .map(id => SHRINES.find(shrine => shrine.id === id))
   .filter((shrine): shrine is Shrine => !!shrine);
 
-export type CollectionZoom = 'overview' | 'standard' | 'close';
-const OVERVIEW_COLUMNS = 8;
-const COLLECTION_ZOOM_ORDER: readonly CollectionZoom[] = ['overview', 'standard', 'close'];
+export type CollectionZoom = 'standard' | 'close';
+const COLLECTION_ZOOM_ORDER: readonly CollectionZoom[] = ['standard', 'close'];
 
 type CollectionTouchPoint = { pageX?: number; pageY?: number; locationX?: number; locationY?: number };
 
@@ -37,13 +36,11 @@ function touchDistance(touches: readonly CollectionTouchPoint[]) {
 }
 
 function collectionCellWidth(viewportWidth: number, _itemCount: number, zoom: CollectionZoom) {
-  if (zoom === 'overview') return viewportWidth / OVERVIEW_COLUMNS;
   if (zoom === 'close') return viewportWidth;
   return viewportWidth / 3;
 }
 
 function collectionTrackWidth(viewportWidth: number, itemCount: number, zoom: CollectionZoom) {
-  if (zoom === 'overview') return viewportWidth;
   return collectionCellWidth(viewportWidth, itemCount, zoom) * Math.max(3, itemCount);
 }
 
@@ -109,13 +106,14 @@ function DisplayedStamp({ shrine, owned, sparkleCount, width, bottom, compact = 
 }
 
 function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWidth: number; viewportWidth: number; roomHeight: number }) {
-  const tileWidth = Math.max(1, Math.round(roomHeight * (1024 / 1536)));
-  const initialInset = Math.max(0, Math.floor((tileWidth - viewportWidth) / 2));
-  const backgroundWidth = trackWidth + viewportWidth + initialInset;
+  // Every tile is one viewport wide, keeping the background aligned with the
+  // room in both the three-item and one-item layouts.
+  const tileWidth = Math.max(1, viewportWidth);
+  const backgroundWidth = trackWidth + viewportWidth;
   const tileCount = Math.ceil(backgroundWidth / tileWidth) + 1;
-  return <View pointerEvents="none" style={[S.collectionBackdropLayer, { left: -initialInset, width: tileCount * tileWidth, height: roomHeight }]}>
+  return <View pointerEvents="none" style={[S.collectionBackdropLayer, { left: 0, width: tileCount * tileWidth, height: roomHeight }]}>
     <View style={[S.collectionBackdropTrack, { width: tileCount * tileWidth, height: roomHeight }]}>
-      {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} resizeMode="cover" style={[{ width: tileWidth, height: roomHeight, flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
+      {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} resizeMode="stretch" style={[{ width: tileWidth, height: roomHeight, flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
     </View>
   </View>;
 }
@@ -134,8 +132,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
   const trackCount = Math.max(3, showcase.length);
   const pageWidth = collectionCellWidth(viewportWidth, trackCount, zoom);
   const trackWidth = collectionTrackWidth(viewportWidth, trackCount, zoom);
-  const compact = zoom === 'overview';
-  const displayCellHeight = compact ? roomHeight / Math.ceil(trackCount / OVERVIEW_COLUMNS) : roomHeight;
+  const displayCellHeight = roomHeight;
   const rewarded = useMemo(() => new Set(rewardIds), [rewardIds]);
 
   const selectZoom = (next: CollectionZoom) => {
@@ -197,18 +194,18 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
         >
           <View style={[S.roomTrack, { width: trackWidth, height: roomHeight }]}>
             <CollectionBackdrop trackWidth={trackWidth} viewportWidth={viewportWidth} roomHeight={roomHeight} />
-            <CollectionRoom itemCount={trackCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={trackWidth} />
-            <View style={[S.displayRow, compact && S.overviewRow, { width: trackWidth, height: roomHeight }]}>
+            <CollectionRoom key={`${zoom}:${trackWidth}:${pageWidth}`} itemCount={trackCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={trackWidth} cellWidth={pageWidth} />
+            <View style={[S.displayRow, { width: trackWidth, height: roomHeight }]}>
               {showcase.map((shrine, index) => {
                 const keychainCount = special.keychains[shrine.id] ?? 0;
                 const sparkleCount = special.sparkles[shrine.id] ?? 0;
                 const stampOwned = rewarded.has(shrine.id);
-                const keychainSize = compact ? Math.max(9, Math.min(24, pageWidth * .46)) : zoom === 'close' ? 142 : Math.max(42, Math.min(170, pageWidth * .86));
-                const stampWidth = compact ? Math.max(6, Math.min(14, pageWidth * .27)) : zoom === 'close' ? 96 : Math.max(34, Math.min(112, pageWidth * .56));
+                const keychainSize = zoom === 'close' ? 142 : Math.max(42, Math.min(170, pageWidth * .86));
+                const stampWidth = zoom === 'close' ? 96 : Math.max(34, Math.min(112, pageWidth * .56));
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight }]}>
-                  {!compact && <View style={S.roomLabel}><Text style={S.roomNumber}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={S.roomName}>{shrine.name}</Text></View>}
-                  <KeychainArtwork shrine={shrine} locked={keychainCount === 0} count={keychainCount} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={compact ? 2 : roomHeight * KEYCHAIN_RAIL_Y} compact={compact} />
-                  <DisplayedStamp shrine={shrine} owned={stampOwned} sparkleCount={sparkleCount} width={stampWidth} bottom={compact ? 2 : roomHeight * (zoom === 'close' ? .238 : 1 - GOSHUIN_SHELF_Y)} compact={compact} />
+                  <View style={S.roomLabel}><Text style={S.roomNumber}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={S.roomName}>{shrine.name}</Text></View>
+                  <KeychainArtwork shrine={shrine} locked={keychainCount === 0} count={keychainCount} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={roomHeight * KEYCHAIN_RAIL_Y} />
+                  <DisplayedStamp shrine={shrine} owned={stampOwned} sparkleCount={sparkleCount} width={stampWidth} bottom={roomHeight * (zoom === 'close' ? .30 : 1 - GOSHUIN_SHELF_Y)} />
                 </View>;
               })}
             </View>
@@ -256,7 +253,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
 }
 
 const S = StyleSheet.create({
-  rail: { paddingRight: 0 }, displayScroller: { width: '100%', backgroundColor: 'transparent' }, roomTrack: { position: 'relative' }, collectionBackdropLayer: { position: 'absolute', top: 0, overflow: 'hidden' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, flexDirection: 'row' }, displayRow: { position: 'absolute', left: 0, top: 0, flexDirection: 'row', zIndex: 2 }, overviewRow: { flexWrap: 'wrap', alignContent: 'flex-start' }, displayCell: { position: 'relative', flexShrink: 0 },
+  rail: { paddingRight: 0 }, displayScroller: { width: '100%', backgroundColor: 'transparent' }, roomTrack: { position: 'relative' }, collectionBackdropLayer: { position: 'absolute', top: 0, overflow: 'hidden' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, flexDirection: 'row' }, displayRow: { position: 'absolute', left: 0, top: 0, flexDirection: 'row', zIndex: 2 }, displayCell: { position: 'relative', flexShrink: 0 },
   passWallet: { borderWidth: 1, borderColor: '#dcc6a8', borderRadius: 18, backgroundColor: '#fff8e9', padding: 14, marginTop: 22, marginBottom: 8, overflow: 'hidden' }, passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, passEyebrow: { color: '#a1604f', fontSize: 9, letterSpacing: 1.5 }, passTitle: { color: '#3c3026', fontFamily: SERIF, fontSize: 18, marginTop: 2 }, passBalances: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 }, passBalance: { color: '#6f6252', fontSize: 9, backgroundColor: '#f0e4d1', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5 }, passButtons: { flexDirection: 'row', gap: 6, marginTop: 11 }, passButton: { flex: 1, minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: '#c8a982', backgroundColor: '#f6ead5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, passButtonText: { color: '#873d36', fontFamily: SERIF, fontSize: 9, textAlign: 'center' }, purchaseNotice: { color: '#7d4939', fontSize: 10, textAlign: 'center', marginTop: 9 }, passNote: { color: '#9a8b77', fontSize: 8, textAlign: 'center', marginTop: 6 },
   roomStage: { position: 'relative', overflow: 'hidden', backgroundColor: 'transparent' },
   roomLabel: { position: 'absolute', top: 17, left: 4, right: 4, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 5, zIndex: 2 }, roomNumber: { color: '#f2c681', fontSize: 8, letterSpacing: 1 }, roomName: { color: '#fff1d8', fontFamily: SERIF, fontSize: 11, flexShrink: 1 },
