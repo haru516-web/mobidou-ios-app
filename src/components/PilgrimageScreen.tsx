@@ -34,7 +34,7 @@ export function routeMapPosition(route: Pilgrimage, progress?: Progress, count =
   return { start: completed, end: Math.min(completed + 1, route.ids.length - 1), ratio, steps, previousTarget, nextTarget };
 }
 
-export function RouteMap({ route, count, progress, pet, onStop }: { route: Pilgrimage; count: number; progress?: Progress; pet?: Pick<PetCharacter, 'id' | 'image' | 'name'>; onStop?: (shrine: Shrine, index: number) => void }) {
+export function RouteMap({ route, count, progress, pet, onStop, showSpeech = false }: { route: Pilgrimage; count: number; progress?: Progress; pet?: Pick<PetCharacter, 'id' | 'image' | 'name'>; onStop?: (shrine: Shrine, index: number) => void; showSpeech?: boolean }) {
   const stops = pilgrimageShrines(route);
   const height = 120 + stops.length * 78;
   // These anchors follow the road painted into the generated map plate. Route
@@ -53,9 +53,9 @@ export function RouteMap({ route, count, progress, pet, onStop }: { route: Pilgr
   });
   const position = routeMapPosition(route, progress, count);
   const peekAsset = pet ? PILGRIMAGE_PEEK_IMAGES[pet.id] : undefined;
-  const peekClearance = peekAsset ? 135 : 0;
+  const peekClearance = peekAsset ? (showSpeech ? 92 : 135) : 0;
   const peekMetric = pet ? PILGRIMAGE_PEEK_METRICS[pet.id] : undefined;
-  const peekScale = peekMetric ? Math.min(190 / peekMetric.width, 200 / peekMetric.height) : 1;
+  const peekScale = peekMetric ? Math.min((showSpeech ? 132 : 190) / peekMetric.width, (showSpeech ? 132 : 200) / peekMetric.height) : 1;
   const peekImageWidth = peekMetric ? peekMetric.width * peekScale : 190;
   const peekImageHeight = peekMetric ? peekMetric.height * peekScale : 200;
   const peekImageBottom = peekMetric ? peekMetric.bottom * peekImageHeight : 166;
@@ -77,7 +77,7 @@ export function RouteMap({ route, count, progress, pet, onStop }: { route: Pilgr
       <Text style={S.mapStatus}>{pet ? `${pet.name} · ${position.steps.toLocaleString()}歩` : '現在地は歩数に合わせて進みます'}</Text>
       <Text style={S.mapFootnote}>もびの世界の巡礼絵図 · 実際の地図ではありません</Text>
     </View>
-    {peekAsset && pet && <View pointerEvents="none" accessibilityLabel={`${pet.name}が巡礼絵図の上辺に乗っている`} style={[S.mapPeek, { top: peekClearance - peekImageBottom + 14, height: peekImageHeight }]}><Image source={peekAsset} contentFit="contain" style={[S.mapPeekImage, { width: peekImageWidth, height: peekImageHeight, left: (190 - peekImageWidth) / 2, position: 'absolute', bottom: 0 }]} /></View>}
+    {peekAsset && pet && <View pointerEvents="none" accessibilityLabel={`${pet.name}が巡礼絵図の上辺に乗っている`} style={[S.mapPeek, { top: peekClearance - peekImageBottom + 14, height: peekImageHeight }]}><Image source={peekAsset} contentFit="contain" style={[S.mapPeekImage, { width: peekImageWidth, height: peekImageHeight, left: (190 - peekImageWidth) / 2, position: 'absolute', bottom: 0 }]} />{showSpeech && <View style={MAP_SPEECH.bubble}><Text style={MAP_SPEECH.text}>今歩いてる巡礼マップだよ</Text><View style={MAP_SPEECH.tail} /></View>}</View>}
   </View>;
 }
 
@@ -108,6 +108,13 @@ export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet }: 
 export function CompletionPage({ route, progress }: { route: Pilgrimage; progress: Progress }) {
   return <PaperCard><View style={{ alignItems: 'center', gap: 10, paddingVertical: 15 }}><Text style={S.kicker}>巡 礼 結 願 証</Text><Text style={S.headline}>{route.name}</Text><Text style={[S.title, { color: C.red, borderWidth: 2, borderColor: C.red, padding: 13 }]}>結願</Text><Text style={S.body}>{route.gift}</Text><Text style={S.body}>{route.completion}。</Text><Text style={S.label}>「{route.title}」</Text><Text style={S.small}>{progress.completedAt} · {route.ids.length}のご縁を結びました</Text></View></PaperCard>;
 }
+
+const MAP_SPEECH = StyleSheet.create({
+  bubble: { position: 'absolute', top: 28, left: 154, width: 148, paddingHorizontal: 8, paddingVertical: 7, borderRadius: 16, backgroundColor: '#FFF9EF', borderWidth: 1, borderColor: '#D8C4A5', alignItems: 'center', shadowColor: '#6D5A45', shadowOffset: { width: 0, height: 2 }, shadowOpacity: .16, shadowRadius: 4, elevation: 3 },
+  text: { fontFamily: SERIF, fontSize: 10, color: C.ink, textAlign: 'center', lineHeight: 15 },
+  tail: { position: 'absolute', left: -6, top: '50%', marginTop: -6, width: 12, height: 12, backgroundColor: '#FFF9EF', borderLeftWidth: 1, borderBottomWidth: 1, borderColor: '#D8C4A5', transform: [{ rotate: '45deg' }] },
+});
+
 const S = StyleSheet.create({
   header: { padding: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, kicker: { fontSize: 10, letterSpacing: 1.6, color: C.muted }, title: { fontFamily: SERIF, color: C.ink, fontSize: 23, marginTop: 8 }, close: { padding: 10, minWidth: 44, minHeight: 44 }, hero: { width: '100%', height: 235, borderRadius: 12 }, headline: { fontFamily: SERIF, fontSize: 23, color: C.ink, marginVertical: 14 }, body: { fontSize: 13, lineHeight: 24, color: '#655B4D' }, label: { fontFamily: SERIF, fontSize: 15, color: C.ink, marginVertical: 8 }, small: { fontSize: 10, lineHeight: 20, color: '#857560', marginTop: 5 }, card: { marginBottom: 23, borderRadius: 12, backgroundColor: '#F6EEDC', borderWidth: 1, borderColor: '#DECFB7' }, cardImage: { width: '100%', height: 175 }, cardCopy: { padding: 17 }, cardTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink, marginTop: 9, marginBottom: 4 }, meta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }, mapFrame: { position: 'relative', width: '100%' }, map: { overflow: 'hidden', borderRadius: 12, backgroundColor: '#F2E7CF', width: '100%' }, mapHeader: { position: 'absolute', left: 16, top: 13, zIndex: 3 }, mapTitle: { fontFamily: SERIF, fontSize: 16, color: '#4C5D4B' }, mapSubtitle: { marginTop: 3, fontSize: 10, color: '#776B58' }, mapPet: { position: 'absolute', width: 44, height: 44, zIndex: 4, alignItems: 'center', justifyContent: 'center' }, mapPetImage: { width: 39, height: 39 }, mapPeek: { position: 'absolute', top: -120, left: '50%', marginLeft: -95, width: 190, height: 200, zIndex: 5 }, mapPeekImage: { width: '100%', height: '100%' }, mapStatus: { position: 'absolute', right: 16, bottom: 25, fontSize: 9, color: '#5F594F', textShadowColor: '#FFF8E3', textShadowRadius: 3 }, mapFootnote: { position: 'absolute', bottom: 7, alignSelf: 'center', fontSize: 8, color: '#71634C' },
 });

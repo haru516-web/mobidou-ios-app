@@ -274,6 +274,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const pending = pendingIndex >= 0 ? activeShrines[pendingIndex] : SHRINES.find(s => s.id === progress.pending[0]);
   const awardVisible = !!pending && data.onboarded && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !legacyBook;
   const move = (value: Tab) => { if (value === 'collection') setCollectionZoom('standard'); scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
+  const mapScreen = tab === 'walk' && outingTab === 'map';
   const enterApp = () => { setOpeningVisible(false); if (!data.onboarded) journey.enter(false); };
   const turnPage = useCallback((direction: 1 | -1) => {
     if (turning || activeShrines.length < 2) return;
@@ -325,7 +326,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </View>
     {data.demo && <View style={[S.demoBar, tab === 'collection' && S.collectionChrome]}><View style={S.dot} /><Text style={S.demoText}>体験モード · 実際の歩数・御朱印帳とは別の記録</Text><Pressable accessibilityRole="button" accessibilityLabel="体験モードを終了" onPress={() => journey.enter(false)} style={{ padding: 7 }}><Icon name="close" size={14} color={C.red} /></Pressable></View>}
     {!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
-    <ScrollView ref={scroll} contentContainerStyle={S.content} showsVerticalScrollIndicator={false} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
+    <ScrollView ref={scroll} contentContainerStyle={[S.content, mapScreen && { paddingBottom: 0 }]} scrollEnabled={!mapScreen} showsVerticalScrollIndicator={false} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
       {tab === 'home' && <>
         <View style={S.homeHeading}><View style={S.hairline} /><Text style={S.chapter}>日々を、ひとめぐり。</Text><View style={S.hairline} /></View>
         <Companion pet={pet} haptics={data.haptics} onBond={journey.bond} />
@@ -379,8 +380,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
 
       {tab === 'walk' && <>
-        <View style={S.outingTabs} accessibilityRole="tablist">
-          {([['count', 'カウント'], ['map', 'マップ']] as const).map(([id, label]) => <Pressable key={id} accessibilityRole="tab" accessibilityState={{ selected: outingTab === id }} onPress={() => { setOutingTab(id); scroll.current?.scrollTo({ y: 0, animated: false }); }} style={[S.outingTab, outingTab === id && S.outingTabActive]}><Text style={[S.outingTabText, outingTab === id && S.outingTabTextActive]}>{label}</Text><View style={[S.outingTabIndicator, { opacity: outingTab === id ? 1 : 0 }]} /></Pressable>)}
+        <View style={[S.outingTabs, mapScreen && { marginBottom: 0 }]} accessibilityRole="tablist">
+          {([['count', 'カウント'], ['map', '巡礼マップ']] as const).map(([id, label]) => <Pressable key={id} accessibilityRole="tab" accessibilityState={{ selected: outingTab === id }} onPress={() => { setOutingTab(id); scroll.current?.scrollTo({ y: 0, animated: false }); }} style={[S.outingTab, outingTab === id && S.outingTabActive]}><Text style={[S.outingTabText, outingTab === id && S.outingTabTextActive]}>{label}</Text><View style={[S.outingTabIndicator, { opacity: outingTab === id ? 1 : 0 }]} /></Pressable>)}
         </View>
         {outingTab === 'count' && <>
           <View style={S.walkMinimal}>
@@ -391,9 +392,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           {activeRoute && (data.demo ? <Button title="体験で1,000歩あるく" icon="footsteps-outline" onPress={journey.demoWalk} style={S.walkDemoButton} /> : <Button title={data.source === 'none' ? '歩数を連携する' : journey.busy ? '歩数を更新しています…' : '今日の歩数を更新'} icon="refresh" disabled={journey.busy} onPress={() => void (data.source === 'none' ? journey.connect() : journey.refresh())} style={S.walkDemoButton} />)}
         </>}
         {outingTab === 'map' && activeRoute && <>
-          <Section title="いま歩いている巡礼" subtitle={`${activeRoute.type} · ${progress.rewards.length}/${activeRoute.ids.length}`} action="旅を選び直す" onPress={() => setRoutePicker(true)} />
-          <RouteMap route={activeRoute} count={progress.rewards.length} progress={progress} pet={pet} onStop={(shrine, index) => { setFeatured(index); setDetail(shrine); }} />
-          <View style={S.walkNote}><WashiArt /><Text style={S.walkNoteText}>{activeRoute.completion}と、{activeRoute.gift}を授かります。歩きながらの操作はせず、立ち止まって確認してください。</Text></View>
+          <RouteMap route={activeRoute} count={progress.rewards.length} progress={progress} pet={pet} showSpeech onStop={(shrine, index) => { setFeatured(index); setDetail(shrine); }} />
         </>}
       </>}
 
