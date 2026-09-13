@@ -204,7 +204,7 @@ export default function App() {
   return <SafeAreaProvider><StatusBar style="dark" /><Main fontsReady={fontsLoaded || !!fontError} /></SafeAreaProvider>;
 }
 
-function CollectionBackdrop({ scrollX, zoom, viewportWidth, viewportHeight }: { scrollX: Animated.Value; zoom: CollectionZoom; viewportWidth: number; viewportHeight: number }) {
+function CollectionBackdrop({ scrollX, scrollY, zoom, viewportWidth, viewportHeight }: { scrollX: Animated.Value; scrollY: Animated.Value; zoom: CollectionZoom; viewportWidth: number; viewportHeight: number }) {
   const pageWidth = zoom === 'close' ? viewportWidth : viewportWidth / 3;
   const contentWidth = zoom === 'overview' ? viewportWidth : pageWidth * Math.max(3, COLLECTION_SHRINES.length);
   const maxScroll = Math.max(0, contentWidth - viewportWidth);
@@ -215,8 +215,9 @@ function CollectionBackdrop({ scrollX, zoom, viewportWidth, viewportHeight }: { 
   const translateX = maxScroll > 0
     ? scrollX.interpolate({ inputRange: [0, maxScroll], outputRange: [-initialInset, -initialInset - maxScroll], extrapolate: 'clamp' })
     : -initialInset;
-  return <View pointerEvents="none" style={S.collectionBackdropViewport}>
-    <Animated.View style={[S.collectionBackdropTrack, { width: tileCount * tileWidth }, { transform: [{ translateX }] }]}>
+  const translateY = scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' });
+  return <View pointerEvents="none" style={[S.collectionBackdropViewport, { bottom: -260 }]}>
+    <Animated.View style={[S.collectionBackdropTrack, { width: tileCount * tileWidth }, { transform: [{ translateX }, { translateY }] }]}>
       {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} contentFit="cover" style={[{ width: tileWidth, height: '100%', flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
     </Animated.View>
   </View>;
@@ -241,6 +242,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
   const [backgroundSeason, setBackgroundSeason] = useState<BackgroundSeason>(() => getBackgroundOption(data.backgroundId).season);
   const scroll = useRef<ScrollView>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const collectionScrollX = useRef(new Animated.Value(0)).current;
   const pet = getPetCharacter(data.pet);
   const currentBackground = getBackgroundOption(data.backgroundId);
@@ -278,7 +280,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const pendingIndex = progress.pending[0] ? (activeRoute?.ids.indexOf(progress.pending[0]) ?? -1) : -1;
   const pending = pendingIndex >= 0 ? activeShrines[pendingIndex] : SHRINES.find(s => s.id === progress.pending[0]);
   const awardVisible = !!pending && data.onboarded && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !legacyBook;
-  const move = (value: Tab) => { if (value === 'collection') { collectionScrollX.setValue(0); setCollectionZoom('standard'); } setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
+  const move = (value: Tab) => { if (value === 'collection') { collectionScrollX.setValue(0); setCollectionZoom('standard'); } scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const enterApp = () => { setOpeningVisible(false); if (!data.onboarded) journey.enter(false); };
   const turnPage = useCallback((direction: 1 | -1) => {
     if (turning || activeShrines.length < 2) return;
@@ -316,9 +318,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
   return <View style={S.desktop}><SafeAreaView style={S.app}>
-    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} zoom={collectionZoom} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : <>
-      <Image source={currentBackground.image} contentFit="cover" style={S.backgroundArt} pointerEvents="none" />
-      <View pointerEvents="none" style={S.backgroundWash} />
+    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} scrollY={scrollY} zoom={collectionZoom} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : <>
+      <Animated.View pointerEvents="none" style={[S.backgroundScrollLayer, { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
+        <Image source={currentBackground.image} contentFit="cover" style={S.backgroundArt} />
+        <View pointerEvents="none" style={S.backgroundWash} />
+      </Animated.View>
       <Clouds />
     </>}
     <View style={[S.header, tab === 'collection' && S.collectionHeader]}>
@@ -328,7 +332,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </View>
     {data.demo && <View style={[S.demoBar, tab === 'collection' && S.collectionChrome]}><View style={S.dot} /><Text style={S.demoText}>体験モード · 実際の歩数・御朱印帳とは別の記録</Text><Pressable accessibilityRole="button" accessibilityLabel="体験モードを終了" onPress={() => journey.enter(false)} style={{ padding: 7 }}><Icon name="close" size={14} color={C.red} /></Pressable></View>}
     {!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
-    <ScrollView ref={scroll} contentContainerStyle={S.content} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scroll} contentContainerStyle={S.content} showsVerticalScrollIndicator={false} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
       {tab === 'home' && <>
         <View style={S.homeHeading}><View style={S.hairline} /><Text style={S.chapter}>日々を、ひとめぐり。</Text><View style={S.hairline} /></View>
         <Companion pet={pet} haptics={data.haptics} onBond={journey.bond} />
@@ -439,7 +443,7 @@ function Close({ onPress }: { onPress: () => void }) { return <Pressable accessi
 function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name']; text: string }) { return <View style={S.meta}><Icon name={icon} size={18} color={C.gold} /><Text style={S.metaText}>{text}</Text></View>; }
 
 const S = StyleSheet.create({
-  desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, collectionBackdropViewport: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#F5E8D4' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, bottom: 0, flexDirection: 'row' }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 12 },
+  desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundScrollLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: -260 }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, collectionBackdropViewport: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#F5E8D4' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, bottom: 0, flexDirection: 'row' }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 12 },
   headerLogo: { width: 124, height: 45, marginTop: 5 },
   header: { height: 87, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, headerSide: { width: 63 }, brandMini: { color: C.muted, fontSize: 8, lineHeight: 16, letterSpacing: .2 }, brand: { flexDirection: 'row', alignItems: 'center', gap: 5 }, logo: { fontFamily: 'ShipporiBold', fontSize: 39, letterSpacing: 2, color: C.ink }, logoMark: { width: 38, height: 38, borderRadius: 6, marginTop: 9, transform: [{ rotate: '8deg' }] }, gear: { width: 63, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
   content: { paddingHorizontal: 24, paddingBottom: 24 }, homeHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 0, marginBottom: 4 }, hairline: { width: 30, height: 1, backgroundColor: '#CDBEAC' }, chapter: { fontFamily: SERIF, color: '#766452', fontSize: 14, letterSpacing: 2 },
