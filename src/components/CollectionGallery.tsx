@@ -11,6 +11,7 @@ import type { PassKind, SpecialCollection } from '../services/specialRewards';
 
 const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.png');
 const WALL_HOOK = require('../../assets/collection/collection-wall-hook-v2.png');
+const COLLECTION_BACKDROP = require('../../assets/collection/collection-cabinet-washi-backdrop-v1.png');
 const SERIF = 'Shippori';
 const KEYCHAIN_RAIL_Y = 0.14;
 const GOSHUIN_SHELF_Y = 0.60;
@@ -107,7 +108,19 @@ function DisplayedStamp({ shrine, owned, sparkleCount, width, bottom, compact = 
   </View>;
 }
 
-export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, scrollX, zoom, onZoomChange }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; scrollX: Animated.Value; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void }) {
+function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWidth: number; viewportWidth: number; roomHeight: number }) {
+  const tileWidth = Math.max(1, Math.round(roomHeight * (1024 / 1536)));
+  const initialInset = Math.max(0, Math.floor((tileWidth - viewportWidth) / 2));
+  const backgroundWidth = trackWidth + viewportWidth + initialInset;
+  const tileCount = Math.ceil(backgroundWidth / tileWidth) + 1;
+  return <View pointerEvents="none" style={[S.collectionBackdropLayer, { left: -initialInset, width: tileCount * tileWidth, height: roomHeight }]}>
+    <View style={[S.collectionBackdropTrack, { width: tileCount * tileWidth, height: roomHeight }]}>
+      {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} resizeMode="cover" style={[{ width: tileWidth, height: roomHeight, flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
+    </View>
+  </View>;
+}
+
+export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, zoom, onZoomChange }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void }) {
   const { width, height } = useWindowDimensions();
   const viewportWidth = Math.min(480, Math.max(1, width));
   const roomHeight = Math.max(470, Math.min(720, height - 220));
@@ -127,7 +140,6 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
 
   const selectZoom = (next: CollectionZoom) => {
     displayScroll.current?.scrollTo({ x: 0, animated: false });
-    scrollX.setValue(0);
     if (next !== zoom) onZoomChange(next);
   };
 
@@ -167,7 +179,6 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
   return (
     <View>
       <View onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={[S.roomStage, { width: viewportWidth, height: roomHeight, marginHorizontal: -24 }]}>
-        <CollectionRoom itemCount={trackCount} scrollX={scrollX} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} />
         <ScrollView
           ref={displayScroll}
           horizontal
@@ -181,11 +192,12 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
           style={[S.displayScroller, { height: roomHeight, zIndex: 1 }]}
           contentContainerStyle={[S.rail, { width: trackWidth, height: roomHeight }]}
           scrollEventThrottle={16}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: false })}
           onScrollBeginDrag={() => setSwayImpulse(value => value + 1)}
           onMomentumScrollEnd={() => setSwayImpulse(value => value + 1)}
         >
           <View style={[S.roomTrack, { width: trackWidth, height: roomHeight }]}>
+            <CollectionBackdrop trackWidth={trackWidth} viewportWidth={viewportWidth} roomHeight={roomHeight} />
+            <CollectionRoom itemCount={trackCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={trackWidth} />
             <View style={[S.displayRow, compact && S.overviewRow, { width: trackWidth, height: roomHeight }]}>
               {showcase.map((shrine, index) => {
                 const keychainCount = special.keychains[shrine.id] ?? 0;
@@ -244,7 +256,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
 }
 
 const S = StyleSheet.create({
-  rail: { paddingRight: 0 }, displayScroller: { width: '100%', backgroundColor: 'transparent' }, roomTrack: { position: 'relative' }, displayRow: { position: 'absolute', left: 0, top: 0, flexDirection: 'row' }, overviewRow: { flexWrap: 'wrap', alignContent: 'flex-start' }, displayCell: { position: 'relative', flexShrink: 0 },
+  rail: { paddingRight: 0 }, displayScroller: { width: '100%', backgroundColor: 'transparent' }, roomTrack: { position: 'relative' }, collectionBackdropLayer: { position: 'absolute', top: 0, overflow: 'hidden' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, flexDirection: 'row' }, displayRow: { position: 'absolute', left: 0, top: 0, flexDirection: 'row', zIndex: 2 }, overviewRow: { flexWrap: 'wrap', alignContent: 'flex-start' }, displayCell: { position: 'relative', flexShrink: 0 },
   passWallet: { borderWidth: 1, borderColor: '#dcc6a8', borderRadius: 18, backgroundColor: '#fff8e9', padding: 14, marginTop: 22, marginBottom: 8, overflow: 'hidden' }, passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, passEyebrow: { color: '#a1604f', fontSize: 9, letterSpacing: 1.5 }, passTitle: { color: '#3c3026', fontFamily: SERIF, fontSize: 18, marginTop: 2 }, passBalances: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 }, passBalance: { color: '#6f6252', fontSize: 9, backgroundColor: '#f0e4d1', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5 }, passButtons: { flexDirection: 'row', gap: 6, marginTop: 11 }, passButton: { flex: 1, minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: '#c8a982', backgroundColor: '#f6ead5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, passButtonText: { color: '#873d36', fontFamily: SERIF, fontSize: 9, textAlign: 'center' }, purchaseNotice: { color: '#7d4939', fontSize: 10, textAlign: 'center', marginTop: 9 }, passNote: { color: '#9a8b77', fontSize: 8, textAlign: 'center', marginTop: 6 },
   roomStage: { position: 'relative', overflow: 'hidden', backgroundColor: 'transparent' },
   roomLabel: { position: 'absolute', top: 17, left: 4, right: 4, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 5, zIndex: 2 }, roomNumber: { color: '#f2c681', fontSize: 8, letterSpacing: 1 }, roomName: { color: '#fff1d8', fontFamily: SERIF, fontSize: 11, flexShrink: 1 },

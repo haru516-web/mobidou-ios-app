@@ -204,20 +204,14 @@ export default function App() {
   return <SafeAreaProvider><StatusBar style="dark" /><Main fontsReady={fontsLoaded || !!fontError} /></SafeAreaProvider>;
 }
 
-function CollectionBackdrop({ scrollX, scrollY, zoom, viewportWidth, viewportHeight }: { scrollX: Animated.Value; scrollY: Animated.Value; zoom: CollectionZoom; viewportWidth: number; viewportHeight: number }) {
-  const pageWidth = zoom === 'close' ? viewportWidth : viewportWidth / 3;
-  const contentWidth = zoom === 'overview' ? viewportWidth : pageWidth * Math.max(3, COLLECTION_SHRINES.length);
-  const maxScroll = Math.max(0, contentWidth - viewportWidth);
+function CollectionBackdrop({ scrollY, viewportWidth, viewportHeight }: { scrollY: Animated.Value; viewportWidth: number; viewportHeight: number }) {
   const tileWidth = Math.max(1, Math.round(viewportHeight * (1024 / 1536)));
   const initialInset = Math.max(0, Math.floor((tileWidth - viewportWidth) / 2));
-  const backgroundWidth = contentWidth + viewportWidth + initialInset;
+  const backgroundWidth = viewportWidth + initialInset + tileWidth;
   const tileCount = Math.ceil(backgroundWidth / tileWidth) + 1;
-  const translateX = maxScroll > 0
-    ? scrollX.interpolate({ inputRange: [0, maxScroll], outputRange: [-initialInset, -initialInset - maxScroll], extrapolate: 'clamp' })
-    : -initialInset;
   const translateY = scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' });
   return <View pointerEvents="none" style={[S.collectionBackdropViewport, { bottom: -260 }]}>
-    <Animated.View style={[S.collectionBackdropTrack, { width: tileCount * tileWidth }, { transform: [{ translateX }, { translateY }] }]}>
+    <Animated.View style={[S.collectionBackdropTrack, { left: -initialInset, width: tileCount * tileWidth }, { transform: [{ translateY }] }]}>
       {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} contentFit="cover" style={[{ width: tileWidth, height: '100%', flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
     </Animated.View>
   </View>;
@@ -243,7 +237,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [backgroundSeason, setBackgroundSeason] = useState<BackgroundSeason>(() => getBackgroundOption(data.backgroundId).season);
   const scroll = useRef<ScrollView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
-  const collectionScrollX = useRef(new Animated.Value(0)).current;
   const pet = getPetCharacter(data.pet);
   const currentBackground = getBackgroundOption(data.backgroundId);
   const activeRoute = getPilgrimage(progress.routeId);
@@ -280,7 +273,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const pendingIndex = progress.pending[0] ? (activeRoute?.ids.indexOf(progress.pending[0]) ?? -1) : -1;
   const pending = pendingIndex >= 0 ? activeShrines[pendingIndex] : SHRINES.find(s => s.id === progress.pending[0]);
   const awardVisible = !!pending && data.onboarded && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !legacyBook;
-  const move = (value: Tab) => { if (value === 'collection') { collectionScrollX.setValue(0); setCollectionZoom('standard'); } scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
+  const move = (value: Tab) => { if (value === 'collection') setCollectionZoom('standard'); scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const enterApp = () => { setOpeningVisible(false); if (!data.onboarded) journey.enter(false); };
   const turnPage = useCallback((direction: 1 | -1) => {
     if (turning || activeShrines.length < 2) return;
@@ -318,7 +311,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
   return <View style={S.desktop}><SafeAreaView style={S.app}>
-    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} scrollY={scrollY} zoom={collectionZoom} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : <>
+    {tab === 'collection' ? <CollectionBackdrop scrollY={scrollY} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : <>
       <Animated.View pointerEvents="none" style={[S.backgroundScrollLayer, { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
         <Image source={currentBackground.image} contentFit="cover" style={S.backgroundArt} />
         <View pointerEvents="none" style={S.backgroundWash} />
@@ -404,7 +397,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         </>}
       </>}
 
-      {tab === 'collection' && <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} onPurchasePass={journey.purchasePass} scrollX={collectionScrollX} zoom={collectionZoom} onZoomChange={setCollectionZoom} />}
+      {tab === 'collection' && <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} onPurchasePass={journey.purchasePass} zoom={collectionZoom} onZoomChange={setCollectionZoom} />}
 
       {tab === 'pets' && <>
          <View style={S.pageHeading}><Text style={S.pageTitle}>いっしょに、もび道。</Text><Text style={S.subtitle}>気になる子と、今日を歩こう。</Text></View>
