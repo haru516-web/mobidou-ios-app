@@ -1,0 +1,14 @@
+{
+  "sanctuary": "./sanctuary.png",
+  "mountain": "./mountain.png",
+  "circuit": "./circuit.png",
+  "compassion": "./compassion.png",
+  "vow": "./vow.png",
+  "story": "./story.png",
+  "sanctuaryDawn": "./sanctuaryDawn.png",
+  "mountainRidge": "./mountainRidge.png",
+  "circuitWater": "./circuitWater.png",
+  "compassionMoon": "./compassionMoon.png",
+  "vowSevenLights": "./vowSevenLights.png",
+  "storyRiver": "./storyRiver.png"
+}

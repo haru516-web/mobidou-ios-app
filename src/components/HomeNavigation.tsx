@@ -30,6 +30,14 @@ type HomeBottomNavigationProps = {
   onOpenCustom: () => void;
   onOpenMoby: () => void;
   disabled?: boolean;
+  menuActions?: readonly [NavigationMenuAction, NavigationMenuAction];
+};
+
+export type NavigationMenuAction = {
+  label: string;
+  hint: string;
+  icon: React.ComponentProps<typeof Icon>['name'];
+  onPress: () => void;
 };
 
 function MenuGlyph({ open }: { open: boolean }) {
@@ -38,12 +46,18 @@ function MenuGlyph({ open }: { open: boolean }) {
   </View>;
 }
 
-export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby, disabled = false }: HomeBottomNavigationProps) {
+export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby, disabled = false, menuActions }: HomeBottomNavigationProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const reduced = useReducedMotion();
   const progress = useRef(new Animated.Value(0)).current;
   const useNativeDriver = Platform.OS !== 'web';
+  const actions: readonly [NavigationMenuAction, NavigationMenuAction] = menuActions ?? [
+    { label: 'ホーム画面カスタム', hint: 'ホームに表示する2項目を選びます', icon: 'grid-outline', onPress: onOpenCustom },
+    { label: 'モビーを選ぶ', hint: 'いっしょに歩く相棒を選びます', icon: 'paw-outline', onPress: onOpenMoby },
+  ];
+
+  useEffect(() => { setMenuOpen(false); }, [tab, disabled]);
 
   useEffect(() => {
     if (menuOpen) setMenuVisible(true);
@@ -74,13 +88,13 @@ export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby
   return <View style={S.navShell} pointerEvents={disabled ? 'none' : 'auto'} accessibilityElementsHidden={disabled} aria-hidden={disabled ? true : undefined} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
     {menuVisible && <Animated.View pointerEvents={menuOpen ? 'box-none' : 'none'} accessibilityElementsHidden={!menuOpen} importantForAccessibility={menuOpen ? 'auto' : 'no-hide-descendants'} style={S.actionArc}>
       <Animated.View style={[S.actionSlot, S.actionSlotLeft, menuActionStyle('left')]}>
-        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="ホーム画面カスタム" accessibilityHint="ホームに表示する2項目を選びます" onPress={() => chooseAction(onOpenCustom)} style={[S.actionButton, CONTINUOUS_CORNER]}>
-          <Icon name="grid-outline" size={18} color={C.red} /><Text style={S.actionText}>ホーム画面カスタム</Text>
+        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={actions[0].label} accessibilityHint={actions[0].hint} onPress={() => chooseAction(actions[0].onPress)} style={[S.actionButton, CONTINUOUS_CORNER]}>
+          <Icon name={actions[0].icon} size={18} color={C.red} /><Text style={S.actionText}>{actions[0].label}</Text>
         </Pressable>
       </Animated.View>
       <Animated.View style={[S.actionSlot, S.actionSlotRight, menuActionStyle('right')]}>
-        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="モビーを選ぶ" accessibilityHint="いっしょに歩く相棒を選びます" onPress={() => chooseAction(onOpenMoby)} style={[S.actionButton, CONTINUOUS_CORNER]}>
-          <Icon name="paw-outline" size={18} color={C.red} /><Text style={S.actionText}>モビーを選ぶ</Text>
+        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={actions[1].label} accessibilityHint={actions[1].hint} onPress={() => chooseAction(actions[1].onPress)} style={[S.actionButton, CONTINUOUS_CORNER]}>
+          <Icon name={actions[1].icon} size={18} color={C.red} /><Text style={S.actionText}>{actions[1].label}</Text>
         </Pressable>
       </Animated.View>
     </Animated.View>}
@@ -94,7 +108,7 @@ export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby
         </Pressable>)}
       </View>
       </Animated.View>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="メニュー" accessibilityState={{ expanded: menuOpen }} accessibilityHint={menuOpen ? 'メニューを閉じます' : 'ホーム画面カスタムとモビーを選ぶを表示します'} onPress={() => setMenuOpen(open => !open)} style={[S.menuButton, CONTINUOUS_CORNER, menuOpen && S.menuButtonOpen]}>
+      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="メニュー" accessibilityState={{ expanded: menuOpen }} accessibilityHint={menuOpen ? 'メニューを閉じます' : `${actions[0].label}と${actions[1].label}を表示します`} onPress={() => setMenuOpen(open => !open)} style={[S.menuButton, CONTINUOUS_CORNER, menuOpen && S.menuButtonOpen]}>
         <MenuGlyph open={menuOpen} /><Text style={[S.menuText, menuOpen && S.menuTextOpen]}>メニュー</Text>
       </Pressable>
     </View>

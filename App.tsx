@@ -23,6 +23,7 @@ import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_IMAGES } from './src/data/pilgrimageImages';
 import { COLLECTION_SHRINES, CollectionGallery, type CollectionZoom } from './src/components/CollectionGallery';
 import { HomeBottomNavigation, HomeCustomizationPopup, HomeWidgetPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
+import { GoshuinBookCover, GoshuinImageListModal } from './src/components/GoshuinBook';
 import type { HomeWidgetId } from './src/services/homePreferences';
 
 type Tab = 'home' | 'book' | 'walk' | 'pets' | 'collection';
@@ -236,6 +237,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [info, setInfo] = useState<'privacy' | 'about' | null>(null);
   const [openingVisible, setOpeningVisible] = useState(true);
   const [routePicker, setRoutePicker] = useState(false);
+  const [routePickerFromBook, setRoutePickerFromBook] = useState(false);
+  const [bookOpen, setBookOpen] = useState(false);
+  const [bookImageList, setBookImageList] = useState(false);
   const [legacyBook, setLegacyBook] = useState(false);
   const [petSelectionReaction, setPetSelectionReaction] = useState(0);
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
@@ -277,8 +281,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const pageTurn = useRef(new Animated.Value(0)).current;
   const pendingIndex = progress.pending[0] ? (activeRoute?.ids.indexOf(progress.pending[0]) ?? -1) : -1;
   const pending = pendingIndex >= 0 ? activeShrines[pendingIndex] : SHRINES.find(s => s.id === progress.pending[0]);
-  const awardVisible = !!pending && data.onboarded && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !legacyBook && !homePopup && !homeCardPopup;
-  const move = (value: Tab) => { if (value === 'collection') setCollectionZoom('standard'); setHomePopup(null); setHomeCardPopup(null); scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
+  const awardVisible = !!pending && data.onboarded && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !legacyBook && !homePopup && !homeCardPopup && !bookImageList;
+  const move = (value: Tab) => { if (value === 'collection') setCollectionZoom('standard'); if (value === 'book' && tab !== 'book') setBookOpen(false); setBookImageList(false); setHomePopup(null); setHomeCardPopup(null); scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setHomeCardPopup(null); setHomePopup(kind); setTab('home'); scrollY.setValue(0); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const mapScreen = tab === 'walk' && outingTab === 'map';
   const enterApp = () => { setOpeningVisible(false); scroll.current?.scrollTo({ y: 0, animated: false }); if (!data.onboarded) journey.enter(false); };
@@ -388,18 +392,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
       {tab === 'book' && <>
         <View style={S.pageHeading}><Text style={S.pageTitle}>御朱印帳</Text><Text style={S.subtitle}>めぐった日々の、やさしいご縁。</Text></View>
-        {activeRoute && <View style={S.bookDesignPanel}>
-          <WashiArt />
-          <View style={S.bookDesignHeader}><View><Text style={S.eyebrow}>御朱印帳のきせかえ</Text><Text style={S.bookDesignTitle}>{activeRoute.name} 専用帳</Text></View><Icon name="book-outline" size={25} color={activeRoute.color} /></View>
-          <View style={S.bookDesignChoices}>
-            <Pressable accessibilityRole="button" accessibilityState={{ selected: !routeBookSelected }} onPress={() => journey.selectBookDesign(activeRoute.id, 'normal')} style={[S.bookDesignChoice, !routeBookSelected && S.bookDesignChoiceActive]}><Text style={S.bookDesignChoiceTitle}>標準</Text><Text style={S.bookDesignChoiceNote}>最初から使えます</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityState={{ selected: routeBookSelected }} onPress={() => routeBookOwned ? journey.selectBookDesign(activeRoute.id, 'route') : journey.purchaseBookDesign(activeRoute.id)} style={[S.bookDesignChoice, routeBookSelected && S.bookDesignChoiceActive]}>
-              <Image source={PILGRIMAGE_IMAGES[activeRoute.id]} contentFit="cover" style={S.bookDesignArt} pointerEvents="none" /><View pointerEvents="none" style={S.bookDesignShade} />
-              <Text style={[S.bookDesignChoiceTitle, S.bookDesignRouteText]}>{routeBookOwned ? '専用帳を使う' : '専用帳を仮購入'}</Text><Text style={[S.bookDesignChoiceNote, S.bookDesignRouteText]}>{routeBookOwned ? '購入済み' : '価格未設定・決済なし'}</Text>
-            </Pressable>
-          </View>
-        </View>}
-        <View style={[S.bookWrap, routeBookSelected && activeRoute ? { backgroundColor: activeRoute.color, borderColor: activeRoute.color } : null]}>
+        {activeRoute && !bookOpen && <GoshuinBookCover route={activeRoute} onOpen={() => setBookOpen(true)} />}
+        {bookOpen && <><View style={[S.bookWrap, routeBookSelected && activeRoute ? { backgroundColor: activeRoute.color, borderColor: activeRoute.color } : null]}>
           <WashiArt /><View style={S.bookTop}><Text style={S.bookNumber}>MOBIDOU GOSHUIN BOOK</Text><Text style={S.bookNumber}>{String(selectedIndex + 1).padStart(2, '0')} / {String(activeShrines.length).padStart(2, '0')}</Text></View>
           <View {...bookPanResponder.panHandlers} style={S.bookViewport}>
             {renderBookSpread(selected, selectedReward)}
@@ -409,11 +403,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         </View>
         <View style={S.pager}><Pressable accessibilityRole="button" accessibilityLabel="前の御朱印ページ" disabled={turning} onPress={() => turnPage(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><View style={S.pageCounter}><Text style={S.pageCounterText}>{String(selectedIndex + 1).padStart(2, '0')} / {String(activeShrines.length).padStart(2, '0')}</Text><Text style={S.pageCounterHint}>左右の矢印でページをめくる</Text></View><Pressable accessibilityRole="button" accessibilityLabel="次の御朱印ページ" disabled={turning} onPress={() => turnPage(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
         {activeRoute && progress.completedAt && <CompletionPage route={activeRoute} progress={progress} />}
-        <View style={S.collectionProgress}><WashiArt /><Icon name="flower" size={26} color={C.red} /><View style={{ flex: 1 }}><View style={[S.between, { marginBottom: 10 }]}><Text style={S.progressLabel}>集めたご縁</Text><Text style={S.count}><Text style={S.countRed}>{collected.length}</Text> / {activeShrines.length}<Text style={S.tiny}> 印</Text></Text></View><Meter value={collected.length / activeShrines.length} /></View></View>
-        <View style={S.filters}>{([['all', 'すべて', activeShrines.length], ['collected', '集めた', collected.length], ['locked', 'これから', activeShrines.length - collected.length]] as const).map(([key, label, total]) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: filter === key }} onPress={() => setFilter(key)} style={[S.filter, filter === key && S.filterActive]}><Text style={[S.filterText, filter === key && { color: '#FFFCF5' }]}>{label} ({total})</Text></Pressable>)}</View>
-        {visible.length === 0 && <View style={S.empty}><Torii size={42} color={C.gold} /><Text style={S.emptyTitle}>{filter === 'locked' ? 'すべてのご縁が、つながりました。' : '最初の一枚を、ゆっくりと。'}</Text><Text style={S.emptyText}>{filter === 'locked' ? '御朱印帳をひらいて、歩いた日々を振り返ろう。' : '1,000歩から、モビーとの物語が始まります。'}</Text><Button title="おでかけをみる" secondary onPress={() => move('walk')} /></View>}
-        <View style={S.stampGrid}>{visible.map(({ shrine: s, index }) => { const owned = index < collected.length; return <Pressable accessibilityRole="button" accessibilityLabel={`${s.name} ${owned ? '取得済み' : '未取得'}`} key={`${s.id}-${index}`} onPress={() => { setFeatured(index); setDetail(s); }} style={S.stampCard}><Stamp shrine={s} locked={!owned} /><View style={S.stampLabel}><Text style={S.stampName}>{activeRoute?.type === '七願掛け' ? `第${index + 1}巡 · ${s.name}` : s.name}</Text><Text style={S.stampTheme}>{s.theme}</Text></View>{owned && <View style={S.ownedDot}><Icon name="flower" color={C.red} size={15} /></View>}</Pressable>; })}</View>
-        <Text style={S.footerNote}>すべて、もびの世界にだけある架空の社です。</Text>
+        </>}
       </>}
 
       {tab === 'walk' && <>
@@ -445,7 +435,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </ScrollView>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} onSave={order => { journey.saveHomeWidgetOrder(order); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={data.pet} onConfirm={selectedPet => { journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
-    <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => move(value)} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} disabled={!!homePopup || !!homeCardPopup} />
+    <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => move(value)} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={tab === 'book' ? [
+      { label: '巡礼を選ぶ', hint: '御朱印帳の巡礼コースを選び直します', icon: 'map-outline', onPress: () => { setBookImageList(false); setRoutePickerFromBook(true); setRoutePicker(true); } },
+      { label: '御朱印画像一覧', hint: 'この巡礼の御朱印だけを一覧表示します', icon: 'images-outline', onPress: () => setBookImageList(true) },
+    ] : undefined} disabled={!!homePopup || !!homeCardPopup} />
     {homeCardPopup && <HomeWidgetPopup
       widget={homeCardPopup}
       latest={latest}
@@ -467,7 +460,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       onClose={() => setHomeCardPopup(null)}
     />}
 
-    <Modal visible={routePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { if (activeRoute) setRoutePicker(false); }}><SafeAreaView style={S.modal}><PilgrimagePicker activeId={activeRoute?.id} records={routeRecords} pet={pet} onClose={() => { if (activeRoute) setRoutePicker(false); }} onSelect={routeId => { journey.selectRoute(routeId); setFeatured(0); setFilter('all'); setRoutePicker(false); move('walk'); }} /></SafeAreaView></Modal>
+    <GoshuinImageListModal visible={bookImageList} route={activeRoute} shrines={activeShrines} acquiredCount={collected.length} onClose={() => setBookImageList(false)} onSelect={(shrine, index) => { setBookImageList(false); setFeatured(index); setDetail(shrine); }} />
+
+    <Modal visible={routePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { if (activeRoute) { setRoutePicker(false); setRoutePickerFromBook(false); } }}><SafeAreaView style={S.modal}><PilgrimagePicker activeId={activeRoute?.id} records={routeRecords} pet={pet} onClose={() => { if (activeRoute) { setRoutePicker(false); setRoutePickerFromBook(false); } }} onSelect={routeId => { journey.selectRoute(routeId); setFeatured(0); setFilter('all'); setRoutePicker(false); if (routePickerFromBook) { setRoutePickerFromBook(false); setBookOpen(false); move('book'); } else move('walk'); }} /></SafeAreaView></Modal>
 
     <Modal visible={!!detail} onShow={() => setOverlayBusy(true)} onDismiss={() => { setDetail(null); setOverlayBusy(false); }} animationType="slide" onRequestClose={() => setDetail(null)} presentationStyle="pageSheet"><SafeAreaView style={S.modal}><View style={S.modalHeader}><Text style={S.modalTitle}>ご縁のものがたり</Text><Close onPress={() => setDetail(null)} /></View>{detail && <ScrollView contentContainerStyle={S.detailContent}><Text style={S.detailReading}>{detail.reading}</Text><Text style={S.detailName}>{detail.name}</Text><Stamp shrine={detail} style={{ width: '65%', maxWidth: 290, alignSelf: 'center', marginVertical: 24 }} /><Text style={S.detailTheme}>{detail.theme}</Text><Text style={S.detailDescription}>{detail.description}</Text><View style={S.detailMeta}><Meta icon="location-outline" text={detail.place} /><Meta icon="leaf-outline" text={detail.blessing} /><Meta icon="book-outline" text={detail.stampLocation} />{(() => { const reward = progress.rewards[featured]; return reward ? <><Meta icon="calendar-outline" text={`${displayDate(reward.date)} に授かりました`} /><Meta icon="footsteps-outline" text={`${fmt(reward.threshold)}歩のご縁 · 獲得時 ${fmt(reward.steps)}歩${data.demo ? '（体験）' : ''}`} /></> : <Meta icon="lock-closed-outline" text="これから出会う御朱印です。歩数を重ねて順番に解放。" />; })()}</View><Text style={S.footerNote}>もびの世界だけに存在する、架空の社・御朱印です。</Text><Button title="御朱印帳にもどる" onPress={() => { setDetail(null); move('book'); }} secondary /></ScrollView>}</SafeAreaView></Modal>
 
