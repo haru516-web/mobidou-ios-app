@@ -47,7 +47,7 @@ function CabinetCell({ x, y, width, height, compact, close, pillarTexture, beamT
   const panelHeight = height * 0.78;
   const panelY = y + height * 0.015;
   const railY = y + height * 0.39;
-  const shelfY = y - height * (close ? 0.26 : 0.13);
+  const shelfY = y - height * (close ? 0.26 : 0.23);
   const baseY = y - height * 0.365;
   const hookX = x + (compact ? width * 0.02 : close ? 0 : width * 0.02);
   const hookScale = Math.max(0.5, Math.min(1.35, width / 2.6));

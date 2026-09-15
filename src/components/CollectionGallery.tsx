@@ -14,7 +14,11 @@ const WALL_HOOK = require('../../assets/collection/collection-wall-hook-v2.png')
 const COLLECTION_BACKDROP = require('../../assets/collection/collection-cabinet-washi-backdrop-v1.png');
 const SERIF = 'Shippori';
 const KEYCHAIN_RAIL_Y = 0.14;
-const GOSHUIN_SHELF_Y = 0.60;
+const GOSHUIN_STANDARD_BASE_BOTTOM = 0.33;
+const GOSHUIN_CLOSE_BASE_BOTTOM = 0.30;
+const GOSHUIN_DROP_PX = 18;
+const GOSHUIN_STANDARD_LIFT_PX = 2;
+const GOSHUIN_CLOSE_LIFT_PX = 14;
 
 export const COLLECTION_SHRINES: Shrine[] = Array.from(new Set(PILGRIMAGES.flatMap(route => route.ids.map(id => id.split('~')[0]))))
   .map(id => SHRINES.find(shrine => shrine.id === id))
@@ -109,10 +113,10 @@ function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWi
   // Every tile is one viewport wide, keeping the background aligned with the
   // room in both the three-item and one-item layouts.
   const tileWidth = Math.max(1, viewportWidth);
-  const backgroundWidth = trackWidth + viewportWidth;
-  const tileCount = Math.ceil(backgroundWidth / tileWidth) + 1;
-  return <View pointerEvents="none" style={[S.collectionBackdropLayer, { left: 0, width: tileCount * tileWidth, height: roomHeight }]}>
-    <View style={[S.collectionBackdropTrack, { width: tileCount * tileWidth, height: roomHeight }]}>
+  const tileCount = Math.ceil(trackWidth / tileWidth) + 1;
+  const tileStripWidth = tileCount * tileWidth;
+  return <View pointerEvents="none" style={[S.collectionBackdropLayer, { left: 0, width: trackWidth, height: roomHeight }]}>
+    <View style={[S.collectionBackdropTrack, { width: tileStripWidth, height: roomHeight }]}>
       {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} resizeMode="stretch" style={[{ width: tileWidth, height: roomHeight, flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
     </View>
   </View>;
@@ -133,6 +137,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
   const pageWidth = collectionCellWidth(viewportWidth, trackCount, zoom);
   const trackWidth = collectionTrackWidth(viewportWidth, trackCount, zoom);
   const displayCellHeight = roomHeight;
+  const goshuinBottom = roomHeight * (zoom === 'close' ? GOSHUIN_CLOSE_BASE_BOTTOM : GOSHUIN_STANDARD_BASE_BOTTOM) - GOSHUIN_DROP_PX + (zoom === 'close' ? GOSHUIN_CLOSE_LIFT_PX : GOSHUIN_STANDARD_LIFT_PX);
   const rewarded = useMemo(() => new Set(rewardIds), [rewardIds]);
 
   const selectZoom = (next: CollectionZoom) => {
@@ -205,7 +210,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight }]}>
                   <View style={S.roomLabel}><Text style={S.roomNumber}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={S.roomName}>{shrine.name}</Text></View>
                   <KeychainArtwork shrine={shrine} locked={keychainCount === 0} count={keychainCount} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={roomHeight * KEYCHAIN_RAIL_Y} />
-                  <DisplayedStamp shrine={shrine} owned={stampOwned} sparkleCount={sparkleCount} width={stampWidth} bottom={roomHeight * (zoom === 'close' ? .30 : 1 - GOSHUIN_SHELF_Y)} />
+                  <DisplayedStamp shrine={shrine} owned={stampOwned} sparkleCount={sparkleCount} width={stampWidth} bottom={goshuinBottom} />
                 </View>;
               })}
             </View>
