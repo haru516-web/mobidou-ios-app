@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, BackHandler, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import { C, Icon, Meter, Stamp, useReducedMotion } from '../components';
 import { PET_CHARACTERS, type PetId } from '../petCatalog';
 import { PET_BACKGROUNDS } from '../data/petBackgrounds';
-import type { Shrine } from '../data/shrines';
-import { HOME_WIDGET_IDS, setHomeWidgetSlot, swapHomeWidgets, type HomeWidgetId, type HomeWidgetOrder } from '../services/homePreferences';
+import { STAMP_IMAGES, type Shrine } from '../data/shrines';
+import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
+import { HOME_WIDGET_IDS, setHomeWidgetSlot, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
+import { HomeGoshuinArtwork, HomeMapArtwork, HomeMiniatureArtwork, HomeStepsArtwork } from './HomeWidgetArtwork';
 
 // `borderCurve` is only supported by iOS. Keeping it out of the web/Android
 // style object avoids platform warnings while preserving the same smooth
@@ -14,6 +16,10 @@ import { WashiArt, WashiPressable as Pressable } from './Washi';
 const CONTINUOUS_CORNER = Platform.OS === 'ios' ? ({ borderCurve: 'continuous' } as any) : undefined;
 const FIXED_POPUP_ROOT = Platform.OS === 'web' ? ({ position: 'fixed' } as any) : undefined;
 const FULL_POPUP_BOUNDS = { top: 0, bottom: 0 };
+const HOME_WIDGET_CARD_HEIGHT = 244;
+const CUSTOM_WIDGET_PREVIEW_SCALE = 0.42;
+const NAV_BACKGROUND = require('../../assets/home-bottom-nav-washi-v1.png');
+const MENU_PANEL_BACKGROUND = require('../../assets/home-menu-landscape-v2.png');
 
 export type PrimaryTab = 'home' | 'book' | 'walk' | 'collection';
 
@@ -76,30 +82,31 @@ export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby
     action();
   };
 
-  const menuActionStyle = (side: 'left' | 'right') => ({
+  const menuActionStyle = () => ({
     opacity: progress,
     transform: [
-      { translateY: reduced ? 0 : progress.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+      { translateX: reduced ? 0 : progress.interpolate({ inputRange: [0, 1], outputRange: [48, 0] }) },
       { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) },
-      { rotate: side === 'left' ? '-4deg' : '4deg' },
     ],
   });
 
   return <View style={S.navShell} pointerEvents={disabled ? 'none' : 'auto'} accessibilityElementsHidden={disabled} aria-hidden={disabled ? true : undefined} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
-    {menuVisible && <Animated.View pointerEvents={menuOpen ? 'box-none' : 'none'} accessibilityElementsHidden={!menuOpen} importantForAccessibility={menuOpen ? 'auto' : 'no-hide-descendants'} style={S.actionArc}>
-      <Animated.View style={[S.actionSlot, S.actionSlotLeft, menuActionStyle('left')]}>
+    {menuVisible && <Animated.View pointerEvents={menuOpen ? 'auto' : 'none'} accessibilityElementsHidden={!menuOpen} importantForAccessibility={menuOpen ? 'auto' : 'no-hide-descendants'} style={[S.actionArc, menuActionStyle()]}>
+      <Image source={MENU_PANEL_BACKGROUND} contentFit="cover" style={S.menuPanelBackground} pointerEvents="none" />
+      <View style={S.actionSlot}>
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={actions[0].label} accessibilityHint={actions[0].hint} onPress={() => chooseAction(actions[0].onPress)} style={[S.actionButton, CONTINUOUS_CORNER]}>
           <Icon name={actions[0].icon} size={18} color={C.red} /><Text style={S.actionText}>{actions[0].label}</Text>
         </Pressable>
-      </Animated.View>
-      <Animated.View style={[S.actionSlot, S.actionSlotRight, menuActionStyle('right')]}>
+      </View>
+      <View style={S.actionSlot}>
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={actions[1].label} accessibilityHint={actions[1].hint} onPress={() => chooseAction(actions[1].onPress)} style={[S.actionButton, CONTINUOUS_CORNER]}>
           <Icon name={actions[1].icon} size={18} color={C.red} /><Text style={S.actionText}>{actions[1].label}</Text>
         </Pressable>
-      </Animated.View>
+      </View>
     </Animated.View>}
     <View style={S.navRow}>
       <Animated.View style={[S.primaryNavFrame, CONTINUOUS_CORNER, menuOpen && S.primaryNavFrameOpen]}>
+      <Image source={NAV_BACKGROUND} contentFit="cover" style={S.navBackground} pointerEvents="none" />
       <View style={S.primaryNav}>
         {PRIMARY_NAV_ITEMS.map(item => <Pressable key={item.id} artwork={false} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected: tab === item.id }} onPress={() => { setMenuOpen(false); onNavigate(item.id); }} style={S.navItem}>
           <Icon name={item.icon} size={22} color={tab === item.id ? C.red : '#81796D'} />
@@ -109,7 +116,7 @@ export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby
       </View>
       </Animated.View>
       <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="メニュー" accessibilityState={{ expanded: menuOpen }} accessibilityHint={menuOpen ? 'メニューを閉じます' : `${actions[0].label}と${actions[1].label}を表示します`} onPress={() => setMenuOpen(open => !open)} style={[S.menuButton, CONTINUOUS_CORNER, menuOpen && S.menuButtonOpen]}>
-        <MenuGlyph open={menuOpen} /><Text style={[S.menuText, menuOpen && S.menuTextOpen]}>メニュー</Text>
+        <MenuGlyph open={menuOpen} />
       </Pressable>
     </View>
   </View>;
@@ -172,48 +179,115 @@ const HOME_WIDGET_META: Record<HomeWidgetId, { title: string; note: string; icon
 
 type HomeCustomizationPopupProps = {
   order: HomeWidgetOrder;
+  items: HomeWidgetItems;
+  shrines: Shrine[];
+  ownedGoshuinIds: string[];
+  ownedMiniatureIds: string[];
+  latest: Shrine;
+  selectedPetId: PetId;
+  selectedPetImage: ImageSourcePropType;
+  background: ImageSourcePropType;
+  routeSteps: number;
+  progress: number;
+  nextPointSteps: number | null;
   onSave: (order: HomeWidgetOrder) => void;
+  onSaveItems: (items: HomeWidgetItems) => void;
+  onDragTarget: (slot: 0 | 1 | null) => void;
   onClose: () => void;
 };
 
-export function HomeCustomizationPopup({ order, onSave, onClose }: HomeCustomizationPopupProps) {
+export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds, ownedMiniatureIds, latest, selectedPetId, selectedPetImage, background, routeSteps, progress, nextPointSteps, onSave, onSaveItems, onDragTarget, onClose }: HomeCustomizationPopupProps) {
   const reduced = useReducedMotion();
   const [animation, closeAnimation] = usePopupAnimation(reduced);
   const [draft, setDraft] = useState<HomeWidgetOrder>([...order] as HomeWidgetOrder);
-  const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
-  const chooseWidget = (widget: HomeWidgetId) => {
-    setDraft(current => setHomeWidgetSlot(current, activeSlot, widget));
+  const [draftItems, setDraftItems] = useState<HomeWidgetItems>([...items]);
+  const [pendingItem, setPendingItem] = useState<HomeWidgetItems>([...items]);
+  const [pickerSlot, setPickerSlot] = useState<0 | 1 | null>(null);
+  const { width: viewportWidth } = useWindowDimensions();
+  const openItemPicker = (slot: 0 | 1) => {
+    setPendingItem([...draftItems] as HomeWidgetItems);
+    setPickerSlot(slot);
+  };
+  const placeWidget = (widget: HomeWidgetId, slot: 0 | 1) => {
+    if (widget === 'goshuin' || widget === 'miniature') openItemPicker(slot);
+    setDraft(current => {
+      const next = setHomeWidgetSlot(current, slot, widget);
+      onSave(next);
+      return next;
+    });
   };
   const closePopup = useCallback(() => closeAnimation(onClose), [closeAnimation, onClose]);
+  const chooseItem = (slot: 0 | 1, shrineId: string) => {
+    const next: HomeWidgetItems = [...draftItems] as HomeWidgetItems;
+    next[slot] = shrineId;
+    setDraftItems(next); setPendingItem(next); onSaveItems(next); onDragTarget(null);
+  };
   usePopupBackHandler(closePopup);
+  const miniatureSource = COLLECTION_KEYCHAINS[latest.id as keyof typeof COLLECTION_KEYCHAINS];
+  const renderWidgetArtwork = (id: HomeWidgetId) => {
+    if (id === 'goshuin') return <HomeGoshuinArtwork source={STAMP_IMAGES[latest.id]} background={background} />;
+    if (id === 'miniature') return <HomeMiniatureArtwork source={miniatureSource} background={background} />;
+    if (id === 'map') return <HomeMapArtwork />;
+    return <HomeStepsArtwork petId={selectedPetId} petImage={selectedPetImage} progress={progress} steps={routeSteps} nextPointSteps={nextPointSteps} background={background} />;
+  };
 
   return <PopupRoot style={[S.customRoot, FULL_POPUP_BOUNDS, FIXED_POPUP_ROOT]}>
     <Animated.View style={[S.popupCard, S.customCard, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
       <WashiArt />
-      <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>ホーム画面カスタム</Text><Text style={S.popupSubtitle}>表示する2つを左右に選択</Text></View><PopupClose onPress={closePopup} /></View>
-      <Text style={S.popupHelp}>表示する2つを選ぶ</Text>
-      <View style={S.slotRow} accessibilityRole="radiogroup" accessibilityLabel="ホームの左右カード">
-        {draft.map((id, index) => {
-          const meta = HOME_WIDGET_META[id];
-          const selected = activeSlot === index;
-          return <Pressable key={`${id}-${index}`} artwork={false} accessibilityRole="radio" accessibilityLabel={`${index === 0 ? '左枠' : '右枠'}に${meta.title}を表示`} accessibilityState={{ selected }} accessibilityHint="この枠を選んでから、下の候補をタップします" onPress={() => setActiveSlot(index as 0 | 1)} style={[S.selectionSlot, selected && S.selectionSlotActive]}>
-            <Text style={S.selectionSlotLabel}>{index === 0 ? '左枠' : '右枠'}</Text><Icon name={meta.icon} size={20} color={C.red} /><Text numberOfLines={1} style={S.selectionSlotTitle}>{meta.title}</Text>
-          </Pressable>;
+      <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>ホーム画面カスタム</Text></View><PopupClose onPress={closePopup} /></View>
+      <Text style={S.popupHelp}>{pickerSlot === null ? 'カードを下へドラッグしてホームに配置' : `${pickerSlot === 0 ? '左' : '右'}カードに表示する寺社を選択`}</Text>
+      {pickerSlot !== null ? <ScrollView horizontal style={S.customScroll} contentContainerStyle={S.customScrollContent} showsHorizontalScrollIndicator={false}>
+        {draft[pickerSlot] === 'goshuin' && ownedGoshuinIds.length === 0 && <View style={S.emptyMiniatures}><Icon name="lock-closed-outline" size={20} color={C.muted} /><Text style={S.emptyMiniaturesText}>所持している御朱印はまだありません</Text></View>}
+        {draft[pickerSlot] === 'miniature' && ownedMiniatureIds.length === 0 && <View style={S.emptyMiniatures}><Icon name="lock-closed-outline" size={20} color={C.muted} /><Text style={S.emptyMiniaturesText}>所持しているミニチュアはまだありません</Text></View>}
+        {shrines.map(shrine => {
+          const widget = draft[pickerSlot];
+          const source = widget === 'goshuin' ? STAMP_IMAGES[shrine.id] : COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
+          if (!source || (widget === 'goshuin' && !ownedGoshuinIds.includes(shrine.id)) || (widget === 'miniature' && !ownedMiniatureIds.includes(shrine.id))) return null;
+          const selected = (pendingItem[pickerSlot] ?? draftItems[pickerSlot]) === shrine.id;
+          const itemDrag = new Animated.ValueXY();
+          const itemResponder = PanResponder.create({
+            onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 7 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+            onPanResponderMove: (_, gesture) => { itemDrag.setValue({ x: gesture.dx, y: gesture.dy }); onDragTarget(pickerSlot); },
+            onPanResponderRelease: (_, gesture) => { if (gesture.dy > 60) chooseItem(pickerSlot, shrine.id); else onDragTarget(null); Animated.spring(itemDrag, { toValue: { x: 0, y: 0 }, useNativeDriver: Platform.OS !== 'web' }).start(); },
+            onPanResponderTerminate: () => { onDragTarget(null); Animated.spring(itemDrag, { toValue: { x: 0, y: 0 }, useNativeDriver: Platform.OS !== 'web' }).start(); },
+          });
+          return <Animated.View key={shrine.id} {...itemResponder.panHandlers} style={{ transform: itemDrag.getTranslateTransform() }}><Pressable artwork={false} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`${shrine.name}を選択`} accessibilityHint="タップでホームカードに反映します。下へドラッグでも反映できます" onPress={() => chooseItem(pickerSlot, shrine.id)} style={[S.itemChoice, selected && S.widgetTileSelected]}><Image source={source} contentFit="contain" style={S.itemChoiceImage} /><Text numberOfLines={1} style={S.itemChoiceName}>{shrine.name}</Text></Pressable></Animated.View>;
         })}
-      </View>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="左右の枠を入れ替え" onPress={() => { setDraft(current => swapHomeWidgets(current)); setActiveSlot(slot => slot === 0 ? 1 : 0); }} style={S.swapButton}><Icon name="swap-horizontal-outline" size={16} color={C.red} /><Text style={S.swapButtonText}>左右を入れ替え</Text></Pressable>
-      <Text style={S.candidateHeading}>候補（4つから選択）</Text>
-      <View style={S.widgetGrid}>
-        {HOME_WIDGET_IDS.map(id => {
-          const meta = HOME_WIDGET_META[id];
-          const selectedIndex = draft.indexOf(id);
-          const selected = selectedIndex >= 0;
-          return <Pressable key={id} artwork={false} accessibilityRole="radio" accessibilityLabel={`${meta.title}${selected ? `。${selectedIndex === 0 ? '左枠' : '右枠'}に選択中` : '。候補'}`} accessibilityState={{ selected }} accessibilityHint={`${selected ? 'この枠を選びます' : '現在選択中の枠に表示します'}`} onPress={() => chooseWidget(id)} style={[S.widgetTile, selected && S.widgetTileSelected]}>
-            <View style={S.widgetIcon}><Icon name={meta.icon} size={21} color={C.red} /></View><Text numberOfLines={1} style={S.widgetTitle}>{meta.title}</Text><Text style={S.widgetNote}>{selected ? `${selectedIndex === 0 ? '左' : '右'}に表示中` : meta.note}</Text>{selected && <View style={S.widgetCheck}><Icon name="checkmark" size={12} color="#FFF" /></View>}
-          </Pressable>;
-        })}
-      </View>
-      <View style={S.popupFooter}><Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>閉じる</Text></Pressable><Pressable artwork={false} accessibilityRole="button" accessibilityLabel="完了" onPress={() => closeAnimation(() => onSave(draft))} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>完了</Text></Pressable></View>
+      </ScrollView> : <View style={S.widgetGridFixed}>
+          {HOME_WIDGET_IDS.map(id => {
+            const meta = HOME_WIDGET_META[id];
+            const selectedIndex = draft.indexOf(id);
+            const selected = selectedIndex >= 0;
+            const drag = new Animated.ValueXY();
+            const responder = PanResponder.create({
+              onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 7 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+              onPanResponderMove: (_, gesture) => { drag.setValue({ x: gesture.dx, y: gesture.dy }); onDragTarget(gesture.moveX < viewportWidth / 2 ? 0 : 1); },
+              onPanResponderRelease: (_, gesture) => {
+                if (gesture.dy > 60) placeWidget(id, gesture.moveX < viewportWidth / 2 ? 0 : 1);
+                onDragTarget(null);
+                Animated.spring(drag, { toValue: { x: 0, y: 0 }, useNativeDriver: Platform.OS !== 'web' }).start();
+              },
+              onPanResponderTerminate: () => { onDragTarget(null); Animated.spring(drag, { toValue: { x: 0, y: 0 }, useNativeDriver: Platform.OS !== 'web' }).start(); },
+            });
+            return <Animated.View key={id} {...responder.panHandlers} style={[S.widgetTile, selected && S.widgetTileSelected, { transform: drag.getTranslateTransform() }]}>
+              <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${meta.title}${selected ? `。ホームの${selectedIndex === 0 ? '左' : '右'}に表示中` : ''}`} accessibilityHint="下へドラッグしてホームに配置します" onPress={() => { if (selected && (id === 'goshuin' || id === 'miniature')) openItemPicker(selectedIndex as 0 | 1); }} style={S.widgetTilePressable}>
+              <View pointerEvents="none" style={S.widgetTileArtwork}>
+                <View style={[S.widgetTileCanvas, {
+                  width: `${100 / CUSTOM_WIDGET_PREVIEW_SCALE}%`,
+                  left: `${-((1 - CUSTOM_WIDGET_PREVIEW_SCALE) / (2 * CUSTOM_WIDGET_PREVIEW_SCALE)) * 100}%`,
+                  top: -(HOME_WIDGET_CARD_HEIGHT * (1 - CUSTOM_WIDGET_PREVIEW_SCALE) / 2),
+                  height: HOME_WIDGET_CARD_HEIGHT,
+                  transform: [{ scale: CUSTOM_WIDGET_PREVIEW_SCALE }],
+                }]}>
+                  {renderWidgetArtwork(id)}
+                </View>
+              </View>
+              {selected && <View style={S.widgetCheck}><Icon name="checkmark" size={12} color="#FFF" /></View>}
+              </Pressable>
+            </Animated.View>;
+          })}
+      </View>}
+      <View style={S.popupFooter}><Pressable artwork={false} accessibilityRole="button" accessibilityLabel="完了" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>完了</Text></Pressable></View>
     </Animated.View>
   </PopupRoot>;
 }
@@ -235,7 +309,7 @@ export function MobyPickerPopup({ selectedPet, onConfirm, onClose }: MobyPickerP
     <Animated.View style={[S.popupCard, S.mobyCard, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
       <WashiArt />
       <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>モビーを選ぶ</Text><Text style={S.popupSubtitle}>いっしょに歩く相棒を選択</Text></View><PopupClose onPress={closePopup} /></View>
-      <ScrollView style={S.mobyScroll} contentContainerStyle={S.mobyGrid} showsVerticalScrollIndicator={false}>
+      <ScrollView horizontal style={S.mobyScroll} contentContainerStyle={S.mobyGrid} showsHorizontalScrollIndicator={false} directionalLockEnabled>
         {PET_CHARACTERS.map(pet => {
           const selected = draftPet === pet.id;
           return <Pressable key={pet.id} artwork={false} accessibilityRole="radio" accessibilityLabel={`${pet.name}。${pet.catchphrase}`} accessibilityState={{ selected }} onPress={() => setDraftPet(pet.id)} style={[S.mobyCardOption, selected && S.mobyCardOptionActive]}>
@@ -370,51 +444,51 @@ export function HomeWidgetPopup({
 const S = StyleSheet.create({
   navShell: { position: 'relative', zIndex: 40, marginHorizontal: 12, marginBottom: 8 },
   navRow: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
-  primaryNavFrame: { flex: 1, backgroundColor: '#FCF9F1', borderWidth: 1, borderColor: '#E3DACB', borderRadius: 24, paddingTop: 10, paddingBottom: 3, overflow: 'hidden' },
-  primaryNavFrameOpen: { transform: [{ scaleX: 0.94 }, { scaleY: 0.9 }], opacity: 0.92 },
+  primaryNavFrame: { flex: 1, backgroundColor: '#FCF9F1', borderWidth: 1, borderColor: '#A87552', borderRadius: 24, paddingTop: 10, paddingBottom: 3, overflow: 'hidden' },
+  primaryNavFrameOpen: { opacity: 0 },
+  navBackground: { ...StyleSheet.absoluteFillObject, opacity: .88 },
   primaryNav: { flex: 1, flexDirection: 'row' },
   navItem: { flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'flex-start', gap: 5, paddingHorizontal: 2 },
   navText: { color: '#81796D', fontSize: 9, letterSpacing: .3, textAlign: 'center' },
   navTextActive: { color: C.red },
   navIndicator: { width: 17, height: 3, backgroundColor: C.red, borderRadius: 4, marginTop: 1 },
-  menuButton: { width: 84, minHeight: 75, alignItems: 'center', justifyContent: 'flex-start', gap: 4, paddingTop: 10, borderRadius: 24, borderWidth: 1, borderColor: '#E3DACB', backgroundColor: '#FCF9F1' },
+  menuButton: { width: 76, minHeight: 75, alignItems: 'center', justifyContent: 'center', borderRadius: 24, borderWidth: 1, borderColor: '#A87552', backgroundColor: '#FCF9F1' },
   menuButtonOpen: { backgroundColor: '#F1E1D7', borderColor: C.red },
-  menuText: { color: '#766A5D', fontFamily: 'Shippori', fontSize: 9, letterSpacing: .4 },
-  menuTextOpen: { color: C.red },
   menuGlyph: { width: 29, height: 29, flexDirection: 'row', flexWrap: 'wrap', gap: 3, alignContent: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#A89480', borderRadius: 9, backgroundColor: '#FFF9EF', transform: [{ rotate: '0deg' }] },
   menuGlyphOpen: { transform: [{ rotate: '45deg' }] },
   menuSquare: { width: 10, height: 10, borderRadius: 3, borderWidth: 1.5, borderColor: '#766A5D', backgroundColor: '#FFF9EF' },
   menuSquareOpen: { borderColor: C.red, backgroundColor: '#FFF1EA' },
-  actionArc: { position: 'absolute', left: 0, right: 0, bottom: 70, height: 140, zIndex: 5 },
-  actionSlot: { position: 'absolute', width: 92, height: 92 },
-  actionSlotLeft: { right: 102, bottom: 4 },
-  actionSlotRight: { right: 0, bottom: 23 },
-  actionButton: { width: 92, height: 92, minHeight: 0, borderRadius: 22, borderWidth: 1, borderColor: '#D3BBAA', backgroundColor: '#FFF9EF', paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 5, shadowColor: '#6B4938', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .16, shadowRadius: 7, elevation: 4 },
+  actionArc: { position: 'absolute', right: 84, bottom: -8, width: 174, height: 91, zIndex: 5, flexDirection: 'row', gap: 6, padding: 8, borderRadius: 28, overflow: 'hidden', borderWidth: 1, borderColor: '#A87552', shadowColor: '#4A2D1F', shadowOffset: { width: 0, height: 5 }, shadowOpacity: .24, shadowRadius: 9, elevation: 7 },
+  menuPanelBackground: { ...StyleSheet.absoluteFillObject },
+  actionSlot: { width: 76, height: 75 },
+  actionButton: { width: 76, height: 75, minHeight: 0, borderRadius: 24, borderWidth: 1, borderColor: '#A87552', backgroundColor: '#FFF9EFD9', paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', gap: 3 },
   actionText: { color: C.red, fontFamily: 'Shippori', fontSize: 10, lineHeight: 14, maxWidth: 78, textAlign: 'center' },
   popupRoot: { position: 'absolute', left: 0, right: 0, top: 86, bottom: 77, zIndex: 30, alignItems: 'center' },
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },
   mobyRoot: { justifyContent: 'flex-start', zIndex: 90 },
   popupScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241A10' },
   popupCard: { width: '94%', maxWidth: 440, borderRadius: 22, borderWidth: 1, borderColor: '#D5BDA8', backgroundColor: '#FFF9EF', overflow: 'hidden', shadowColor: '#5D4634', shadowOffset: { width: 0, height: 8 }, shadowOpacity: .22, shadowRadius: 17, elevation: 8 },
-  customCard: { marginTop: 18, padding: 16 },
-  mobyCard: { position: 'absolute', top: 312, bottom: 5, padding: 16 },
+  customCard: { position: 'absolute', height: 310, top: 92, padding: 16, overflow: 'visible' },
+  mobyCard: { position: 'absolute', height: 252, bottom: 86, padding: 16 },
   popupHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   popupTitle: { color: C.ink, fontFamily: 'Shippori', fontSize: 21, letterSpacing: 1 },
   popupSubtitle: { color: C.muted, fontSize: 10, letterSpacing: .8, marginTop: 5 },
   popupHelp: { color: C.red, fontSize: 10, letterSpacing: 1, marginTop: 17, marginBottom: 9 },
   popupClose: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1E6D8', borderWidth: 1, borderColor: '#DECDBA' },
   popupCloseText: { fontSize: 28, lineHeight: 29, color: C.red, fontFamily: 'Shippori', fontWeight: '400' },
-  slotRow: { flexDirection: 'row', gap: 9 },
-  selectionSlot: { flex: 1, minHeight: 70, borderRadius: 14, borderWidth: 1, borderColor: '#DCCBB9', backgroundColor: '#F6EDDF', padding: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  selectionSlotActive: { borderWidth: 2, borderColor: C.red, backgroundColor: '#FFF4E8' },
-  selectionSlotLabel: { color: C.red, fontSize: 9, letterSpacing: 1 },
-  selectionSlotTitle: { color: C.ink, fontFamily: 'Shippori', fontSize: 10, maxWidth: '100%' },
-  swapButton: { alignSelf: 'center', minHeight: 35, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12 },
-  swapButtonText: { color: C.red, fontFamily: 'Shippori', fontSize: 10 },
-  candidateHeading: { color: C.muted, fontSize: 10, letterSpacing: 1, marginBottom: 8 },
-  widgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'space-between' },
-  widgetTile: { width: '48%', minHeight: 96, borderRadius: 15, padding: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCCBB9', backgroundColor: '#F6EDDF' },
+  customScroll: { flexGrow: 0, minHeight: 0, overflow: 'visible' },
+  customScrollContent: { gap: 10, paddingHorizontal: 1, paddingVertical: 3, overflow: 'visible' },
+  widgetGridFixed: { width: '100%', flexDirection: 'row', gap: 6, overflow: 'visible' },
+  widgetTile: { flex: 1, aspectRatio: .78, minWidth: 0, maxHeight: 132, borderRadius: 15, padding: 0, alignItems: 'stretch', justifyContent: 'flex-start', overflow: 'visible', borderWidth: 1, borderColor: '#DCCBB9', backgroundColor: '#F6EDDF', zIndex: 3 },
+  widgetTilePressable: { flex: 1, overflow: 'hidden', borderRadius: 14 },
+  itemChoice: { width: 104, height: 116, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#DCCBB9', backgroundColor: '#FFF9EF', alignItems: 'center', padding: 5 },
+  itemChoiceImage: { width: 84, height: 86 },
+  itemChoiceName: { color: C.ink, fontFamily: 'Shippori', fontSize: 9, maxWidth: 92 },
+  emptyMiniatures: { width: 270, height: 116, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F3EBDD', borderWidth: 1, borderColor: '#DCCBB9' },
+  emptyMiniaturesText: { color: C.muted, fontFamily: 'Shippori', fontSize: 11 },
   widgetTileSelected: { borderWidth: 2, borderColor: C.red, backgroundColor: '#FFF4E8' },
+  widgetTileArtwork: { flex: 1, width: '100%', minHeight: 0, overflow: 'hidden' },
+  widgetTileCanvas: { position: 'absolute' },
   widgetIcon: { width: 31, height: 31, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF9EF', marginBottom: 4 },
   widgetTitle: { color: C.ink, fontFamily: 'Shippori', fontSize: 10, textAlign: 'center', lineHeight: 15 },
   widgetNote: { color: C.muted, fontSize: 8, textAlign: 'center', marginTop: 2 },
@@ -425,9 +499,9 @@ const S = StyleSheet.create({
   popupFooterPrimary: { backgroundColor: C.red },
   popupFooterSecondaryText: { color: C.red, fontFamily: 'Shippori', fontSize: 12 },
   popupFooterPrimaryText: { color: '#FFF9EF', fontFamily: 'Shippori', fontSize: 12 },
-  mobyScroll: { flex: 1, marginTop: 15 },
-  mobyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, paddingBottom: 4 },
-  mobyCardOption: { width: '30%', minHeight: 128, alignItems: 'center', justifyContent: 'flex-end', paddingVertical: 7, paddingHorizontal: 3, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#E2DACC', backgroundColor: '#FFF9F0' },
+  mobyScroll: { flexGrow: 0, marginTop: 10 },
+  mobyGrid: { flexDirection: 'row', gap: 9, paddingVertical: 3 },
+  mobyCardOption: { width: 112, height: 116, alignItems: 'center', justifyContent: 'flex-end', paddingVertical: 6, paddingHorizontal: 3, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#E2DACC', backgroundColor: '#FFF9F0' },
   mobyCardOptionActive: { borderColor: C.red, borderWidth: 2, backgroundColor: '#F3E5D7', transform: [{ translateY: -3 }] },
   mobyCardBackdrop: { ...StyleSheet.absoluteFillObject, opacity: .72 },
   mobyCardWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9E9A8' },

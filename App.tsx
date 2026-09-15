@@ -7,15 +7,16 @@ import { useFonts } from 'expo-font';
 import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500Medium';
 import { ShipporiMincho_700Bold } from '@expo-google-fonts/shippori-mincho/700Bold';
 import Svg, { Circle } from 'react-native-svg';
-import { Button, C, Clouds, Companion, Icon, Meter, Section, SERIF, Stamp, Torii } from './src/components';
+import { Button, C, Clouds, Companion, Icon, Section, SERIF, Stamp, Torii } from './src/components';
 import { PET_CHARACTERS, getPetCharacter } from './src/petCatalog';
-import { SHRINES, type Shrine } from './src/data/shrines';
+import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps } from './src/services/progress';
 import { sourceLabel } from './src/services/steps';
 import { useJourney } from './src/services/useJourney';
 import { BACKGROUND_OPTIONS, BACKGROUND_SEASONS, getBackgroundOption, type BackgroundSeason } from './src/data/backgrounds';
 import { PET_BACKGROUNDS } from './src/data/petBackgrounds';
 import { PILGRIMAGES, getPilgrimage } from './src/data/pilgrimages';
+import { COLLECTION_KEYCHAINS } from './src/data/collectionKeychains';
 import { pilgrimageShrines, PilgrimagePicker, RouteMap, CompletionPage } from './src/components/PilgrimageScreen';
 import { WashiArt, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
@@ -24,6 +25,7 @@ import { PILGRIMAGE_IMAGES } from './src/data/pilgrimageImages';
 import { COLLECTION_SHRINES, CollectionGallery, type CollectionZoom } from './src/components/CollectionGallery';
 import { HomeBottomNavigation, HomeCustomizationPopup, HomeWidgetPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
 import { GoshuinBookCover, GoshuinImageListModal } from './src/components/GoshuinBook';
+import { HomeGoshuinArtwork, HomeMapArtwork, HomeMiniatureArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
 import type { HomeWidgetId } from './src/services/homePreferences';
 
 type Tab = 'home' | 'book' | 'walk' | 'pets' | 'collection';
@@ -228,6 +230,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [tab, setTab] = useState<Tab>('home');
   const [homePopup, setHomePopup] = useState<HomePopup>(null);
   const [homeCardPopup, setHomeCardPopup] = useState<HomeCardPopup>(null);
+  const [homeDropTarget, setHomeDropTarget] = useState<0 | 1 | null>(null);
   const [outingTab, setOutingTab] = useState<OutingTab>('count');
   const [filter, setFilter] = useState<'all' | 'collected' | 'locked'>('all');
   const [featured, setFeatured] = useState(0);
@@ -313,7 +316,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </View>
   </View>;
   const homeRouteImage = activeRoute ? (PILGRIMAGE_IMAGES[activeRoute.id] ?? PILGRIMAGE_IMAGES.sanctuary) : PILGRIMAGE_IMAGES.sanctuary;
-  const renderHomeWidget = (widget: HomeWidgetId) => {
+  const homeNextPointSteps = next ? Math.max(0, nextTarget - routeSteps) : null;
+  const homeNextPointLabel = homeNextPointSteps === null ? '今日のポイントはすべて達成' : `次のポイントまで${fmt(homeNextPointSteps)}歩`;
+  const renderHomeWidget = (widget: HomeWidgetId, slot: number) => {
+    const selectedShrine = COLLECTION_SHRINES.find(shrine => shrine.id === data.homeWidgetItems[slot]) ?? latest;
+    const selectedMiniature = COLLECTION_KEYCHAINS[selectedShrine.id as keyof typeof COLLECTION_KEYCHAINS];
     const cardLocked = !!homeCardPopup;
     const cardInteractionProps = {
       disabled: cardLocked,
@@ -328,33 +335,21 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       if (homeCardPopup) return;
       setHomeCardPopup(next);
     };
-    if (widget === 'goshuin') return <Pressable key={widget} nativeID="home-widget-goshuin" artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${latest.name}の御朱印。拡大表示をひらく`} onPress={() => openCard('goshuin')} style={S.homeWidgetCard}>
-      <WashiArt />
-      <View style={S.homeCardHeader}><Icon name="flower" size={17} color={C.red} /><Text numberOfLines={1} style={S.homeCardTitle}>御朱印</Text><Icon name="chevron-forward" size={14} color={C.red} /></View>
-      <Text numberOfLines={1} style={S.homeCardSub}>{latest.name}</Text>
-      <View style={S.homeStampWrap}><Stamp shrine={latest} style={S.homeStamp} /></View>
-      <View style={S.homeCardFooter}><Text style={S.homeCardLink}>{latestReward ? '思い出をひらく' : '御朱印をのぞく'}</Text><Icon name="arrow-forward" size={14} color={C.red} /></View>
+    if (widget === 'goshuin') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-goshuin-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${selectedShrine.name}の御朱印。拡大表示をひらく`} onPress={() => openCard('goshuin')} style={[S.homeWidgetCard, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+      <HomeGoshuinArtwork source={STAMP_IMAGES[selectedShrine.id]} background={currentBackground.image} />
+      {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
-    if (widget === 'miniature') return <Pressable key={widget} nativeID="home-widget-miniature" artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={activeRoute ? `巡礼ミニチュア。${activeRoute.name}。拡大表示をひらく` : '巡礼ミニチュア。巡礼コースを選ぶ。拡大表示をひらく'} onPress={() => openCard('miniature')} style={[S.homeWidgetCard, S.homeImageCard]}>
-      <Image source={homeRouteImage} contentFit="cover" style={S.homeCardImage} pointerEvents="none" /><View pointerEvents="none" style={S.homeCardImageWash} />
-      <View pointerEvents="none" style={S.homeImageHeader}><Icon name="cube-outline" size={17} color="#FFF9EF" /><Text numberOfLines={1} style={S.homeImageTitle}>巡礼ミニチュア</Text></View>
-      <View pointerEvents="none" style={S.homeImageCopy}><Text numberOfLines={1} style={S.homeImageRoute}>{activeRoute?.name ?? '巡礼を選ぶ'}</Text><Text numberOfLines={2} style={S.homeImageNote}>{activeRoute ? `${progress.rewards.length}/${activeRoute.ids.length} · ${activeRoute.subtitle}` : '一緒に歩く旅の景色を選択'}</Text></View>
-      <View pointerEvents="none" style={S.homeImageFooter}><Text style={S.homeImageLink}>選び直す</Text><Icon name="refresh-outline" size={13} color="#FFF9EF" /></View>
+    if (widget === 'miniature') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-miniature-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${selectedShrine.name}の巡礼ミニチュア。拡大表示をひらく`} onPress={() => openCard('miniature')} style={[S.homeWidgetCard, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+      <HomeMiniatureArtwork source={selectedMiniature} background={currentBackground.image} />
+      {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
-    if (widget === 'map') return <Pressable key={widget} nativeID="home-widget-map" artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel="巡礼マップ。拡大表示をひらく" onPress={() => openCard('map')} style={[S.homeWidgetCard, S.homeImageCard]}>
-      <Image source={homeRouteImage} contentFit="cover" style={S.homeCardImage} pointerEvents="none" /><View pointerEvents="none" style={[S.homeCardImageWash, S.homeMapImageWash]} />
-      <View pointerEvents="none" style={S.homeImageHeader}><Icon name="map-outline" size={17} color="#FFF9EF" /><Text numberOfLines={1} style={S.homeImageTitle}>巡礼マップ</Text></View>
-      <View pointerEvents="none" style={S.homeImageCopy}><Text numberOfLines={1} style={S.homeImageRoute}>{activeRoute?.name ?? '巡礼の道'}</Text><Text numberOfLines={2} style={S.homeImageNote}>歩いた場所と、次のご縁をたどる</Text></View>
-      <View pointerEvents="none" style={S.homeImageFooter}><Text style={S.homeImageLink}>マップをひらく</Text><Icon name="arrow-forward" size={13} color="#FFF9EF" /></View>
+    if (widget === 'map') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-map-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel="巡礼マップ。拡大表示をひらく" onPress={() => openCard('map')} style={[S.homeWidgetCard, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+      <HomeMapArtwork />
+      {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
-    return <Pressable key={widget} nativeID="home-widget-steps" artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数count。${fmt(routeSteps)}歩。拡大表示をひらく`} onPress={() => openCard('steps')} style={S.homeWidgetCard}>
-      <WashiArt />
-      <View style={S.homeCardHeader}><Icon name="footsteps-outline" size={17} color={C.red} /><Text numberOfLines={1} style={S.homeCardTitle}>歩数count</Text><Icon name="chevron-forward" size={14} color={C.red} /></View>
-      <Text style={S.homeStepsDate}>{new Date().toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })} のあしあと</Text>
-      <View style={S.homeStepValueRow}><Text style={S.homeStepValue}>{fmt(routeSteps)}</Text><Text style={S.homeStepUnit}>歩</Text></View>
-      <Meter value={routeSteps / nextTarget} />
-      <Text numberOfLines={2} style={S.homeStepCaption}>{next ? `次のご縁まで ${fmt(Math.max(0, nextTarget - routeSteps))}歩` : progress.completedAt ? 'この巡礼を結願しました。' : '今日のご縁が、すべて結ばれました。'}</Text>
-      <View style={S.homeCardFooter}><Text style={S.homeCardLink}>歩数をみる</Text><Icon name="arrow-forward" size={14} color={C.red} /></View>
+    return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-steps-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数count。${fmt(routeSteps)}歩。${homeNextPointLabel}。拡大表示をひらく`} onPress={() => openCard('steps')} style={[S.homeWidgetCard, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+      <HomeStepsArtwork petId={pet.id} petImage={pet.image} progress={routeSteps / Math.max(1, nextTarget)} steps={routeSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
+      {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
   };
   useEffect(() => { setBackgroundSeason(currentBackground.season); }, [currentBackground.season]);
@@ -384,8 +379,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <ScrollView ref={scroll} contentContainerStyle={[S.content, mapScreen && { paddingBottom: 0 }]} scrollEnabled={!mapScreen && !homeCardPopup} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
       {tab === 'home' && <>
         <View style={S.homeHeading}><View style={S.hairline} /><Text style={S.chapter}>日々を、ひとめぐり。</Text><View style={S.hairline} /></View>
-        <View accessibilityElementsHidden={homePopup === 'custom'} aria-hidden={homePopup === 'custom'} importantForAccessibility={homePopup === 'custom' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'custom' ? 'none' : 'auto'} style={homePopup === 'custom' ? S.homeCompanionHidden : undefined}><Companion pet={pet} haptics={data.haptics} onBond={journey.bond} /></View>
-        <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby'} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
+        <View><Companion pet={pet} haptics={data.haptics} onBond={journey.bond} /></View>
+        <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby' ? true : undefined} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
           <View style={S.homeWidgetGrid}>{data.homeWidgetOrder.map(renderHomeWidget)}</View>
         </View>
       </>}
@@ -433,7 +428,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <Button title={`${pet.name}とふれあう`} onPress={() => move('home')} style={{ marginTop: 22 }} />
       </>}
     </ScrollView>
-    {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} onSave={order => { journey.saveHomeWidgetOrder(order); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
+    {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={Object.keys(journey.special.keychains).filter(id => (journey.special.keychains[id] ?? 0) > 0)} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={data.pet} onConfirm={selectedPet => { journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => move(value)} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={tab === 'book' ? [
       { label: '巡礼を選ぶ', hint: '御朱印帳の巡礼コースを選び直します', icon: 'map-outline', onPress: () => { setBookImageList(false); setRoutePickerFromBook(true); setRoutePicker(true); } },
@@ -490,6 +485,8 @@ function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name'];
 
 const S = StyleSheet.create({
   desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundScrollLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: -260 }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, collectionBackdropViewport: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#F5E8D4' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, bottom: 0, flexDirection: 'row' }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 12 },
+  homeWidgetDropTarget: { borderWidth: 3, borderColor: '#B84C3D', transform: [{ scale: 1.025 }], shadowColor: '#8B2F23', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .35, shadowRadius: 9, elevation: 8 },
+  homeDropOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#8B2F234D' },
   headerLogo: { width: 124, height: 45, marginTop: 5 },
   header: { height: 87, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, headerSide: { width: 63 }, brandMini: { color: C.muted, fontSize: 8, lineHeight: 16, letterSpacing: .2 }, brand: { flexDirection: 'row', alignItems: 'center', gap: 5 }, logo: { fontFamily: 'ShipporiBold', fontSize: 39, letterSpacing: 2, color: C.ink }, logoMark: { width: 38, height: 38, borderRadius: 6, marginTop: 9, transform: [{ rotate: '8deg' }] }, gear: { width: 63, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
   content: { paddingHorizontal: 24, paddingBottom: 24 }, homeHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 0, marginBottom: 4 }, hairline: { width: 30, height: 1, backgroundColor: '#CDBEAC' }, chapter: { fontFamily: SERIF, color: '#766452', fontSize: 14, letterSpacing: 2 },
