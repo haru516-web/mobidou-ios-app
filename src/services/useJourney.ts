@@ -157,7 +157,7 @@ export function useJourney() {
       if (active.routeId === routeId) return p;
       const routes = { ...p.routes, [field + ':' + (active.routeId ?? 'legacy')]: active };
       const saved = routes[field + ':' + routeId];
-      const restored = saved ? rollDay(saved) : startRoute(routeId, active.steps);
+      const restored = saved ? rollDay(saved) : startRoute(routeId, active.steps, new Date(), active.totalSteps ?? active.steps);
       return { ...p, routes, [field]: resumeRoute(active, restored) };
     }),
     choosePet: (pet: PetId) => change(p => ({ ...p, pet })),

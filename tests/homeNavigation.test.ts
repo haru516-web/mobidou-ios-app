@@ -3,19 +3,19 @@ import assert from 'node:assert/strict';
 import { DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, setHomeWidgetSlot, swapHomeWidgets, normalizeHomeWidgetOrder } from '../src/services/homePreferences.ts';
 
 test('home cards migrate old orders and allow two goshuin or miniature cards', () => {
-  assert.deepEqual(normalizeHomeWidgetOrder(['steps', 'map', 'miniature', 'goshuin']), ['steps', 'map']);
-  assert.deepEqual(normalizeHomeWidgetOrder(['miniature', 'steps']), ['miniature', 'steps']);
-  assert.deepEqual(normalizeHomeWidgetOrder(['steps', 'steps', 'map', 'goshuin']), ['steps', 'map']);
+  assert.deepEqual(normalizeHomeWidgetOrder(['steps', 'map', 'miniature', 'goshuin']), ['map', 'miniature']);
+  assert.deepEqual(normalizeHomeWidgetOrder(['miniature', 'steps']), DEFAULT_HOME_WIDGET_ORDER);
+  assert.deepEqual(normalizeHomeWidgetOrder(['steps', 'steps', 'map', 'goshuin']), ['map', 'goshuin']);
   assert.deepEqual(normalizeHomeWidgetOrder(['goshuin', 'goshuin']), ['goshuin', 'goshuin']);
   assert.deepEqual(normalizeHomeWidgetOrder(['miniature', 'miniature']), ['miniature', 'miniature']);
   assert.deepEqual(normalizeHomeWidgetOrder(['steps']), DEFAULT_HOME_WIDGET_ORDER);
-  assert.deepEqual(normalizeHomeWidgetOrder(['unknown', 'steps', 'map']), ['steps', 'map']);
+  assert.deepEqual(normalizeHomeWidgetOrder(['unknown', 'steps', 'map']), DEFAULT_HOME_WIDGET_ORDER);
   assert.deepEqual(normalizeHomeWidgetOrder(null), DEFAULT_HOME_WIDGET_ORDER);
 });
 
 test('slot replacement allows art duplicates but keeps utility cards unique', () => {
   const initial = DEFAULT_HOME_WIDGET_ORDER;
-  assert.deepEqual(setHomeWidgetSlot(initial, 0, 'steps'), ['steps', 'miniature']);
+  assert.deepEqual(setHomeWidgetSlot(initial, 0, 'steps'), initial);
   assert.deepEqual(setHomeWidgetSlot(initial, 1, 'map'), ['goshuin', 'map']);
   assert.deepEqual(setHomeWidgetSlot(initial, 0, 'miniature'), ['miniature', 'miniature']);
   assert.deepEqual(setHomeWidgetSlot(initial, 1, 'goshuin'), ['goshuin', 'goshuin']);

@@ -6,9 +6,9 @@ import { PET_CHARACTERS, type PetId } from '../petCatalog';
 import { PET_BACKGROUNDS } from '../data/petBackgrounds';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
-import { HOME_WIDGET_IDS, setHomeWidgetSlot, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
+import { CUSTOM_HOME_WIDGET_IDS, setHomeWidgetSlot, type CustomHomeWidgetId, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
-import { HomeGoshuinArtwork, HomeMapArtwork, HomeMiniatureArtwork, HomeStepsArtwork } from './HomeWidgetArtwork';
+import { HomeGoshuinArtwork, HomeMapArtwork, HomeMiniatureArtwork } from './HomeWidgetArtwork';
 
 // `borderCurve` is only supported by iOS. Keeping it out of the web/Android
 // style object avoids platform warnings while preserving the same smooth
@@ -110,7 +110,6 @@ export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby
       <View style={S.primaryNav}>
         {PRIMARY_NAV_ITEMS.map(item => <Pressable key={item.id} artwork={false} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected: tab === item.id }} onPress={() => { setMenuOpen(false); onNavigate(item.id); }} style={S.navItem}>
           <Icon name={item.icon} size={22} color={tab === item.id ? C.red : '#81796D'} />
-          <Text style={[S.navText, tab === item.id && S.navTextActive]}>{item.title}</Text>
           <View style={[S.navIndicator, { opacity: tab === item.id ? 1 : 0 }]} />
         </Pressable>)}
       </View>
@@ -174,7 +173,7 @@ const HOME_WIDGET_META: Record<HomeWidgetId, { title: string; note: string; icon
   goshuin: { title: '御朱印', note: 'ご縁の記録', icon: 'flower-outline' },
   miniature: { title: '巡礼ミニチュア', note: '旅の景色', icon: 'cube-outline' },
   map: { title: '巡礼マップ', note: '次の場所へ', icon: 'map-outline' },
-  steps: { title: '歩数count', note: '今日のあしあと', icon: 'footsteps-outline' },
+  steps: { title: '歩数', note: '今日のあしあと', icon: 'footsteps-outline' },
 };
 
 type HomeCustomizationPopupProps = {
@@ -208,7 +207,7 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
     setPendingItem([...draftItems] as HomeWidgetItems);
     setPickerSlot(slot);
   };
-  const placeWidget = (widget: HomeWidgetId, slot: 0 | 1) => {
+  const placeWidget = (widget: CustomHomeWidgetId, slot: 0 | 1) => {
     if (widget === 'goshuin' || widget === 'miniature') openItemPicker(slot);
     setDraft(current => {
       const next = setHomeWidgetSlot(current, slot, widget);
@@ -224,11 +223,10 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
   };
   usePopupBackHandler(closePopup);
   const miniatureSource = COLLECTION_KEYCHAINS[latest.id as keyof typeof COLLECTION_KEYCHAINS];
-  const renderWidgetArtwork = (id: HomeWidgetId) => {
+  const renderWidgetArtwork = (id: CustomHomeWidgetId) => {
     if (id === 'goshuin') return <HomeGoshuinArtwork source={STAMP_IMAGES[latest.id]} background={background} />;
     if (id === 'miniature') return <HomeMiniatureArtwork source={miniatureSource} background={background} />;
-    if (id === 'map') return <HomeMapArtwork />;
-    return <HomeStepsArtwork petId={selectedPetId} petImage={selectedPetImage} progress={progress} steps={routeSteps} nextPointSteps={nextPointSteps} background={background} />;
+    return <HomeMapArtwork />;
   };
 
   return <PopupRoot style={[S.customRoot, FULL_POPUP_BOUNDS, FIXED_POPUP_ROOT]}>
@@ -254,7 +252,7 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
           return <Animated.View key={shrine.id} {...itemResponder.panHandlers} style={{ transform: itemDrag.getTranslateTransform() }}><Pressable artwork={false} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`${shrine.name}を選択`} accessibilityHint="タップでホームカードに反映します。下へドラッグでも反映できます" onPress={() => chooseItem(pickerSlot, shrine.id)} style={[S.itemChoice, selected && S.widgetTileSelected]}><Image source={source} contentFit="contain" style={S.itemChoiceImage} /><Text numberOfLines={1} style={S.itemChoiceName}>{shrine.name}</Text></Pressable></Animated.View>;
         })}
       </ScrollView> : <View style={S.widgetGridFixed}>
-          {HOME_WIDGET_IDS.map(id => {
+          {CUSTOM_HOME_WIDGET_IDS.map(id => {
             const meta = HOME_WIDGET_META[id];
             const selectedIndex = draft.indexOf(id);
             const selected = selectedIndex >= 0;
@@ -421,10 +419,10 @@ export function HomeWidgetPopup({
     <Text style={S.widgetPopupDescription}>おでかけ画面では、歩数の連携・更新と、次の御朱印までの目安を確認できます。</Text>
   </>;
 
-  return <PopupRoot modalLabel={`${meta.title}の拡大表示`} style={[S.widgetPopupRoot, FIXED_POPUP_ROOT]}>
+  return <PopupRoot modalLabel={widget === 'steps' ? '歩数の拡大表示' : `${meta.title}の拡大表示`} style={[S.widgetPopupRoot, FIXED_POPUP_ROOT]}>
     <Animated.View style={[S.popupCard, S.widgetPopupCard, CONTINUOUS_CORNER, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
       <WashiArt />
-      <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>{meta.title}</Text><Text style={S.popupSubtitle}>ホームカードを大きく表示</Text></View><PopupClose onPress={closePopup} /></View>
+      <View style={S.popupHeader}><View style={{ flex: 1 }}>{widget !== 'steps' && <Text accessibilityRole="header" style={S.popupTitle}>{meta.title}</Text>}<Text style={S.popupSubtitle}>{widget === 'steps' ? '今日のあしあと' : 'ホームカードを大きく表示'}</Text></View><PopupClose onPress={closePopup} /></View>
       <ScrollView style={S.widgetPopupScroll} contentContainerStyle={S.widgetPopupBody} showsVerticalScrollIndicator={false}>
         {content}
       </ScrollView>
@@ -448,9 +446,7 @@ const S = StyleSheet.create({
   primaryNavFrameOpen: { opacity: 0 },
   navBackground: { ...StyleSheet.absoluteFillObject, opacity: .88 },
   primaryNav: { flex: 1, flexDirection: 'row' },
-  navItem: { flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'flex-start', gap: 5, paddingHorizontal: 2 },
-  navText: { color: '#81796D', fontSize: 9, letterSpacing: .3, textAlign: 'center' },
-  navTextActive: { color: C.red },
+  navItem: { flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 2 },
   navIndicator: { width: 17, height: 3, backgroundColor: C.red, borderRadius: 4, marginTop: 1 },
   menuButton: { width: 76, minHeight: 75, alignItems: 'center', justifyContent: 'center', borderRadius: 24, borderWidth: 1, borderColor: '#A87552', backgroundColor: '#FCF9F1' },
   menuButtonOpen: { backgroundColor: '#F1E1D7', borderColor: C.red },

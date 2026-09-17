@@ -62,7 +62,7 @@ function NeutralWalkingSprite({ source }: { source: ImageSourcePropType }) {
   </Animated.View>;
 }
 
-export function HomeStepsArtwork({ petId, petImage, progress, steps, nextPointSteps, background }: { petId: PetId; petImage: ImageSourcePropType; progress: number; steps: number; nextPointSteps: number | null; background: ImageSourcePropType }) {
+export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps = steps, totalSteps = steps, previousPointSteps = 0, nextPointSteps, background, horizontal = false }: { petId: PetId; petImage: ImageSourcePropType; progress: number; steps: number; todaySteps?: number; totalSteps?: number; previousPointSteps?: number; nextPointSteps: number | null; background: ImageSourcePropType; horizontal?: boolean }) {
   const [frame, setFrame] = useState(0);
   const walkSource = PILGRIMAGE_WALK_ATLASES[petId];
   const ratio = Math.max(0, Math.min(1, progress));
@@ -75,13 +75,25 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, nextPointSt
     return () => clearInterval(timer);
   }, [walkSource]);
 
-  return <View pointerEvents="none" style={S.stepsStage}>
+  return <View pointerEvents="none" style={[S.stepsStage, horizontal && S.stepsStageHorizontal]}>
     <CardBackground source={background} />
-    <View style={S.stepsContent}>
+    {horizontal ? <View style={S.stepsHorizontalContent}>
+      <View style={S.stepsTrack}>
+        <View style={S.stepsLine} />
+        <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]} />
+        <View style={[S.stepsPoint, { left: `${ratio * 100}%` }]} />
+        <Text style={S.stepsPreviousLabel}>前回地点</Text>
+        <Text style={S.stepsPreviousValue}>{previousPointSteps.toLocaleString('ja-JP')}歩</Text>
+        {nextPointSteps !== null && <><Text style={S.stepsNextLabel}>次回地点</Text><Text style={S.stepsNextValue}>{nextPointSteps.toLocaleString('ja-JP')}歩</Text></>}
+        <View style={[S.stepsSpriteAnchor, { left: `${spriteRatio * 100}%` }]}>
+          {walkSource ? <WalkSprite source={walkSource} frame={frame} /> : <NeutralWalkingSprite source={petImage} />}
+        </View>
+      </View>
+      <View style={S.stepsCurrent}><Text style={S.stepsCurrentLabel}>今日の歩数</Text><Text style={S.stepsCurrentValue}>{todaySteps.toLocaleString('ja-JP')}歩</Text></View>
+      <View style={S.stepsTotal}><Text style={S.stepsTotalLabel}>累計歩数</Text><Text style={S.stepsTotalValue}>{totalSteps.toLocaleString('ja-JP')}歩</Text></View>
+    </View> : <View style={S.stepsContent}>
       <View style={S.stepsCopy}>
-        <Text style={S.stepsLabel}>歩数count</Text>
         <View style={S.stepsValueRow}><Text style={S.stepsValue}>{steps.toLocaleString('ja-JP')}</Text><Text style={S.stepsUnit}>歩</Text></View>
-        <Text style={S.stepsNext}>{nextPointSteps === null ? '今日のポイントはすべて達成' : `次のポイントまで ${nextPointSteps.toLocaleString('ja-JP')}歩`}</Text>
       </View>
       <View style={S.stepsRail}>
         <View style={S.stepsLine} />
@@ -91,7 +103,7 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, nextPointSt
           {walkSource ? <WalkSprite source={walkSource} frame={frame} /> : <NeutralWalkingSprite source={petImage} />}
         </View>
       </View>
-    </View>
+    </View>}
   </View>;
 }
 
@@ -102,16 +114,27 @@ const S = StyleSheet.create({
   cardBackgroundShade: { ...StyleSheet.absoluteFillObject },
   mapStage: { flex: 1, width: '100%', position: 'relative', overflow: 'hidden', backgroundColor: '#E7E0CC' },
   stepsStage: { flex: 1, width: '100%', position: 'relative', overflow: 'hidden' },
+  stepsStageHorizontal: { minHeight: 126 },
+  stepsHorizontalContent: { flex: 1, position: 'relative', zIndex: 1 },
+  stepsTrack: { position: 'absolute', left: 18, right: 18, top: 42, height: 62 },
+  stepsPreviousLabel: { position: 'absolute', left: 0, top: 8, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 9 },
+  stepsPreviousValue: { position: 'absolute', left: 0, top: 38, color: '#766452', fontSize: 8 },
+  stepsNextLabel: { position: 'absolute', right: 0, top: 8, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 9, textAlign: 'right' },
+  stepsNextValue: { position: 'absolute', right: 0, top: 38, color: '#766452', fontSize: 8, textAlign: 'right' },
+  stepsCurrent: { position: 'absolute', left: 0, right: 0, top: 2, alignItems: 'center' },
+  stepsCurrentLabel: { color: '#766452', fontFamily: 'ShipporiBold', fontSize: 8, letterSpacing: .8 },
+  stepsCurrentValue: { color: '#3A3127', fontSize: 23, fontWeight: '300', letterSpacing: .5, marginTop: 1 },
+  stepsTotal: { position: 'absolute', left: 0, right: 0, top: 82, alignItems: 'center' },
+  stepsTotalLabel: { color: '#766452', fontFamily: 'ShipporiBold', fontSize: 8, letterSpacing: .6 },
+  stepsTotalValue: { color: '#3A3127', fontSize: 15, fontWeight: '300', letterSpacing: .4, marginTop: 1 },
   stepsContent: { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 15, zIndex: 1 },
   stepsCopy: { alignItems: 'center' },
-  stepsLabel: { color: '#766452', fontSize: 10, letterSpacing: 1.3 },
   stepsValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 1 },
   stepsValue: { color: '#3A3127', fontSize: 32, fontWeight: '300', letterSpacing: .5 },
   stepsUnit: { color: '#766452', fontFamily: 'ShipporiBold', fontSize: 13 },
-  stepsNext: { color: '#766452', fontSize: 9, marginTop: 2 },
   stepsRail: { position: 'relative', width: '86%', height: 112 },
-  stepsLine: { position: 'absolute', left: 0, right: 0, bottom: 25, height: 4, borderRadius: 3, backgroundColor: '#D7C8B6' },
-  stepsLineFill: { position: 'absolute', left: 0, bottom: 25, height: 4, borderRadius: 3, backgroundColor: '#A54E42' },
-  stepsPoint: { position: 'absolute', bottom: 18, width: 18, height: 18, marginLeft: -9, borderRadius: 9, borderWidth: 3, borderColor: '#A54E42', backgroundColor: '#FFF9EF', zIndex: 2 },
-  stepsSpriteAnchor: { position: 'absolute', bottom: 9, width: 42, height: 84, marginLeft: -21, alignItems: 'center', justifyContent: 'flex-end', zIndex: 3 },
+  stepsLine: { position: 'absolute', left: 0, right: 0, top: 28, height: 4, borderRadius: 3, backgroundColor: '#D7C8B6' },
+  stepsLineFill: { position: 'absolute', left: 0, top: 28, height: 4, borderRadius: 3, backgroundColor: '#A54E42' },
+  stepsPoint: { position: 'absolute', top: 21, width: 18, height: 18, marginLeft: -9, borderRadius: 9, borderWidth: 3, borderColor: '#A54E42', backgroundColor: '#FFF9EF', zIndex: 2 },
+  stepsSpriteAnchor: { position: 'absolute', top: -7, width: 42, height: 84, marginLeft: -21, alignItems: 'center', justifyContent: 'flex-end', zIndex: 3 },
 });

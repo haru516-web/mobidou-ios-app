@@ -27,7 +27,7 @@ import { BookPageTurn, type BookPageTurnHandle } from './src/components/BookPage
 import { HomeBottomNavigation, HomeCustomizationPopup, HomeWidgetPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
 import { GoshuinBookCover, GoshuinImageListModal } from './src/components/GoshuinBook';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeMiniatureArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
-import type { HomeWidgetId } from './src/services/homePreferences';
+import type { CustomHomeWidgetId, HomeWidgetId } from './src/services/homePreferences';
 
 type Tab = 'home' | 'book' | 'walk' | 'pets' | 'collection';
 type OutingTab = 'count' | 'map';
@@ -254,6 +254,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const currentBackground = getBackgroundOption(data.backgroundId);
   const activeRoute = getPilgrimage(progress.routeId);
   const routeSteps = creditedSteps(progress);
+  const todaySteps = Math.max(0, progress.steps);
+  const totalSteps = Math.max(todaySteps, progress.totalSteps ?? todaySteps);
   const activeShrines = pilgrimageShrines(activeRoute);
   const routePrefix = data.demo ? 'trial:' : 'real:';
   const routeRecords = Object.fromEntries(PILGRIMAGES.flatMap(route => {
@@ -302,20 +304,26 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   };
   const homeRouteImage = activeRoute ? (PILGRIMAGE_IMAGES[activeRoute.id] ?? PILGRIMAGE_IMAGES.sanctuary) : PILGRIMAGE_IMAGES.sanctuary;
   const homeNextPointSteps = next ? Math.max(0, nextTarget - routeSteps) : null;
-  const homeNextPointLabel = homeNextPointSteps === null ? '今日のポイントはすべて達成' : `次のポイントまで${fmt(homeNextPointSteps)}歩`;
-  const renderHomeWidget = (widget: HomeWidgetId, slot: number) => {
+  const previousPointSteps = nextIndex >= 0
+    ? (nextIndex === 0 ? 0 : (activeRoute?.targets[nextIndex - 1] ?? DAILY_TARGETS[nextIndex - 1] ?? 0))
+    : (activeRoute?.targets.at(-1) ?? DAILY_TARGETS.at(-1) ?? 0);
+  const homeStepProgress = homeNextPointSteps === null
+    ? 1
+    : (routeSteps - previousPointSteps) / Math.max(1, nextTarget - previousPointSteps);
+  const homeNextPointLabel = homeNextPointSteps === null ? '' : `次のポイントまで${fmt(homeNextPointSteps)}歩`;
+  const cardLocked = !!homeCardPopup;
+  const cardInteractionProps = {
+    disabled: cardLocked,
+    focusable: !cardLocked,
+    accessible: !cardLocked,
+    accessibilityElementsHidden: cardLocked,
+    importantForAccessibility: cardLocked ? 'no-hide-descendants' as const : 'auto' as const,
+    'aria-hidden': cardLocked ? true : undefined,
+    pointerEvents: cardLocked ? 'none' as const : 'auto' as const,
+  };
+  const renderHomeWidget = (widget: CustomHomeWidgetId, slot: number) => {
     const selectedShrine = COLLECTION_SHRINES.find(shrine => shrine.id === data.homeWidgetItems[slot]) ?? latest;
     const selectedMiniature = COLLECTION_KEYCHAINS[selectedShrine.id as keyof typeof COLLECTION_KEYCHAINS];
-    const cardLocked = !!homeCardPopup;
-    const cardInteractionProps = {
-      disabled: cardLocked,
-      focusable: !cardLocked,
-      accessible: !cardLocked,
-      accessibilityElementsHidden: cardLocked,
-      importantForAccessibility: cardLocked ? 'no-hide-descendants' as const : 'auto' as const,
-      'aria-hidden': cardLocked ? true : undefined,
-      pointerEvents: cardLocked ? 'none' as const : 'auto' as const,
-    };
     const openCard = (next: HomeWidgetId) => {
       if (homeCardPopup) return;
       setHomeCardPopup(next);
@@ -332,11 +340,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       <HomeMapArtwork />
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
-    return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-steps-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数count。${fmt(routeSteps)}歩。${homeNextPointLabel}。拡大表示をひらく`} onPress={() => openCard('steps')} style={[S.homeWidgetCard, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
-      <HomeStepsArtwork petId={pet.id} petImage={pet.image} progress={routeSteps / Math.max(1, nextTarget)} steps={routeSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
-      {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
-    </Pressable>;
+    return null;
   };
+  const renderHomeStepsCard = () => <Pressable nativeID="home-widget-steps" artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数。今日${fmt(todaySteps)}歩。累計${fmt(totalSteps)}歩。${homeNextPointLabel ? `${homeNextPointLabel}。` : ''}拡大表示をひらく`} onPress={() => { if (!homeCardPopup) setHomeCardPopup('steps'); }} style={S.homeStepsCard}>
+    <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
+  </Pressable>;
   useEffect(() => { setBackgroundSeason(currentBackground.season); }, [currentBackground.season]);
   useEffect(() => { if (!openingVisible && journey.ready && !progress.routeId) setRoutePicker(true); }, [openingVisible, journey.ready, progress.routeId, data.demo]);
   useEffect(() => {
@@ -361,10 +369,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </View>
     {data.demo && <View style={[S.demoBar, tab === 'collection' && S.collectionChrome]}><View style={S.dot} /><Text style={S.demoText}>体験モード · 実際の歩数・御朱印帳とは別の記録</Text><Pressable accessibilityRole="button" accessibilityLabel="体験モードを終了" onPress={() => journey.enter(false)} style={{ padding: 7 }}><Icon name="close" size={14} color={C.red} /></Pressable></View>}
     {!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
-    <ScrollView ref={scroll} contentContainerStyle={[S.content, mapScreen && { paddingBottom: 0 }]} scrollEnabled={!mapScreen && !homeCardPopup} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
+    <ScrollView ref={scroll} contentContainerStyle={[S.content, mapScreen && { paddingBottom: 0 }]} scrollEnabled={tab !== 'home' && !mapScreen && !homeCardPopup} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
       {tab === 'home' && <>
         <View style={S.homeHeading}><View style={S.hairline} /><Text style={S.chapter}>日々を、ひとめぐり。</Text><View style={S.hairline} /></View>
         <View><Companion pet={pet} haptics={data.haptics} onBond={journey.bond} /></View>
+        <View style={S.homeStepsSlot}>{renderHomeStepsCard()}</View>
         <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby' ? true : undefined} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
           <View style={S.homeWidgetGrid}>{data.homeWidgetOrder.map(renderHomeWidget)}</View>
         </View>
@@ -466,6 +475,7 @@ function Close({ onPress }: { onPress: () => void }) { return <Pressable accessi
 function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name']; text: string }) { return <View style={S.meta}><Icon name={icon} size={18} color={C.gold} /><Text style={S.metaText}>{text}</Text></View>; }
 
 const S = StyleSheet.create({
+  homeStepsSlot: { marginTop: -27, marginBottom: 2 }, homeStepsCard: { width: '100%', height: 132, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', overflow: 'hidden', alignItems: 'stretch' },
   desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundScrollLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: -260 }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, collectionBackdropViewport: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#F5E8D4' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, bottom: 0, flexDirection: 'row' }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 12 },
   homeWidgetDropTarget: { borderWidth: 3, borderColor: '#B84C3D', transform: [{ scale: 1.025 }], shadowColor: '#8B2F23', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .35, shadowRadius: 9, elevation: 8 },
   homeDropOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#8B2F234D' },

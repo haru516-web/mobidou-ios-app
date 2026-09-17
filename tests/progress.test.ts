@@ -28,6 +28,16 @@ test('local midnight resets steps while retaining rewards and pending ceremonies
   assert.deepEqual(next.pending, p.pending);
   assert.deepEqual(updateSteps(next, 1000, tomorrow).rewards.map(r => r.id), ['star', 'moon', 'rain', 'forest']);
 });
+test('cumulative steps keep daily readings separate from the all-time total', () => {
+  let p = updateSteps(freshProgress(day), 1500, day);
+  assert.equal(p.steps, 1500);
+  assert.equal(p.totalSteps, 1500);
+  p = updateSteps(p, 2300, day);
+  assert.equal(p.totalSteps, 2300);
+  p = updateSteps(p, 800, tomorrow);
+  assert.equal(p.steps, 800);
+  assert.equal(p.totalSteps, 3100);
+});
 test('unfinished day continues at next uncollected shrine on the following day', () => {
   const p = updateSteps(freshProgress(day), 1000, day);
   const next = updateSteps(p, 1000, tomorrow);
