@@ -2,17 +2,62 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, startRoute, resumeRoute, type Progress } from './progress';
-import { getPilgrimage } from '../data/pilgrimages';
+import { getPilgrimage, PILGRIMAGES } from '../data/pilgrimages';
 import { connectSteps, readTodaySteps, type StepSource } from './steps';
 import { isPetId, type PetId } from '../petCatalog';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
-import { emptySpecialCollection, normalizeSpecialCollection, purchasePass, redeemPass, rollSpecialDrop, type PassKind, type SpecialCollection, type SpecialKind } from './specialRewards';
+import { declineKeychainDrop, emptySpecialCollection, grantPass, normalizeSpecialCollection, purchasePass, redeemCoverChange as redeemCoverChangeState, redeemKeychainDrop, redeemPass, rollSpecialDrop, type PassKind, type SpecialCollection, type SpecialKind } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
 
 const KEY = '@mobidou/journey/v1';
-type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
-type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems };
-const initial = (): Saved => ({ version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: { owned: {}, selected: {} }, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS] });
+export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
+type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems };
+export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
+export type BookDesignState = { bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns };
+
+export function emptyBookDesigns(): BookDesigns {
+  return { owned: {}, selected: {} };
+}
+
+/** Normalize the legacy/global shape without allowing malformed entries into either mode. */
+export function normalizeBookDesigns(value: unknown): BookDesigns {
+  if (!value || typeof value !== 'object') return emptyBookDesigns();
+  const source = value as Partial<BookDesigns>;
+  const owned = source.owned && typeof source.owned === 'object'
+    ? Object.fromEntries(Object.entries(source.owned).filter(([, owned]) => owned === true))
+    : {};
+  const selected = source.selected && typeof source.selected === 'object'
+    ? Object.fromEntries(Object.entries(source.selected).filter(([, design]) => design === 'normal' || design === 'route')) as Record<string, 'normal' | 'route'>
+    : {};
+  return { owned, selected };
+}
+
+function cloneBookDesigns(value: BookDesigns): BookDesigns {
+  return { owned: { ...value.owned }, selected: { ...value.selected } };
+}
+
+/** Migrate one legacy/global book shape into independent real and trial state. */
+export function normalizeBookDesignState(value: BookDesignStateInput): BookDesignState {
+  const legacyBookDesigns = normalizeBookDesigns(value.bookDesigns);
+  const realBookDesigns = normalizeBookDesigns(value.realBookDesigns ?? legacyBookDesigns);
+  const trialBookDesigns = normalizeBookDesigns(value.trialBookDesigns);
+  return {
+    bookDesigns: cloneBookDesigns(value.demo === true ? trialBookDesigns : realBookDesigns),
+    realBookDesigns,
+    trialBookDesigns,
+  };
+}
+
+export function setActiveBookDesigns<T extends { demo: boolean; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns }>(saved: T, bookDesigns: BookDesigns): T {
+  const field = saved.demo ? 'trialBookDesigns' : 'realBookDesigns';
+  return { ...saved, [field]: bookDesigns, bookDesigns };
+}
+
+const initial = (): Saved => {
+  const realBookDesigns = emptyBookDesigns();
+  const trialBookDesigns = emptyBookDesigns();
+  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS] };
+};
 
 function addDropsForNewRewards(collection: SpecialCollection, previous: Progress, next: Progress) {
   return next.rewards.slice(previous.rewards.length).reduce((result, reward) => rollSpecialDrop(result, reward.id), collection);
@@ -51,7 +96,9 @@ export function useJourney() {
       if (raw) {
         const p = JSON.parse(raw) as Saved;
         if (p.version !== 1) throw new Error('Unsupported save');
-        const loaded: Saved = { ...initial(), onboarded: p.onboarded === true, demo: p.demo === true, real: normalizeProgress(p.real), trial: normalizeProgress(p.trial), realSpecial: normalizeSpecialCollection(p.realSpecial), trialSpecial: normalizeSpecialCollection(p.trialSpecial), bookDesigns: { owned: { ...(p.bookDesigns?.owned ?? {}) }, selected: { ...(p.bookDesigns?.selected ?? {}) } }, pet: isPetId(p.pet) ? p.pet : 'mobibou', haptics: p.haptics !== false, source: ['healthkit', 'motion'].includes(p.source) ? p.source : 'none', backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : initial().backgroundId, homeWidgetOrder: normalizeHomeWidgetOrder(p.homeWidgetOrder), homeWidgetItems: normalizeHomeWidgetItems(p.homeWidgetItems), routes: Object.fromEntries(Object.entries(p.routes ?? {}).map(([key, value]) => [key, normalizeProgress(value)])), affection: Object.fromEntries(Object.entries(p.affection ?? {}).filter(([k, v]) => isPetId(k) && Number.isFinite(v) && v >= 0)) };
+        const demo = p.demo === true;
+        const bookDesignState = normalizeBookDesignState({ demo, bookDesigns: p.bookDesigns, realBookDesigns: p.realBookDesigns, trialBookDesigns: p.trialBookDesigns });
+        const loaded: Saved = { ...initial(), onboarded: p.onboarded === true, demo, real: normalizeProgress(p.real), trial: normalizeProgress(p.trial), realSpecial: normalizeSpecialCollection(p.realSpecial), trialSpecial: normalizeSpecialCollection(p.trialSpecial), ...bookDesignState, pet: isPetId(p.pet) ? p.pet : 'mobibou', haptics: p.haptics !== false, source: ['healthkit', 'motion'].includes(p.source) ? p.source : 'none', backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : initial().backgroundId, homeWidgetOrder: normalizeHomeWidgetOrder(p.homeWidgetOrder), homeWidgetItems: normalizeHomeWidgetItems(p.homeWidgetItems), routes: Object.fromEntries(Object.entries(p.routes ?? {}).map(([key, value]) => [key, normalizeProgress(value)])), affection: Object.fromEntries(Object.entries(p.affection ?? {}).filter(([k, v]) => isPetId(k) && Number.isFinite(v) && v >= 0)) };
         loaded.realSpecial = loaded.real.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.realSpecial);
         loaded.trialSpecial = loaded.trial.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.trialSpecial);
         current.current = loaded; setData(loaded);
@@ -91,7 +138,7 @@ export function useJourney() {
       const source = await connectSteps();
       const result = await readTodaySteps(source);
       epoch.current++;
-      change(prev => ({ ...updateSavedProgress(prev, 'real', result.steps, result.at), onboarded: true, demo: false, source }));
+      change(prev => setActiveBookDesigns({ ...updateSavedProgress(prev, 'real', result.steps, result.at), onboarded: true, demo: false, source }, cloneBookDesigns(prev.realBookDesigns)));
       setSynced(new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
     } catch (e) { setError(e instanceof Error ? e.message : '接続できませんでした。'); }
     finally { syncLock.current = false; setBusy(false); }
@@ -99,7 +146,7 @@ export function useJourney() {
   return {
     data, progress: data.demo ? data.trial : data.real, special: data.demo ? data.trialSpecial : data.realSpecial, ready, error, busy, synced, refresh, connect,
     dismissError: () => setError(''),
-    enter: (demo: boolean) => { epoch.current++; change(p => ({ ...p, onboarded: true, demo })); },
+    enter: (demo: boolean) => { epoch.current++; change(p => ({ ...p, onboarded: true, demo, bookDesigns: cloneBookDesigns(demo ? p.trialBookDesigns : p.realBookDesigns) })); },
     demoWalk: () => change(p => updateSavedProgress(p, 'trial', rollDay(p.trial).steps + 1000)),
     demoTomorrow: () => change(p => ({ ...p, trial: { ...p.trial, steps: 0, baseline: 0, highWater: 0, dayStart: p.trial.rewards.length, day: localDay() } })),
     acknowledge: () => change(p => p.demo ? { ...p, trial: { ...p.trial, pending: p.trial.pending.slice(1) } } : { ...p, real: { ...p.real, pending: p.real.pending.slice(1) } }),
@@ -117,11 +164,49 @@ export function useJourney() {
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),
     saveHomeWidgetItems: (items: HomeWidgetItems) => change(p => ({ ...p, homeWidgetItems: normalizeHomeWidgetItems(items) })),
     chooseBackground: (backgroundId: BackgroundId) => change(p => ({ ...p, backgroundId })),
-    purchaseBookDesign: (routeId: string) => change(p => ({ ...p, bookDesigns: { owned: { ...p.bookDesigns.owned, [routeId]: true }, selected: { ...p.bookDesigns.selected, [routeId]: 'route' } } })),
-    selectBookDesign: (routeId: string, design: 'normal' | 'route') => change(p => design === 'route' && !p.bookDesigns.owned[routeId] ? p : ({ ...p, bookDesigns: { ...p.bookDesigns, selected: { ...p.bookDesigns.selected, [routeId]: design } } })),
+    purchaseBookDesign: (routeId: string) => change(p => setActiveBookDesigns(p, { owned: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).owned, [routeId]: true }, selected: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).selected, [routeId]: 'route' } })),
+    selectBookDesign: (routeId: string, design: 'normal' | 'route') => change(p => {
+      const activeBookDesigns = p.demo ? p.trialBookDesigns : p.realBookDesigns;
+      return design === 'route' && !activeBookDesigns.owned[routeId]
+        ? p
+        : setActiveBookDesigns(p, { ...activeBookDesigns, selected: { ...activeBookDesigns.selected, [routeId]: design } });
+    }),
     purchasePass: (kind: PassKind) => change(p => {
       const field = p.demo ? 'trialSpecial' : 'realSpecial';
       return { ...p, [field]: purchasePass(p[field], kind) };
+    }),
+    /** Mock grant hook for reward/shop UI and test fixtures. */
+    grantPass: (kind: PassKind, amount = 1) => change(p => {
+      const field = p.demo ? 'trialSpecial' : 'realSpecial';
+      return { ...p, [field]: grantPass(p[field], kind, amount) };
+    }),
+    /** Use a new keychain ticket only for a persisted natural failure. */
+    redeemKeychainDrop: (shrineId: string) => change(p => {
+      const field = p.demo ? 'trialSpecial' : 'realSpecial';
+      return { ...p, [field]: redeemKeychainDrop(p[field], shrineId) };
+    }),
+    /** Decline a pending failed roll without consuming a ticket. */
+    declineKeychainDrop: (shrineId: string) => change(p => {
+      const field = p.demo ? 'trialSpecial' : 'realSpecial';
+      return { ...p, [field]: declineKeychainDrop(p[field], shrineId) };
+    }),
+    /**
+     * Unlock the selected active-route cover once. Invalid/archived routes,
+     * already-owned covers, and empty balances are all no-ops.
+     */
+    redeemCoverChange: (routeId: string) => change(p => {
+      const field = p.demo ? 'trialSpecial' : 'realSpecial';
+      const activeBookDesigns = p.demo ? p.trialBookDesigns : p.realBookDesigns;
+      const alreadyOwned = activeBookDesigns.owned[routeId] === true;
+      const coverExists = PILGRIMAGES.some(route => route.id === routeId);
+      const special = redeemCoverChangeState(p[field], routeId, { coverExists, alreadyOwned });
+      if (special === p[field]) return p;
+      const next = setActiveBookDesigns({ ...p, [field]: special }, {
+        ...activeBookDesigns,
+        owned: { ...activeBookDesigns.owned, [routeId]: true },
+        selected: { ...activeBookDesigns.selected, [routeId]: 'route' },
+      });
+      return next;
     }),
     redeemPass: (shrineId: string, kind: SpecialKind) => change(p => {
       const field = p.demo ? 'trialSpecial' : 'realSpecial';

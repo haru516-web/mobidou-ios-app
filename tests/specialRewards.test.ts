@@ -1,67 +1,119 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptySpecialCollection, normalizeSpecialCollection, purchasePass, redeemPass, rollSpecialDrop, SPECIAL_DROP_RATE } from '../src/services/specialRewards.ts';
+import {
+  declineKeychainDrop,
+  emptySpecialCollection,
+  grantPass,
+  hasPass,
+  KEYCHAIN_DROP_RATE,
+  normalizeSpecialCollection,
+  purchasePass,
+  redeemCoverChange,
+  redeemKeychainDrop,
+  redeemPass,
+  rollSpecialDrop,
+  SPARKLE_DROP_RATE,
+} from '../src/services/specialRewards.ts';
 
-test('special items each use an independent twenty percent roll', () => {
-  const values = [SPECIAL_DROP_RATE - 0.01, SPECIAL_DROP_RATE + 0.01];
-  const result = rollSpecialDrop(emptySpecialCollection(), 'star', () => values.shift()!);
-  assert.deepEqual(result.rolls.star, { keychain: true, sparkle: false });
-  assert.equal(result.keychains.star, 1);
-  assert.equal(result.sparkles.star, undefined);
+function roll(collection = emptySpecialCollection(), shrineId = 'rain', keychainRandom = 1, sparkleRandom = 1) {
+  const values = [keychainRandom, sparkleRandom];
+  return rollSpecialDrop(collection, shrineId, () => values.shift()!);
+}
+
+test('natural keychain drop uses an exact ten percent boundary', () => {
+  const justBelow = roll(emptySpecialCollection(), 'star', KEYCHAIN_DROP_RATE - 0.0001, 1);
+  assert.equal(justBelow.rolls.star.keychain, true);
+  assert.equal(justBelow.keychainDecisions.star, 'natural');
+  assert.equal(justBelow.keychains.star, 1);
+
+  const atBoundary = roll(emptySpecialCollection(), 'moon', KEYCHAIN_DROP_RATE, 1);
+  assert.equal(atBoundary.rolls.moon.keychain, false);
+  assert.equal(atBoundary.keychainDecisions.moon, 'pending');
+  assert.equal(atBoundary.keychains.moon, undefined);
 });
 
-test('a shrine is rolled only once', () => {
-  const first = rollSpecialDrop(emptySpecialCollection(), 'moon', () => 0);
-  const repeated = rollSpecialDrop(first, 'moon', () => 1);
+test('sparkle keeps its legacy independent probability without a new ticket', () => {
+  const below = roll(emptySpecialCollection(), 'forest', 1, SPARKLE_DROP_RATE - 0.0001);
+  assert.deepEqual(below.rolls.forest, { keychain: false, sparkle: true });
+  assert.equal(below.sparkles.forest, 1);
+  assert.equal(below.passes.keychainDrop, 0);
+});
+
+test('a shrine is rolled once and a persisted failure gets a pending decision', () => {
+  const first = roll(emptySpecialCollection(), 'rain', 1, 1);
+  const repeated = rollSpecialDrop(first, 'rain', () => 0);
   assert.equal(repeated, first);
-  assert.equal(repeated.keychains.moon, 1);
-  assert.equal(repeated.sparkles.moon, 1);
+  assert.deepEqual(repeated.rolls.rain, { keychain: false, sparkle: false });
+  assert.equal(repeated.keychainDecisions.rain, 'pending');
 });
 
-test('temporary purchases add usable pass balances', () => {
-  let collection = emptySpecialCollection();
-  collection = purchasePass(collection, 'ten');
-  collection = purchasePass(collection, 'ten');
-  collection = purchasePass(collection, 'fifty');
-  collection = purchasePass(collection, 'subscription');
-  assert.deepEqual(collection.passes, { ten: 20, fifty: 50, subscription: true });
+test('keychain ticket redemption requires pending failure and is idempotent', () => {
+  let collection = purchasePass(roll(emptySpecialCollection(), 'rain', 1, 1), 'keychainDrop');
+  assert.equal(collection.passes.keychainDrop, 1);
+  assert.equal(hasPass(collection, 'keychainDrop'), true);
+  const redeemed = redeemKeychainDrop(collection, 'rain');
+  assert.equal(redeemed.keychains.rain, 1);
+  assert.equal(redeemed.passes.keychainDrop, 0);
+  assert.equal(redeemed.keychainDecisions.rain, 'ticket');
+  assert.equal(redeemKeychainDrop(redeemed, 'rain'), redeemed);
+  assert.equal(redeemKeychainDrop(redeemed, 'missing'), redeemed);
 });
 
-test('a pass can redeem each missed kind once and consumes finite passes first', () => {
-  let collection = purchasePass(emptySpecialCollection(), 'ten');
-  collection = redeemPass(collection, 'rain', 'keychain');
-  collection = redeemPass(collection, 'rain', 'keychain');
-  collection = redeemPass(collection, 'rain', 'sparkle');
-  assert.equal(collection.keychains.rain, 1);
-  assert.equal(collection.sparkles.rain, 1);
-  assert.equal(collection.passes.ten, 8);
-  assert.deepEqual(collection.rolls.rain, { keychain: true, sparkle: true });
+test('a natural success cannot be replaced by a keychain ticket', () => {
+  const natural = purchasePass(roll(emptySpecialCollection(), 'rain', 0, 1), 'keychainDrop');
+  assert.equal(natural.keychainDecisions.rain, 'natural');
+  assert.equal(redeemKeychainDrop(natural, 'rain'), natural);
+  assert.equal(natural.passes.keychainDrop, 1);
 });
 
-test('a duplicate drop increments the existing shrine item count', () => {
-  const previous = { ...emptySpecialCollection(), keychains: { rain: 1 } };
-  const collection = rollSpecialDrop(previous, 'rain', () => 0);
-  assert.equal(collection.keychains.rain, 2);
-  assert.equal(collection.sparkles.rain, 1);
+test('declining a pending failure preserves the ticket and blocks later redemption', () => {
+  let collection = purchasePass(roll(emptySpecialCollection(), 'rain', 1, 1), 'keychainDrop');
+  collection = declineKeychainDrop(collection, 'rain');
+  assert.equal(collection.keychainDecisions.rain, 'declined');
+  assert.equal(collection.passes.keychainDrop, 1);
+  assert.equal(redeemKeychainDrop(collection, 'rain'), collection);
+  assert.equal(declineKeychainDrop(collection, 'rain'), collection);
 });
 
-test('subscription redemptions never reduce finite pass balances', () => {
-  let collection = purchasePass(purchasePass(emptySpecialCollection(), 'fifty'), 'subscription');
-  collection = redeemPass(collection, 'forest', 'sparkle');
-  assert.equal(collection.passes.fifty, 50);
-  assert.equal(collection.passes.subscription, true);
-  assert.equal(collection.sparkles.forest, 1);
+test('ticket redemption is blocked when the natural-failure decision was not persisted', () => {
+  const rolled = purchasePass(roll(emptySpecialCollection(), 'rain', 1, 1), 'keychainDrop');
+  const withoutDecision = { ...rolled, keychainDecisions: {} };
+  assert.equal(redeemKeychainDrop(withoutDecision, 'rain'), withoutDecision);
 });
 
-test('saved inventory normalization rejects invalid quantities', () => {
+test('cover-change ticket unlocks once and consumes exactly one', () => {
+  let collection = grantPass(emptySpecialCollection(), 'coverChange', 2);
+  collection = redeemCoverChange(collection, 'sanctuary', { coverExists: true, alreadyOwned: false });
+  assert.equal(collection.passes.coverChange, 1);
+  const alreadyOwned = redeemCoverChange(collection, 'sanctuary', { coverExists: true, alreadyOwned: true });
+  assert.equal(alreadyOwned, collection);
+  const missing = redeemCoverChange(collection, 'unknown-route', { coverExists: false, alreadyOwned: false });
+  assert.equal(missing, collection);
+  const empty = redeemCoverChange(emptySpecialCollection(), 'sanctuary', { coverExists: true, alreadyOwned: false });
+  assert.deepEqual(empty.passes, emptySpecialCollection().passes);
+});
+
+test('legacy balances survive normalization and are not converted to new tickets', () => {
   const normalized = normalizeSpecialCollection({
-    keychains: { star: 2, moon: -1, rain: 1.5 },
-    sparkles: { forest: 3 },
-    passes: { ten: 9, fifty: -4, subscription: true },
-    rolls: { star: { keychain: true, sparkle: false } },
+    keychains: { star: 2, invalid: -1 },
+    passes: { ten: 9, fifty: 4, subscription: true },
+    rolls: { rain: { keychain: false, sparkle: false }, star: { keychain: true, sparkle: false } },
   });
-  assert.deepEqual(normalized.keychains, { star: 2 });
-  assert.deepEqual(normalized.sparkles, { forest: 3 });
-  assert.deepEqual(normalized.passes, { ten: 9, fifty: 0, subscription: true });
-  assert.deepEqual(normalized.rolls.star, { keychain: true, sparkle: false });
+  assert.deepEqual(normalized.passes, { coverChange: 0, keychainDrop: 0, ten: 9, fifty: 4, subscription: true });
+  assert.equal(normalized.keychainDecisions.rain, 'pending');
+  assert.equal(normalized.keychainDecisions.star, 'natural');
+
+  const newTicket = purchasePass(normalized, 'keychainDrop');
+  assert.equal(newTicket.passes.keychainDrop, 1);
+  assert.equal(newTicket.passes.ten, 9);
+  assert.equal(newTicket.passes.fifty, 4);
+  assert.equal(newTicket.passes.subscription, true);
+});
+
+test('legacy sparkle redemption remains available only through the compatibility API', () => {
+  let collection = purchasePass(roll(emptySpecialCollection(), 'rain', 1, 1), 'ten');
+  collection = redeemPass(collection, 'rain', 'sparkle');
+  assert.equal(collection.sparkles.rain, 1);
+  assert.equal(collection.passes.ten, 9);
+  assert.equal(collection.passes.keychainDrop, 0);
 });

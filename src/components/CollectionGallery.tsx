@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type ImageSourcePropType } from 'react-native';
 import { Ionicons as Icon } from '@expo/vector-icons';
 import { SHRINES, STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { PILGRIMAGE_IMAGES } from '../data/pilgrimageImages';
-import { PILGRIMAGES } from '../data/pilgrimages';
+import { PILGRIMAGES, type Pilgrimage } from '../data/pilgrimages';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
+import { GOSHUIN_BOOK_COVERS, getGoshuinBookCover } from '../data/goshuinBookCovers';
 import { WashiArt, WashiPressable } from './Washi';
 import { CollectionRoom } from './CollectionRoom';
 import type { PassKind, SpecialCollection } from '../services/specialRewards';
@@ -12,6 +13,8 @@ import type { PassKind, SpecialCollection } from '../services/specialRewards';
 const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.png');
 const WALL_HOOK = require('../../assets/collection/collection-wall-hook-v2.png');
 const COLLECTION_BACKDROP = require('../../assets/collection/collection-cabinet-washi-backdrop-v1.png');
+const COVER_CHANGE_TICKET = require('../../assets/tickets/ticket-cover-change-v1.png');
+const KEYCHAIN_DROP_TICKET = require('../../assets/tickets/ticket-keychain-drop-v1.png');
 const SERIF = 'Shippori';
 const KEYCHAIN_RAIL_Y = 0.14;
 const GOSHUIN_STANDARD_BASE_BOTTOM = 0.33;
@@ -122,13 +125,15 @@ function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWi
   </View>;
 }
 
-export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, zoom, onZoomChange }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void }) {
+export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, activeRoute, coverOwned = false, selectedCover = 'normal', onRedeemCoverChange, onSelectCover, zoom, onZoomChange }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; activeRoute?: Pilgrimage; coverOwned?: boolean; selectedCover?: 'normal' | 'route'; onRedeemCoverChange?: (routeId: string) => void; onSelectCover?: (routeId: string, design: 'normal' | 'route') => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void }) {
   const { width, height } = useWindowDimensions();
   const viewportWidth = Math.min(480, Math.max(1, width));
   const roomHeight = Math.max(470, Math.min(720, height - 220));
   const [swayImpulse, setSwayImpulse] = useState(0);
   const [detail, setDetail] = useState<Shrine | null>(null);
   const [purchaseNotice, setPurchaseNotice] = useState('');
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
+  const [coverNotice, setCoverNotice] = useState('');
   const [pinching, setPinching] = useState(false);
   const displayScroll = useRef<ScrollView>(null);
   const pinchState = useRef({ active: false, startDistance: 0, startZoom: zoom });
@@ -178,6 +183,36 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
     setPurchaseNotice(`${label}を仮購入しました`);
   };
 
+  const showCoverPicker = () => {
+    setCoverNotice('');
+    setCoverPickerOpen(true);
+  };
+
+  const chooseCover = (design: 'normal' | 'route') => {
+    if (!activeRoute) return;
+    onSelectCover?.(activeRoute.id, design);
+    setCoverNotice(design === 'route' ? '巡礼の表紙を選びました' : '通常表紙を選びました');
+  };
+
+  const unlockCover = () => {
+    if (!activeRoute || coverOwned || !GOSHUIN_BOOK_COVERS[activeRoute.id] || special.passes.coverChange <= 0) return;
+    onRedeemCoverChange?.(activeRoute.id);
+    setCoverNotice('表紙を解放しました。巡礼の表紙を選べます');
+  };
+
+  // Keep the ticket usable from the wallet itself.  Before a cover is
+  // unlocked, the same action first provides the local/mock ticket; after
+  // that it opens the picker so the user can spend it deliberately.
+  const coverNeedsTicket = !!activeRoute && !coverOwned && !!GOSHUIN_BOOK_COVERS[activeRoute.id] && special.passes.coverChange <= 0;
+  const handleCoverAction = () => {
+    if (!activeRoute) return;
+    if (coverNeedsTicket) {
+      buy('coverChange', '御朱印帳表紙着せ替え券');
+      return;
+    }
+    showCoverPicker();
+  };
+
   return (
     <View>
       <View onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={[S.roomStage, { width: viewportWidth, height: roomHeight, marginHorizontal: -24 }]}>
@@ -219,20 +254,65 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
       </View>
       <View style={S.passWallet}>
         <WashiArt />
-        <View style={S.passHeader}><View><Text style={S.passEyebrow}>交換パス</Text><Text style={S.passTitle}>所持パス</Text></View><Icon name="ticket-outline" size={25} color="#9b443c" /></View>
-        <View style={S.passBalances}>
-          <Text style={S.passBalance}>10回券 残り {special.passes.ten}回</Text>
-          <Text style={S.passBalance}>50回券 残り {special.passes.fifty}回</Text>
-          <Text style={S.passBalance}>サブスク {special.passes.subscription ? '有効' : '未所持'}</Text>
-        </View>
-        <View style={S.passButtons}>
-          <WashiPressable accessibilityRole="button" onPress={() => buy('ten', '10回券')} style={S.passButton}><Text style={S.passButtonText}>10回券を仮購入</Text></WashiPressable>
-          <WashiPressable accessibilityRole="button" onPress={() => buy('fifty', '50回券')} style={S.passButton}><Text style={S.passButtonText}>50回券を仮購入</Text></WashiPressable>
-          <WashiPressable accessibilityRole="button" onPress={() => buy('subscription', 'サブスク型')} style={S.passButton}><Text style={S.passButtonText}>サブスクを仮購入</Text></WashiPressable>
+        <View style={S.passHeader}><View><Text style={S.passEyebrow}>旅の授与品</Text><Text style={S.passTitle}>集めたパス</Text></View><Icon name="ticket-outline" size={25} color="#9b443c" /></View>
+        <Text style={S.passIntro}>小さな一歩を、次の特別な出会いへ。</Text>
+        <View style={S.ticketGrid}>
+          <View style={[S.ticketCard, S.ticketCardVermilion]}>
+            <Image source={COVER_CHANGE_TICKET} resizeMode="stretch" style={S.ticketArt} />
+            <View pointerEvents="none" style={S.ticketCopy}>
+              <Text style={S.ticketKicker}>MOBIDOU · PASS</Text>
+              <Text style={S.ticketTitle}>御朱印帳表紙{ '\n' }着せ替え券</Text>
+              <Text style={S.ticketBody}>お気に入りの旅の表紙に。</Text>
+              <Text style={S.ticketCount}>所持 {special.passes.coverChange}枚</Text>
+            </View>
+            <WashiPressable accessibilityRole="button" accessibilityLabel={!activeRoute ? '巡礼を選んでから表紙を選ぶ' : coverNeedsTicket ? '御朱印帳表紙着せ替え券を仮取得' : '御朱印帳の表紙を選ぶ'} accessibilityState={{ disabled: !activeRoute }} disabled={!activeRoute} artwork={false} onPress={handleCoverAction} style={S.ticketButton}><Text style={S.ticketButtonText}>{!activeRoute ? '巡礼を選ぶ' : coverNeedsTicket ? '着せ替え券を仮取得' : '表紙を選ぶ'}</Text></WashiPressable>
+          </View>
+          <View style={[S.ticketCard, S.ticketCardMoss]}>
+            <Image source={KEYCHAIN_DROP_TICKET} resizeMode="stretch" style={S.ticketArt} />
+            <View pointerEvents="none" style={S.ticketCopy}>
+              <Text style={S.ticketKicker}>MOBIDOU · PASS</Text>
+              <Text style={S.ticketTitle}>ミニチュアキーホルダー{ '\n' }ドロップ券</Text>
+              <Text style={S.ticketBody}>ドロップなしでも確実に。</Text>
+              <Text style={S.ticketCount}>所持 {special.passes.keychainDrop}枚</Text>
+            </View>
+            <WashiPressable accessibilityRole="button" accessibilityLabel="ミニチュアキーホルダードロップ券を仮取得" onPress={() => buy('keychainDrop', 'ミニチュアキーホルダードロップ券')} artwork={false} style={S.ticketButton}><Text style={S.ticketButtonText}>1枚を仮取得</Text></WashiPressable>
+          </View>
         </View>
         {!!purchaseNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{purchaseNotice}</Text>}
-        <Text style={S.passNote}>仮購入のため決済は発生しません</Text>
+        {!!coverNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{coverNotice}</Text>}
+        <Text style={S.passNote}>仮取得はテスト用です。決済は発生しません</Text>
       </View>
+
+      <Modal visible={coverPickerOpen} transparent animationType="fade" onRequestClose={() => setCoverPickerOpen(false)}>
+        <View style={S.backdrop}>
+          <View style={S.coverPickerCard}>
+            <WashiArt />
+            <WashiPressable accessibilityRole="button" accessibilityLabel="表紙選択を閉じる" onPress={() => setCoverPickerOpen(false)} artwork={false} style={S.close}><Icon name="close" size={20} color="#7f302d" /></WashiPressable>
+            <Text style={S.coverPickerEyebrow}>御朱印帳 · COVER</Text>
+            <Text style={S.coverPickerTitle}>旅の表紙を選ぶ</Text>
+            {!activeRoute ? <Text style={S.coverPickerMessage}>巡礼を選ぶと、専用表紙を選択できます。</Text> : <>
+              <Text style={S.coverPickerRoute}>{activeRoute.name}</Text>
+              <View style={S.coverPreview}><Image source={getGoshuinBookCover(activeRoute.id) as ImageSourcePropType} resizeMode="contain" style={S.coverPreviewImage} /></View>
+              <View style={S.coverChoices}>
+                <WashiPressable accessibilityRole="button" accessibilityState={{ selected: selectedCover === 'normal' }} onPress={() => chooseCover('normal')} artwork={false} style={[S.coverChoice, selectedCover === 'normal' && S.coverChoiceActive]}><Text style={S.coverChoiceTitle}>通常表紙</Text><Text style={S.coverChoiceMeta}>いつもの赤い表紙</Text></WashiPressable>
+                <WashiPressable accessibilityRole="button" accessibilityState={{ selected: selectedCover === 'route', disabled: !coverOwned }} disabled={!coverOwned} onPress={() => chooseCover('route')} artwork={false} style={[S.coverChoice, selectedCover === 'route' && S.coverChoiceActive, !coverOwned && S.coverChoiceDisabled]}><Text style={S.coverChoiceTitle}>巡礼の表紙</Text><Text style={S.coverChoiceMeta}>{coverOwned ? '解放済み · 選択できます' : '着せ替え券で解放'}</Text></WashiPressable>
+              </View>
+              {!coverOwned && <View style={S.coverUnlockBox}>
+                {GOSHUIN_BOOK_COVERS[activeRoute.id] ? <>
+                  <Text style={S.coverUnlockTitle}>専用表紙はまだ未解放</Text>
+                  <Text style={S.coverUnlockText}>{special.passes.coverChange > 0 ? '所持している券を1枚使って、専用表紙を解放します。' : '御朱印帳表紙着せ替え券がありません。下の券を仮取得できます。'}</Text>
+                  <WashiPressable accessibilityRole="button" accessibilityLabel="御朱印帳表紙着せ替え券を使って専用表紙を解放" accessibilityState={{ disabled: special.passes.coverChange <= 0 }} disabled={special.passes.coverChange <= 0} onPress={unlockCover} artwork={false} style={[S.unlockButton, special.passes.coverChange <= 0 && S.unlockButtonDisabled]}><Text style={S.unlockButtonText}>{special.passes.coverChange > 0 ? '券を使って解放する' : '着せ替え券が必要です'}</Text></WashiPressable>
+                </> : <>
+                  <Text style={S.coverUnlockTitle}>専用表紙は準備中</Text>
+                  <Text style={S.coverUnlockText}>この巡礼には専用デザインがまだありません。券は消費されません。</Text>
+                </>}
+              </View>}
+            </>}
+            {!!coverNotice && <Text accessibilityLiveRegion="polite" style={S.coverModalNotice}>{coverNotice}</Text>}
+            <WashiPressable accessibilityRole="button" onPress={() => setCoverPickerOpen(false)} artwork={false} style={S.coverCloseButton}><Text style={S.coverCloseText}>閉じる</Text></WashiPressable>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!detail} transparent animationType="fade" onRequestClose={() => setDetail(null)}>
         <View style={S.backdrop}>
@@ -259,7 +339,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
 
 const S = StyleSheet.create({
   rail: { paddingRight: 0 }, displayScroller: { width: '100%', backgroundColor: 'transparent' }, roomTrack: { position: 'relative' }, collectionBackdropLayer: { position: 'absolute', top: 0, overflow: 'hidden' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, flexDirection: 'row' }, displayRow: { position: 'absolute', left: 0, top: 0, flexDirection: 'row', zIndex: 2 }, displayCell: { position: 'relative', flexShrink: 0 },
-  passWallet: { borderWidth: 1, borderColor: '#dcc6a8', borderRadius: 18, backgroundColor: '#fff8e9', padding: 14, marginTop: 22, marginBottom: 8, overflow: 'hidden' }, passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, passEyebrow: { color: '#a1604f', fontSize: 9, letterSpacing: 1.5 }, passTitle: { color: '#3c3026', fontFamily: SERIF, fontSize: 18, marginTop: 2 }, passBalances: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 }, passBalance: { color: '#6f6252', fontSize: 9, backgroundColor: '#f0e4d1', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5 }, passButtons: { flexDirection: 'row', gap: 6, marginTop: 11 }, passButton: { flex: 1, minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: '#c8a982', backgroundColor: '#f6ead5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, passButtonText: { color: '#873d36', fontFamily: SERIF, fontSize: 9, textAlign: 'center' }, purchaseNotice: { color: '#7d4939', fontSize: 10, textAlign: 'center', marginTop: 9 }, passNote: { color: '#9a8b77', fontSize: 8, textAlign: 'center', marginTop: 6 },
+  passWallet: { borderWidth: 1, borderColor: '#dcc6a8', borderRadius: 18, backgroundColor: '#fff8e9', padding: 14, marginTop: 22, marginBottom: 8, overflow: 'hidden' }, passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, passEyebrow: { color: '#a1604f', fontSize: 9, letterSpacing: 1.5 }, passTitle: { color: '#3c3026', fontFamily: SERIF, fontSize: 18, marginTop: 2 }, passIntro: { color: '#786a58', fontFamily: SERIF, fontSize: 10, marginTop: 9 }, ticketGrid: { flexDirection: 'row', gap: 9, marginTop: 12 }, ticketCard: { flex: 1, minHeight: 258, aspectRatio: .68, position: 'relative', overflow: 'hidden', borderRadius: 12, alignItems: 'center', justifyContent: 'flex-end', padding: 9 }, ticketCardVermilion: { backgroundColor: '#a94a3e' }, ticketCardMoss: { backgroundColor: '#6b7d62' }, ticketArt: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', zIndex: 0 }, ticketCopy: { position: 'absolute', left: 13, right: 13, top: 24, alignItems: 'center', zIndex: 1 }, ticketKicker: { color: '#5e392f', fontSize: 7, letterSpacing: 1.4, textAlign: 'center' }, ticketTitle: { color: '#2e241d', fontFamily: SERIF, fontSize: 15, lineHeight: 21, textAlign: 'center', marginTop: 10 }, ticketBody: { color: '#6c5b4b', fontSize: 8, lineHeight: 12, textAlign: 'center', marginTop: 9 }, ticketCount: { color: '#7f352f', fontFamily: SERIF, fontSize: 11, textAlign: 'center', marginTop: 13 }, ticketButton: { minHeight: 31, minWidth: '88%', borderRadius: 9, borderWidth: 1, borderColor: '#a97a4c', backgroundColor: '#fff7e8e8', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, zIndex: 2 }, ticketButtonText: { color: '#7b322d', fontFamily: SERIF, fontSize: 10, textAlign: 'center' }, purchaseNotice: { color: '#7d4939', fontSize: 10, textAlign: 'center', marginTop: 9 }, passNote: { color: '#9a8b77', fontSize: 8, textAlign: 'center', marginTop: 6 }, coverPickerCard: { width: '100%', maxWidth: 390, maxHeight: '94%', overflow: 'hidden', borderRadius: 24, borderWidth: 1, borderColor: '#ead6ba', backgroundColor: '#fff8e9', padding: 22, alignItems: 'center' }, coverPickerEyebrow: { color: '#9a6851', fontSize: 9, letterSpacing: 1.4 }, coverPickerTitle: { color: '#362b22', fontFamily: SERIF, fontSize: 22, marginTop: 4 }, coverPickerMessage: { color: '#766956', fontSize: 11, textAlign: 'center', lineHeight: 18, marginTop: 24, marginBottom: 18 }, coverPickerRoute: { color: '#8d3f39', fontFamily: SERIF, fontSize: 14, marginTop: 9 }, coverPreview: { width: 118, height: 122, marginTop: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: '#f1e4cf', alignItems: 'center', justifyContent: 'center' }, coverPreviewImage: { width: '100%', height: '100%' }, coverChoices: { width: '100%', flexDirection: 'row', gap: 8, marginTop: 14 }, coverChoice: { flex: 1, minHeight: 60, borderRadius: 10, borderWidth: 1, borderColor: '#d6b78e', backgroundColor: '#f7ecd9', paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' }, coverChoiceActive: { borderColor: '#a6453d', backgroundColor: '#f4d8c3' }, coverChoiceDisabled: { opacity: .55 }, coverChoiceTitle: { color: '#6f382f', fontFamily: SERIF, fontSize: 11 }, coverChoiceMeta: { color: '#887764', fontSize: 8, textAlign: 'center', marginTop: 4 }, coverUnlockBox: { width: '100%', marginTop: 14, borderRadius: 12, borderWidth: 1, borderColor: '#dbc5a8', backgroundColor: '#fffaf1', padding: 11, alignItems: 'center' }, coverUnlockTitle: { color: '#554333', fontFamily: SERIF, fontSize: 12 }, coverUnlockText: { color: '#7a6a59', fontSize: 9, lineHeight: 15, textAlign: 'center', marginTop: 5 }, unlockButton: { minHeight: 40, minWidth: '82%', borderRadius: 20, backgroundColor: '#9b443c', alignItems: 'center', justifyContent: 'center', marginTop: 9, paddingHorizontal: 12 }, unlockButtonDisabled: { backgroundColor: '#b9a998' }, unlockButtonText: { color: '#fffaf0', fontFamily: SERIF, fontSize: 11, textAlign: 'center' }, coverModalNotice: { color: '#7d4939', fontSize: 10, textAlign: 'center', marginTop: 9 }, coverCloseButton: { minHeight: 40, minWidth: 118, borderRadius: 20, backgroundColor: '#f1dfc4', alignItems: 'center', justifyContent: 'center', marginTop: 14 }, coverCloseText: { color: '#7f302d', fontFamily: SERIF, fontSize: 12 },
   roomStage: { position: 'relative', overflow: 'hidden', backgroundColor: 'transparent' },
   roomLabel: { position: 'absolute', top: 17, left: 4, right: 4, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 5, zIndex: 2 }, roomNumber: { color: '#f2c681', fontSize: 8, letterSpacing: 1 }, roomName: { color: '#fff1d8', fontFamily: SERIF, fontSize: 11, flexShrink: 1 },
   keychainWrap: { position: 'absolute', alignSelf: 'center', width: 186, height: 255, zIndex: 1 }, detailKeychainWrap: { width: 260, height: 390, marginTop: 6 }, keychainButton: { flex: 1 }, keychain: { width: '100%', height: '100%' }, keychainLocked: { opacity: .28 }, hookContactClip: { position: 'absolute', overflow: 'hidden', zIndex: 3 }, shrineCharm: { position: 'absolute', width: 46, height: 46, borderRadius: 23, left: 70, bottom: 49, borderWidth: 2, backgroundColor: '#fff9ed', overflow: 'hidden', padding: 4 }, shrineCharmLarge: { width: 62, height: 62, borderRadius: 31, left: 99, bottom: 73 }, shrineCharmImage: { width: '100%', height: '100%' }, lock: { position: 'absolute', right: 7, bottom: 28, width: 30, height: 30, borderRadius: 15, backgroundColor: '#6f5540cc', alignItems: 'center', justifyContent: 'center' }, quantity: { position: 'absolute', right: 5, bottom: 27, borderRadius: 12, backgroundColor: '#fff7e8e8', borderWidth: 1, borderColor: '#b38b58', paddingHorizontal: 7, paddingVertical: 4 }, quantityText: { color: '#70462f', fontFamily: SERIF, fontSize: 11 },
