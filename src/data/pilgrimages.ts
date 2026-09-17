@@ -1,5 +1,12 @@
 export type Pilgrimage = { id: string; name: string; type: string; subtitle: string; description: string; ids: string[]; targets: number[]; completion: string; title: string; gift: string; color: string; chapters: string[] };
-export const PILGRIMAGES: Pilgrimage[] = [
+export const MIN_FIRST_POINT_STEPS = 5000;
+
+const raiseFirstPointToMinimum = (route: Pilgrimage): Pilgrimage => {
+  const offset = Math.max(0, MIN_FIRST_POINT_STEPS - (route.targets[0] ?? MIN_FIRST_POINT_STEPS));
+  return { ...route, targets: route.targets.map(target => target + offset) };
+};
+
+const PILGRIMAGE_DEFINITIONS: Pilgrimage[] = [
   { id: 'sanctuary', name: '木漏れ日の奥宮へ', type: '神域参詣', subtitle: '大社へ続く、五つの社をたどる。', description: '遠方の大きな社を主目的地に、五つの社を順に参拝し、各社の授与所で御朱印を受ける直線型の神域参詣。森や水辺の景観は、社と社を結ぶ道中として描く。', ids: ['rain', 'forest', 'takekaze', 'morika', 'morikage'], targets: [1000, 3000, 5000], completion: '五つの社を巡り、最奥の森影大社に到達する', title: '神域を訪ねた人', gift: '神域の結願印', color: '#59735B', chapters: ['雨もびしず葉社で祓いを受ける', '森もびこもれ宮で木漏れ日を仰ぐ', '竹もび風社で風音を聴く', '鹿もび森社で御朱印を受ける', '森影大社で結願を奉告する'] },
   { id: 'mountain', name: '雲をこえる祈り', type: '山岳修行', subtitle: '麓から、朝焼けの頂へ。', description: '石段、風の峠、白い稜線。その先の朝焼けを目指して、いつもより少し長い道のりを歩く。', ids: ['hibikiishi', 'kazewatari', 'yukishiro', 'mine', 'akatsuki'], targets: [2000, 5000, 8000], completion: '山頂の暁もび灯宮まで歩き切る', title: '雲上の旅人', gift: '山頂の結願印', color: '#657E90', chapters: ['麓の石段から出発', '風の峠でひと休み', '雪の稜線を越える', '峰の静けさに包まれる', '山頂で朝日を迎える'] },
   { id: 'circuit', name: '十二のご縁めぐり', type: '札所周回', subtitle: '一頁ずつ、旅を綴る。', description: '花の里から月見台まで、十二の札所を順番に巡る。結ばれたご縁が、一冊の帳面になる。', ids: ['flower', 'mebuki', 'aoba', 'wakaba', 'asatsuyu', 'mizusumi', 'gindrop', 'cloud', 'sabaku', 'amenagi', 'moon', 'nijiayumu'], targets: [1000, 3000, 5000], completion: '十二の札所すべてに参拝する', title: '十二縁の巡り人', gift: '十二札所満願証', color: '#A56B53', chapters: [] },
@@ -14,11 +21,32 @@ export const PILGRIMAGES: Pilgrimage[] = [
   { id: 'storyRiver', name: '川辺の星綴り', type: '物語の聖地巡礼', subtitle: '川面に映る星を、章ごとに。', description: '星映しの瀬にひらいた物語を、星音の滝、灯舟の桟橋、空栞の丘へ運ぶ。葦原の夏影を越え、河口の星綴り台で自分の歩みを最後の一文にする旅。', ids: ['kawakagami', 'hoshinooto', 'funeakari', 'sorashiori', 'natsukage', 'tsuzuri'], targets: [1000, 2200, 4200], completion: '星綴り台で自分の章を書き終える', title: '物語を歩き継いだ相棒', gift: '川辺の星綴り巡礼証', color: '#6C819C', chapters: ['星映しの瀬で物語をひらく', '星音の滝で呼び声を探す', '灯舟の桟橋で次の章を選ぶ', '空栞の丘で空を記憶する', '夏影回廊で過ぎた季節を抱く', '星綴り台で最後の一文を結ぶ'] },
 ];
 
+export const PILGRIMAGES: Pilgrimage[] = PILGRIMAGE_DEFINITIONS.map(raiseFirstPointToMinimum);
+
 // 旧版で選択されていた「門前宿場巡り」を非表示にしつつ、端末に残った
 // 進行データは読み出せるように保管する。新規の旅としては再選択できない。
-export const ARCHIVED_PILGRIMAGES: Pilgrimage[] = [
+const ARCHIVED_PILGRIMAGE_DEFINITIONS: Pilgrimage[] = [
   { id: 'festival', name: '灯りの宿場みち', type: '門前宿場巡り', subtitle: '出会いが、旅の道しるべ。', description: '門前の灯り、お茶のお接待、遠くから聞こえる祭りの音。宿場ごとの小さな物語を巡る旅。', ids: ['kagaribi', 'kaori', 'oto', 'ayakanade', 'yoi', 'tomoshibi'], targets: [1000, 3000, 5000], completion: '六つの宿場の出会いを見届ける', title: '灯りをつなぐ旅人', gift: '宿場旅の記念証', color: '#AD6451', chapters: ['門番が帰り道に灯りをともした', '茶屋で温かいお茶を分けてもらった', '橋の向こうから祭り囃子が聞こえた', '門前で旅人たちの踊りに出会った', '宿場の窓に一つずつ灯りがともった', '見送りの灯りに、またねと手を振った'] },
   { id: 'festivalSnow', name: '雪灯りの門前宿', type: '門前宿場巡り', subtitle: '雪の夜、宿場の灯りをつなぐ。', description: '雪守門前から小宵茶屋、鈴白の辻、鐘月楼を通り、雪花の門へ。宿場の人の声と湯気を受け取り、河岸の見送り灯まで歩く冬の門前巡り。', ids: ['yukimori', 'koyoi', 'suzushiro', 'kanetsuki', 'yukibana', 'okuribi'], targets: [1000, 2600, 4800], completion: '見送り灯に旅の続きを預ける', title: '雪灯りをつないだ旅人', gift: '雪灯り宿場の記念証', color: '#718AA1', chapters: ['雪守門前で迎えの音を聴く', '小宵茶屋で湯気を分け合う', '鈴白の辻で鈴を道しるべにする', '鐘月楼で一日の節目を打つ', '雪花の門で一期一会を見送る', '見送り灯でまた来る約束をする'] },
 ];
 
+export const ARCHIVED_PILGRIMAGES: Pilgrimage[] = ARCHIVED_PILGRIMAGE_DEFINITIONS.map(raiseFirstPointToMinimum);
+
 export const getPilgrimage = (id?: string | null) => [...PILGRIMAGES, ...ARCHIVED_PILGRIMAGES].find(route => route.id === id);
+
+/**
+ * Pick the next journey after a route is completed. Prefer an unfinished route
+ * and keep the result deterministic; once every route is complete, continue
+ * with the next route in the catalogue so the user is never left without a
+ * journey.
+ */
+export function getNextPilgrimageId(activeId: string, completedRouteIds: readonly string[] = []): string | undefined {
+  const activeIndex = PILGRIMAGES.findIndex(route => route.id === activeId);
+  if (activeIndex < 0 || PILGRIMAGES.length < 2) return undefined;
+  const completed = new Set(completedRouteIds);
+  for (let offset = 1; offset < PILGRIMAGES.length; offset++) {
+    const candidate = PILGRIMAGES[(activeIndex + offset) % PILGRIMAGES.length];
+    if (!completed.has(candidate.id)) return candidate.id;
+  }
+  return PILGRIMAGES[(activeIndex + 1) % PILGRIMAGES.length]?.id;
+}

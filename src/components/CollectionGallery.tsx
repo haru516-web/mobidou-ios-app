@@ -125,7 +125,25 @@ function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWi
   </View>;
 }
 
-export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, activeRoute, coverOwned = false, selectedCover = 'normal', onRedeemCoverChange, onSelectCover, zoom, onZoomChange }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; activeRoute?: Pilgrimage; coverOwned?: boolean; selectedCover?: 'normal' | 'route'; onRedeemCoverChange?: (routeId: string) => void; onSelectCover?: (routeId: string, design: 'normal' | 'route') => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void }) {
+export function PassInventoryView({ special }: { special: SpecialCollection }) {
+  return <View style={S.passWallet} accessibilityLabel="所持パス一覧">
+    <WashiArt />
+    <View style={S.passHeader}><View><Text style={S.passEyebrow}>旅の授与品</Text><Text style={S.passTitle}>所持パス</Text></View><Icon name="ticket-outline" size={25} color="#9b443c" /></View>
+    <Text style={S.passIntro}>現在所持しているパスを確認できます。</Text>
+    <View style={S.ticketGrid}>
+      <View style={[S.ticketCard, S.ticketCardVermilion]}>
+        <Image source={COVER_CHANGE_TICKET} resizeMode="stretch" style={S.ticketArt} />
+        <View pointerEvents="none" style={S.ticketCopy}><Text style={S.ticketKicker}>MOBIDOU · PASS</Text><Text style={S.ticketTitle}>御朱印帳表紙{ '\n' }着せ替え券</Text><Text style={S.ticketBody}>お気に入りの旅の表紙に。</Text><Text style={S.ticketCount}>所持 {special.passes.coverChange}枚</Text></View>
+      </View>
+      <View style={[S.ticketCard, S.ticketCardMoss]}>
+        <Image source={KEYCHAIN_DROP_TICKET} resizeMode="stretch" style={S.ticketArt} />
+        <View pointerEvents="none" style={S.ticketCopy}><Text style={S.ticketKicker}>MOBIDOU · PASS</Text><Text style={S.ticketTitle}>ミニチュアキーホルダー{ '\n' }ドロップ券</Text><Text style={S.ticketBody}>ドロップなしでも確実に。</Text><Text style={S.ticketCount}>所持 {special.passes.keychainDrop}枚</Text></View>
+      </View>
+    </View>
+  </View>;
+}
+
+export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, activeRoute, coverOwned = false, selectedCover = 'normal', onRedeemCoverChange, onSelectCover, zoom, onZoomChange, showPasses = true }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; activeRoute?: Pilgrimage; coverOwned?: boolean; selectedCover?: 'normal' | 'route'; onRedeemCoverChange?: (routeId: string) => void; onSelectCover?: (routeId: string, design: 'normal' | 'route') => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; showPasses?: boolean }) {
   const { width, height } = useWindowDimensions();
   const viewportWidth = Math.min(480, Math.max(1, width));
   const roomHeight = Math.max(470, Math.min(720, height - 220));
@@ -252,7 +270,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
           </View>
         </ScrollView>
       </View>
-      <View style={S.passWallet}>
+      {showPasses && <View style={S.passWallet}>
         <WashiArt />
         <View style={S.passHeader}><View><Text style={S.passEyebrow}>旅の授与品</Text><Text style={S.passTitle}>集めたパス</Text></View><Icon name="ticket-outline" size={25} color="#9b443c" /></View>
         <Text style={S.passIntro}>小さな一歩を、次の特別な出会いへ。</Text>
@@ -281,7 +299,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
         {!!purchaseNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{purchaseNotice}</Text>}
         {!!coverNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{coverNotice}</Text>}
         <Text style={S.passNote}>仮取得はテスト用です。決済は発生しません</Text>
-      </View>
+      </View>}
 
       <Modal visible={coverPickerOpen} transparent animationType="fade" onRequestClose={() => setCoverPickerOpen(false)}>
         <View style={S.backdrop}>

@@ -19,7 +19,6 @@ const FULL_POPUP_BOUNDS = { top: 0, bottom: 0 };
 const HOME_WIDGET_CARD_HEIGHT = 244;
 const CUSTOM_WIDGET_PREVIEW_SCALE = 0.42;
 const NAV_BACKGROUND = require('../../assets/home-bottom-nav-washi-v1.png');
-const MENU_PANEL_BACKGROUND = require('../../assets/home-menu-landscape-v2.png');
 
 export type PrimaryTab = 'home' | 'book' | 'walk' | 'collection';
 
@@ -36,7 +35,7 @@ type HomeBottomNavigationProps = {
   onOpenCustom: () => void;
   onOpenMoby: () => void;
   disabled?: boolean;
-  menuActions?: readonly [NavigationMenuAction, NavigationMenuAction];
+  menuActions?: readonly NavigationMenuAction[];
 };
 
 export type NavigationMenuAction = {
@@ -58,7 +57,7 @@ export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby
   const reduced = useReducedMotion();
   const progress = useRef(new Animated.Value(0)).current;
   const useNativeDriver = Platform.OS !== 'web';
-  const actions: readonly [NavigationMenuAction, NavigationMenuAction] = menuActions ?? [
+  const actions: readonly NavigationMenuAction[] = menuActions ?? [
     { label: 'ホーム画面カスタム', hint: 'ホームに表示する2項目を選びます', icon: 'grid-outline', onPress: onOpenCustom },
     { label: 'モビーを選ぶ', hint: 'いっしょに歩く相棒を選びます', icon: 'paw-outline', onPress: onOpenMoby },
   ];
@@ -91,18 +90,12 @@ export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby
   });
 
   return <View style={S.navShell} pointerEvents={disabled ? 'none' : 'auto'} accessibilityElementsHidden={disabled} aria-hidden={disabled ? true : undefined} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
-    {menuVisible && <Animated.View pointerEvents={menuOpen ? 'auto' : 'none'} accessibilityElementsHidden={!menuOpen} importantForAccessibility={menuOpen ? 'auto' : 'no-hide-descendants'} style={[S.actionArc, menuActionStyle()]}>
-      <Image source={MENU_PANEL_BACKGROUND} contentFit="cover" style={S.menuPanelBackground} pointerEvents="none" />
-      <View style={S.actionSlot}>
-        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={actions[0].label} accessibilityHint={actions[0].hint} onPress={() => chooseAction(actions[0].onPress)} style={[S.actionButton, CONTINUOUS_CORNER]}>
-          <Icon name={actions[0].icon} size={18} color={C.red} /><Text style={S.actionText}>{actions[0].label}</Text>
+    {menuVisible && <Animated.View pointerEvents={menuOpen ? 'auto' : 'none'} accessibilityElementsHidden={!menuOpen} importantForAccessibility={menuOpen ? 'auto' : 'no-hide-descendants'} style={[S.actionArc, actions.length > 2 && S.actionArcFour, menuActionStyle()]}>
+      {actions.map(action => <View key={action.label} style={[S.actionSlot, actions.length > 2 && S.actionSlotFour]}>
+        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={action.label} accessibilityHint={action.hint} onPress={() => chooseAction(action.onPress)} style={[S.actionButton, actions.length > 2 && S.actionButtonFour, CONTINUOUS_CORNER]}>
+          <Icon name={action.icon} size={18} color={C.red} /><Text style={S.actionText}>{action.label}</Text>
         </Pressable>
-      </View>
-      <View style={S.actionSlot}>
-        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={actions[1].label} accessibilityHint={actions[1].hint} onPress={() => chooseAction(actions[1].onPress)} style={[S.actionButton, CONTINUOUS_CORNER]}>
-          <Icon name={actions[1].icon} size={18} color={C.red} /><Text style={S.actionText}>{actions[1].label}</Text>
-        </Pressable>
-      </View>
+      </View>)}
     </Animated.View>}
     <View style={S.navRow}>
       <Animated.View style={[S.primaryNavFrame, CONTINUOUS_CORNER, menuOpen && S.primaryNavFrameOpen]}>
@@ -114,7 +107,7 @@ export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby
         </Pressable>)}
       </View>
       </Animated.View>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="メニュー" accessibilityState={{ expanded: menuOpen }} accessibilityHint={menuOpen ? 'メニューを閉じます' : `${actions[0].label}と${actions[1].label}を表示します`} onPress={() => setMenuOpen(open => !open)} style={[S.menuButton, CONTINUOUS_CORNER, menuOpen && S.menuButtonOpen]}>
+      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="メニュー" accessibilityState={{ expanded: menuOpen }} accessibilityHint={menuOpen ? 'メニューを閉じます' : `${actions.map(action => action.label).join('、')}を表示します`} onPress={() => setMenuOpen(open => !open)} style={[S.menuButton, CONTINUOUS_CORNER, menuOpen && S.menuButtonOpen]}>
         <MenuGlyph open={menuOpen} />
       </Pressable>
     </View>
@@ -454,10 +447,12 @@ const S = StyleSheet.create({
   menuGlyphOpen: { transform: [{ rotate: '45deg' }] },
   menuSquare: { width: 12, height: 12, borderRadius: 3, borderWidth: 1.5, borderColor: '#766A5D', backgroundColor: '#FFF9EF' },
   menuSquareOpen: { borderColor: C.red, backgroundColor: '#FFF1EA' },
-  actionArc: { position: 'absolute', right: 84, bottom: -8, width: 174, height: 91, zIndex: 5, flexDirection: 'row', gap: 6, padding: 8, borderRadius: 28, overflow: 'hidden', borderWidth: 1, borderColor: '#A87552', shadowColor: '#4A2D1F', shadowOffset: { width: 0, height: 5 }, shadowOpacity: .24, shadowRadius: 9, elevation: 7 },
-  menuPanelBackground: { ...StyleSheet.absoluteFillObject },
+  actionArc: { position: 'absolute', right: 84, bottom: 0, width: 158, height: 75, zIndex: 5, flexDirection: 'row', gap: 6 },
+  actionArcFour: { width: 298, height: 75 },
   actionSlot: { width: 76, height: 75 },
+  actionSlotFour: { width: 70 },
   actionButton: { width: 76, height: 75, minHeight: 0, borderRadius: 24, borderWidth: 1, borderColor: '#A87552', backgroundColor: '#FFF9EFD9', paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  actionButtonFour: { width: 70 },
   actionText: { color: C.red, fontFamily: 'Shippori', fontSize: 10, lineHeight: 14, maxWidth: 78, textAlign: 'center' },
   popupRoot: { position: 'absolute', left: 0, right: 0, top: 86, bottom: 77, zIndex: 30, alignItems: 'center' },
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },

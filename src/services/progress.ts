@@ -14,19 +14,26 @@ export const SHRINE_IDS = [
   'ichibanboshi', 'tsukishirabe', 'kibou', 'kokoroseki', 'hoshimizu', 'yorunagi', 'musubihoshi',
   'kawakagami', 'hoshinooto', 'funeakari', 'sorashiori', 'natsukage', 'tsuzuri',
 ] as const;
-export const DAILY_TARGETS = [1000, 3000, 5000] as const;
+export const DAILY_TARGETS = [5000, 7000, 9000] as const;
 export type Reward = { id: string; date: string; steps: number; threshold: number };
-export type Progress = { day: string; steps: number; totalSteps: number; dayStart: number; rewards: Reward[]; pending: string[]; routeId?: string; baseline?: number; highWater?: number; completedAt?: string };
-export const routeTargets = (p: Progress): readonly number[] => getPilgrimage(p.routeId)?.targets ?? DAILY_TARGETS;
+export type Progress = { day: string; steps: number; totalSteps: number; dayStart: number; rewards: Reward[]; pending: string[]; routeId?: string; baseline?: number; highWater?: number; routeSteps?: number; completedAt?: string };
+export function expandPointTargets(pointCount: number, pattern: readonly number[]): number[] {
+  const cycleTotal = pattern.at(-1) ?? 0;
+  return Array.from({ length: pointCount }, (_, index) => Math.floor(index / pattern.length) * cycleTotal + (pattern[index % pattern.length] ?? cycleTotal));
+}
+export const routeTargets = (p: Progress): readonly number[] => {
+  const route = getPilgrimage(p.routeId);
+  return route ? expandPointTargets(route.ids.length, route.targets) : DAILY_TARGETS;
+};
 export const routeIds = (p: Progress): readonly string[] => getPilgrimage(p.routeId)?.ids ?? SHRINE_IDS;
-export const creditedSteps = (p: Progress) => Math.max(0, (p.highWater ?? p.steps) - (p.baseline ?? 0));
+export const creditedSteps = (p: Progress) => Math.max(0, p.routeSteps ?? ((p.highWater ?? p.steps) - (p.baseline ?? 0)));
 
-function estimateHistoricalSteps(day: string, steps: number, rewards: readonly Reward[]) {
+function estimateHistoricalSteps(day: string, steps: number, rewards: readonly Reward[], includeThreshold = true) {
   const byDay = new Map<string, number>();
   for (const reward of rewards) {
     // Older saves did not retain a cumulative counter. Use the recorded reading
     // when available, and the reward threshold as a safe lower-bound fallback.
-    byDay.set(reward.date, Math.max(byDay.get(reward.date) ?? 0, reward.steps, reward.threshold));
+    byDay.set(reward.date, Math.max(byDay.get(reward.date) ?? 0, reward.steps, includeThreshold ? reward.threshold : 0));
   }
   if (steps > 0) byDay.set(day, Math.max(byDay.get(day) ?? 0, steps));
   return [...byDay.values()].reduce((total, value) => total + value, 0);
@@ -36,11 +43,11 @@ export function resumeRoute(active: Progress, saved: Progress): Progress {
   const steps = Math.max(active.steps, active.highWater ?? 0);
   const credit = creditedSteps(saved);
   // Preserve earned partial steps, even when the device corrected its count downward.
-  return { ...saved, steps: active.steps, totalSteps: saved.totalSteps ?? active.totalSteps ?? active.steps, highWater: Math.max(steps, credit), baseline: Math.max(0, steps - credit) };
+  return { ...saved, steps: active.steps, totalSteps: saved.totalSteps ?? active.totalSteps ?? active.steps, routeSteps: credit, highWater: Math.max(steps, credit), baseline: Math.max(0, steps - credit) };
 }
 export function startRoute(routeId: string, steps = 0, date = new Date(), totalSteps = steps): Progress {
   if (!getPilgrimage(routeId)) throw new Error('Unknown pilgrimage');
-  return { ...freshProgress(date), routeId, steps, totalSteps: Math.max(0, totalSteps), baseline: steps, highWater: steps };
+  return { ...freshProgress(date), routeId, steps, totalSteps: Math.max(0, totalSteps), baseline: steps, highWater: steps, routeSteps: 0 };
 }
 export function localDay(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -59,39 +66,44 @@ export function updateSteps(progress: Progress, steps: number, date = new Date()
   const addedSteps = Math.max(0, value - next.steps);
   const rewards = [...next.rewards];
   const pending = [...next.pending];
-  const credited = next.routeId ? Math.max(value, next.highWater ?? 0) - (next.baseline ?? 0) : value;
-  routeTargets(next).forEach((threshold, offset) => {
-    const id = routeIds(next)[next.dayStart + offset];
+  const credited = next.routeId ? creditedSteps(next) + addedSteps : value;
+  routeTargets(next).forEach((threshold, index) => {
+    const id = routeIds(next)[next.routeId ? index : next.dayStart + index];
     if (id && credited >= threshold && !rewards.some(item => item.id === id)) {
       rewards.push({ id, date: next.day, steps: value, threshold });
       pending.push(id);
     }
   });
-  return { ...next, steps: value, totalSteps: previousTotal + addedSteps, rewards, pending, ...(next.routeId ? { highWater: Math.max(value, next.highWater ?? 0), ...(rewards.length === routeIds(next).length ? { completedAt: next.completedAt ?? next.day } : {}) } : {}) };
+  return { ...next, steps: value, totalSteps: previousTotal + addedSteps, rewards, pending, ...(next.routeId ? { routeSteps: credited, highWater: Math.max(value, next.highWater ?? 0), ...(rewards.length === routeIds(next).length ? { completedAt: next.completedAt ?? next.day } : {}) } : {}) };
 }
 export function normalizeProgress(value: unknown, now = new Date()): Progress {
   if (!value || typeof value !== 'object') return freshProgress(now);
   const p = value as Partial<Progress>;
   if (p.routeId !== undefined && !getPilgrimage(p.routeId)) throw new Error('Invalid saved route');
   const ids = getPilgrimage(p.routeId)?.ids ?? SHRINE_IDS;
+  const targets: readonly number[] = getPilgrimage(p.routeId)?.targets ?? DAILY_TARGETS;
   // The seven-visit route used numbered placeholder IDs in an earlier build.
   // Accept those saved rewards and rewrite them to the named shrine IDs so an
   // upgrade does not discard a user's already completed visits.
   const legacyIds: readonly string[] = p.routeId === 'vow' ? ids.map((_, index) => `kinboshi~${index + 1}`) : ids;
-  const targets: readonly number[] = getPilgrimage(p.routeId)?.targets ?? DAILY_TARGETS;
   if (!Array.isArray(p.rewards) || !Array.isArray(p.pending) || typeof p.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(p.day)) throw new Error('Invalid saved progress');
   const rewards: Reward[] = [];
   for (const r of p.rewards) {
     const index = rewards.length;
-    if (!r || (r.id !== ids[index] && r.id !== legacyIds[index]) || typeof r.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.date) || !Number.isFinite(r.steps) || r.steps < 0 || !targets.includes(r.threshold)) throw new Error('Invalid saved reward');
+    // Thresholds are historical metadata. Accept positive integer values from
+    // older saves so raising today's route targets does not discard already
+    // earned rewards.
+    if (!r || (r.id !== ids[index] && r.id !== legacyIds[index]) || typeof r.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.date) || !Number.isFinite(r.steps) || r.steps < 0 || !Number.isInteger(r.threshold) || r.threshold <= 0) throw new Error('Invalid saved reward');
     rewards.push({ ...r, id: ids[index] });
   }
-  if (!Number.isInteger(p.dayStart) || p.dayStart! < 0 || p.dayStart! > rewards.length || rewards.length - p.dayStart! > targets.length || !Number.isFinite(p.steps) || p.steps! < 0 || (p.totalSteps !== undefined && (!Number.isFinite(p.totalSteps) || p.totalSteps < 0))) throw new Error('Invalid saved day');
-  if (p.routeId && (![p.baseline ?? 0, p.highWater ?? p.steps].every(n => Number.isFinite(n) && n! >= 0))) throw new Error('Invalid route steps');
+  const maximumSameDayRewards = p.routeId ? ids.length : targets.length;
+  if (!Number.isInteger(p.dayStart) || p.dayStart! < 0 || p.dayStart! > rewards.length || rewards.length - p.dayStart! > maximumSameDayRewards || !Number.isFinite(p.steps) || p.steps! < 0 || (p.totalSteps !== undefined && (!Number.isFinite(p.totalSteps) || p.totalSteps < 0))) throw new Error('Invalid saved day');
+  if (p.routeId && (![p.baseline ?? 0, p.highWater ?? p.steps, p.routeSteps ?? 0].every(n => Number.isFinite(n) && n! >= 0))) throw new Error('Invalid route steps');
   const pending = p.pending.map(id => {
     const index = legacyIds.indexOf(id);
     return index >= 0 ? ids[index] : id;
   });
-  const estimatedTotalSteps = estimateHistoricalSteps(p.day, p.steps!, rewards);
-  return rollDay({ day: p.day, steps: p.steps!, totalSteps: Math.max(p.totalSteps ?? 0, estimatedTotalSteps), dayStart: p.dayStart!, rewards, pending: [...new Set(pending.filter(id => rewards.some(r => r.id === id)))], ...(p.routeId ? { routeId: p.routeId, baseline: p.baseline ?? 0, highWater: p.highWater ?? p.steps, ...(rewards.length === ids.length ? { completedAt: p.completedAt ?? rewards[rewards.length - 1].date } : {}) } : {}) }, now);
+  const estimatedTotalSteps = estimateHistoricalSteps(p.day, p.steps!, rewards, !p.routeId);
+  const migratedRouteSteps = p.routeId ? Math.max(p.routeSteps ?? 0, routeTargets({ ...freshProgress(now), routeId: p.routeId }).at(rewards.length - 1) ?? 0) : undefined;
+  return rollDay({ day: p.day, steps: p.steps!, totalSteps: Math.max(p.totalSteps ?? 0, estimatedTotalSteps), dayStart: p.dayStart!, rewards, pending: [...new Set(pending.filter(id => rewards.some(r => r.id === id)))], ...(p.routeId ? { routeId: p.routeId, baseline: p.baseline ?? 0, highWater: p.highWater ?? p.steps, routeSteps: migratedRouteSteps, ...(rewards.length === ids.length ? { completedAt: p.completedAt ?? rewards[rewards.length - 1].date } : {}) } : {}) }, now);
 }

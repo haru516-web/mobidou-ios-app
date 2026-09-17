@@ -4,13 +4,13 @@ import { freshProgress, updateSteps, rollDay, localDay, normalizeProgress, start
 import { PILGRIMAGES } from '../src/data/pilgrimages.ts';
 const day = new Date(2026, 8, 9, 12);
 const tomorrow = new Date(2026, 8, 10, 0, 1);
-test('no reward at 999; first reward at exactly 1000; no duplicate on repeated refresh', () => {
-  const p = updateSteps(freshProgress(day), 999, day);
+test('no reward at 4999; first reward at exactly 5000; no duplicate on repeated refresh', () => {
+  const p = updateSteps(freshProgress(day), 4999, day);
   assert.equal(p.rewards.length, 0);
-  const first = updateSteps(p, 1000, day);
+  const first = updateSteps(p, 5000, day);
   assert.deepEqual(first.pending, ['star']);
-  assert.equal(first.rewards[0].threshold, 1000);
-  assert.deepEqual(updateSteps(first, 1000, day).rewards, first.rewards);
+  assert.equal(first.rewards[0].threshold, 5000);
+  assert.deepEqual(updateSteps(first, 5000, day).rewards, first.rewards);
 });
 test('a large first reading queues all three rewards in order and no more', () => {
   const p = updateSteps(freshProgress(day), 18000, day);
@@ -19,14 +19,14 @@ test('a large first reading queues all three rewards in order and no more', () =
   assert.equal(updateSteps(p, 20000, day).rewards.length, 3);
 });
 test('local midnight resets steps while retaining rewards and pending ceremonies', () => {
-  const p = updateSteps(freshProgress(day), 5000, day);
+  const p = updateSteps(freshProgress(day), 9000, day);
   const next = rollDay(p, tomorrow);
   assert.equal(next.steps, 0);
   assert.equal(next.day, '2026-09-10');
   assert.equal(next.dayStart, 3);
   assert.deepEqual(next.rewards, p.rewards);
   assert.deepEqual(next.pending, p.pending);
-  assert.deepEqual(updateSteps(next, 1000, tomorrow).rewards.map(r => r.id), ['star', 'moon', 'rain', 'forest']);
+  assert.deepEqual(updateSteps(next, 5000, tomorrow).rewards.map(r => r.id), ['star', 'moon', 'rain', 'forest']);
 });
 test('cumulative steps keep daily readings separate from the all-time total', () => {
   let p = updateSteps(freshProgress(day), 1500, day);
@@ -39,22 +39,22 @@ test('cumulative steps keep daily readings separate from the all-time total', ()
   assert.equal(p.totalSteps, 3100);
 });
 test('unfinished day continues at next uncollected shrine on the following day', () => {
-  const p = updateSteps(freshProgress(day), 1000, day);
-  const next = updateSteps(p, 1000, tomorrow);
+  const p = updateSteps(freshProgress(day), 5000, day);
+  const next = updateSteps(p, 5000, tomorrow);
   assert.deepEqual(next.rewards.map(r => r.id), ['star', 'moon']);
   assert.equal(next.rewards[1].date, '2026-09-10');
-  assert.equal(next.rewards[1].threshold, 1000);
+  assert.equal(next.rewards[1].threshold, 5000);
 });
 test('the full collection completes in order; future days cannot duplicate it', () => {
   let p = freshProgress(day);
   for (let offset = 0; offset < SHRINE_IDS.length / DAILY_TARGETS.length; offset += 1) {
-    p = updateSteps(p, 5000, new Date(2026, 8, 9 + offset));
+    p = updateSteps(p, 9000, new Date(2026, 8, 9 + offset));
   }
   assert.deepEqual(p.rewards.map(r => r.id), [...SHRINE_IDS]);
   assert.equal(updateSteps(p, 20000, new Date(2026, 9, 1)).rewards.length, SHRINE_IDS.length);
 });
 test('step corrections never revoke awards; invalid input cannot earn rewards', () => {
-  const p = updateSteps(freshProgress(day), 3000, day);
+  const p = updateSteps(freshProgress(day), 7000, day);
   assert.equal(updateSteps(p, 800, day).rewards.length, 2);
   for (const invalid of [NaN, Infinity, -1]) assert.equal(updateSteps(freshProgress(day), invalid, day).rewards.length, 0);
 });
@@ -69,30 +69,27 @@ test('malformed saves and foreign shrine identifiers are rejected', () => {
 test('local date uses local calendar components; demo updates are immutable', () => {
   assert.equal(localDay(new Date(2026, 0, 2, 0, 1)), '2026-01-02');
   const real = freshProgress(day);
-  const trial = updateSteps(freshProgress(day), 5000, day);
+  const trial = updateSteps(freshProgress(day), 9000, day);
   assert.equal(real.steps, 0); assert.equal(real.rewards.length, 0); assert.equal(trial.rewards.length, 3);
 });
 test('a selected pilgrimage starts from the departure step count without retroactive rewards', () => {
   const started = startRoute('mountain', 4321, day);
   assert.equal(updateSteps(started, 4321, day).rewards.length, 0);
-  const first = updateSteps(started, 6321, day);
+  const first = updateSteps(started, 9321, day);
   assert.deepEqual(first.rewards.map(reward => reward.id), ['hibikiishi']);
 });
-test('route targets repeat daily and completing the last stop records 結願', () => {
+test('a route can unlock every point on the same day without a daily cap', () => {
   let route = startRoute('sanctuary', 0, day);
-  route = updateSteps(route, 5000, day);
-  assert.deepEqual(route.rewards.map(reward => reward.id), ['rain', 'forest', 'takekaze']);
-  route = updateSteps(route, 3000, tomorrow);
+  route = updateSteps(route, 16000, day);
   assert.deepEqual(route.rewards.map(reward => reward.id), ['rain', 'forest', 'takekaze', 'morika', 'morikage']);
-  assert.equal(route.completedAt, '2026-09-10');
-  assert.deepEqual(normalizeProgress(JSON.parse(JSON.stringify(route)), tomorrow), route);
+  assert.equal(route.completedAt, '2026-09-09');
+  assert.deepEqual(normalizeProgress(JSON.parse(JSON.stringify(route)), day), route);
 });
-test('seven-visit vow route awards one visit per day', () => {
+test('seven-visit vow route can also complete without a daily cap', () => {
   let route = startRoute('vow', 0, day);
-  route = updateSteps(route, 9000, day);
-  assert.deepEqual(route.rewards.map(reward => reward.id), ['kinboshi']);
-  route = updateSteps(route, 1000, tomorrow);
-  assert.deepEqual(route.rewards.map(reward => reward.id), ['kinboshi', 'sunamoon']);
+  route = updateSteps(route, 35000, day);
+  assert.deepEqual(route.rewards.map(reward => reward.id), PILGRIMAGES.find(item => item.id === 'vow')!.ids);
+  assert.equal(route.completedAt, '2026-09-09');
 });
 test('all pilgrimage points are unique across routes', () => {
   const ids = PILGRIMAGES.flatMap(route => route.ids);
@@ -105,6 +102,7 @@ test('all pilgrimage points are unique across routes', () => {
   assert.equal(SHRINE_IDS.length, 74);
   assert.equal(new Set(SHRINE_IDS).size, SHRINE_IDS.length);
   assert.ok(ids.every(id => (SHRINE_IDS as readonly string[]).includes(id)));
+  assert.ok(PILGRIMAGES.every(route => route.targets[0] === 5000));
 });
 test('legacy numbered vow rewards migrate to named shrine IDs', () => {
   const legacy = {

@@ -10,22 +10,22 @@ import Svg, { Circle } from 'react-native-svg';
 import { Button, C, Clouds, Companion, Icon, Section, SERIF, Stamp, Torii } from './src/components';
 import { PET_CHARACTERS, getPetCharacter } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
-import { DAILY_TARGETS, creditedSteps } from './src/services/progress';
+import { DAILY_TARGETS, creditedSteps, expandPointTargets } from './src/services/progress';
 import { sourceLabel } from './src/services/steps';
 import { useJourney } from './src/services/useJourney';
 import { BACKGROUND_OPTIONS, BACKGROUND_SEASONS, getBackgroundOption, type BackgroundSeason } from './src/data/backgrounds';
 import { PET_BACKGROUNDS } from './src/data/petBackgrounds';
-import { PILGRIMAGES, getPilgrimage } from './src/data/pilgrimages';
+import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { COLLECTION_KEYCHAINS } from './src/data/collectionKeychains';
 import { pilgrimageShrines, PilgrimagePicker, RouteMap, CompletionPage } from './src/components/PilgrimageScreen';
 import { WashiArt, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_IMAGES } from './src/data/pilgrimageImages';
-import { COLLECTION_SHRINES, CollectionGallery, type CollectionZoom } from './src/components/CollectionGallery';
+import { COLLECTION_SHRINES, CollectionGallery, PassInventoryView, type CollectionZoom } from './src/components/CollectionGallery';
 import { BookPageTurn, type BookPageTurnHandle } from './src/components/BookPageTurn';
 import { HomeBottomNavigation, HomeCustomizationPopup, HomeWidgetPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
-import { GoshuinBookCover, GoshuinImageListModal } from './src/components/GoshuinBook';
+import { CollectionImageList, GoshuinBookCover, GoshuinImageListModal } from './src/components/GoshuinBook';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeMiniatureArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
 import type { CustomHomeWidgetId, HomeWidgetId } from './src/services/homePreferences';
 
@@ -33,6 +33,7 @@ type Tab = 'home' | 'book' | 'walk' | 'pets' | 'collection';
 type OutingTab = 'count' | 'map';
 type HomePopup = 'custom' | 'moby' | null;
 type HomeCardPopup = HomeWidgetId | null;
+type CollectionView = 'collection' | 'goshuin' | 'miniature' | 'passes';
 const fmt = (n: number) => n.toLocaleString('ja-JP');
 const OPENING_WORDMARK = require('./assets/mobidou-wordmark-brush.png');
 const OPENING_EMBLEM = require('./assets/mobidou-opening-emblem.png');
@@ -242,11 +243,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [openingVisible, setOpeningVisible] = useState(true);
   const [routePicker, setRoutePicker] = useState(false);
   const [routePickerFromBook, setRoutePickerFromBook] = useState(false);
+  const [routePickerAfterCompletion, setRoutePickerAfterCompletion] = useState(false);
+  const [promptedCompletedRouteId, setPromptedCompletedRouteId] = useState<string | null>(null);
   const [bookOpen, setBookOpen] = useState(false);
   const [bookImageList, setBookImageList] = useState(false);
   const [legacyBook, setLegacyBook] = useState(false);
   const [petSelectionReaction, setPetSelectionReaction] = useState(0);
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
+  const [collectionView, setCollectionView] = useState<CollectionView>('collection');
   const [backgroundSeason, setBackgroundSeason] = useState<BackgroundSeason>(() => getBackgroundOption(data.backgroundId).season);
   const scroll = useRef<ScrollView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -265,14 +269,15 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const collectionProgresses = PILGRIMAGES.map(route => activeRoute?.id === route.id ? progress : data.routes?.[`${routePrefix}${route.id}`]).filter((record): record is typeof progress => !!record);
   const collectionRewards = collectionProgresses.flatMap(record => record.rewards);
   const collectionRewardIds = collectionRewards.map(reward => reward.id);
+  const ownedMiniatureIds = Object.keys(journey.special.keychains).filter(id => (journey.special.keychains[id] ?? 0) > 0);
   const collectionRewardDates = Object.fromEntries(collectionRewards.map(reward => [reward.id, displayDate(reward.date)]));
   const routeBookOwned = !!activeRoute && data.bookDesigns.owned[activeRoute.id] === true;
   const routeBookSelected = !!activeRoute && data.bookDesigns.selected[activeRoute.id] === 'route' && routeBookOwned;
   const backgroundChoices = BACKGROUND_OPTIONS.filter(option => option.season === backgroundSeason);
-  const today = activeShrines.slice(progress.dayStart, progress.dayStart + (activeRoute?.targets.length ?? 3));
-  const nextIndex = today.findIndex((_, index) => !progress.rewards.some(r => r.id === (activeRoute?.ids[progress.dayStart + index] ?? today[index].id)));
-  const next = nextIndex >= 0 ? today[nextIndex] : undefined;
-  const nextTarget = nextIndex >= 0 ? (activeRoute?.targets[nextIndex] ?? DAILY_TARGETS[nextIndex]) : (activeRoute?.targets.at(-1) ?? 5000);
+  const pointTargets = expandPointTargets(activeShrines.length, activeRoute?.targets ?? DAILY_TARGETS);
+  const nextIndex = activeShrines.findIndex((shrine, index) => !progress.rewards.some(r => r.id === (activeRoute?.ids[index] ?? shrine.id)));
+  const next = nextIndex >= 0 ? activeShrines[nextIndex] : undefined;
+  const nextTarget = nextIndex >= 0 ? (pointTargets[nextIndex] ?? 5000) : (pointTargets.at(-1) ?? 5000);
   const collected = activeShrines.filter((_, index) => progress.rewards.some(r => r.id === (activeRoute?.ids[index] ?? activeShrines[index].id)));
   const latestIndex = Math.max(0, collected.length - 1);
   const latest = collected[latestIndex] ?? activeShrines[0] ?? SHRINES[0];
@@ -286,7 +291,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const pendingIndex = progress.pending[0] ? (activeRoute?.ids.indexOf(progress.pending[0]) ?? -1) : -1;
   const pending = pendingIndex >= 0 ? activeShrines[pendingIndex] : SHRINES.find(s => s.id === progress.pending[0]);
   const awardVisible = !!pending && data.onboarded && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !legacyBook && !homePopup && !homeCardPopup && !bookImageList;
-  const move = (value: Tab) => { if (value === 'collection') setCollectionZoom('standard'); if (value === 'book' && tab !== 'book') setBookOpen(false); setBookImageList(false); setHomePopup(null); setHomeCardPopup(null); scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
+  const move = (value: Tab) => { if (value === 'collection') { setCollectionZoom('standard'); setCollectionView('collection'); } if (value === 'book' && tab !== 'book') setBookOpen(false); setBookImageList(false); setHomePopup(null); setHomeCardPopup(null); scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setHomeCardPopup(null); setHomePopup(kind); setTab('home'); scrollY.setValue(0); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const mapScreen = tab === 'walk' && outingTab === 'map';
   const enterApp = () => { setOpeningVisible(false); scroll.current?.scrollTo({ y: 0, animated: false }); if (!data.onboarded) journey.enter(false); };
@@ -305,12 +310,37 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const homeRouteImage = activeRoute ? (PILGRIMAGE_IMAGES[activeRoute.id] ?? PILGRIMAGE_IMAGES.sanctuary) : PILGRIMAGE_IMAGES.sanctuary;
   const homeNextPointSteps = next ? Math.max(0, nextTarget - routeSteps) : null;
   const previousPointSteps = nextIndex >= 0
-    ? (nextIndex === 0 ? 0 : (activeRoute?.targets[nextIndex - 1] ?? DAILY_TARGETS[nextIndex - 1] ?? 0))
-    : (activeRoute?.targets.at(-1) ?? DAILY_TARGETS.at(-1) ?? 0);
+    ? (nextIndex === 0 ? 0 : (pointTargets[nextIndex - 1] ?? 0))
+    : (pointTargets.at(-1) ?? 0);
   const homeStepProgress = homeNextPointSteps === null
     ? 1
     : (routeSteps - previousPointSteps) / Math.max(1, nextTarget - previousPointSteps);
   const homeNextPointLabel = homeNextPointSteps === null ? '' : `次のポイントまで${fmt(homeNextPointSteps)}歩`;
+  const openNextRoutePicker = () => { setRoutePickerAfterCompletion(true); setRoutePicker(true); };
+  const selectPilgrimageRoute = (routeId: string) => {
+    journey.selectRoute(routeId);
+    setFeatured(0);
+    setFilter('all');
+    setRoutePicker(false);
+    setRoutePickerAfterCompletion(false);
+    // A completed route can be revisited (and is also the fallback after every
+    // route has been completed). Mark it as already prompted so its picker does
+    // not immediately reopen in a loop.
+    setPromptedCompletedRouteId(routeRecords[routeId]?.completedAt ? routeId : null);
+    if (routePickerFromBook) { setRoutePickerFromBook(false); setBookOpen(false); move('book'); }
+    else { setOutingTab('count'); move('walk'); }
+  };
+  const closeRoutePicker = () => {
+    if (!activeRoute) return;
+    if (routePickerAfterCompletion && progress.completedAt) {
+      const completedIds = Object.entries(routeRecords).filter(([, record]) => !!record.completedAt).map(([routeId]) => routeId);
+      const nextRouteId = getNextPilgrimageId(activeRoute.id, completedIds);
+      if (nextRouteId) { selectPilgrimageRoute(nextRouteId); return; }
+    }
+    setRoutePicker(false);
+    setRoutePickerFromBook(false);
+    setRoutePickerAfterCompletion(false);
+  };
   const cardLocked = !!homeCardPopup;
   const cardInteractionProps = {
     disabled: cardLocked,
@@ -347,6 +377,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   </Pressable>;
   useEffect(() => { setBackgroundSeason(currentBackground.season); }, [currentBackground.season]);
   useEffect(() => { if (!openingVisible && journey.ready && !progress.routeId) setRoutePicker(true); }, [openingVisible, journey.ready, progress.routeId, data.demo]);
+  useEffect(() => {
+    if (!openingVisible && progress.routeId && progress.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId) {
+      setPromptedCompletedRouteId(progress.routeId);
+      openNextRoutePicker();
+    }
+  }, [openingVisible, progress.routeId, progress.completedAt, progress.pending.length, promptedCompletedRouteId]);
   useEffect(() => {
     if (settings || detail || routePicker || openingVisible || homePopup || homeCardPopup) { setOverlayBusy(true); return; }
     const timer = setTimeout(() => setOverlayBusy(false), 380);
@@ -388,19 +424,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           <View style={S.bookBottom}><Text style={S.bookDate}>{selectedReward ? `${displayDate(selectedReward.date)} 結縁` : 'これからの一歩が、この一枚に。'}</Text><Text style={S.bookSwipeHint}>スワイプでもめくれます</Text><Torii size={19} color={C.red} /></View>
         </View>
         <View style={S.pager}><Pressable accessibilityRole="button" accessibilityLabel="前の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><View style={S.pageCounter}><Text style={S.pageCounterText}>{String(selectedIndex + 1).padStart(2, '0')} / {String(activeShrines.length).padStart(2, '0')}</Text><Text style={S.pageCounterHint}>左右の矢印でページをめくる</Text></View><Pressable accessibilityRole="button" accessibilityLabel="次の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
-        {activeRoute && progress.completedAt && <CompletionPage route={activeRoute} progress={progress} />}
+        {activeRoute && progress.completedAt && <CompletionPage route={activeRoute} progress={progress} onChooseNext={openNextRoutePicker} />}
         </>}
       </>}
 
       {tab === 'walk' && <>
-        <View style={[S.outingTabs, mapScreen && { marginBottom: 0 }]} accessibilityRole="tablist">
-          {([['count', 'カウント'], ['map', '巡礼マップ']] as const).map(([id, label]) => <Pressable key={id} accessibilityRole="tab" accessibilityState={{ selected: outingTab === id }} onPress={() => { setOutingTab(id); scroll.current?.scrollTo({ y: 0, animated: false }); }} style={[S.outingTab, outingTab === id && S.outingTabActive]}><Text style={[S.outingTabText, outingTab === id && S.outingTabTextActive]}>{label}</Text><View style={[S.outingTabIndicator, { opacity: outingTab === id ? 1 : 0 }]} /></Pressable>)}
-        </View>
         {outingTab === 'count' && <>
           <View style={S.walkMinimal}>
             <View style={S.walkMinimalHeader}><View><Text style={S.walkMinimalTitle}>おでかけ</Text><Text style={S.walkMinimalSubtitle}>今日の歩数</Text></View><Pressable accessibilityRole="button" accessibilityLabel="歩数を更新" onPress={() => void (data.source === 'none' ? journey.connect() : journey.refresh())} disabled={journey.busy} style={S.walkRefresh}><Icon name="refresh" size={18} color={C.red} /><Text style={S.walkRefreshText}>{data.source === 'none' ? '連携' : journey.busy ? '更新中' : '更新'}</Text></Pressable></View>
             <Text style={S.routeHeroTitle}>{activeRoute?.name}</Text><StepRing steps={routeSteps} goal={nextTarget} />
-            <Text style={S.demoHelp}>{progress.completedAt ? '結願しました。次の巡礼へ出かけましょう。' : next ? `次は ${next.name} · あと ${fmt(Math.max(0, nextTarget - routeSteps))}歩` : '今日の巡礼はここまで。また明日つづきを歩こう。'}</Text>
+            <Text style={S.demoHelp}>{progress.completedAt ? '結願しました。次の巡礼へ出かけましょう。' : next ? `次は ${next.name} · あと ${fmt(Math.max(0, nextTarget - routeSteps))}歩` : 'この巡礼のすべてのご縁を結びました。'}</Text>
+            {progress.completedAt && <Button title="次の巡礼を選ぶ" icon="map-outline" onPress={openNextRoutePicker} style={{ marginTop: 16 }} />}
           </View>
           {activeRoute && (data.demo ? <Button title="体験で1,000歩あるく" icon="footsteps-outline" onPress={journey.demoWalk} style={S.walkDemoButton} /> : <Button title={data.source === 'none' ? '歩数を連携する' : journey.busy ? '歩数を更新しています…' : '今日の歩数を更新'} icon="refresh" disabled={journey.busy} onPress={() => void (data.source === 'none' ? journey.connect() : journey.refresh())} style={S.walkDemoButton} />)}
         </>}
@@ -409,7 +443,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         </>}
       </>}
 
-      {tab === 'collection' && <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} onPurchasePass={journey.purchasePass} activeRoute={activeRoute} coverOwned={routeBookOwned} selectedCover={routeBookSelected ? 'route' : 'normal'} onRedeemCoverChange={journey.redeemCoverChange} onSelectCover={journey.selectBookDesign} zoom={collectionZoom} onZoomChange={setCollectionZoom} />}
+      {tab === 'collection' && collectionView === 'collection' && <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} onPurchasePass={journey.purchasePass} activeRoute={activeRoute} coverOwned={routeBookOwned} selectedCover={routeBookSelected ? 'route' : 'normal'} onRedeemCoverChange={journey.redeemCoverChange} onSelectCover={journey.selectBookDesign} zoom={collectionZoom} onZoomChange={setCollectionZoom} showPasses={false} />}
+      {tab === 'collection' && collectionView === 'goshuin' && <CollectionImageList kind="goshuin" shrines={COLLECTION_SHRINES} ownedIds={collectionRewardIds} />}
+      {tab === 'collection' && collectionView === 'miniature' && <CollectionImageList kind="miniature" shrines={COLLECTION_SHRINES} ownedIds={ownedMiniatureIds} />}
+      {tab === 'collection' && collectionView === 'passes' && <PassInventoryView special={journey.special} />}
 
       {tab === 'pets' && <>
          <View style={S.pageHeading}><Text style={S.pageTitle}>いっしょに、もび道。</Text><Text style={S.subtitle}>気になる子と、今日を歩こう。</Text></View>
@@ -419,11 +456,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <Button title={`${pet.name}とふれあう`} onPress={() => move('home')} style={{ marginTop: 22 }} />
       </>}
     </ScrollView>
-    {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={Object.keys(journey.special.keychains).filter(id => (journey.special.keychains[id] ?? 0) > 0)} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
+    {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={data.pet} onConfirm={selectedPet => { journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
-    <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => move(value)} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={tab === 'book' ? [
+    <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => { if (value === 'walk') setOutingTab('count'); move(value); }} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={tab === 'book' ? [
       { label: '巡礼を選ぶ', hint: '御朱印帳の巡礼コースを選び直します', icon: 'map-outline', onPress: () => { setBookImageList(false); setRoutePickerFromBook(true); setRoutePicker(true); } },
       { label: '御朱印画像一覧', hint: 'この巡礼の御朱印だけを一覧表示します', icon: 'images-outline', onPress: () => setBookImageList(true) },
+    ] : tab === 'walk' ? [
+      { label: '歩数カウント', hint: '今日の歩数と巡礼の進み具合を表示します', icon: 'footsteps-outline', onPress: () => { setOutingTab('count'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+      { label: '巡礼マップ', hint: '現在の巡礼ルートと到達地点を表示します', icon: 'map-outline', onPress: () => { setOutingTab('map'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+    ] : tab === 'collection' ? [
+      { label: 'コレクション', hint: '御朱印とミニチュアの展示室を表示します', icon: 'albums-outline', onPress: () => { setCollectionView('collection'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+      { label: '御朱印', hint: '取得した御朱印の画像一覧を表示します', icon: 'images-outline', onPress: () => { setCollectionView('goshuin'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+      { label: 'ミニチュア', hint: '取得したミニチュアの一覧を表示します', icon: 'key-outline', onPress: () => { setCollectionView('miniature'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+      { label: 'パス', hint: '所持しているパスを表示します', icon: 'ticket-outline', onPress: () => { setCollectionView('passes'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
     ] : undefined} disabled={!!homePopup || !!homeCardPopup} />
     {homeCardPopup && <HomeWidgetPopup
       widget={homeCardPopup}
@@ -448,7 +493,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
     <GoshuinImageListModal visible={bookImageList} route={activeRoute} shrines={activeShrines} acquiredCount={collected.length} onClose={() => setBookImageList(false)} onSelect={(shrine, index) => { setBookImageList(false); setFeatured(index); setDetail(shrine); }} />
 
-    <Modal visible={routePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { if (activeRoute) { setRoutePicker(false); setRoutePickerFromBook(false); } }}><SafeAreaView style={S.modal}><PilgrimagePicker activeId={activeRoute?.id} records={routeRecords} pet={pet} onClose={() => { if (activeRoute) { setRoutePicker(false); setRoutePickerFromBook(false); } }} onSelect={routeId => { journey.selectRoute(routeId); setFeatured(0); setFilter('all'); setRoutePicker(false); if (routePickerFromBook) { setRoutePickerFromBook(false); setBookOpen(false); move('book'); } else move('walk'); }} /></SafeAreaView></Modal>
+    <Modal visible={routePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeRoutePicker}><SafeAreaView style={S.modal}><PilgrimagePicker activeId={activeRoute?.id} records={routeRecords} pet={pet} onClose={closeRoutePicker} onSelect={selectPilgrimageRoute} /></SafeAreaView></Modal>
 
     <Modal visible={!!detail} onShow={() => setOverlayBusy(true)} onDismiss={() => { setDetail(null); setOverlayBusy(false); }} animationType="slide" onRequestClose={() => setDetail(null)} presentationStyle="pageSheet"><SafeAreaView style={S.modal}><View style={S.modalHeader}><Text style={S.modalTitle}>ご縁のものがたり</Text><Close onPress={() => setDetail(null)} /></View>{detail && <ScrollView contentContainerStyle={S.detailContent}><Text style={S.detailReading}>{detail.reading}</Text><Text style={S.detailName}>{detail.name}</Text><Stamp shrine={detail} style={{ width: '65%', maxWidth: 290, alignSelf: 'center', marginVertical: 24 }} /><Text style={S.detailTheme}>{detail.theme}</Text><Text style={S.detailDescription}>{detail.description}</Text><View style={S.detailMeta}><Meta icon="location-outline" text={detail.place} /><Meta icon="leaf-outline" text={detail.blessing} /><Meta icon="book-outline" text={detail.stampLocation} />{(() => { const reward = progress.rewards[featured]; return reward ? <><Meta icon="calendar-outline" text={`${displayDate(reward.date)} に授かりました`} /><Meta icon="footsteps-outline" text={`${fmt(reward.threshold)}歩のご縁 · 獲得時 ${fmt(reward.steps)}歩${data.demo ? '（体験）' : ''}`} /></> : <Meta icon="lock-closed-outline" text="これから出会う御朱印です。歩数を重ねて順番に解放。" />; })()}</View><Text style={S.footerNote}>もびの世界だけに存在する、架空の社・御朱印です。</Text><Button title="御朱印帳にもどる" onPress={() => { setDetail(null); move('book'); }} secondary /></ScrollView>}</SafeAreaView></Modal>
 
@@ -493,7 +538,6 @@ const S = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: 36, gap: 17 }, emptyTitle: { color: C.ink, fontFamily: SERIF, fontSize: 19, textAlign: 'center' }, emptyText: { fontSize: 11, color: C.muted, textAlign: 'center', lineHeight: 22 },
   walkMinimal: { alignItems: 'center', minHeight: 420, paddingTop: 23, paddingBottom: 10 }, walkMinimalHeader: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }, walkMinimalTitle: { fontFamily: SERIF, color: C.ink, fontSize: 27, letterSpacing: 2 }, walkMinimalSubtitle: { color: C.muted, fontSize: 10, letterSpacing: 1, marginTop: 4 }, walkRefresh: { minHeight: 38, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 18, backgroundColor: '#FFFCF5D9', borderWidth: 1, borderColor: C.line }, walkRefreshText: { color: C.red, fontSize: 11 }, walkRingWrap: { width: 248, height: 248, alignItems: 'center', justifyContent: 'center', marginTop: 3 }, walkRingSvg: { position: 'absolute' }, walkRingCenter: { alignItems: 'center', justifyContent: 'center' }, walkRingCount: { fontSize: 49, fontWeight: '300', color: C.ink, letterSpacing: 1 }, walkRingUnit: { fontFamily: SERIF, fontSize: 16, color: C.muted, marginTop: -2 }, walkRingGoal: { fontSize: 10, color: C.muted, marginTop: 9, letterSpacing: 1 }, walkPeekStage: { width: '100%', height: 330, alignItems: 'center', justifyContent: 'flex-end', overflow: 'hidden', marginTop: -4 }, walkMobibouPeekImage: { position: 'absolute', width: '118%', height: 330, bottom: 0, zIndex: 3 }, walkPeekImage: { position: 'absolute', width: 322, height: 322, bottom: 50, zIndex: 3 }, walkToriiTop: { position: 'absolute', width: '118%', height: 210, bottom: -10, zIndex: 2 }, walkDemoButton: { width: '100%', marginTop: 16, marginBottom: 24 }, walkMinimalAction: { width: '100%', marginTop: 6 }, walkSummary: { alignItems: 'center', borderRadius: 20, backgroundColor: '#EEE8DC', padding: 25, marginBottom: 27 }, walkCount: { fontSize: 40, fontWeight: '300', color: C.ink, marginTop: 12 }, walkBlurb: { color: C.muted, fontSize: 11, marginTop: 8 }, route: { gap: 0 }, routeItem: { flexDirection: 'row', gap: 13 }, routeRail: { width: 26, alignItems: 'center' }, routeNode: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: '#C5AA92', alignItems: 'center', justifyContent: 'center', backgroundColor: C.paper, marginTop: 18 }, routeLine: { width: 1, flex: 1, backgroundColor: '#D5C4AF' }, routeCard: { flex: 1, padding: 15, borderWidth: 1, borderColor: C.line, borderRadius: 14, backgroundColor: '#FFFCF5', flexDirection: 'row', gap: 12, marginBottom: 17 }, routeThreshold: { color: C.red, fontSize: 13, fontWeight: '600', marginBottom: 8 }, routeStatus: { fontSize: 8, color: C.muted, fontWeight: '400' }, routeName: { fontFamily: SERIF, color: C.ink, fontSize: 19, marginBottom: 5 }, demoHelp: { textAlign: 'center', color: C.muted, fontSize: 9, lineHeight: 19 }, walkNote: { padding: 17, borderRadius: 14, backgroundColor: '#EEE8DB', flexDirection: 'row', gap: 12, marginTop: 24 }, walkNoteText: { fontSize: 10, lineHeight: 22, color: '#837662', flex: 1 },
   chosenPet: { backgroundColor: '#EEE7DA', borderRadius: 18, padding: 17, alignItems: 'center', overflow: 'hidden' }, chosenPetBackdrop: { ...StyleSheet.absoluteFillObject, opacity: .72 }, chosenPetWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9E9A8' }, chosenPetInfo: { alignItems: 'center', marginTop: -3 }, chosenName: { fontFamily: SERIF, fontSize: 24, color: C.ink, marginVertical: 7 }, affection: { color: C.red, fontSize: 10, marginTop: 7 }, petGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, petCard: { width: '31%', flexGrow: 1, maxWidth: '32%', paddingTop: 8, paddingBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2DACC', borderRadius: 13, backgroundColor: '#FFF9F0', overflow: 'hidden' }, petCardActive: { borderColor: C.red, backgroundColor: '#F3E5D7', borderWidth: 1.5 }, petBackdropImage: { ...StyleSheet.absoluteFillObject, opacity: .72 }, petBackdropWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9E9A8' }, petBackdropTint: { ...StyleSheet.absoluteFillObject }, petThumb: { width: 85, height: 95 }, petName: { fontSize: 10, color: '#675B4D', marginTop: 3 }, petCheck: { position: 'absolute', right: 6, top: 6, backgroundColor: C.red, borderRadius: 9, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
-  outingTabs: { flexDirection: 'row', borderWidth: 1, borderColor: '#D9CBB6', borderRadius: 16, backgroundColor: '#F4EDDF', padding: 4, marginBottom: 18, overflow: 'hidden' }, outingTab: { flex: 1, minHeight: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 5 }, outingTabActive: { backgroundColor: '#FFF9EF', borderWidth: 1, borderColor: '#D9C3A3' }, outingTabText: { fontFamily: SERIF, color: '#766B5B', fontSize: 14, letterSpacing: 1.4 }, outingTabTextActive: { color: C.red }, outingTabIndicator: { width: 26, height: 2, borderRadius: 2, backgroundColor: C.red },
   nav: { flexDirection: 'row', backgroundColor: '#FCF9F1', borderWidth: 1, borderColor: '#E3DACB', borderRadius: 24, marginHorizontal: 12, marginBottom: 8, overflow: 'hidden', paddingTop: 12, paddingBottom: 3 }, collectionNav: { backgroundColor: '#FCF9F18F' }, navItem: { flex: 1, alignItems: 'center', gap: 6, minHeight: 55 }, navText: { color: '#81796D', fontSize: 10, letterSpacing: 1 }, navIndicator: { width: 17, height: 3, backgroundColor: C.red, borderRadius: 4, marginTop: 1 },
   modal: { flex: 1, backgroundColor: C.paper, width: '100%', maxWidth: 600, alignSelf: 'center' }, modalHeader: { padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: C.line }, modalTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink }, close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, detailContent: { padding: 25, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 11, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: SERIF, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: SERIF, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 29, color: '#6D6354', textAlign: 'center', marginTop: 18 }, detailMeta: { backgroundColor: C.pale, padding: 18, borderRadius: 15, gap: 16, marginTop: 24 }, meta: { flexDirection: 'row', gap: 11, alignItems: 'center' }, metaText: { fontSize: 12, color: '#776B59', flex: 1, lineHeight: 20 },
   settingsContent: { padding: 24, paddingBottom: 50 }, settingCard: { backgroundColor: '#FFFCF5', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: C.line }, settingHelp: { fontSize: 12, color: C.muted, lineHeight: 22, marginVertical: 13 }, settingRow: { flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: C.line, paddingVertical: 22 }, settingLabel: { color: C.ink, fontSize: 15 }, seasonTabs: { flexDirection: 'row', gap: 7, marginTop: 2, marginBottom: 11 }, seasonTab: { flex: 1, minHeight: 38, borderRadius: 11, borderWidth: 1, borderColor: C.line, backgroundColor: '#F1ECE3', alignItems: 'center', justifyContent: 'center' }, seasonTabText: { color: '#786D5E', fontFamily: SERIF, fontSize: 13 }, backgroundGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 11 }, backgroundOption: { width: '48%', aspectRatio: 1.06, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: C.line, backgroundColor: C.pale }, backgroundOptionActive: { borderWidth: 2, borderColor: C.red }, backgroundImage: { ...StyleSheet.absoluteFillObject }, backgroundOptionShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 52, backgroundColor: '#2B241A70' }, backgroundOptionCopy: { position: 'absolute', left: 10, right: 10, bottom: 8 }, backgroundOptionLabel: { color: '#FFF9EF', fontFamily: SERIF, fontSize: 14 }, backgroundOptionNote: { color: '#FFF9EFCF', fontSize: 9, marginTop: 2 }, backgroundCheck: { position: 'absolute', top: 9, right: 9, width: 24, height: 24, borderRadius: 12, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' }, infoBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241AB0', justifyContent: 'center', alignItems: 'center', padding: 24 }, infoCard: { width: '100%', maxWidth: 420, backgroundColor: C.paper, borderRadius: 22, padding: 25, gap: 20 }, infoText: { fontSize: 13, lineHeight: 24, color: '#726653' },

@@ -3,6 +3,7 @@ import { BackHandler, Modal, Platform, ScrollView, StyleSheet, Text, View } from
 import { Image } from 'expo-image';
 import { C, Icon } from '../components';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
+import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import type { Pilgrimage } from '../data/pilgrimages';
 import { getGoshuinBookCover } from '../data/goshuinBookCovers';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
@@ -43,10 +44,29 @@ export function GoshuinImageListModal({ visible, route, shrines, acquiredCount, 
   </Modal>;
 }
 
+export function CollectionImageList({ kind, shrines, ownedIds }: { kind: 'goshuin' | 'miniature'; shrines: readonly Shrine[]; ownedIds: readonly string[] }) {
+  const owned = new Set(ownedIds);
+  const title = kind === 'goshuin' ? '御朱印画像一覧' : 'ミニチュア一覧';
+  return <View style={S.inlineCard} accessibilityLabel={title}>
+    <WashiArt />
+    <View style={S.inlineHeader}><Text style={S.modalEyebrow}>{title}</Text><Text style={S.inlineCount}>所持 {owned.size} / {shrines.length}</Text></View>
+    <View style={S.grid}>
+      {shrines.map(shrine => {
+        const acquired = owned.has(shrine.id);
+        const source = kind === 'goshuin' ? STAMP_IMAGES[shrine.id] : COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
+        return <View key={shrine.id} accessibilityLabel={`${shrine.name}の${kind === 'goshuin' ? '御朱印' : 'ミニチュア'}、${acquired ? '取得済み' : '未取得'}`} style={[S.tile, !acquired && S.tileUnacquired]}>
+          <Image source={source} contentFit="contain" style={S.stamp} />
+        </View>;
+      })}
+    </View>
+  </View>;
+}
+
 const S = StyleSheet.create({
   coverStage: { minHeight: 500, alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
   cover: { width: '68%', maxWidth: 288, aspectRatio: 2 / 3, overflow: 'visible', backgroundColor: 'transparent' },
   coverImage: { ...StyleSheet.absoluteFillObject },
   modalRoot: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 18 }, scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: '#271E18AA' }, modalCard: { width: '100%', maxWidth: 440, maxHeight: '82%', borderRadius: 22, backgroundColor: '#FFF9EF', padding: 17, overflow: 'hidden' }, modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }, modalEyebrow: { color: C.red, fontSize: 10, letterSpacing: 1.2 }, modalTitle: { color: C.ink, fontFamily: 'Shippori', fontSize: 20, marginTop: 4, maxWidth: 310 }, close: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F0E5D7', alignItems: 'center', justifyContent: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }, tile: { width: '31%', aspectRatio: .82, borderRadius: 10, borderWidth: 1, borderColor: '#DED0BD', backgroundColor: '#FFFDF7', padding: 5, overflow: 'hidden' }, tileUnacquired: { opacity: .28, backgroundColor: '#E9E2D7' }, stamp: { width: '100%', height: '100%' },
+  inlineCard: { borderRadius: 22, backgroundColor: '#FFF9EF', padding: 17, overflow: 'hidden', minHeight: 420 }, inlineHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }, inlineCount: { color: C.muted, fontSize: 10 },
 });

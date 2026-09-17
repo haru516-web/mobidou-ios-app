@@ -7,7 +7,7 @@ import { PILGRIMAGE_IMAGES } from '../data/pilgrimageImages';
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from '../data/pilgrimagePeekImages';
 import { SHRINES, type Shrine } from '../data/shrines';
-import { creditedSteps, type Progress } from '../services/progress';
+import { creditedSteps, expandPointTargets, type Progress } from '../services/progress';
 import type { PetCharacter } from '../petCatalog';
 import { Button, C, SERIF, Icon } from '../components';
 import { PaperCard, WashiPressable as Pressable } from './Washi';
@@ -25,11 +25,10 @@ export function routeMapPosition(route: Pilgrimage, progress?: Progress, count =
     const lastTarget = route.targets.at(-1) ?? 0;
     return { start: Math.max(0, route.ids.length - 1), end: Math.max(0, route.ids.length - 1), ratio: 1, steps, previousTarget: lastTarget, nextTarget: lastTarget };
   }
-  const dayStart = Math.max(0, Math.min(progress?.dayStart ?? 0, completed));
-  const localCompleted = Math.max(0, completed - dayStart);
-  const targetIndex = Math.min(localCompleted, Math.max(0, route.targets.length - 1));
-  const nextTarget = route.targets[targetIndex] ?? route.targets.at(-1) ?? 1;
-  const previousTarget = targetIndex === 0 ? 0 : route.targets[targetIndex - 1] ?? 0;
+  const targets = expandPointTargets(route.ids.length, route.targets);
+  const targetIndex = Math.min(completed, Math.max(0, targets.length - 1));
+  const nextTarget = targets[targetIndex] ?? targets.at(-1) ?? 1;
+  const previousTarget = targetIndex === 0 ? 0 : targets[targetIndex - 1] ?? 0;
   const ratio = Math.max(0, Math.min(1, (steps - previousTarget) / Math.max(1, nextTarget - previousTarget)));
   return { start: completed, end: Math.min(completed + 1, route.ids.length - 1), ratio, steps, previousTarget, nextTarget };
 }
@@ -105,8 +104,8 @@ export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet }: 
   </View>;
 }
 
-export function CompletionPage({ route, progress }: { route: Pilgrimage; progress: Progress }) {
-  return <PaperCard><View style={{ alignItems: 'center', gap: 10, paddingVertical: 15 }}><Text style={S.kicker}>巡 礼 結 願 証</Text><Text style={S.headline}>{route.name}</Text><Text style={[S.title, { color: C.red, borderWidth: 2, borderColor: C.red, padding: 13 }]}>結願</Text><Text style={S.body}>{route.gift}</Text><Text style={S.body}>{route.completion}。</Text><Text style={S.label}>「{route.title}」</Text><Text style={S.small}>{progress.completedAt} · {route.ids.length}のご縁を結びました</Text></View></PaperCard>;
+export function CompletionPage({ route, progress, onChooseNext }: { route: Pilgrimage; progress: Progress; onChooseNext?: () => void }) {
+  return <PaperCard><View style={{ alignItems: 'center', gap: 10, paddingVertical: 15 }}><Text style={S.kicker}>巡 礼 結 願 証</Text><Text style={S.headline}>{route.name}</Text><Text style={[S.title, { color: C.red, borderWidth: 2, borderColor: C.red, padding: 13 }]}>結願</Text><Text style={S.body}>{route.gift}</Text><Text style={S.body}>{route.completion}。</Text><Text style={S.label}>「{route.title}」</Text><Text style={S.small}>{progress.completedAt} · {route.ids.length}のご縁を結びました</Text>{onChooseNext && <Button title="次の巡礼を選ぶ" icon="map-outline" onPress={onChooseNext} style={{ marginTop: 10, alignSelf: 'stretch' }} />}</View></PaperCard>;
 }
 
 const MAP_SPEECH = StyleSheet.create({
