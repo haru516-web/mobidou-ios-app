@@ -16,7 +16,7 @@ export const PILGRIMAGE_WALK_METRICS = {
 
 // Horizontal four-frame sheets: contact, down, passing, up.
 // Each frame is 384 x 1024 with one shared baseline and real alpha transparency.
-export const PILGRIMAGE_WALK_ATLASES: Partial<Record<PetId, ImageSourcePropType>> = {
+export const PILGRIMAGE_WALK_ATLASES: Record<PetId, ImageSourcePropType> = {
   babumoby: require('../../assets/mobies/pilgrimage-walk/babumoby.png'),
   bearmobby: require('../../assets/mobies/pilgrimage-walk/bearmobby.png'),
   boymobby: require('../../assets/mobies/pilgrimage-walk/boymobby.png'),
@@ -27,7 +27,12 @@ export const PILGRIMAGE_WALK_ATLASES: Partial<Record<PetId, ImageSourcePropType>
   mobirin: require('../../assets/mobies/pilgrimage-walk/mobirin.png'),
   mobiyan: require('../../assets/mobies/pilgrimage-walk/mobiyan.png'),
   mobiyura: require('../../assets/mobies/pilgrimage-walk/mobiyura.png'),
+  ojimobby: require('../../assets/mobies/pilgrimage-walk/ojimobby.png'),
   potemoby: require('../../assets/mobies/pilgrimage-walk/potemoby.png'),
+  reamobby: require('../../assets/mobies/pilgrimage-walk/reamobby.png'),
   reomoby: require('../../assets/mobies/pilgrimage-walk/reomoby.png'),
+  shikamobby: require('../../assets/mobies/pilgrimage-walk/shikamobby.png'),
+  uyumobby: require('../../assets/mobies/pilgrimage-walk/uyumobby.png'),
+  wolfmobby: require('../../assets/mobies/pilgrimage-walk/wolfmobby.png'),
   yami: require('../../assets/mobies/pilgrimage-walk/yami.png'),
 };

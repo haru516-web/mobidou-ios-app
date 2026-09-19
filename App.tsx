@@ -24,9 +24,10 @@ import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_IMAGES } from './src/data/pilgrimageImages';
 import { COLLECTION_SHRINES, CollectionGallery, PassInventoryView, type CollectionZoom } from './src/components/CollectionGallery';
 import { BookPageTurn, type BookPageTurnHandle } from './src/components/BookPageTurn';
-import { HomeBottomNavigation, HomeCustomizationPopup, HomeWidgetPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
+import { HomeBottomNavigation, HomeCustomizationPopup, HomeWidgetPopup, MobyPickerPopup, type NavigationMenuAction, type PrimaryTab } from './src/components/HomeNavigation';
 import { CollectionImageList, GoshuinBookCover, GoshuinImageListModal } from './src/components/GoshuinBook';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeMiniatureArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
+import { FloatingMobby } from './src/components/FloatingMobby';
 import type { CustomHomeWidgetId, HomeWidgetId } from './src/services/homePreferences';
 
 type Tab = 'home' | 'book' | 'walk' | 'pets' | 'collection';
@@ -249,12 +250,37 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [bookImageList, setBookImageList] = useState(false);
   const [legacyBook, setLegacyBook] = useState(false);
   const [petSelectionReaction, setPetSelectionReaction] = useState(0);
+  const [petMenuOpen, setPetMenuOpen] = useState(false);
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
   const [collectionView, setCollectionView] = useState<CollectionView>('collection');
   const [backgroundSeason, setBackgroundSeason] = useState<BackgroundSeason>(() => getBackgroundOption(data.backgroundId).season);
   const scroll = useRef<ScrollView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const pet = getPetCharacter(data.pet);
+  const floatingScreenLabel = tab === 'home'
+    ? 'ホーム'
+    : tab === 'book'
+      ? '御朱印帳'
+      : tab === 'walk'
+        ? (outingTab === 'map' ? '巡礼マップ' : 'おでかけ')
+        : tab === 'collection'
+          ? ({ collection: 'コレクション', goshuin: '御朱印', miniature: 'ミニチュア', passes: 'パス' } as const)[collectionView]
+          : 'モビー';
+  const activeMenuActions: NavigationMenuAction[] | undefined = tab === 'book' ? [
+    { label: '巡礼を選ぶ', hint: '御朱印帳の巡礼コースを選び直します', icon: 'map-outline', onPress: () => { setBookImageList(false); setRoutePickerFromBook(true); setRoutePicker(true); } },
+    { label: '御朱印画像一覧', hint: 'この巡礼の御朱印だけを一覧表示します', icon: 'images-outline', onPress: () => setBookImageList(true) },
+  ] : tab === 'walk' ? [
+    { label: '歩数カウント', hint: '今日の歩数と巡礼の進み具合を表示します', icon: 'footsteps-outline', onPress: () => { setOutingTab('count'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+    { label: '巡礼マップ', hint: '現在の巡礼ルートと到達地点を表示します', icon: 'map-outline', onPress: () => { setOutingTab('map'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+  ] : tab === 'collection' ? [
+    { label: 'コレクション', hint: '御朱印とミニチュアの展示室を表示します', icon: 'albums-outline', onPress: () => { setCollectionView('collection'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+    { label: '御朱印', hint: '取得した御朱印の画像一覧を表示します', icon: 'images-outline', onPress: () => { setCollectionView('goshuin'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+    { label: 'ミニチュア', hint: '取得したミニチュアの一覧を表示します', icon: 'key-outline', onPress: () => { setCollectionView('miniature'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+    { label: 'パス', hint: '所持しているパスを表示します', icon: 'ticket-outline', onPress: () => { setCollectionView('passes'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
+  ] : [
+    { label: 'ホーム画面カスタム', hint: 'ホームに表示する2項目を選びます', icon: 'grid-outline', onPress: () => openHomePopup('custom') },
+    { label: 'モビーを選ぶ', hint: 'いっしょに歩く相棒を選びます', icon: 'paw-outline', onPress: () => openHomePopup('moby') },
+  ];
   const currentBackground = getBackgroundOption(data.backgroundId);
   const activeRoute = getPilgrimage(progress.routeId);
   const routeSteps = creditedSteps(progress);
@@ -376,6 +402,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
   </Pressable>;
   useEffect(() => { setBackgroundSeason(currentBackground.season); }, [currentBackground.season]);
+  useEffect(() => { setPetMenuOpen(false); }, [tab]);
   useEffect(() => { if (!openingVisible && journey.ready && !progress.routeId) setRoutePicker(true); }, [openingVisible, journey.ready, progress.routeId, data.demo]);
   useEffect(() => {
     if (!openingVisible && progress.routeId && progress.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId) {
@@ -456,20 +483,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <Button title={`${pet.name}とふれあう`} onPress={() => move('home')} style={{ marginTop: 22 }} />
       </>}
     </ScrollView>
+    <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} screenLabel={floatingScreenLabel} menuActions={activeMenuActions} menuOpen={petMenuOpen} onPress={() => setPetMenuOpen(open => !open)} onMenuToggle={() => setPetMenuOpen(false)} />
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={data.pet} onConfirm={selectedPet => { journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
-    <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => { if (value === 'walk') setOutingTab('count'); move(value); }} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={tab === 'book' ? [
-      { label: '巡礼を選ぶ', hint: '御朱印帳の巡礼コースを選び直します', icon: 'map-outline', onPress: () => { setBookImageList(false); setRoutePickerFromBook(true); setRoutePicker(true); } },
-      { label: '御朱印画像一覧', hint: 'この巡礼の御朱印だけを一覧表示します', icon: 'images-outline', onPress: () => setBookImageList(true) },
-    ] : tab === 'walk' ? [
-      { label: '歩数カウント', hint: '今日の歩数と巡礼の進み具合を表示します', icon: 'footsteps-outline', onPress: () => { setOutingTab('count'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
-      { label: '巡礼マップ', hint: '現在の巡礼ルートと到達地点を表示します', icon: 'map-outline', onPress: () => { setOutingTab('map'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
-    ] : tab === 'collection' ? [
-      { label: 'コレクション', hint: '御朱印とミニチュアの展示室を表示します', icon: 'albums-outline', onPress: () => { setCollectionView('collection'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
-      { label: '御朱印', hint: '取得した御朱印の画像一覧を表示します', icon: 'images-outline', onPress: () => { setCollectionView('goshuin'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
-      { label: 'ミニチュア', hint: '取得したミニチュアの一覧を表示します', icon: 'key-outline', onPress: () => { setCollectionView('miniature'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
-      { label: 'パス', hint: '所持しているパスを表示します', icon: 'ticket-outline', onPress: () => { setCollectionView('passes'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
-    ] : undefined} disabled={!!homePopup || !!homeCardPopup} />
+    <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => { if (value === 'walk') setOutingTab('count'); move(value); }} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={activeMenuActions} disabled={!!homePopup || !!homeCardPopup} />
     {homeCardPopup && <HomeWidgetPopup
       widget={homeCardPopup}
       latest={latest}

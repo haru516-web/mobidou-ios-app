@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import type { PetId } from '../petCatalog';
-import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_ATLAS_WIDTH, PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_FRAME_WIDTH, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
+import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_FRAME_WIDTH, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
 
 function CardBackground({ source, shade = '#FFF9EFA8' }: { source: ImageSourcePropType; shade?: string }) {
@@ -33,15 +33,21 @@ export function HomeMapArtwork() {
 }
 
 function WalkSprite({ source, frame }: { source: ImageSourcePropType; frame: number }) {
-  const height = 82;
-  const scale = height / PILGRIMAGE_WALK_ATLAS_HEIGHT;
-  const frameWidth = PILGRIMAGE_WALK_FRAME_WIDTH * scale;
+  // Use an integer-sized source cell so the viewport edge never lands between
+  // source pixels. This avoids the texture filter pulling a sliver of the
+  // previous/next walk cut into the current frame.
+  const targetHeight = 80;
+  const targetScale = targetHeight / PILGRIMAGE_WALK_ATLAS_HEIGHT;
+  const frameWidth = Math.max(1, Math.round(PILGRIMAGE_WALK_FRAME_WIDTH * targetScale));
+  const scale = frameWidth / PILGRIMAGE_WALK_FRAME_WIDTH;
+  const height = PILGRIMAGE_WALK_ATLAS_HEIGHT * scale;
+  const atlasWidth = frameWidth * PILGRIMAGE_WALK_FRAME_COUNT;
   return <View style={{ width: frameWidth, height, overflow: 'hidden' }}>
     <Image
       accessible={false}
       source={source}
       contentFit="fill"
-      style={{ position: 'absolute', left: -frameWidth * frame, top: 0, width: PILGRIMAGE_WALK_ATLAS_WIDTH * scale, height }}
+      style={{ position: 'absolute', left: -frameWidth * frame, top: 0, width: atlasWidth, height }}
     />
   </View>;
 }

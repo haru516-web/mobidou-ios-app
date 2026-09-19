@@ -2,6 +2,10 @@
 
 `{id}.png` は、御朱印巡り画面で使う右向き歩行アニメーションです。
 
+現在のモビー18体（mobirin / mobichi / yami / mobiyan / mobiyura / reomoby /
+potemoby / mobibou / babumoby / bearmobby / boymobby / dogmobby / lanimobby /
+ojimobby / reamobby / shikamobby / uyumobby / wolfmobby）をすべて収録しています。
+
 - 1枚につき横4コマ、`1536 × 1024 px`（1コマ `384 × 1024 px`）
 - 4コマの順序は `contact → down → passing → up`
 - 全コマを同じ縮尺・同じ接地線で配置

@@ -99,6 +99,16 @@
     "cropWidth": 376,
     "cropHeight": 550
   },
+  "ojimobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 6,
+    "top": 273,
+    "cropWidth": 376,
+    "cropHeight": 526
+  },
   "potemoby/walk": {
     "columns": 4,
     "width": 1536,
@@ -109,6 +119,16 @@
     "cropWidth": 377,
     "cropHeight": 443
   },
+  "reamobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 250,
+    "cropWidth": 384,
+    "cropHeight": 560
+  },
   "reomoby/walk": {
     "columns": 4,
     "width": 1536,
@@ -118,6 +138,36 @@
     "top": 225,
     "cropWidth": 382,
     "cropHeight": 551
+  },
+  "shikamobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 224,
+    "cropWidth": 384,
+    "cropHeight": 593
+  },
+  "uyumobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 309,
+    "cropWidth": 384,
+    "cropHeight": 481
+  },
+  "wolfmobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 0,
+    "top": 274,
+    "cropWidth": 384,
+    "cropHeight": 480
   },
   "yami/walk": {
     "columns": 4,
