@@ -17,7 +17,7 @@ import { BACKGROUND_OPTIONS, BACKGROUND_SEASONS, getBackgroundOption, type Backg
 import { PET_BACKGROUNDS } from './src/data/petBackgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { COLLECTION_KEYCHAINS } from './src/data/collectionKeychains';
-import { pilgrimageShrines, PilgrimagePicker, RouteMap, CompletionPage } from './src/components/PilgrimageScreen';
+import { pilgrimageShrines, PilgrimagePicker, RouteMap } from './src/components/PilgrimageScreen';
 import { WashiArt, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
@@ -219,7 +219,7 @@ function CollectionBackdrop({ scrollY, viewportWidth, viewportHeight }: { scroll
   const backgroundWidth = viewportWidth + initialInset + tileWidth;
   const tileCount = Math.ceil(backgroundWidth / tileWidth) + 1;
   const translateY = scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' });
-  return <View pointerEvents="none" style={[S.collectionBackdropViewport, { bottom: -260 }]}>
+  return <View pointerEvents="none" style={S.collectionBackdropViewport}>
     <Animated.View style={[S.collectionBackdropTrack, { left: -initialInset, width: tileCount * tileWidth }, { transform: [{ translateY }] }]}>
       {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} contentFit="cover" style={[{ width: tileWidth, height: '100%', flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
     </Animated.View>
@@ -254,6 +254,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
   const [collectionView, setCollectionView] = useState<CollectionView>('collection');
   const [backgroundSeason, setBackgroundSeason] = useState<BackgroundSeason>(() => getBackgroundOption(data.backgroundId).season);
+  const [scrollViewportHeight, setScrollViewportHeight] = useState(0);
   const scroll = useRef<ScrollView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const pet = getPetCharacter(data.pet);
@@ -419,9 +420,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
   return <View style={S.desktop}><SafeAreaView style={S.app}>
     {tab === 'collection' ? <CollectionBackdrop scrollY={scrollY} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : <>
-      <Animated.View pointerEvents="none" style={[S.backgroundScrollLayer, { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
-        <Image source={currentBackground.image} contentFit="cover" style={S.backgroundArt} />
-        <View pointerEvents="none" style={S.backgroundWash} />
+      <Animated.View pointerEvents="none" style={S.backgroundScrollLayer}>
+        <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
+          <Image source={currentBackground.image} contentFit="cover" style={S.backgroundArt} />
+          <View pointerEvents="none" style={S.backgroundWash} />
+        </Animated.View>
       </Animated.View>
       <Clouds />
     </>}
@@ -432,7 +435,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </View>
     {data.demo && <View style={[S.demoBar, tab === 'collection' && S.collectionChrome]}><View style={S.dot} /><Text style={S.demoText}>体験モード · 実際の歩数・御朱印帳とは別の記録</Text><Pressable accessibilityRole="button" accessibilityLabel="体験モードを終了" onPress={() => journey.enter(false)} style={{ padding: 7 }}><Icon name="close" size={14} color={C.red} /></Pressable></View>}
     {!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
-    <ScrollView ref={scroll} contentContainerStyle={[S.content, mapScreen && { paddingBottom: 0 }]} scrollEnabled={tab !== 'home' && !mapScreen && !homeCardPopup} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
+    <ScrollView ref={scroll} onLayout={({ nativeEvent }) => setScrollViewportHeight(previous => previous === nativeEvent.layout.height ? previous : nativeEvent.layout.height)} contentContainerStyle={[S.content, mapScreen && { paddingBottom: 0 }]} scrollEnabled={tab !== 'home' && tab !== 'book' && !homeCardPopup && !mapScreen} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
       {tab === 'home' && <>
         <View style={S.homeHeading}><View style={S.hairline} /><Text style={S.chapter}>日々を、ひとめぐり。</Text><View style={S.hairline} /></View>
         <View><Companion pet={pet} haptics={data.haptics} onBond={journey.bond} /></View>
@@ -451,7 +454,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           <View style={S.bookBottom}><Text style={S.bookDate}>{selectedReward ? `${displayDate(selectedReward.date)} 結縁` : 'これからの一歩が、この一枚に。'}</Text><Text style={S.bookSwipeHint}>スワイプでもめくれます</Text><Torii size={19} color={C.red} /></View>
         </View>
         <View style={S.pager}><Pressable accessibilityRole="button" accessibilityLabel="前の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><View style={S.pageCounter}><Text style={S.pageCounterText}>{String(selectedIndex + 1).padStart(2, '0')} / {String(activeShrines.length).padStart(2, '0')}</Text><Text style={S.pageCounterHint}>左右の矢印でページをめくる</Text></View><Pressable accessibilityRole="button" accessibilityLabel="次の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
-        {activeRoute && progress.completedAt && <CompletionPage route={activeRoute} progress={progress} onChooseNext={openNextRoutePicker} />}
         </>}
       </>}
 
@@ -466,7 +468,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           {activeRoute && (data.demo ? <Button title="体験で1,000歩あるく" icon="footsteps-outline" onPress={journey.demoWalk} style={S.walkDemoButton} /> : <Button title={data.source === 'none' ? '歩数を連携する' : journey.busy ? '歩数を更新しています…' : '今日の歩数を更新'} icon="refresh" disabled={journey.busy} onPress={() => void (data.source === 'none' ? journey.connect() : journey.refresh())} style={S.walkDemoButton} />)}
         </>}
         {outingTab === 'map' && activeRoute && <>
-          <RouteMap route={activeRoute} count={progress.rewards.length} progress={progress} pet={pet} showSpeech onStop={(shrine, index) => { setFeatured(index); setDetail(shrine); }} />
+          <RouteMap route={activeRoute} count={progress.rewards.length} progress={progress} pet={pet} showSpeech viewportHeight={scrollViewportHeight} onStop={(shrine, index) => { setFeatured(index); setDetail(shrine); }} />
         </>}
       </>}
 
@@ -538,7 +540,7 @@ function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name'];
 
 const S = StyleSheet.create({
   homeStepsSlot: { marginTop: -27, marginBottom: 2 }, homeStepsCard: { width: '100%', height: 132, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', overflow: 'hidden', alignItems: 'stretch' },
-  desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundScrollLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: -260 }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, collectionBackdropViewport: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#F5E8D4' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, bottom: 0, flexDirection: 'row' }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 12 },
+  desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundScrollLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, overflow: 'hidden' }, backgroundScrollTrack: { position: 'absolute', left: 0, right: 0, top: 0, bottom: -260 }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, collectionBackdropViewport: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#F5E8D4' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, bottom: -260, flexDirection: 'row' }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 12 },
   homeWidgetDropTarget: { borderWidth: 3, borderColor: '#B84C3D', transform: [{ scale: 1.025 }], shadowColor: '#8B2F23', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .35, shadowRadius: 9, elevation: 8 },
   homeDropOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#8B2F234D' },
   headerLogo: { width: 124, height: 45, marginTop: 5 },

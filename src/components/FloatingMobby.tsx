@@ -9,12 +9,14 @@ import { C, Icon } from '../components';
 import type { NavigationMenuAction } from './HomeNavigation';
 import { WashiPressable as Pressable } from './Washi';
 
-const STORAGE_KEY = 'mobidou.floating-mobby-position.v1';
+const STORAGE_KEY = 'mobidou.floating-mobby-position.v4';
 const MOBBY_SIZE = 88;
 const EDGE_GUTTER = 8;
-const BOTTOM_NAV_CLEARANCE = 92;
+const BOTTOM_NAV_CLEARANCE = 2;
 const MENU_BUTTON_WIDTH = 76;
 const MENU_BUTTON_RIGHT_INSET = 12;
+const MENU_BUTTON_HEIGHT = 75;
+const MENU_BUTTON_BOTTOM_INSET = 8;
 const BUBBLE_WIDTH = 196;
 const BUBBLE_HEIGHT = 54;
 const MENU_PANEL_WIDTH = 218;
@@ -166,7 +168,7 @@ export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [
         ? { x: saved.x * layout.width, y: saved.y * layout.height }
         : {
           x: layout.width - MENU_BUTTON_RIGHT_INSET - (MENU_BUTTON_WIDTH + MOBBY_SIZE) / 2,
-          y: layout.height - MOBBY_SIZE - BOTTOM_NAV_CLEARANCE,
+          y: layout.height - MENU_BUTTON_BOTTOM_INSET - (MENU_BUTTON_HEIGHT + MOBBY_SIZE) / 2,
         };
       const next = clampPosition(initial, layout);
       initializedRef.current = true;
@@ -312,7 +314,7 @@ export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [
 }
 
 const styles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 35 },
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 55 },
   anchor: { position: 'absolute', width: MOBBY_SIZE, height: MOBBY_SIZE, alignItems: 'center', justifyContent: 'center' },
   image: { width: 82, height: 82 },
   shadow: { position: 'absolute', bottom: 4, width: 49, height: 8, borderRadius: 20, backgroundColor: '#4A3B3025' },
