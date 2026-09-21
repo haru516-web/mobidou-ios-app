@@ -11,6 +11,7 @@ import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 import { MOBIBOU_ACTION_FRAMES } from '../data/mobibouActionFrames';
 import { PRAYER_ATLASES, PRAYER_ACTION_ORDER, PRAYER_FRAME_COUNT } from '../data/prayerAtlasesV2';
 import { WashiPressable as Pressable } from './Washi';
+import { MobbyPullMesh, type MobbyPullMeshHandle } from './MobbyPullMesh';
 
 const MOBIBOU_REI_FRAME_LAYOUTS = [
   [16.06, -72.47, 178.54, 347.34],
@@ -196,6 +197,7 @@ export function PullableCompanion({
   const strongHapticRef = useRef(false);
   const sectorRef = useRef(0);
   const strongRef = useRef(false);
+  const meshRef = useRef<MobbyPullMeshHandle>(null);
   const prayerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearReactionTimers = useCallback(() => {
@@ -432,6 +434,7 @@ export function PullableCompanion({
     setReactionLine('pull', { special, keepStatus: true });
     onBond();
     haptic(special ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium);
+    meshRef.current?.release();
     setStatus(reactionFrames ? 'reacting' : 'released');
 
     const frame = reactionFrames
@@ -473,7 +476,7 @@ export function PullableCompanion({
     onStartShouldSetPanResponderCapture: () => prayerFrame === null && Platform.OS !== 'web',
     onMoveShouldSetPanResponderCapture: () => prayerFrame === null && Platform.OS !== 'web',
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: () => {
+    onPanResponderGrant: (event) => {
       clearReactionTimers();
       setReactionFrame(null);
       setSpecialReaction(false);
@@ -491,6 +494,9 @@ export function PullableCompanion({
       pullTranslateX.stopAnimation();
       pullTranslateY.stopAnimation();
       pullRotation.stopAnimation();
+      if (pullAsset) {
+        meshRef.current?.begin(event.nativeEvent.locationX, event.nativeEvent.locationY);
+      }
     },
     onPanResponderMove: (_event, gesture) => {
       const dx = gesture.dx;
@@ -511,6 +517,7 @@ export function PullableCompanion({
       pullTranslateX.setValue(dx * 0.22);
       pullTranslateY.setValue(dy * 0.13);
       pullRotation.setValue(directionTilt);
+      meshRef.current?.update(dx, dy);
 
       const magnitude = Math.hypot(dx, dy);
       if (magnitude >= 4) {
@@ -537,10 +544,11 @@ export function PullableCompanion({
       if (Platform.OS === 'web') return;
       draggingRef.current = false;
       pointerReleaseRef.current = null;
+      meshRef.current?.release();
       resetPose(() => setStatus('idle'));
       resetExpression();
     },
-  }), [clearReactionTimers, finishPointerPull, haptic, haptics, prayerFrame, pullAsset, pullRotation, pullTranslateX, pullTranslateY, reactionMotion, resetExpression, resetPose, scaleX, scaleY, specialMotion]);
+  }), [clearReactionTimers, finishPointerPull, haptic, haptics, meshRef, prayerFrame, pullAsset, pullRotation, pullTranslateX, pullTranslateY, reactionMotion, resetExpression, resetPose, scaleX, scaleY, specialMotion]);
 
   const triggerAccessibleReaction = useCallback(() => {
     release(Math.max(12, 210 * 0.08), 0);
@@ -548,6 +556,7 @@ export function PullableCompanion({
 
   const isPullReaction = Boolean(reactionFrames && reactionFrame !== null);
   const isPrayer = prayerFrame !== null;
+  const meshVisible = Platform.OS === 'web' && Boolean(pullAsset) && (status === 'pulling' || status === 'released');
   const showFixedAccessoryParts = status === 'pulling'
     || status === 'released'
     || (status === 'reacting' && specialReaction && reactionFrame === null && !isPrayer);
@@ -587,12 +596,13 @@ export function PullableCompanion({
             accessibilityHint={prayerSequence ? 'タップでお参りのアクションを再生します。ドラッグするとほっぺが伸びます' : 'タップすると引っ張った時のリアクション、ドラッグするとほっぺの伸びを表示します'}
             onAccessibilityTap={prayerSequence ? startPrayer : triggerAccessibleReaction}
             style={[styles.characterSlot, {
-              opacity: isPullReaction || isPrayer ? 0 : 1,
+              opacity: meshVisible || isPullReaction || isPrayer ? 0 : 1,
               transform: [{ translateX: pullTranslateX }, { translateY: totalTranslateY }, { rotate: pullRotationDeg }, { scaleX }, { scaleY }, { scale: totalScale }],
             }]}
           >
-            <Image pointerEvents="none" source={displayBody} style={styles.pet} contentFit="contain" transition={0} />
+            {!meshVisible ? <Image pointerEvents="none" source={displayBody} style={styles.pet} contentFit="contain" transition={0} /> : null}
           </Animated.View>
+          {pullAsset ? <MobbyPullMesh ref={meshRef} source={pullAsset.body} size={210} visible={meshVisible} /> : null}
           {prayerSequence ? <Animated.View pointerEvents="none" style={[styles.prayerLayer, { opacity: isPrayer ? 1 : 0, overflow: 'hidden', transform: [{ translateY: float }] }]}>
             {isMobibouPrayer ? MOBIBOU_ACTION_FRAMES.map((source, index) => {
               const [left, top, width, height] = MOBIBOU_PRAYER_FRAME_LAYOUTS[index];
