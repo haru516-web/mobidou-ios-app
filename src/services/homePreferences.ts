@@ -7,9 +7,11 @@ export type CustomHomeWidgetId = (typeof CUSTOM_HOME_WIDGET_IDS)[number];
 /** The two home cards, in left-to-right order. */
 export type HomeWidgetOrder = [CustomHomeWidgetId, CustomHomeWidgetId];
 export type HomeWidgetItems = [string | null, string | null];
+export type HomeGoshuinSelection = [string | null, string | null, string | null];
 
 export const DEFAULT_HOME_WIDGET_ORDER: HomeWidgetOrder = ['goshuin', 'miniature'];
 export const DEFAULT_HOME_WIDGET_ITEMS: HomeWidgetItems = [null, null];
+export const DEFAULT_HOME_GOSHUIN_SELECTION: HomeGoshuinSelection = [null, null, null];
 
 const HOME_WIDGET_SET = new Set<string>(HOME_WIDGET_IDS);
 const CUSTOM_HOME_WIDGET_SET = new Set<string>(CUSTOM_HOME_WIDGET_IDS);
@@ -40,6 +42,24 @@ export function normalizeHomeWidgetOrder(value: unknown): HomeWidgetOrder {
 export function normalizeHomeWidgetItems(value: unknown): HomeWidgetItems {
   if (!Array.isArray(value)) return [...DEFAULT_HOME_WIDGET_ITEMS];
   return [typeof value[0] === 'string' ? value[0] : null, typeof value[1] === 'string' ? value[1] : null];
+}
+
+export function normalizeHomeGoshuinSelection(value: unknown): HomeGoshuinSelection {
+  if (!Array.isArray(value)) return [...DEFAULT_HOME_GOSHUIN_SELECTION];
+  const result: HomeGoshuinSelection = [null, null, null];
+  for (let index = 0; index < result.length; index += 1) {
+    const item = value[index];
+    result[index] = typeof item === 'string' && !result.includes(item) ? item : null;
+  }
+  return result;
+}
+
+export function setHomeGoshuinSlot(selection: HomeGoshuinSelection, slot: 0 | 1 | 2, shrineId: string): HomeGoshuinSelection {
+  const next = [...selection] as HomeGoshuinSelection;
+  const existing = next.indexOf(shrineId);
+  if (existing >= 0) [next[existing], next[slot]] = [next[slot], next[existing]];
+  else next[slot] = shrineId;
+  return next;
 }
 
 /** Replace one slot while preserving the no-duplicates invariant. */

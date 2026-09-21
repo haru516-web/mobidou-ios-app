@@ -103,7 +103,7 @@ function WalkFrame({ source, petId, frame }: { source: ImageSourcePropType; petI
   </View>;
 }
 
-export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [], menuOpen = false, onPress, onMenuToggle }: { image: ImageSourcePropType; name: string; petId: PetId; screenLabel: string; menuActions?: readonly NavigationMenuAction[]; menuOpen?: boolean; onPress?: () => void; onMenuToggle?: () => void }) {
+export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [], menuOpen = false, hideBubble = false, frame = false, onPress, onMenuToggle }: { image: ImageSourcePropType; name: string; petId: PetId; screenLabel: string; menuActions?: readonly NavigationMenuAction[]; menuOpen?: boolean; hideBubble?: boolean; frame?: boolean; onPress?: () => void; onMenuToggle?: () => void }) {
   const [layout, setLayout] = useState<LayoutSize>({ width: 0, height: 0 });
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [hydrated, setHydrated] = useState(false);
@@ -296,15 +296,20 @@ export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [
       accessibilityLabel={`${name}。タップでメニューを開く。ドラッグして画面内を移動できます`}
       accessibilityHint="タップで下部メニューを展開します。ドラッグで位置を動かせます"
       onAccessibilityTap={onPress}
-      style={[styles.anchor, { left: position.x, top: position.y }, Platform.OS === 'web' && styles.webDrag]}
+      style={[styles.anchor, frame && styles.anchorFrame, { left: position.x, top: position.y }, Platform.OS === 'web' && styles.webDrag]}
     >
       <View pointerEvents="none" style={styles.shadow} />
       {petVisual}
     </View> : null}
-    {initializedRef.current ? <View pointerEvents="none" style={[styles.bubble, { left: bubbleLeft, top: bubbleTop }]}>
+    {initializedRef.current && !hideBubble ? (
+      <View
+        pointerEvents="none"
+        style={[styles.bubble, { left: bubbleLeft, top: bubbleTop }]}
+      >
       <View style={styles.bubbleBody}><Text numberOfLines={2} style={styles.bubbleText}>{screenSpeech(petId, screenLabel)}</Text></View>
       <View style={[styles.bubbleTail, bubbleAbove ? styles.bubbleTailBelow : styles.bubbleTailAbove]} />
-    </View> : null}
+      </View>
+    ) : null}
     {initializedRef.current && menuActions.length > 0 ? <Animated.View pointerEvents={menuOpen ? 'auto' : 'none'} accessibilityElementsHidden={!menuOpen} aria-hidden={!menuOpen ? true : undefined} importantForAccessibility={menuOpen ? 'auto' : 'no-hide-descendants'} style={[styles.menuPanel, { left: menuPanelLeft, top: menuPanelTop }, animatedMenuStyle]}>
       {menuActions.map(action => <Pressable key={action.label} artwork={false} accessibilityRole="button" accessibilityLabel={action.label} accessibilityHint={action.hint} onPress={() => { onMenuToggle?.(); action.onPress(); }} style={styles.menuAction}>
         <Icon name={action.icon} size={17} color={C.red} /><Text numberOfLines={1} style={styles.menuActionText}>{action.label}</Text>
@@ -316,6 +321,7 @@ export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [
 const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, zIndex: 55 },
   anchor: { position: 'absolute', width: MOBBY_SIZE, height: MOBBY_SIZE, alignItems: 'center', justifyContent: 'center' },
+  anchorFrame: { borderRadius: 26, borderWidth: 1, borderColor: '#D8C8B3', backgroundColor: '#FFF9EFFF', shadowColor: '#5B4433', shadowOpacity: 0.16, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
   image: { width: 82, height: 82 },
   shadow: { position: 'absolute', bottom: 4, width: 49, height: 8, borderRadius: 20, backgroundColor: '#4A3B3025' },
   webDrag: { cursor: 'move', touchAction: 'none', userSelect: 'none' } as any,

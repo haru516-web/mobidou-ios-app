@@ -36,6 +36,7 @@ type HomeBottomNavigationProps = {
   onOpenMoby: () => void;
   disabled?: boolean;
   menuActions?: readonly NavigationMenuAction[];
+  hideMenuButton?: boolean;
 };
 
 export type NavigationMenuAction = {
@@ -51,7 +52,7 @@ function MenuGlyph({ open }: { open: boolean }) {
   </View>;
 }
 
-export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby, disabled = false, menuActions }: HomeBottomNavigationProps) {
+export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby, disabled = false, menuActions, hideMenuButton = false }: HomeBottomNavigationProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const reduced = useReducedMotion();
@@ -107,9 +108,9 @@ export function HomeBottomNavigation({ tab, onNavigate, onOpenCustom, onOpenMoby
         </Pressable>)}
       </View>
       </Animated.View>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="メニュー" accessibilityState={{ expanded: menuOpen }} accessibilityHint={menuOpen ? 'メニューを閉じます' : `${actions.map(action => action.label).join('、')}を表示します`} onPress={() => setMenuOpen(open => !open)} style={[S.menuButton, CONTINUOUS_CORNER, menuOpen && S.menuButtonOpen]}>
+      {!hideMenuButton && <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="メニュー" accessibilityState={{ expanded: menuOpen }} accessibilityHint={menuOpen ? 'メニューを閉じます' : `${actions.map(action => action.label).join('、')}を表示します`} onPress={() => setMenuOpen(open => !open)} style={[S.menuButton, CONTINUOUS_CORNER, menuOpen && S.menuButtonOpen]}>
         <MenuGlyph open={menuOpen} />
-      </Pressable>
+      </Pressable>}
     </View>
   </View>;
 }

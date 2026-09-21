@@ -28,7 +28,7 @@ import { HomeBottomNavigation, HomeCustomizationPopup, HomeWidgetPopup, MobyPick
 import { CollectionImageList, GoshuinBookCover, GoshuinImageListModal } from './src/components/GoshuinBook';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeMiniatureArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
 import { FloatingMobby } from './src/components/FloatingMobby';
-import type { CustomHomeWidgetId, HomeWidgetId } from './src/services/homePreferences';
+import { setHomeGoshuinSlot, type CustomHomeWidgetId, type HomeWidgetId } from './src/services/homePreferences';
 
 type Tab = 'home' | 'book' | 'walk' | 'pets' | 'collection';
 type OutingTab = 'count' | 'map';
@@ -39,6 +39,11 @@ const fmt = (n: number) => n.toLocaleString('ja-JP');
 const OPENING_WORDMARK = require('./assets/mobidou-wordmark-brush.png');
 const OPENING_EMBLEM = require('./assets/mobidou-opening-emblem.png');
 const COLLECTION_BACKDROP = require('./assets/collection/collection-cabinet-washi-backdrop-v1.png');
+const HOME_SCENE_BACKGROUND = require('./assets/backgrounds/mobidou-home-provided-backdrop.png');
+const GOSHUIN_BOOK_BACKGROUND = require('./assets/backgrounds/mobidou-goshuin-book-background-v2.png');
+const HOME_NOREN = require('./assets/backgrounds/mobidou-home-provided-noren.png');
+const HOME_GOSHUIN_PAPER = require('./assets/backgrounds/mobidou-home-provided-goshuin-paper.png');
+const HOME_TOP_KEYHOLDER = require('./assets/backgrounds/mobidou-home-provided-top-keyholder.png');
 const OPENING_TIMELINE = [
   { id: '0500-pre-dawn', time: '05:00', label: '明け方', image: require('./assets/backgrounds/opening-cycle/01-0500-pre-dawn.png') },
   { id: '0600-sunrise', time: '06:00', label: '朝焼け', image: require('./assets/backgrounds/opening-cycle/02-0600-sunrise.png') },
@@ -253,6 +258,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [petMenuOpen, setPetMenuOpen] = useState(false);
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
   const [collectionView, setCollectionView] = useState<CollectionView>('collection');
+  const [homeGoshuinSlot, setHomeGoshuinPickerSlot] = useState<0 | 1 | 2 | null>(null);
   const [backgroundSeason, setBackgroundSeason] = useState<BackgroundSeason>(() => getBackgroundOption(data.backgroundId).season);
   const [scrollViewportHeight, setScrollViewportHeight] = useState(0);
   const scroll = useRef<ScrollView>(null);
@@ -279,7 +285,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     { label: 'ミニチュア', hint: '取得したミニチュアの一覧を表示します', icon: 'key-outline', onPress: () => { setCollectionView('miniature'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
     { label: 'パス', hint: '所持しているパスを表示します', icon: 'ticket-outline', onPress: () => { setCollectionView('passes'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
   ] : [
-    { label: 'ホーム画面カスタム', hint: 'ホームに表示する2項目を選びます', icon: 'grid-outline', onPress: () => openHomePopup('custom') },
+    { label: '飾る御朱印を選ぶ', hint: 'ホーム左側の御朱印から飾りを選びます', icon: 'flower-outline', onPress: () => setHomeGoshuinPickerSlot(0) },
     { label: 'モビーを選ぶ', hint: 'いっしょに歩く相棒を選びます', icon: 'paw-outline', onPress: () => openHomePopup('moby') },
   ];
   const currentBackground = getBackgroundOption(data.backgroundId);
@@ -308,6 +314,20 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const collected = activeShrines.filter((_, index) => progress.rewards.some(r => r.id === (activeRoute?.ids[index] ?? activeShrines[index].id)));
   const latestIndex = Math.max(0, collected.length - 1);
   const latest = collected[latestIndex] ?? activeShrines[0] ?? SHRINES[0];
+  const selectableHomeGoshuin = COLLECTION_SHRINES.filter(shrine => collectionRewardIds.includes(shrine.id));
+  const homeGoshuinFallback = selectableHomeGoshuin.length ? selectableHomeGoshuin : [latest];
+  const homeGoshuin = data.homeGoshuinSelection.map((id, index) =>
+    COLLECTION_SHRINES.find(shrine => shrine.id === id && (collectionRewardIds.includes(shrine.id) || shrine.id === latest.id))
+      ?? homeGoshuinFallback[Math.max(0, homeGoshuinFallback.length - 1 - index)]
+      ?? latest
+  );
+  const homeKeychains = [...collectionRewards]
+    .reverse()
+    .map(reward => reward.id)
+    .filter((id, index, ids) => ids.indexOf(id) === index && (journey.special.keychains[id] ?? 0) > 0)
+    .slice(0, 4)
+    .map(id => ({ id, image: COLLECTION_KEYCHAINS[id as keyof typeof COLLECTION_KEYCHAINS] }))
+    .filter((item): item is { id: string; image: NonNullable<typeof item.image> } => !!item.image);
   const latestReward = progress.rewards[latestIndex];
   const visible = activeShrines.map((shrine, index) => ({ shrine, index })).filter(({ index }) => filter === 'all' || (filter === 'collected' ? index < collected.length : index >= collected.length));
   const selectedIndex = activeShrines.length ? featured % activeShrines.length : 0;
@@ -399,8 +419,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Pressable>;
     return null;
   };
-  const renderHomeStepsCard = () => <Pressable nativeID="home-widget-steps" artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数。今日${fmt(todaySteps)}歩。累計${fmt(totalSteps)}歩。${homeNextPointLabel ? `${homeNextPointLabel}。` : ''}拡大表示をひらく`} onPress={() => { if (!homeCardPopup) setHomeCardPopup('steps'); }} style={S.homeStepsCard}>
-    <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
+  const renderHomeStepsCard = () => <Pressable nativeID="home-widget-steps" artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数。今日${fmt(todaySteps)}歩。${homeNextPointSteps === null ? '結願済み。' : `次の寺社まで${fmt(homeNextPointSteps)}歩。`}拡大表示をひらく`} onPress={() => { if (!homeCardPopup) setHomeCardPopup('steps'); }} style={S.homeStepsCard}>
+    <HomeStepsArtwork compact horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
   </Pressable>;
   useEffect(() => { setBackgroundSeason(currentBackground.season); }, [currentBackground.season]);
   useEffect(() => { setPetMenuOpen(false); }, [tab]);
@@ -421,27 +441,44 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   return <View style={S.desktop}><SafeAreaView style={S.app}>
     {tab === 'collection' ? <CollectionBackdrop scrollY={scrollY} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : <>
       <Animated.View pointerEvents="none" style={S.backgroundScrollLayer}>
-        <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
-          <Image source={currentBackground.image} contentFit="cover" style={S.backgroundArt} />
-          <View pointerEvents="none" style={S.backgroundWash} />
+        <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, tab === 'home' && S.homeBackgroundTrack, tab === 'book' && S.bookBackgroundTrack, { transform: [{ translateY: tab === 'book' ? 0 : scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
+          <Image source={tab === 'home' ? HOME_SCENE_BACKGROUND : tab === 'book' ? GOSHUIN_BOOK_BACKGROUND : currentBackground.image} contentFit={tab === 'home' ? 'fill' : 'cover'} style={[S.backgroundArt, tab === 'home' && S.homeBackgroundArt, tab === 'book' && S.bookBackgroundArt]} />
+          <View pointerEvents="none" style={[S.backgroundWash, tab === 'home' && S.homeBackgroundWash, tab === 'book' && S.bookBackgroundWash]} />
+          {tab === 'home' && <>
+            <Image pointerEvents="none" source={HOME_NOREN} contentFit="contain" style={S.homeNorenOverlay} />
+            <Image pointerEvents="none" source={HOME_TOP_KEYHOLDER} contentFit="contain" style={S.homeTopKeyholderOverlay} />
+          </>}
         </Animated.View>
       </Animated.View>
-      <Clouds />
+      {tab !== 'home' && tab !== 'book' && <Clouds />}
     </>}
-    <View style={[S.header, tab === 'collection' && S.collectionHeader]}>
-      <View style={S.headerSide}><Text style={S.brandMini}>歩く、集める、</Text><Text style={S.brandMini}>好きになる。</Text></View>
+    <View style={[S.header, tab === 'collection' && S.collectionHeader, tab === 'home' && S.homeHeader]}>
+      <View style={[S.headerSide, tab === 'home' && S.homeHeaderSide]}><Text style={S.brandMini}>歩く、集める、</Text><Text style={S.brandMini}>好きになる。</Text></View>
       <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="もび道 ホームへ" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.png')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.png')} style={S.logoMark} contentFit="contain" /></Pressable>
       <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.gear}><Icon name="settings-outline" size={21} /></Pressable>
     </View>
     {data.demo && <View style={[S.demoBar, tab === 'collection' && S.collectionChrome]}><View style={S.dot} /><Text style={S.demoText}>体験モード · 実際の歩数・御朱印帳とは別の記録</Text><Pressable accessibilityRole="button" accessibilityLabel="体験モードを終了" onPress={() => journey.enter(false)} style={{ padding: 7 }}><Icon name="close" size={14} color={C.red} /></Pressable></View>}
     {!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
-    <ScrollView ref={scroll} onLayout={({ nativeEvent }) => setScrollViewportHeight(previous => previous === nativeEvent.layout.height ? previous : nativeEvent.layout.height)} contentContainerStyle={[S.content, mapScreen && { paddingBottom: 0 }]} scrollEnabled={tab !== 'home' && tab !== 'book' && !homeCardPopup && !mapScreen} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
+    <ScrollView ref={scroll} onLayout={({ nativeEvent }) => setScrollViewportHeight(previous => previous === nativeEvent.layout.height ? previous : nativeEvent.layout.height)} contentContainerStyle={[S.content, tab === 'home' && S.homeContent, mapScreen && { paddingBottom: 0 }]} scrollEnabled={tab !== 'home' && tab !== 'book' && !homeCardPopup && !mapScreen} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
       {tab === 'home' && <>
-        <View style={S.homeHeading}><View style={S.hairline} /><Text style={S.chapter}>日々を、ひとめぐり。</Text><View style={S.hairline} /></View>
-        <View><Companion pet={pet} haptics={data.haptics} onBond={journey.bond} /></View>
-        <View style={S.homeStepsSlot}>{renderHomeStepsCard()}</View>
-        <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby' ? true : undefined} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
-          <View style={S.homeWidgetGrid}>{data.homeWidgetOrder.map(renderHomeWidget)}</View>
+        <View style={[S.homeScene, { minHeight: Math.max(590, scrollViewportHeight) }]}>
+          <View style={[S.homeHeading, S.homeHeadingOverlay]}><View style={S.hairline} /><Text style={S.chapter}>一歩を、ひとめぐり。</Text><View style={S.hairline} /></View>
+          <View style={S.homeGoshuinRow} accessibilityLabel="ホームに飾る御朱印">
+            {homeGoshuin.map((shrine, index) => <Pressable key={`${index}-${shrine.id}`} artwork={false} accessibilityRole="button" accessibilityLabel={`${shrine.name}の御朱印。飾る御朱印を変更`} onPress={() => setHomeGoshuinPickerSlot(index as 0 | 1 | 2)} style={S.homeGoshuinFrame}>
+              <Image pointerEvents="none" source={HOME_GOSHUIN_PAPER} contentFit="contain" style={S.homeGoshuinPaper} />
+              <Image pointerEvents="none" source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.homeGoshuinImage} />
+            </Pressable>)}
+          </View>
+          <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${pet.name}をなでる`} onPress={journey.bond} style={S.homeMainPet}>
+            <View pointerEvents="none" style={S.homePetShadow} /><Image pointerEvents="none" source={pet.image} contentFit="contain" style={S.homeMainPetImage} />
+          </Pressable>
+          <View style={S.homeKeychainRail} accessibilityLabel={`飾っているミニチュアキーホルダー${homeKeychains.length}個`}>
+            {Array.from({ length: 4 }, (_, index) => {
+              const keychain = homeKeychains[index];
+              return <View key={keychain?.id ?? `empty-${index}`} style={S.homeKeychainSlot}>{keychain ? <Image source={keychain.image} contentFit="contain" style={S.homeKeychainImage} /> : null}</View>;
+            })}
+          </View>
+          <View style={S.homeStepsDock}>{renderHomeStepsCard()}</View>
         </View>
       </>}
 
@@ -487,6 +524,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </ScrollView>
     <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} screenLabel={floatingScreenLabel} menuActions={activeMenuActions} menuOpen={petMenuOpen} onPress={() => setPetMenuOpen(open => !open)} onMenuToggle={() => setPetMenuOpen(false)} />
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
+    <Modal transparent visible={homeGoshuinSlot !== null} animationType="fade" onRequestClose={() => setHomeGoshuinPickerSlot(null)}>
+      <SafeAreaView style={S.homeGoshuinPickerRoot}><View style={S.homeGoshuinPickerCard} accessibilityViewIsModal accessibilityLabel="ホームに飾る御朱印を選ぶ">
+        <View style={S.homeGoshuinPickerHeader}><View><Text style={S.homeGoshuinPickerTitle}>飾る御朱印を選ぶ</Text><Text style={S.homeGoshuinPickerNote}>所持している御朱印から1枚選択</Text></View><Close onPress={() => setHomeGoshuinPickerSlot(null)} /></View>
+        <ScrollView contentContainerStyle={S.homeGoshuinPickerGrid}>{homeGoshuinFallback.map(shrine => <Pressable key={shrine.id} artwork={false} accessibilityRole="radio" accessibilityLabel={shrine.name} accessibilityState={{ selected: homeGoshuinSlot !== null && data.homeGoshuinSelection[homeGoshuinSlot] === shrine.id }} onPress={() => { if (homeGoshuinSlot !== null) journey.saveHomeGoshuinSelection(setHomeGoshuinSlot(data.homeGoshuinSelection, homeGoshuinSlot, shrine.id)); setHomeGoshuinPickerSlot(null); }} style={S.homeGoshuinPickerItem}><Image source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.homeGoshuinPickerImage} /></Pressable>)}</ScrollView>
+      </View></SafeAreaView>
+    </Modal>
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={data.pet} onConfirm={selectedPet => { journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => { if (value === 'walk') setOutingTab('count'); move(value); }} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={activeMenuActions} disabled={!!homePopup || !!homeCardPopup} />
     {homeCardPopup && <HomeWidgetPopup
@@ -539,13 +582,53 @@ function Close({ onPress }: { onPress: () => void }) { return <Pressable accessi
 function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name']; text: string }) { return <View style={S.meta}><Icon name={icon} size={18} color={C.gold} /><Text style={S.metaText}>{text}</Text></View>; }
 
 const S = StyleSheet.create({
-  homeStepsSlot: { marginTop: -27, marginBottom: 2 }, homeStepsCard: { width: '100%', height: 132, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', overflow: 'hidden', alignItems: 'stretch' },
+  homeContent: { paddingHorizontal: 0, paddingBottom: 0 },
+  homeScene: { position: 'relative', width: '100%', overflow: 'hidden' },
+  homeBackgroundTrack: { bottom: 0 },
+  homeBackgroundArt: { opacity: 1 },
+  homeBackgroundWash: { opacity: 0 },
+  bookBackgroundTrack: { bottom: 0 },
+  bookBackgroundArt: { opacity: 1 },
+  bookBackgroundWash: { opacity: 0 },
+  homeNorenOverlay: { position: 'absolute', top: '-2%', left: '3%', right: '3%', height: '10%', zIndex: 2 },
+  homeTopKeyholderOverlay: { position: 'absolute', top: 0, left: '1%', width: '20%', height: '20%', zIndex: 2, transform: [{ rotate: '-12deg' }] },
+  homeGoshuinRow: { position: 'absolute', top: '14%', left: '7%', right: '7%', height: '25%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch', zIndex: 1 },
+  homeGoshuinFrame: { width: '30%', height: '100%', alignItems: 'center', justifyContent: 'center', padding: 2 },
+  homeGoshuinPaper: { ...StyleSheet.absoluteFillObject },
+  homeGoshuinImage: { width: '100%', height: '100%' },
+  homeMainPet: { position: 'absolute', top: '30%', left: '23%', right: '23%', height: '33%', alignItems: 'center', justifyContent: 'flex-end', zIndex: 3, transform: [{ translateY: 10 }] },
+  homeMainPetImage: { width: '100%', height: '100%' },
+  homePetShadow: { position: 'absolute', bottom: 10, width: '58%', height: 15, borderRadius: 40, backgroundColor: '#30261735' },
+  homeKeychainRail: { position: 'absolute', top: '58.5%', left: '9%', right: '9%', height: '21%', flexDirection: 'row', justifyContent: 'space-between', zIndex: 3 },
+  homeKeychainSlot: { width: '22%', height: '100%', alignItems: 'center' },
+  homeKeychainImage: { width: '100%', height: '100%' },
+  homeStepsDock: { position: 'absolute', left: '8%', right: '8%', bottom: 40, height: 92, zIndex: 5 },
+  homeStepSummary: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, gap: 10 },
+  homeStepRing: { width: 58, height: 58, alignItems: 'center', justifyContent: 'center' },
+  homeStepRingValue: { position: 'absolute', color: '#3A4A34', fontSize: 10, fontWeight: '600' },
+  homeStepMain: { flex: 1, alignItems: 'center' },
+  homeStepLabel: { color: '#6E665A', fontFamily: SERIF, fontSize: 9, letterSpacing: .3 },
+  homeSummaryValue: { color: '#33452F', fontSize: 28, fontWeight: '300', marginTop: 1 },
+  homeSummaryUnit: { color: '#6E665A', fontFamily: SERIF, fontSize: 11, marginLeft: 2 },
+  homeStepDivider: { width: 1, height: 50, backgroundColor: '#C9C6B8' },
+  homeStepGoal: { width: 92, alignItems: 'center' },
+  homeStepGoalValue: { color: '#33452F', fontFamily: SERIF, fontSize: 16, marginTop: 3 },
+  homeGoshuinPickerRoot: { flex: 1, backgroundColor: '#241B13A8', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  homeGoshuinPickerCard: { width: '100%', maxWidth: 440, maxHeight: '82%', borderRadius: 24, backgroundColor: '#FFF9EF', borderWidth: 1, borderColor: '#C8A77D', padding: 16, overflow: 'hidden' },
+  homeGoshuinPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  homeGoshuinPickerTitle: { fontFamily: SERIF, fontSize: 20, color: C.ink },
+  homeGoshuinPickerNote: { color: C.muted, fontSize: 10, marginTop: 4 },
+  homeGoshuinPickerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, paddingBottom: 12 },
+  homeGoshuinPickerItem: { width: '31%', aspectRatio: 2 / 3, borderRadius: 9, backgroundColor: '#F1E7D6', borderWidth: 1, borderColor: '#D8C7B0', overflow: 'hidden', padding: 3 },
+  homeGoshuinPickerImage: { width: '100%', height: '100%' },
+  homeStepsSlot: { marginTop: -27, marginBottom: 2 }, homeStepsCard: { width: '100%', height: 92, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', overflow: 'hidden', alignItems: 'stretch' },
   desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundScrollLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, overflow: 'hidden' }, backgroundScrollTrack: { position: 'absolute', left: 0, right: 0, top: 0, bottom: -260 }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, collectionBackdropViewport: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#F5E8D4' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, bottom: -260, flexDirection: 'row' }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 12 },
   homeWidgetDropTarget: { borderWidth: 3, borderColor: '#B84C3D', transform: [{ scale: 1.025 }], shadowColor: '#8B2F23', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .35, shadowRadius: 9, elevation: 8 },
   homeDropOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#8B2F234D' },
   headerLogo: { width: 124, height: 45, marginTop: 5 },
+  homeHeader: { transform: [{ translateY: 30 }], zIndex: 20 }, homeHeaderSide: { opacity: 0 },
   header: { height: 87, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, headerSide: { width: 63 }, brandMini: { color: C.muted, fontSize: 8, lineHeight: 16, letterSpacing: .2 }, brand: { flexDirection: 'row', alignItems: 'center', gap: 5 }, logo: { fontFamily: 'ShipporiBold', fontSize: 39, letterSpacing: 2, color: C.ink }, logoMark: { width: 38, height: 38, borderRadius: 6, marginTop: 9, transform: [{ rotate: '8deg' }] }, gear: { width: 63, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  content: { paddingHorizontal: 24, paddingBottom: 24 }, homeHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 0, marginBottom: 4 }, hairline: { width: 30, height: 1, backgroundColor: '#CDBEAC' }, chapter: { fontFamily: SERIF, color: '#766452', fontSize: 14, letterSpacing: 2 },
+  content: { paddingHorizontal: 24, paddingBottom: 24 }, homeHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 0, marginBottom: 4 }, homeHeadingOverlay: { position: 'absolute', top: 26, left: 0, right: 0, zIndex: 2 }, hairline: { width: 30, height: 1, backgroundColor: '#CDBEAC' }, chapter: { fontFamily: SERIF, color: '#766452', fontSize: 14, letterSpacing: 2 },
   demoBar: { backgroundColor: '#EEE1CA', paddingLeft: 17, minHeight: 28, alignItems: 'center', flexDirection: 'row', gap: 5 }, collectionChrome: { backgroundColor: 'transparent' }, dot: { height: 4, width: 4, backgroundColor: C.red, borderRadius: 5 }, demoText: { color: '#8A6950', fontSize: 9, flex: 1 }, error: { backgroundColor: '#F5DCD4', margin: 10, padding: 9, flexDirection: 'row', alignItems: 'center', borderRadius: 8 }, errorText: { color: '#813D31', flexShrink: 1, fontSize: 12, lineHeight: 19 }, collectionHeader: { backgroundColor: 'transparent' },
   routeHero: { minHeight: 88, borderRadius: 16, padding: 17, paddingHorizontal: 19, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F6EEDDDD', borderWidth: 1, borderColor: '#D9C7AE', marginVertical: 10 }, routeHeroTitle: { fontFamily: SERIF, color: C.ink, fontSize: 19, marginVertical: 7 }, homeCompanionHidden: { opacity: 0 }, homeWidgetsHidden: { opacity: 0 }, homeWidgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'space-between', marginTop: 5, marginBottom: 8 }, homeWidgetCard: { width: '48%', height: 244, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', padding: 11, overflow: 'hidden', alignItems: 'stretch' }, homeCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 23 }, homeCardTitle: { flex: 1, color: C.ink, fontFamily: SERIF, fontSize: 14, letterSpacing: .4 }, homeCardSub: { color: C.muted, fontSize: 9, marginTop: 3 }, homeStampWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 5 }, homeStamp: { width: '76%', maxWidth: 112 }, homeCardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, minHeight: 21 }, homeCardLink: { color: C.red, fontSize: 9 }, homeImageCard: { padding: 0, position: 'relative', justifyContent: 'space-between' }, homeCardImage: { ...StyleSheet.absoluteFillObject }, homeCardImageWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241A50' }, homeMapImageWash: { backgroundColor: '#31433655' }, homeImageHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingTop: 11 }, homeImageTitle: { color: '#FFF9EF', fontFamily: SERIF, fontSize: 13, letterSpacing: .3 }, homeImageCopy: { paddingHorizontal: 11, marginTop: 'auto', paddingBottom: 7 }, homeImageRoute: { color: '#FFF9EF', fontFamily: SERIF, fontSize: 16, textShadowColor: '#2B241A80', textShadowRadius: 3 }, homeImageNote: { color: '#FFF9EFD9', fontSize: 8, lineHeight: 14, marginTop: 3 }, homeImageFooter: { minHeight: 29, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, backgroundColor: '#2B241A45' }, homeImageLink: { color: '#FFF9EF', fontSize: 9 }, homeStepsDate: { color: C.muted, fontSize: 8, marginTop: 6 }, homeStepValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 8, marginBottom: 8 }, homeStepValue: { color: C.ink, fontSize: 35, fontWeight: '300', letterSpacing: .5 }, homeStepUnit: { color: C.muted, fontFamily: SERIF, fontSize: 13 }, homeStepCaption: { color: '#746959', fontSize: 9, lineHeight: 16, marginTop: 9 }, homeMapCard: { minHeight: 78, borderRadius: 16, padding: 17, paddingHorizontal: 19, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F6EEDDDD', borderWidth: 1, borderColor: '#D9C7AE', marginVertical: 10 }, homeMapTitle: { fontFamily: SERIF, color: C.ink, fontSize: 18, marginVertical: 6 },
   stepsCard: { padding: 20, backgroundColor: '#FFFCF5', borderWidth: 1, borderColor: C.line, borderRadius: 19, marginTop: 7, overflow: 'hidden' }, between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, eyebrow: { fontSize: 10, color: C.muted, letterSpacing: 1 }, refresh: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 24 }, tiny: { fontSize: 9, color: C.muted }, stepValueRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 17, gap: 7 }, stepValue: { fontSize: 52, fontWeight: '300', color: C.ink, letterSpacing: 1 }, stepUnit: { fontFamily: SERIF, fontSize: 16, color: C.muted }, stepFlower: { marginLeft: 'auto', alignSelf: 'center', marginRight: 6 }, stepCaption: { color: '#746959', fontSize: 11 },

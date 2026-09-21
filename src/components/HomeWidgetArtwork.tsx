@@ -32,11 +32,10 @@ export function HomeMapArtwork() {
   </View>;
 }
 
-function WalkSprite({ source, frame }: { source: ImageSourcePropType; frame: number }) {
+function WalkSprite({ source, frame, targetHeight = 80 }: { source: ImageSourcePropType; frame: number; targetHeight?: number }) {
   // Use an integer-sized source cell so the viewport edge never lands between
   // source pixels. This avoids the texture filter pulling a sliver of the
   // previous/next walk cut into the current frame.
-  const targetHeight = 80;
   const targetScale = targetHeight / PILGRIMAGE_WALK_ATLAS_HEIGHT;
   const frameWidth = Math.max(1, Math.round(PILGRIMAGE_WALK_FRAME_WIDTH * targetScale));
   const scale = frameWidth / PILGRIMAGE_WALK_FRAME_WIDTH;
@@ -68,7 +67,7 @@ function NeutralWalkingSprite({ source }: { source: ImageSourcePropType }) {
   </Animated.View>;
 }
 
-export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps = steps, totalSteps = steps, previousPointSteps = 0, nextPointSteps, background, horizontal = false }: { petId: PetId; petImage: ImageSourcePropType; progress: number; steps: number; todaySteps?: number; totalSteps?: number; previousPointSteps?: number; nextPointSteps: number | null; background: ImageSourcePropType; horizontal?: boolean }) {
+export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps = steps, totalSteps = steps, previousPointSteps = 0, nextPointSteps, background, horizontal = false, compact = false }: { petId: PetId; petImage: ImageSourcePropType; progress: number; steps: number; todaySteps?: number; totalSteps?: number; previousPointSteps?: number; nextPointSteps: number | null; background: ImageSourcePropType; horizontal?: boolean; compact?: boolean }) {
   const [frame, setFrame] = useState(0);
   const walkSource = PILGRIMAGE_WALK_ATLASES[petId];
   const ratio = Math.max(0, Math.min(1, progress));
@@ -81,9 +80,25 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
     return () => clearInterval(timer);
   }, [walkSource]);
 
-  return <View pointerEvents="none" style={[S.stepsStage, horizontal && S.stepsStageHorizontal]}>
+  return <View pointerEvents="none" style={[S.stepsStage, horizontal && S.stepsStageHorizontal, compact && S.stepsStageCompact]}>
     <CardBackground source={background} />
-    {horizontal ? <View style={S.stepsHorizontalContent}>
+    {horizontal ? compact ? <View style={S.stepsCompactContent}>
+      <View style={S.stepsCompactHeader}>
+        <Text style={S.stepsCompactHeaderText}>
+          今日の歩数 <Text style={S.stepsCompactHeaderValue}>{todaySteps.toLocaleString('ja-JP')}歩</Text>
+          <Text style={S.stepsCompactHeaderSlash}>/</Text>
+          次の寺社まで <Text style={S.stepsCompactHeaderValue}>{nextPointSteps === null ? '結願' : `${nextPointSteps.toLocaleString('ja-JP')}歩`}</Text>
+        </Text>
+      </View>
+      <View style={S.stepsCompactTrack}>
+        <View style={S.stepsCompactLine} />
+        <View style={[S.stepsCompactLineFill, { width: `${ratio * 100}%` }]} />
+        <View style={[S.stepsCompactPoint, { left: `${ratio * 100}%` }]} />
+        <View style={[S.stepsCompactSpriteAnchor, { left: `${spriteRatio * 100}%` }]}>
+          {walkSource ? <WalkSprite source={walkSource} frame={frame} targetHeight={54} /> : <NeutralWalkingSprite source={petImage} />}
+        </View>
+      </View>
+    </View> : <View style={S.stepsHorizontalContent}>
       <View style={S.stepsTrack}>
         <View style={S.stepsLine} />
         <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]} />
@@ -121,6 +136,17 @@ const S = StyleSheet.create({
   mapStage: { flex: 1, width: '100%', position: 'relative', overflow: 'hidden', backgroundColor: '#E7E0CC' },
   stepsStage: { flex: 1, width: '100%', position: 'relative', overflow: 'hidden' },
   stepsStageHorizontal: { minHeight: 126 },
+  stepsStageCompact: { minHeight: 0 },
+  stepsCompactContent: { flex: 1, position: 'relative', zIndex: 1 },
+  stepsCompactHeader: { position: 'absolute', left: 8, right: 8, top: 10, alignItems: 'center', justifyContent: 'center' },
+  stepsCompactHeaderText: { flexShrink: 1, color: '#766452', fontFamily: 'ShipporiBold', fontSize: 12.6, letterSpacing: .15 },
+  stepsCompactHeaderSlash: { marginHorizontal: 4, color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 14 },
+  stepsCompactHeaderValue: { color: '#3A3127', fontFamily: 'ShipporiBold', fontSize: 18.2, letterSpacing: .1 },
+  stepsCompactTrack: { position: 'absolute', left: 14, right: 14, bottom: 9, height: 45 },
+  stepsCompactLine: { position: 'absolute', left: 0, right: 0, top: 25, height: 4, borderRadius: 3, backgroundColor: '#D7C8B6' },
+  stepsCompactLineFill: { position: 'absolute', left: 0, top: 25, height: 4, borderRadius: 3, backgroundColor: '#A54E42' },
+  stepsCompactPoint: { position: 'absolute', top: 18, width: 18, height: 18, marginLeft: -9, borderRadius: 9, borderWidth: 3, borderColor: '#A54E42', backgroundColor: '#FFF9EF', zIndex: 2 },
+  stepsCompactSpriteAnchor: { position: 'absolute', top: -2, width: 42, height: 54, marginLeft: -21, alignItems: 'center', justifyContent: 'flex-end', zIndex: 3 },
   stepsHorizontalContent: { flex: 1, position: 'relative', zIndex: 1 },
   stepsTrack: { position: 'absolute', left: 18, right: 18, top: 42, height: 62 },
   stepsPreviousLabel: { position: 'absolute', left: 0, top: 8, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 9 },
