@@ -8,10 +8,11 @@ import { isPetId, type PetId } from '../petCatalog';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
 import { declineKeychainDrop, emptySpecialCollection, grantPass, normalizeSpecialCollection, purchasePass, redeemCoverChange as redeemCoverChangeState, redeemKeychainDrop, redeemPass, rollSpecialDrop, type PassKind, type SpecialCollection, type SpecialKind } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
+import { localOmikujiDay } from '../data/omikuji';
 
 const KEY = '@mobidou/journey/v1';
 export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
-type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems };
+type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null };
 export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
 export type BookDesignState = { bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns };
 
@@ -56,7 +57,7 @@ export function setActiveBookDesigns<T extends { demo: boolean; bookDesigns: Boo
 const initial = (): Saved => {
   const realBookDesigns = emptyBookDesigns();
   const trialBookDesigns = emptyBookDesigns();
-  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS] };
+  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null };
 };
 
 function addDropsForNewRewards(collection: SpecialCollection, previous: Progress, next: Progress) {
@@ -98,7 +99,7 @@ export function useJourney() {
         if (p.version !== 1) throw new Error('Unsupported save');
         const demo = p.demo === true;
         const bookDesignState = normalizeBookDesignState({ demo, bookDesigns: p.bookDesigns, realBookDesigns: p.realBookDesigns, trialBookDesigns: p.trialBookDesigns });
-        const loaded: Saved = { ...initial(), onboarded: p.onboarded === true, demo, real: normalizeProgress(p.real), trial: normalizeProgress(p.trial), realSpecial: normalizeSpecialCollection(p.realSpecial), trialSpecial: normalizeSpecialCollection(p.trialSpecial), ...bookDesignState, pet: isPetId(p.pet) ? p.pet : 'mobibou', haptics: p.haptics !== false, source: ['healthkit', 'motion'].includes(p.source) ? p.source : 'none', backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : initial().backgroundId, homeWidgetOrder: normalizeHomeWidgetOrder(p.homeWidgetOrder), homeWidgetItems: normalizeHomeWidgetItems(p.homeWidgetItems), routes: Object.fromEntries(Object.entries(p.routes ?? {}).map(([key, value]) => [key, normalizeProgress(value)])), affection: Object.fromEntries(Object.entries(p.affection ?? {}).filter(([k, v]) => isPetId(k) && Number.isFinite(v) && v >= 0)) };
+        const loaded: Saved = { ...initial(), onboarded: p.onboarded === true, demo, real: normalizeProgress(p.real), trial: normalizeProgress(p.trial), realSpecial: normalizeSpecialCollection(p.realSpecial), trialSpecial: normalizeSpecialCollection(p.trialSpecial), ...bookDesignState, pet: isPetId(p.pet) ? p.pet : 'mobibou', haptics: p.haptics !== false, source: ['healthkit', 'motion'].includes(p.source) ? p.source : 'none', backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : initial().backgroundId, homeWidgetOrder: normalizeHomeWidgetOrder(p.homeWidgetOrder), homeWidgetItems: normalizeHomeWidgetItems(p.homeWidgetItems), routes: Object.fromEntries(Object.entries(p.routes ?? {}).map(([key, value]) => [key, normalizeProgress(value)])), affection: Object.fromEntries(Object.entries(p.affection ?? {}).filter(([k, v]) => isPetId(k) && Number.isFinite(v) && v >= 0)), omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null };
         loaded.realSpecial = loaded.real.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.realSpecial);
         loaded.trialSpecial = loaded.trial.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.trialSpecial);
         current.current = loaded; setData(loaded);
@@ -163,6 +164,7 @@ export function useJourney() {
     choosePet: (pet: PetId) => change(p => ({ ...p, pet })),
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),
     saveHomeWidgetItems: (items: HomeWidgetItems) => change(p => ({ ...p, homeWidgetItems: normalizeHomeWidgetItems(items) })),
+    drawDailyOmikuji: () => change(p => ({ ...p, omikujiDay: localOmikujiDay() })),
     chooseBackground: (backgroundId: BackgroundId) => change(p => ({ ...p, backgroundId })),
     purchaseBookDesign: (routeId: string) => change(p => setActiveBookDesigns(p, { owned: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).owned, [routeId]: true }, selected: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).selected, [routeId]: 'route' } })),
     selectBookDesign: (routeId: string, design: 'normal' | 'route') => change(p => {

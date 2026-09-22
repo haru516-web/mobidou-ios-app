@@ -8,7 +8,7 @@ import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { CUSTOM_HOME_WIDGET_IDS, setHomeWidgetSlot, type CustomHomeWidgetId, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
-import { HomeGoshuinArtwork, HomeMapArtwork, HomeMiniatureArtwork } from './HomeWidgetArtwork';
+import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork } from './HomeWidgetArtwork';
 
 // `borderCurve` is only supported by iOS. Keeping it out of the web/Android
 // style object avoids platform warnings while preserving the same smooth
@@ -164,7 +164,7 @@ function usePopupBackHandler(onBack: () => void) {
 
 const HOME_WIDGET_META: Record<HomeWidgetId, { title: string; note: string; icon: React.ComponentProps<typeof Icon>['name'] }> = {
   goshuin: { title: '御朱印', note: 'ご縁の記録', icon: 'flower-outline' },
-  miniature: { title: '巡礼ミニチュア', note: '旅の景色', icon: 'cube-outline' },
+  miniature: { title: '毎日おみくじ', note: '一日一度のご縁', icon: 'document-text-outline' },
   map: { title: '巡礼マップ', note: '次の場所へ', icon: 'map-outline' },
   steps: { title: '歩数', note: '今日のあしあと', icon: 'footsteps-outline' },
 };
@@ -201,7 +201,7 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
     setPickerSlot(slot);
   };
   const placeWidget = (widget: CustomHomeWidgetId, slot: 0 | 1) => {
-    if (widget === 'goshuin' || widget === 'miniature') openItemPicker(slot);
+    if (widget === 'goshuin') openItemPicker(slot);
     setDraft(current => {
       const next = setHomeWidgetSlot(current, slot, widget);
       onSave(next);
@@ -215,10 +215,9 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
     setDraftItems(next); setPendingItem(next); onSaveItems(next); onDragTarget(null);
   };
   usePopupBackHandler(closePopup);
-  const miniatureSource = COLLECTION_KEYCHAINS[latest.id as keyof typeof COLLECTION_KEYCHAINS];
   const renderWidgetArtwork = (id: CustomHomeWidgetId) => {
     if (id === 'goshuin') return <HomeGoshuinArtwork source={STAMP_IMAGES[latest.id]} background={background} />;
-    if (id === 'miniature') return <HomeMiniatureArtwork source={miniatureSource} background={background} />;
+    if (id === 'miniature') return <HomeOmikujiArtwork rank="吉" title="今日のご縁を、迎えにいこう" action="選んだモビーがおみくじを引きます" />;
     return <HomeMapArtwork />;
   };
 
@@ -261,7 +260,7 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
               onPanResponderTerminate: () => { onDragTarget(null); Animated.spring(drag, { toValue: { x: 0, y: 0 }, useNativeDriver: Platform.OS !== 'web' }).start(); },
             });
             return <Animated.View key={id} {...responder.panHandlers} style={[S.widgetTile, selected && S.widgetTileSelected, { transform: drag.getTranslateTransform() }]}>
-              <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${meta.title}${selected ? `。ホームの${selectedIndex === 0 ? '左' : '右'}に表示中` : ''}`} accessibilityHint="下へドラッグしてホームに配置します" onPress={() => { if (selected && (id === 'goshuin' || id === 'miniature')) openItemPicker(selectedIndex as 0 | 1); }} style={S.widgetTilePressable}>
+              <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${meta.title}${selected ? `。ホームの${selectedIndex === 0 ? '左' : '右'}に表示中` : ''}`} accessibilityHint="下へドラッグしてホームに配置します" onPress={() => { if (selected && id === 'goshuin') openItemPicker(selectedIndex as 0 | 1); }} style={S.widgetTilePressable}>
               <View pointerEvents="none" style={S.widgetTileArtwork}>
                 <View style={[S.widgetTileCanvas, {
                   width: `${100 / CUSTOM_WIDGET_PREVIEW_SCALE}%`,

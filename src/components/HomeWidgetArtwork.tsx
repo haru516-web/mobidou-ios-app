@@ -12,10 +12,17 @@ function CardBackground({ source, shade = '#FFF9EFA8' }: { source: ImageSourcePr
   </>;
 }
 
-export function HomeGoshuinArtwork({ source, background }: { source: ImageSourcePropType; background: ImageSourcePropType }) {
+export function HomeGoshuinArtwork({ source }: { source: ImageSourcePropType; background?: ImageSourcePropType }) {
   return <View pointerEvents="none" style={S.artworkStage}>
-    <CardBackground source={background} />
-    <Image accessible={false} source={source} contentFit="contain" style={S.artworkImage} />
+    <Image accessible={false} source={source} contentFit="contain" style={S.goshuinOnly} />
+  </View>;
+}
+
+export function HomeOmikujiArtwork({ rank, title, action }: { rank: string; title: string; action: string }) {
+  return <View pointerEvents="none" style={S.omikujiStage}>
+    <Text style={S.omikujiKicker}>本日のご縁みくじ</Text><Text style={S.omikujiRank}>{rank}</Text>
+    <Text numberOfLines={2} style={S.omikujiTitle}>{title}</Text><View style={S.omikujiRule} />
+    <Text style={S.omikujiActionLabel}>今日の小さな開運</Text><Text numberOfLines={2} style={S.omikujiAction}>{action}</Text>
   </View>;
 }
 
@@ -115,6 +122,13 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
 
 const S = StyleSheet.create({
   artworkStage: { flex: 1, width: '100%', position: 'relative' },
+  goshuinOnly: { width: '88%', height: '92%', alignSelf: 'center', marginTop: '4%' },
+  omikujiStage: { flex: 1, margin: 9, padding: 12, borderWidth: 1, borderColor: '#CDAF82', backgroundColor: '#FFF9EAEE', borderRadius: 4, alignItems: 'center' },
+  omikujiKicker: { color: '#8B6B51', fontFamily: 'ShipporiBold', fontSize: 8, letterSpacing: 1.3 },
+  omikujiRank: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 36, marginTop: 5 },
+  omikujiTitle: { color: '#3D3028', fontFamily: 'ShipporiBold', textAlign: 'center', fontSize: 12, lineHeight: 18 },
+  omikujiRule: { width: '70%', height: 1, backgroundColor: '#D8C3A6', marginVertical: 10 },
+  omikujiActionLabel: { color: '#8B6B51', fontSize: 8 }, omikujiAction: { color: '#5E5045', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 4 },
   artworkImage: { ...StyleSheet.absoluteFillObject },
   cardBackground: { ...StyleSheet.absoluteFillObject },
   cardBackgroundShade: { ...StyleSheet.absoluteFillObject },

@@ -12,7 +12,7 @@ import type { PassKind, SpecialCollection } from '../services/specialRewards';
 
 const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.png');
 const WALL_HOOK = require('../../assets/collection/collection-wall-hook-v2.png');
-const COLLECTION_BACKDROP = require('../../assets/collection/collection-cabinet-washi-backdrop-v1.png');
+const COLLECTION_BACKDROP = require('../../assets/collection/collection-room-home-harmony-v1.png');
 const COVER_CHANGE_TICKET = require('../../assets/tickets/ticket-cover-change-v1.png');
 const KEYCHAIN_DROP_TICKET = require('../../assets/tickets/ticket-keychain-drop-v1.png');
 const SERIF = 'Shippori';
