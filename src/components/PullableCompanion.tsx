@@ -143,11 +143,13 @@ export function PullableCompanion({
   haptics,
   onBond,
   reactionTrigger,
+  onStageLayout,
 }: {
   pet: PetCharacter;
   haptics: boolean;
   onBond: () => void;
   reactionTrigger?: number;
+  onStageLayout?: (layout: { y: number; height: number }) => void;
 }) {
   useWebPointerCapture();
 
@@ -584,7 +586,7 @@ export function PullableCompanion({
         <Text accessibilityLiveRegion="polite" style={styles.bubbleText}>{line}</Text>
         <View style={styles.bubbleTail} />
       </View>
-      <View style={styles.stage}>
+      <View style={styles.stage} onLayout={onStageLayout ? ({ nativeEvent }) => onStageLayout({ y: nativeEvent.layout.y, height: nativeEvent.layout.height }) : undefined}>
         <Animated.View style={[styles.characterMotion, { transform: [{ translateX: specialTranslateX }, { translateY: specialTranslateY }, { scale: specialScale }] }]}>
           <Animated.View
             {...panResponder.panHandlers}

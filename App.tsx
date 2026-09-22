@@ -39,7 +39,16 @@ const fmt = (n: number) => n.toLocaleString('ja-JP');
 const OPENING_WORDMARK = require('./assets/mobidou-wordmark-brush.png');
 const OPENING_EMBLEM = require('./assets/mobidou-opening-emblem.png');
 const COLLECTION_BACKDROP = require('./assets/collection/collection-cabinet-washi-backdrop-v1.png');
+const HOME_SCENE_BACKGROUND = require('./assets/backgrounds/mobidou-home-cushion-background-extended-v2.png');
 const GOSHUIN_BOOK_BACKGROUND = require('./assets/backgrounds/mobidou-goshuin-book-background-v2.png');
+const HOME_BACKGROUND_SOURCE_HEIGHT = 2880;
+const HOME_BACKGROUND_FLOOR_SOURCE_Y = 862;
+const HOME_BACKGROUND_CUSHION_SOURCE_Y = 820;
+const HOME_BACKGROUND_FLOOR_RATIO = HOME_BACKGROUND_FLOOR_SOURCE_Y / HOME_BACKGROUND_SOURCE_HEIGHT;
+const HOME_BACKGROUND_CUSHION_OFFSET_RATIO = (HOME_BACKGROUND_FLOOR_SOURCE_Y - HOME_BACKGROUND_CUSHION_SOURCE_Y) / HOME_BACKGROUND_SOURCE_HEIGHT;
+// The character PNG has a small transparent lower margin. Keep that margin
+// above the image's cushion surface so the visible feet land on the cushion.
+const HOME_CHARACTER_CUSHION_FOOT_INSET = 23;
 const OPENING_TIMELINE = [
   { id: '0500-pre-dawn', time: '05:00', label: '明け方', image: require('./assets/backgrounds/opening-cycle/01-0500-pre-dawn.png') },
   { id: '0600-sunrise', time: '06:00', label: '朝焼け', image: require('./assets/backgrounds/opening-cycle/02-0600-sunrise.png') },
@@ -59,6 +68,8 @@ const OPENING_TIMELINE = [
   { id: '0430-before-dawn', time: '04:30', label: '夜明け前', image: require('./assets/backgrounds/opening-cycle/16-0430-before-dawn.png') },
 ] as const;
 function displayDate(day: string) { const [y, m, d] = day.split('-'); return `${y}年${Number(m)}月${Number(d)}日`; }
+
+type HomeLayout = { y: number; height: number };
 
 function StepRing({ steps, goal }: { steps: number; goal: number }) {
   const size = 248;
@@ -227,6 +238,35 @@ function CollectionBackdrop({ scrollY, viewportWidth, viewportHeight }: { scroll
   </View>;
 }
 
+function getHomeBackgroundMetrics(floorY: number | null, viewportHeight: number) {
+  const height = Math.max(1, viewportHeight);
+  const measuredFloorY = Math.max(0, Math.min(height, floorY ?? Math.round(height * HOME_BACKGROUND_FLOOR_RATIO)));
+  const artHeight = floorY === null
+    ? height
+    : Math.max(
+      height,
+      measuredFloorY / HOME_BACKGROUND_FLOOR_RATIO,
+      (height - measuredFloorY) / Math.max(.001, 1 - HOME_BACKGROUND_FLOOR_RATIO),
+    );
+  return {
+    measuredFloorY,
+    artHeight,
+    artTop: measuredFloorY - artHeight * HOME_BACKGROUND_FLOOR_RATIO,
+    cushionOffset: artHeight * HOME_BACKGROUND_CUSHION_OFFSET_RATIO,
+  };
+}
+
+function HomeAnchoredBackground({ floorY, viewportHeight }: { floorY: number | null; viewportHeight: number }) {
+  // Anchor the source row where the cushion meets the floor to the measured
+  // card position. The extended floor absorbs extra height on tall screens.
+  const { artHeight, artTop } = getHomeBackgroundMetrics(floorY, viewportHeight);
+  const artStyle = { position: 'absolute' as const, left: 0, right: 0, top: artTop, height: artHeight };
+
+  return <View pointerEvents="none" style={S.backgroundScrollLayer}>
+    <Image source={HOME_SCENE_BACKGROUND} contentFit="fill" style={artStyle} />
+  </View>;
+}
+
 function Main({ fontsReady }: { fontsReady: boolean }) {
   const journey = useJourney();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -256,6 +296,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [collectionView, setCollectionView] = useState<CollectionView>('collection');
   const [backgroundSeason, setBackgroundSeason] = useState<BackgroundSeason>(() => getBackgroundOption(data.backgroundId).season);
   const [scrollViewportHeight, setScrollViewportHeight] = useState(0);
+  const [homeScrollLayout, setHomeScrollLayout] = useState<HomeLayout | null>(null);
+  const [homeCardGroupLayout, setHomeCardGroupLayout] = useState<HomeLayout | null>(null);
+  const [homeStepsSlotLayout, setHomeStepsSlotLayout] = useState<HomeLayout | null>(null);
+  const [homeCompanionLayout, setHomeCompanionLayout] = useState<HomeLayout | null>(null);
+  const [homeStageLayout, setHomeStageLayout] = useState<HomeLayout | null>(null);
   const scroll = useRef<ScrollView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const pet = getPetCharacter(data.pet);
@@ -344,6 +389,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     ? 1
     : (routeSteps - previousPointSteps) / Math.max(1, nextTarget - previousPointSteps);
   const homeNextPointLabel = homeNextPointSteps === null ? '' : `次のポイントまで${fmt(homeNextPointSteps)}歩`;
+  const homeFloorContentY = homeCardGroupLayout && homeStepsSlotLayout
+    ? homeCardGroupLayout.y + homeStepsSlotLayout.y
+    : null;
+  const homeFloorY = homeFloorContentY === null || !homeScrollLayout
+    ? null
+    : homeScrollLayout.y + homeFloorContentY;
+  const homeBackgroundMetrics = getHomeBackgroundMetrics(homeFloorY, Math.max(1, windowHeight));
+  const homeCushionContentY = homeFloorContentY === null
+    ? null
+    : homeFloorContentY - homeBackgroundMetrics.cushionOffset;
+  const homeCharacterShiftY = homeCushionContentY === null || !homeCompanionLayout || !homeStageLayout
+    ? 0
+    : homeCushionContentY + HOME_CHARACTER_CUSHION_FOOT_INSET - (homeCompanionLayout.y + homeStageLayout.y + homeStageLayout.height);
   const openNextRoutePicker = () => { setRoutePickerAfterCompletion(true); setRoutePicker(true); };
   const selectPilgrimageRoute = (routeId: string) => {
     journey.selectRoute(routeId);
@@ -420,7 +478,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
   return <View style={S.desktop}><SafeAreaView style={S.app}>
-    {tab === 'collection' ? <CollectionBackdrop scrollY={scrollY} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : <>
+    {tab === 'collection' ? <CollectionBackdrop scrollY={scrollY} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
       <Animated.View pointerEvents="none" style={S.backgroundScrollLayer}>
         <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, tab === 'book' && S.bookBackgroundTrack, { transform: [{ translateY: tab === 'book' ? 0 : scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
           <Image source={tab === 'book' ? GOSHUIN_BOOK_BACKGROUND : currentBackground.image} contentFit="cover" style={[S.backgroundArt, tab === 'book' && S.bookBackgroundArt]} />
@@ -436,13 +494,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </View>
     {data.demo && <View style={[S.demoBar, tab === 'collection' && S.collectionChrome]}><View style={S.dot} /><Text style={S.demoText}>体験モード · 実際の歩数・御朱印帳とは別の記録</Text><Pressable accessibilityRole="button" accessibilityLabel="体験モードを終了" onPress={() => journey.enter(false)} style={{ padding: 7 }}><Icon name="close" size={14} color={C.red} /></Pressable></View>}
     {!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
-    <ScrollView ref={scroll} onLayout={({ nativeEvent }) => setScrollViewportHeight(previous => previous === nativeEvent.layout.height ? previous : nativeEvent.layout.height)} contentContainerStyle={[S.content, mapScreen && { paddingBottom: 0 }]} scrollEnabled={tab !== 'home' && tab !== 'book' && !homeCardPopup && !mapScreen} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
+    <ScrollView ref={scroll} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} contentContainerStyle={[S.content, tab === 'home' && S.homeContent, mapScreen && { paddingBottom: 0 }]} scrollEnabled={tab !== 'home' && tab !== 'book' && !homeCardPopup && !mapScreen} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
       {tab === 'home' && <>
         <View style={S.homeHeading}><View style={S.hairline} /><Text style={S.chapter}>日々を、ひとめぐり。</Text><View style={S.hairline} /></View>
-        <View><Companion pet={pet} haptics={data.haptics} onBond={journey.bond} /></View>
-        <View style={S.homeStepsSlot}>{renderHomeStepsCard()}</View>
-        <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby' ? true : undefined} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
-          <View style={S.homeWidgetGrid}>{data.homeWidgetOrder.map(renderHomeWidget)}</View>
+        <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? undefined : { transform: [{ translateY: homeCharacterShiftY }] }}>
+          <Companion pet={pet} haptics={data.haptics} onBond={journey.bond} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+        </View>
+        <View style={S.homeCardGroup} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCardGroupLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>
+          <View style={S.homeStepsSlot} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeStepsSlotLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>{renderHomeStepsCard()}</View>
+          <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby' ? true : undefined} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
+            <View style={S.homeWidgetGrid}>{data.homeWidgetOrder.map(renderHomeWidget)}</View>
+          </View>
         </View>
       </>}
 
@@ -546,9 +608,9 @@ const S = StyleSheet.create({
   homeDropOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#8B2F234D' },
   headerLogo: { width: 124, height: 45, marginTop: 5 },
   header: { height: 87, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, headerSide: { width: 63 }, brandMini: { color: C.muted, fontSize: 8, lineHeight: 16, letterSpacing: .2 }, brand: { flexDirection: 'row', alignItems: 'center', gap: 5 }, logo: { fontFamily: 'ShipporiBold', fontSize: 39, letterSpacing: 2, color: C.ink }, logoMark: { width: 38, height: 38, borderRadius: 6, marginTop: 9, transform: [{ rotate: '8deg' }] }, gear: { width: 63, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  content: { paddingHorizontal: 24, paddingBottom: 24 }, homeHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 0, marginBottom: 4 }, hairline: { width: 30, height: 1, backgroundColor: '#CDBEAC' }, chapter: { fontFamily: SERIF, color: '#766452', fontSize: 14, letterSpacing: 2 },
+  content: { paddingHorizontal: 24, paddingBottom: 24 }, homeContent: { flexGrow: 1, paddingBottom: 0 }, homeHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 0, marginBottom: 4 }, hairline: { width: 30, height: 1, backgroundColor: '#CDBEAC' }, chapter: { fontFamily: SERIF, color: '#766452', fontSize: 14, letterSpacing: 2 },
   demoBar: { backgroundColor: '#EEE1CA', paddingLeft: 17, minHeight: 28, alignItems: 'center', flexDirection: 'row', gap: 5 }, collectionChrome: { backgroundColor: 'transparent' }, dot: { height: 4, width: 4, backgroundColor: C.red, borderRadius: 5 }, demoText: { color: '#8A6950', fontSize: 9, flex: 1 }, error: { backgroundColor: '#F5DCD4', margin: 10, padding: 9, flexDirection: 'row', alignItems: 'center', borderRadius: 8 }, errorText: { color: '#813D31', flexShrink: 1, fontSize: 12, lineHeight: 19 }, collectionHeader: { backgroundColor: 'transparent' },
-  routeHero: { minHeight: 88, borderRadius: 16, padding: 17, paddingHorizontal: 19, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F6EEDDDD', borderWidth: 1, borderColor: '#D9C7AE', marginVertical: 10 }, routeHeroTitle: { fontFamily: SERIF, color: C.ink, fontSize: 19, marginVertical: 7 }, homeCompanionHidden: { opacity: 0 }, homeWidgetsHidden: { opacity: 0 }, homeWidgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'space-between', marginTop: 5, marginBottom: 8 }, homeWidgetCard: { width: '48%', height: 244, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', padding: 11, overflow: 'hidden', alignItems: 'stretch' }, homeCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 23 }, homeCardTitle: { flex: 1, color: C.ink, fontFamily: SERIF, fontSize: 14, letterSpacing: .4 }, homeCardSub: { color: C.muted, fontSize: 9, marginTop: 3 }, homeStampWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 5 }, homeStamp: { width: '76%', maxWidth: 112 }, homeCardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, minHeight: 21 }, homeCardLink: { color: C.red, fontSize: 9 }, homeImageCard: { padding: 0, position: 'relative', justifyContent: 'space-between' }, homeCardImage: { ...StyleSheet.absoluteFillObject }, homeCardImageWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241A50' }, homeMapImageWash: { backgroundColor: '#31433655' }, homeImageHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingTop: 11 }, homeImageTitle: { color: '#FFF9EF', fontFamily: SERIF, fontSize: 13, letterSpacing: .3 }, homeImageCopy: { paddingHorizontal: 11, marginTop: 'auto', paddingBottom: 7 }, homeImageRoute: { color: '#FFF9EF', fontFamily: SERIF, fontSize: 16, textShadowColor: '#2B241A80', textShadowRadius: 3 }, homeImageNote: { color: '#FFF9EFD9', fontSize: 8, lineHeight: 14, marginTop: 3 }, homeImageFooter: { minHeight: 29, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, backgroundColor: '#2B241A45' }, homeImageLink: { color: '#FFF9EF', fontSize: 9 }, homeStepsDate: { color: C.muted, fontSize: 8, marginTop: 6 }, homeStepValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 8, marginBottom: 8 }, homeStepValue: { color: C.ink, fontSize: 35, fontWeight: '300', letterSpacing: .5 }, homeStepUnit: { color: C.muted, fontFamily: SERIF, fontSize: 13 }, homeStepCaption: { color: '#746959', fontSize: 9, lineHeight: 16, marginTop: 9 }, homeMapCard: { minHeight: 78, borderRadius: 16, padding: 17, paddingHorizontal: 19, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F6EEDDDD', borderWidth: 1, borderColor: '#D9C7AE', marginVertical: 10 }, homeMapTitle: { fontFamily: SERIF, color: C.ink, fontSize: 18, marginVertical: 6 },
+  routeHero: { minHeight: 88, borderRadius: 16, padding: 17, paddingHorizontal: 19, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F6EEDDDD', borderWidth: 1, borderColor: '#D9C7AE', marginVertical: 10 }, routeHeroTitle: { fontFamily: SERIF, color: C.ink, fontSize: 19, marginVertical: 7 }, homeCompanionHidden: { opacity: 0 }, homeWidgetsHidden: { opacity: 0 }, homeCardGroup: { marginTop: 'auto' }, homeWidgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'space-between', marginTop: 5, marginBottom: 8 }, homeWidgetCard: { width: '48%', height: 244, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', padding: 11, overflow: 'hidden', alignItems: 'stretch' }, homeCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 23 }, homeCardTitle: { flex: 1, color: C.ink, fontFamily: SERIF, fontSize: 14, letterSpacing: .4 }, homeCardSub: { color: C.muted, fontSize: 9, marginTop: 3 }, homeStampWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 5 }, homeStamp: { width: '76%', maxWidth: 112 }, homeCardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, minHeight: 21 }, homeCardLink: { color: C.red, fontSize: 9 }, homeImageCard: { padding: 0, position: 'relative', justifyContent: 'space-between' }, homeCardImage: { ...StyleSheet.absoluteFillObject }, homeCardImageWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241A50' }, homeMapImageWash: { backgroundColor: '#31433655' }, homeImageHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingTop: 11 }, homeImageTitle: { color: '#FFF9EF', fontFamily: SERIF, fontSize: 13, letterSpacing: .3 }, homeImageCopy: { paddingHorizontal: 11, marginTop: 'auto', paddingBottom: 7 }, homeImageRoute: { color: '#FFF9EF', fontFamily: SERIF, fontSize: 16, textShadowColor: '#2B241A80', textShadowRadius: 3 }, homeImageNote: { color: '#FFF9EFD9', fontSize: 8, lineHeight: 14, marginTop: 3 }, homeImageFooter: { minHeight: 29, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, backgroundColor: '#2B241A45' }, homeImageLink: { color: '#FFF9EF', fontSize: 9 }, homeStepsDate: { color: C.muted, fontSize: 8, marginTop: 6 }, homeStepValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 8, marginBottom: 8 }, homeStepValue: { color: C.ink, fontSize: 35, fontWeight: '300', letterSpacing: .5 }, homeStepUnit: { color: C.muted, fontFamily: SERIF, fontSize: 13 }, homeMapCard: { minHeight: 78, borderRadius: 16, padding: 17, paddingHorizontal: 19, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F6EEDDDD', borderWidth: 1, borderColor: '#D9C7AE', marginVertical: 10 }, homeMapTitle: { fontFamily: SERIF, color: C.ink, fontSize: 18, marginVertical: 6 },
   stepsCard: { padding: 20, backgroundColor: '#FFFCF5', borderWidth: 1, borderColor: C.line, borderRadius: 19, marginTop: 7, overflow: 'hidden' }, between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, eyebrow: { fontSize: 10, color: C.muted, letterSpacing: 1 }, refresh: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 24 }, tiny: { fontSize: 9, color: C.muted }, stepValueRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 17, gap: 7 }, stepValue: { fontSize: 52, fontWeight: '300', color: C.ink, letterSpacing: 1 }, stepUnit: { fontFamily: SERIF, fontSize: 16, color: C.muted }, stepFlower: { marginLeft: 'auto', alignSelf: 'center', marginRight: 6 }, stepCaption: { color: '#746959', fontSize: 11 },
   latest: { borderRadius: 13, borderWidth: 1, borderColor: C.line, padding: 13, backgroundColor: '#FFFCF5', flexDirection: 'row', gap: 18, alignItems: 'center' }, latestName: { fontFamily: SERIF, fontSize: 20, color: C.ink }, latestText: { color: C.muted, fontSize: 10, lineHeight: 18 }, smallTag: { color: C.red, fontSize: 10, letterSpacing: 1 }, inline: { flexDirection: 'row', alignItems: 'center', gap: 6 }, linkText: { color: C.red, fontSize: 12 }, footerNote: { marginTop: 25, textAlign: 'center', color: '#9A9081', fontSize: 9, lineHeight: 19 },
   pageHeading: { paddingTop: 9, paddingBottom: 23, alignItems: 'center' }, pageTitle: { fontFamily: SERIF, color: C.ink, fontSize: 28, letterSpacing: 2 }, subtitle: { color: C.muted, fontSize: 11, letterSpacing: 1, marginTop: 9 },
