@@ -6,6 +6,8 @@ ios/
 android/
 !modules/mobi-health/ios/
 !modules/mobi-health/ios/**
+!modules/mobi-page-curl/ios/
+!modules/mobi-page-curl/ios/**
 *.log
 .DS_Store
 test-results/

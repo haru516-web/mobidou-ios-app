@@ -165,6 +165,7 @@ export function useJourney() {
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),
     saveHomeWidgetItems: (items: HomeWidgetItems) => change(p => ({ ...p, homeWidgetItems: normalizeHomeWidgetItems(items) })),
     drawDailyOmikuji: () => change(p => ({ ...p, omikujiDay: localOmikujiDay() })),
+    resetDailyOmikuji: () => change(p => ({ ...p, omikujiDay: null })),
     chooseBackground: (backgroundId: BackgroundId) => change(p => ({ ...p, backgroundId })),
     purchaseBookDesign: (routeId: string) => change(p => setActiveBookDesigns(p, { owned: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).owned, [routeId]: true }, selected: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).selected, [routeId]: 'route' } })),
     selectBookDesign: (routeId: string, design: 'normal' | 'route') => change(p => {

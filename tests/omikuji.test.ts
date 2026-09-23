@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fortuneForDay, localOmikujiDay, OMIKUJI_FORTUNES } from '../src/data/omikuji.ts';
+import { categoriesForFortune, fortuneForDay, localOmikujiDay, OMIKUJI_CATEGORY_LABELS, OMIKUJI_FORTUNES } from '../src/data/omikuji.ts';
 
 test('omikuji date uses the local calendar date', () => {
   assert.equal(localOmikujiDay(new Date(2026, 8, 22, 23, 59)), '2026-09-22');
@@ -18,5 +18,13 @@ test('daily omikuji provides a varied temple-style catalogue', () => {
     assert.equal(fortune.categories.length, 3);
     assert.ok(fortune.action.length > 0);
     assert.ok(fortune.lucky.length > 0);
+  }
+});
+
+test('every result displays the four requested fortune categories', () => {
+  for (const fortune of OMIKUJI_FORTUNES) {
+    const categories = categoriesForFortune(fortune);
+    assert.deepEqual(categories.map(item => item.label), OMIKUJI_CATEGORY_LABELS);
+    assert.ok(categories.every(item => item.text.length > 0));
   }
 });

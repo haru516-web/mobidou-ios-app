@@ -1,6 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, PanResponder, Platform, StyleSheet, View, type PanResponderGestureState, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from '../components';
+import { NativeBookPageTurn, isNativePageCurlAvailable, type NativeBookPage } from './NativeBookPageTurn';
 
 export type BookPageTurnDirection = 1 | -1;
 
@@ -15,12 +16,14 @@ type BookPageTurnProps = {
   renderSpread: (index: number) => ReactNode;
   onCommit: (index: number) => void;
   onBusyChange?: (busy: boolean) => void;
+  onOpenDetail?: (index: number) => void;
+  nativePages?: NativeBookPage[];
   style?: StyleProp<ViewStyle>;
 };
 
-const STRIP_COUNT = 12;
-const STRIP_STAGGER = 0.035;
-const TURN_THRESHOLD = 0.22;
+const STRIP_COUNT = 20;
+const STRIP_STAGGER = 0.018;
+const TURN_THRESHOLD = 0.34;
 const VELOCITY_THRESHOLD = 0.45;
 const PERSPECTIVE = 920;
 
@@ -67,7 +70,7 @@ function TurnStrip({ index, direction, progress, pageStart, stripWidth, viewport
   const depth = progress.interpolate({ inputRange: [0, 0.52, 1], outputRange: [1, 1.018, 1], extrapolate: 'clamp' });
   const shadeOpacity = progress.interpolate({ inputRange: [0, 0.18, 0.55, 0.88, 1], outputRange: [0, 0.08, 0.34, 0.22, 0.04], extrapolate: 'clamp' });
   const highlightOpacity = progress.interpolate({ inputRange: [0, 0.14, 0.52, 0.9, 1], outputRange: [0, 0.28, 0.72, 0.36, 0.08], extrapolate: 'clamp' });
-  const backOpacity = progress.interpolate({ inputRange: [0, 0.42, 0.72, 0.96, 1], outputRange: [0, 0.72, 0.96, 0.18, 0], extrapolate: 'clamp' });
+  const backOpacity = progress.interpolate({ inputRange: [0, 0.35, 0.56, 0.92, 1], outputRange: [0, 0.45, 1, 0.7, 0], extrapolate: 'clamp' });
   const highlightTravel = progress.interpolate({ inputRange: [0, 1], outputRange: [direction === 1 ? stripWidth * 0.72 : -stripWidth * 0.72, direction === 1 ? -stripWidth * 0.42 : stripWidth * 0.42], extrapolate: 'clamp' });
   const faceTransform = [{ perspective: PERSPECTIVE }, { translateX: fan }, { rotateY: angle }, { scale: depth }];
   const backTransform = [{ perspective: PERSPECTIVE }, { translateX: fan }, { rotateY: backAngle }, { scale: depth }];
@@ -77,13 +80,14 @@ function TurnStrip({ index, direction, progress, pageStart, stripWidth, viewport
       <Animated.View pointerEvents="none" style={[S.stripShade, { opacity: shadeOpacity }]} />
       <Animated.View pointerEvents="none" style={[S.stripHighlight, direction === 1 ? S.stripHighlightRight : S.stripHighlightLeft, { opacity: highlightOpacity, transform: [{ translateX: highlightTravel }] }]} />
     </Animated.View>
-    {/* The reverse face is intentionally blank: readable goshuin copy never
-        appears mirrored while a strip is rotating through its backside. */}
-    <Animated.View pointerEvents="none" style={[S.stripFace, S.paperBack, { width: viewportWidth, left: -stripLeft + 0.5, opacity: backOpacity, transformOrigin: originPercent, transform: backTransform }]} />
+    <Animated.View pointerEvents="none" style={[S.stripFace, S.paperBack, { width: viewportWidth, left: -stripLeft + 0.5, opacity: backOpacity, transformOrigin: originPercent, transform: backTransform }]}>
+      <View style={S.paperFiber} />
+      <View style={S.paperInnerShade} />
+    </Animated.View>
   </View>;
 }
 
-export const BookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function BookPageTurn({ selectedIndex, itemCount, contentKey, renderSpread, onCommit, onBusyChange, style }, ref) {
+const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function SimulatedBookPageTurn({ selectedIndex, itemCount, contentKey, renderSpread, onCommit, onBusyChange, style }, ref) {
   const reducedMotion = useReducedMotion();
   const [viewportWidth, setViewportWidth] = useState(0);
   const [activeDirection, setActiveDirection] = useState<BookPageTurnDirection | null>(null);
@@ -138,7 +142,7 @@ export const BookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(fu
     const remaining = Math.max(0.08, Math.abs(target - progressValueRef.current));
     const animation = Animated.timing(progress, {
       toValue: target,
-      duration: reducedMotion ? 180 : Math.max(140, Math.round(430 * remaining)),
+      duration: reducedMotion ? 180 : Math.max(160, Math.round(520 * remaining)),
       easing: reducedMotion ? Easing.out(Easing.quad) : Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     });
@@ -181,7 +185,7 @@ export const BookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(fu
       return;
     }
     animatingRef.current = true;
-    const shouldCommit = progressValueRef.current >= TURN_THRESHOLD || Math.abs(gesture.vx) >= VELOCITY_THRESHOLD;
+    const shouldCommit = progressValueRef.current >= TURN_THRESHOLD || (Math.abs(gesture.vx) >= VELOCITY_THRESHOLD && Math.sign(gesture.vx) === -direction);
     animateTo(shouldCommit ? 1 : 0, shouldCommit);
   }, [animateTo, clearTurn, onBusyChange]);
 
@@ -222,6 +226,7 @@ export const BookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(fu
     {activeDirection !== null && viewportWidth > 0 && itemCount > 1 && <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={S.overlay}>
       {reducedMotion ? <Animated.View style={[S.reducedTarget, { opacity: progress, transform: [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [activeDirection * 24, 0], extrapolate: 'clamp' }) }] }]}>{renderSpread(targetIndex)}</Animated.View> : <>
         <View pointerEvents="none" style={S.targetUnderlay}>{renderSpread(targetIndex)}</View>
+        <Animated.View pointerEvents="none" style={[S.underPageShadow, { left: activeDirection === 1 ? pageWidth : 0, width: pageWidth, opacity: progress.interpolate({ inputRange: [0, 0.25, 0.65, 1], outputRange: [0, 0.22, 0.3, 0], extrapolate: 'clamp' }) }]} />
         <Animated.View pointerEvents="none" style={[S.staticOpposite, { left: activeDirection === 1 ? 0 : pageWidth, width: pageWidth, opacity: progress.interpolate({ inputRange: [0, 0.82, 1], outputRange: [1, 1, 0], extrapolate: 'clamp' }) }]}>
           <View style={{ width: viewportWidth, left: activeDirection === 1 ? 0 : -pageWidth }}>{currentSpread()}</View>
         </Animated.View>
@@ -229,6 +234,21 @@ export const BookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(fu
       </>}
     </View>}
   </View>;
+});
+
+export const BookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function BookPageTurn(props, ref) {
+  if (Platform.OS === 'ios' && isNativePageCurlAvailable && props.nativePages) {
+    return <NativeBookPageTurn
+      forwardedRef={ref}
+      pages={props.nativePages}
+      selectedIndex={props.selectedIndex}
+      onCommit={props.onCommit}
+      onBusyChange={props.onBusyChange}
+      onOpenDetail={props.onOpenDetail}
+      style={props.style}
+    />;
+  }
+  return <SimulatedBookPageTurn {...props} ref={ref} />;
 });
 
 const S = StyleSheet.create({
@@ -241,6 +261,9 @@ const S = StyleSheet.create({
   stripFace: { position: 'absolute', top: 0, bottom: 0, backfaceVisibility: 'hidden' },
   stripContent: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   paperBack: { backgroundColor: '#F1E6D3', borderColor: '#D2B894', borderLeftWidth: 1, borderRightWidth: 1 },
+  paperFiber: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9EB', opacity: .22 },
+  paperInnerShade: { position: 'absolute', left: '47%', top: 0, bottom: 0, width: '6%', backgroundColor: '#B9A27D', opacity: .12 },
+  underPageShadow: { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#3C281F' },
   stripShade: { ...StyleSheet.absoluteFillObject, backgroundColor: '#3C281F' },
   stripHighlight: { position: 'absolute', top: 0, bottom: 0, width: 3, backgroundColor: '#FFF7E5' },
   stripHighlightRight: { right: -1 },

@@ -8,6 +8,26 @@ export type OmikujiFortune = {
   categories: readonly { label: string; text: string }[];
 };
 
+export const OMIKUJI_CATEGORY_LABELS = ['学問', '願い事', '健康', '恋愛'] as const;
+export type OmikujiCategoryLabel = typeof OMIKUJI_CATEGORY_LABELS[number];
+
+const CATEGORY_FALLBACKS: Record<OmikujiCategoryLabel, readonly string[]> = {
+  学問: ['復習に実りあり', 'ひとつずつ学べば吉', '静かな集中が力になる', '好奇心のまま進んで吉', '基礎を大切にすると伸びる'],
+  願い事: ['焦らず進めば近づく', '小さな一歩から叶う', '人の助けを借りると吉', '願いを言葉にすると開ける', '時を待てばよい知らせあり'],
+  健康: ['体を温めて休むと吉', '深呼吸で心身が整う', 'よく歩きよく眠ると吉', '無理をせず早めの休息を', '水分をとると調子よし'],
+  恋愛: ['飾らない言葉が縁を結ぶ', '聞き上手になると吉', '笑顔からよい流れが生まれる', 'ゆっくり歩幅を合わせて吉', '素直な気持ちが届く日'],
+};
+
+export function categoriesForFortune(fortune: OmikujiFortune) {
+  return OMIKUJI_CATEGORY_LABELS.map((label, labelIndex) => {
+    const sourceLabel = label === '願い事' ? '願望' : label;
+    const existing = fortune.categories.find(item => item.label === sourceLabel);
+    const pool = CATEGORY_FALLBACKS[label];
+    const fallbackIndex = hash(`${fortune.id}:${label}:${labelIndex}`) % pool.length;
+    return { label, text: existing?.text ?? pool[fallbackIndex] };
+  });
+}
+
 export const OMIKUJI_FORTUNES: readonly OmikujiFortune[] = [
   { id: 'morning-path', rank: '大吉', title: '朝の一歩が、道をひらく', message: '迷っていたことに小さな追い風。完璧を待たず、今日できる最初の一歩を。', action: 'いつもより5分早く外へ出る', lucky: '朱色のもの', categories: [{ label: '願望', text: '急がず進めば叶う' }, { label: '待人', text: '笑顔とともに来る' }, { label: '旅立', text: '朝の出発が吉' }] },
   { id: 'kind-word', rank: '中吉', title: 'やさしい言葉が、ご縁を結ぶ', message: '何気ないひと言が誰かの心を軽くする日。先に挨拶すると運が巡ります。', action: 'ひとりに感謝を伝える', lucky: '温かいお茶', categories: [{ label: '対人', text: '素直な言葉が吉' }, { label: '仕事', text: '相談すると整う' }, { label: '健康', text: '肩の力を抜く' }] },
