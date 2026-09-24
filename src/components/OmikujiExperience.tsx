@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { categoriesForFortune, type OmikujiFortune } from '../data/omikuji';
 import { OMIKUJI_ATLASES } from '../data/omikujiAtlases';
 import type { PetCharacter } from '../petCatalog';
+import { useOmikujiBrushFont } from '../fonts/useOmikujiBrushFont';
 import { WashiPressable as Pressable } from './Washi';
 
 const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-washi-v1.png');
@@ -39,6 +40,7 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
   const effect = REVEAL_EFFECTS[fortune.rank];
   const pulling = frame !== null;
   const atlas = OMIKUJI_ATLASES[pet.id] ?? pet.image;
+  const brushTextStyle = useOmikujiBrushFont(visible);
 
   useEffect(() => () => {
     paperProgress.stopAnimation();
@@ -112,7 +114,7 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
   return <View style={S.wrap}>
     {pulling && <View style={S.stage}>
       <View style={S.spriteViewport}><Image source={atlas} contentFit="fill" style={[S.characterAtlas, { left: -210 * (frame ?? 0) }]} /></View>
-      <Text style={S.petLine}>{pet.name}が、心をこめて引いています…</Text>
+      <Text style={[S.petLine, brushTextStyle]}>{pet.name}が、心をこめて引いています…</Text>
     </View>}
     {revealing && <View accessible accessibilityLabel="おみくじの紙を引き寄せ、運勢をひらいています" style={S.revealStage}>
       <Animated.View pointerEvents="none" style={[S.revealGlow, { backgroundColor: effect.glow, opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
@@ -120,10 +122,10 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
       {[0, 45, 90, 135].map(angle => <Animated.View key={angle} pointerEvents="none" style={[S.lightRay, { backgroundColor: effect.glow, opacity: glowOpacity, transform: [{ rotate: `${angle}deg` }, { rotate: raysRotation }, { scaleY: glowScale }] }]} />)}
       <Animated.View style={[S.revealPaper, { opacity: paperOpacity, transform: [{ translateY: paperY }, { scale: paperScale }, { rotate: paperRotation }] }]}>
         <ImageBackground source={OMIKUJI_RESULT_BACKGROUND} resizeMode="cover" imageStyle={S.revealPaperImage} style={S.revealPaperBody}>
-          <Text style={S.date}>本日のご縁みくじ</Text>
+          <Text style={[S.date, brushTextStyle]}>本日のご縁みくじ</Text>
           <Animated.View style={[S.revealSeal, { borderColor: effect.color, transform: [{ scale: rankScale }] }]}>
-            <Text style={S.revealSealLabel}>運勢</Text>
-            <Animated.Text style={[S.revealRank, { color: effect.color, opacity: rankOpacity, textShadowColor: effect.glow, textShadowRadius: effect.sparkleSize / 2, transform: [{ scale: rankScale }] }]}>{fortune.rank}</Animated.Text>
+            <Text style={[S.revealSealLabel, brushTextStyle]}>運勢</Text>
+            <Animated.Text style={[S.revealRank, brushTextStyle, { color: effect.color, opacity: rankOpacity, textShadowColor: effect.glow, textShadowRadius: effect.sparkleSize / 2, transform: [{ scale: rankScale }] }]}>{fortune.rank}</Animated.Text>
           </Animated.View>
           <Animated.View pointerEvents="none" style={[S.paperShine, { opacity: shineOpacity, transform: [{ translateX: shineX }, { rotate: '18deg' }] }]} />
         </ImageBackground>
@@ -141,22 +143,22 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
     {!drawn && !pulling && !revealing && <>
       <View style={S.petPrompt}>
         <Image source={pet.image} contentFit="contain" accessibilityLabel={pet.name} style={S.petImage} />
-        <Text style={S.petPromptText}>{pet.name}と今日のおみくじを引きましょう</Text>
+        <Text style={[S.petPromptText, brushTextStyle]}>{pet.name}と今日のおみくじを引きましょう</Text>
       </View>
-      <Text style={S.prompt}>今日の一枚を引いて、運勢をたしかめましょう。</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="今日のおみくじを引く" onPress={start} style={S.drawButton}><Text style={S.drawButtonText}>今日のおみくじを引く</Text></Pressable>
+      <Text style={[S.prompt, brushTextStyle]}>今日の一枚を引いて、運勢をたしかめましょう。</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="今日のおみくじを引く" onPress={start} style={S.drawButton}><Text style={[S.drawButtonText, brushTextStyle]}>今日のおみくじを引く</Text></Pressable>
     </>}
 
     {drawn && !pulling && !revealing && <>
       <ImageBackground source={OMIKUJI_RESULT_BACKGROUND} resizeMode="cover" imageStyle={S.paperImage} accessibilityLabel={`今日のおみくじは${fortune.rank}`} style={S.paper}>
-      <Text style={S.date}>本日のご縁みくじ</Text><Text style={S.rank}>{fortune.rank}</Text><Text style={S.title}>{fortune.title}</Text>
-      <Text style={S.message}>{fortune.message}</Text><View style={S.rule} />
-      {categoriesForFortune(fortune).map(item => <View key={item.label} style={S.row}><Text style={S.label}>{item.label}</Text><Text style={S.value}>{item.text}</Text></View>)}
-      <View style={S.tip}><Text style={S.tipLabel}>今日の小さな開運</Text><Text style={S.tipText}>{fortune.action}</Text><Text style={S.lucky}>吉もの　{fortune.lucky}</Text></View>
-      <Text style={S.tomorrow}>また明日、違うご縁が待っています。</Text>
+      <Text style={[S.date, brushTextStyle]}>本日のご縁みくじ</Text><Text style={[S.rank, brushTextStyle]}>{fortune.rank}</Text><Text style={[S.title, brushTextStyle]}>{fortune.title}</Text>
+      <Text style={[S.message, brushTextStyle]}>{fortune.message}</Text><View style={S.rule} />
+      {categoriesForFortune(fortune).map(item => <View key={item.label} style={S.row}><Text style={[S.label, brushTextStyle]}>{item.label}</Text><Text style={[S.value, brushTextStyle]}>{item.text}</Text></View>)}
+      <View style={S.tip}><Text style={[S.tipLabel, brushTextStyle]}>今日の小さな開運</Text><Text style={[S.tipText, brushTextStyle]}>{fortune.action}</Text><Text style={[S.lucky, brushTextStyle]}>吉もの　{fortune.lucky}</Text></View>
+      <Text style={[S.tomorrow, brushTextStyle]}>また明日、違うご縁が待っています。</Text>
       </ImageBackground>
-      <Pressable accessibilityRole="button" accessibilityLabel="おみくじの演出をもう一度見る" onPress={start} style={S.replayButton}><Text style={S.replayButtonText}>演出をもう一度見る</Text></Pressable>
-      {__DEV__ && <Pressable accessibilityRole="button" accessibilityLabel="おみくじを引く前の状態に戻す" onPress={onReset} style={S.replayButton}><Text style={S.replayButtonText}>引く前の状態に戻す（開発用）</Text></Pressable>}
+      <Pressable accessibilityRole="button" accessibilityLabel="おみくじの演出をもう一度見る" onPress={start} style={S.replayButton}><Text style={[S.replayButtonText, brushTextStyle]}>演出をもう一度見る</Text></Pressable>
+      {__DEV__ && <Pressable accessibilityRole="button" accessibilityLabel="おみくじを引く前の状態に戻す" onPress={onReset} style={S.replayButton}><Text style={[S.replayButtonText, brushTextStyle]}>引く前の状態に戻す（開発用）</Text></Pressable>}
     </>}
   </View>;
 }

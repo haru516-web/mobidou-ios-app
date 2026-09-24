@@ -2,8 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import type { PetId } from '../petCatalog';
+import { categoriesForFortune, type OmikujiFortune } from '../data/omikuji';
+import { useOmikujiBrushFont } from '../fonts/useOmikujiBrushFont';
 import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_FRAME_WIDTH, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
+
+const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-washi-v1.png');
 
 function CardBackground({ source, shade = '#FFF9EFA8' }: { source: ImageSourcePropType; shade?: string }) {
   return <>
@@ -18,11 +22,30 @@ export function HomeGoshuinArtwork({ source }: { source: ImageSourcePropType; ba
   </View>;
 }
 
-export function HomeOmikujiArtwork({ rank, title, action }: { rank: string; title: string; action: string }) {
+export function HomeOmikujiArtwork({ fortune, petName }: { fortune: OmikujiFortune | null; petName: string }) {
+  const categories = fortune ? categoriesForFortune(fortune) : null;
+  const brushTextStyle = useOmikujiBrushFont();
   return <View pointerEvents="none" style={S.omikujiStage}>
-    <Text style={S.omikujiKicker}>本日のご縁みくじ</Text><Text style={S.omikujiRank}>{rank}</Text>
-    <Text numberOfLines={2} style={S.omikujiTitle}>{title}</Text><View style={S.omikujiRule} />
-    <Text style={S.omikujiActionLabel}>今日の小さな開運</Text><Text numberOfLines={2} style={S.omikujiAction}>{action}</Text>
+    <Image accessible={false} source={OMIKUJI_RESULT_BACKGROUND} contentFit="cover" style={S.omikujiBackground} />
+    <View style={S.omikujiBackgroundShade} />
+    <View style={S.omikujiContent}>
+      <Text style={[S.omikujiKicker, brushTextStyle]}>本日のご縁みくじ</Text>
+      <Text style={[S.omikujiRank, !fortune && S.omikujiUndrawnRank, brushTextStyle]}>{fortune?.rank ?? '未'}</Text>
+      <Text numberOfLines={1} style={[S.omikujiTitle, brushTextStyle]}>{fortune?.title ?? '今日のご縁を、迎えにいこう'}</Text>
+      <Text numberOfLines={2} style={[S.omikujiMessage, brushTextStyle]}>{fortune?.message ?? petName + 'がおみくじを引いてくれます'}</Text>
+      <View style={S.omikujiRule} />
+      <View style={S.omikujiCategories}>
+        {categories
+          ? categories.map(item => <View key={item.label} style={S.omikujiCategoryRow}><Text style={[S.omikujiCategoryLabel, brushTextStyle]}>{item.label}</Text><Text numberOfLines={1} style={[S.omikujiCategoryValue, brushTextStyle]}>{item.text}</Text></View>)
+          : <Text style={[S.omikujiPendingCategories, brushTextStyle]}>学問・願い事・健康・恋愛</Text>}
+      </View>
+      <View style={S.omikujiActionPanel}>
+        <Text style={[S.omikujiActionLabel, brushTextStyle]}>今日の小さな開運</Text>
+        <Text numberOfLines={2} style={[S.omikujiAction, brushTextStyle]}>{fortune?.action ?? 'タップして今日の一枚を引く'}</Text>
+        {fortune && <Text numberOfLines={1} style={[S.omikujiLucky, brushTextStyle]}>吉もの　{fortune.lucky}</Text>}
+      </View>
+      <Text style={[S.omikujiFooter, brushTextStyle]}>{fortune ? 'また明日、違うご縁が待っています。' : 'タップして今日のおみくじを引きましょう'}</Text>
+    </View>
   </View>;
 }
 
@@ -123,12 +146,26 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
 const S = StyleSheet.create({
   artworkStage: { flex: 1, width: '100%', position: 'relative' },
   goshuinOnly: { width: '88%', height: '92%', alignSelf: 'center', marginTop: '4%' },
-  omikujiStage: { flex: 1, margin: 9, padding: 12, borderWidth: 1, borderColor: '#CDAF82', backgroundColor: '#FFF9EAEE', borderRadius: 4, alignItems: 'center' },
-  omikujiKicker: { color: '#8B6B51', fontFamily: 'ShipporiBold', fontSize: 8, letterSpacing: 1.3 },
-  omikujiRank: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 36, marginTop: 5 },
-  omikujiTitle: { color: '#3D3028', fontFamily: 'ShipporiBold', textAlign: 'center', fontSize: 12, lineHeight: 18 },
-  omikujiRule: { width: '70%', height: 1, backgroundColor: '#D8C3A6', marginVertical: 10 },
-  omikujiActionLabel: { color: '#8B6B51', fontSize: 8 }, omikujiAction: { color: '#5E5045', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 4 },
+  omikujiStage: { flex: 1, minHeight: 0, margin: 5, position: 'relative', overflow: 'hidden', borderWidth: 1, borderColor: '#CDAF82', backgroundColor: '#FFF9EA', borderRadius: 5 },
+  omikujiBackground: { ...StyleSheet.absoluteFillObject },
+  omikujiBackgroundShade: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9EFA8' },
+  omikujiContent: { flex: 1, alignItems: 'center', paddingHorizontal: 7, paddingTop: 5, paddingBottom: 4 },
+  omikujiKicker: { color: '#8B6B51', fontFamily: 'ShipporiBold', fontSize: 7, lineHeight: 9, letterSpacing: 1.1 },
+  omikujiRank: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 30, lineHeight: 34, marginTop: 1 },
+  omikujiUndrawnRank: { fontSize: 24 },
+  omikujiTitle: { width: '100%', color: '#3D3028', fontFamily: 'ShipporiBold', textAlign: 'center', fontSize: 8.5, lineHeight: 12 },
+  omikujiMessage: { width: '100%', color: '#5E5045', fontFamily: 'Shippori', textAlign: 'center', fontSize: 7, lineHeight: 9.5, marginTop: 2 },
+  omikujiRule: { width: '82%', height: 1, backgroundColor: '#D8C3A6', marginTop: 3, marginBottom: 3 },
+  omikujiCategories: { width: '100%', gap: 1 },
+  omikujiCategoryRow: { minHeight: 12.5, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  omikujiCategoryLabel: { width: 28, color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 7, lineHeight: 9 },
+  omikujiCategoryValue: { flex: 1, color: '#5E5045', fontSize: 7, lineHeight: 9 },
+  omikujiPendingCategories: { color: '#8B6B51', fontFamily: 'Shippori', textAlign: 'center', fontSize: 7, lineHeight: 11 },
+  omikujiActionPanel: { alignSelf: 'stretch', marginTop: 'auto', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6, backgroundColor: '#F2E6D3D9' },
+  omikujiActionLabel: { color: '#8A5A3B', fontSize: 6, lineHeight: 8 },
+  omikujiAction: { color: '#3D3028', fontFamily: 'ShipporiBold', fontSize: 8, lineHeight: 10, marginTop: 1 },
+  omikujiLucky: { color: '#79685A', fontSize: 6, lineHeight: 8, marginTop: 1 },
+  omikujiFooter: { color: '#8A7564', textAlign: 'center', fontSize: 6, lineHeight: 8, marginTop: 3 },
   artworkImage: { ...StyleSheet.absoluteFillObject },
   cardBackground: { ...StyleSheet.absoluteFillObject },
   cardBackgroundShade: { ...StyleSheet.absoluteFillObject },

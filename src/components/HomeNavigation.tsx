@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { C, Icon, Meter, Stamp, useReducedMotion } from '../components';
 import { PET_CHARACTERS, type PetId } from '../petCatalog';
 import { PET_BACKGROUNDS } from '../data/petBackgrounds';
+import { OMIKUJI_FORTUNES } from '../data/omikuji';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { CUSTOM_HOME_WIDGET_IDS, setHomeWidgetSlot, type CustomHomeWidgetId, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
@@ -217,7 +218,7 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
   usePopupBackHandler(closePopup);
   const renderWidgetArtwork = (id: CustomHomeWidgetId) => {
     if (id === 'goshuin') return <HomeGoshuinArtwork source={STAMP_IMAGES[latest.id]} background={background} />;
-    if (id === 'miniature') return <HomeOmikujiArtwork rank="吉" title="今日のご縁を、迎えにいこう" action="選んだモビーがおみくじを引きます" />;
+    if (id === 'miniature') return <HomeOmikujiArtwork fortune={OMIKUJI_FORTUNES[0]} petName="選んだモビー" />;
     return <HomeMapArtwork />;
   };
 

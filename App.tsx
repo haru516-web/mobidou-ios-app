@@ -453,7 +453,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
     if (widget === 'miniature') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-miniature-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={omikujiDrawn ? `今日のおみくじは${dailyFortune.rank}。全画面で詳しく見る` : '今日のおみくじを全画面で引く'} onPress={() => setOmikujiModal(true)} style={[S.homeWidgetCard, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
-      <HomeOmikujiArtwork rank={omikujiDrawn ? dailyFortune.rank : '未'} title={omikujiDrawn ? dailyFortune.title : '今日のご縁を、迎えにいこう'} action={omikujiDrawn ? dailyFortune.action : `${pet.name}がおみくじを引いてくれます`} />
+      <HomeOmikujiArtwork fortune={omikujiDrawn ? dailyFortune : null} petName={pet.name} />
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
     if (widget === 'map') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-map-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel="巡礼マップ。拡大表示をひらく" onPress={() => openCard('map')} style={[S.homeWidgetCard, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
@@ -628,7 +628,7 @@ function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name'];
 const S = StyleSheet.create({
   homeGoshuinOnlyCard: { padding: 0, borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent' },
   omikujiModal: { flex: 1, width: '100%', maxWidth: 600, alignSelf: 'center' },
-  omikujiBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#261A12' },
+  omikujiBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#261A12A6' },
   omikujiModalContent: { flexGrow: 1, justifyContent: 'center', padding: 18 },
   omikujiModalCard: { width: '100%', maxWidth: 440, alignSelf: 'center', borderRadius: 26, padding: 16, paddingTop: 52, backgroundColor: '#FFF8E7', borderWidth: 1, borderColor: '#D9C2A1', shadowColor: '#27170F', shadowOpacity: .35, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 10, overflow: 'hidden' },
   omikujiCardClose: { position: 'absolute', top: 8, right: 8, zIndex: 4 },
