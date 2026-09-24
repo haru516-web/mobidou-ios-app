@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path, G } from 'react-native-svg';
@@ -25,8 +25,8 @@ export function Landscape() {
   </Svg>;
 }
 export function Clouds() { return <Svg pointerEvents="none" width="100%" height="150" viewBox="0 0 420 150" style={{ position: 'absolute', top: 45 }}><Path d="M-28 70 H35 Q66 70 66 51 Q66 35 48 35 Q31 35 31 49 H10 Q-4 49 -4 65 M341 115 H451 M359 99 H428 Q444 99 444 84 Q444 65 425 65 Q410 65 410 81 H386 Q371 81 371 99" stroke="#D9CBBB" strokeWidth="9" strokeLinecap="round" fill="none" opacity=".35" /></Svg>; }
-export function Button({ title, onPress, secondary, disabled, icon, style }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean; icon?: React.ComponentProps<typeof Ionicons>['name']; style?: StyleProp<ViewStyle> }) {
-  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [S.button, secondary && S.secondary, { opacity: disabled ? .45 : pressed ? .75 : 1 }, style]}>{icon && <Icon name={icon} color={secondary ? C.red : '#FFF9EF'} size={18} />}<Text style={[S.buttonText, secondary && { color: C.red }]}>{title}</Text></Pressable>;
+export function Button({ title, onPress, secondary, disabled, icon, style, textStyle }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean; icon?: React.ComponentProps<typeof Ionicons>['name']; style?: StyleProp<ViewStyle>; textStyle?: StyleProp<TextStyle> }) {
+  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [S.button, secondary && S.secondary, { opacity: disabled ? .45 : pressed ? .75 : 1 }, style]}>{icon && <Icon name={icon} color={secondary ? C.red : '#FFF9EF'} size={18} />}<Text style={[S.buttonText, secondary && { color: C.red }, textStyle]}>{title}</Text></Pressable>;
 }
 export function Section({ title, subtitle, action, onPress, actionArtwork = true }: { title: string; subtitle?: string; action?: string; onPress?: () => void; actionArtwork?: boolean }) { return <View style={S.section}><View><Text style={S.sectionTitle}>{title}</Text>{subtitle && <Text style={S.eyebrow}>{subtitle}</Text>}</View>{action && <Pressable artwork={actionArtwork} accessibilityRole="button" onPress={onPress} style={S.link}><Text style={S.linkText}>{action}</Text><Icon name="chevron-forward" size={14} color={C.red} /></Pressable>}</View>; }
 export function Meter({ value, color = C.red }: { value: number; color?: string }) { return <View style={S.track}><View style={[S.fill, { width: `${Math.max(0, Math.min(100, value * 100))}%`, backgroundColor: color }]} /></View>; }
