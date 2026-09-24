@@ -146,7 +146,7 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
 const S = StyleSheet.create({
   artworkStage: { flex: 1, width: '100%', position: 'relative' },
   goshuinOnly: { width: '88%', height: '92%', alignSelf: 'center', marginTop: '4%' },
-  omikujiStage: { flex: 1, minHeight: 0, margin: 5, position: 'relative', overflow: 'hidden', borderWidth: 1, borderColor: '#CDAF82', backgroundColor: '#FFF9EA', borderRadius: 5 },
+  omikujiStage: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' },
   omikujiBackground: { ...StyleSheet.absoluteFillObject },
   omikujiBackgroundShade: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9EFA8' },
   omikujiContent: { flex: 1, alignItems: 'center', paddingHorizontal: 7, paddingTop: 5, paddingBottom: 4 },

@@ -143,7 +143,6 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
     {!drawn && !pulling && !revealing && <>
       <View style={S.petPrompt}>
         <Image source={pet.image} contentFit="contain" accessibilityLabel={pet.name} style={S.petImage} />
-        <Text style={[S.petPromptText, brushTextStyle]}>{pet.name}と今日のおみくじを引きましょう</Text>
       </View>
       <Text style={[S.prompt, brushTextStyle]}>今日の一枚を引いて、運勢をたしかめましょう。</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="今日のおみくじを引く" onPress={start} style={S.drawButton}><Text style={[S.drawButtonText, brushTextStyle]}>今日のおみくじを引く</Text></Pressable>
@@ -171,15 +170,14 @@ const S = StyleSheet.create({
   petLine: { fontFamily: 'Shippori', color: '#5B4030', fontSize: 12, backgroundColor: '#FFF9EEDD', borderRadius: 13, paddingHorizontal: 13, paddingVertical: 7, overflow: 'hidden' },
   petPrompt: { alignItems: 'center', gap: 2, paddingTop: 2 },
   petImage: { width: 126, height: 126 },
-  petPromptText: { color: '#745744', fontFamily: 'ShipporiBold', fontSize: 13, textAlign: 'center' },
   prompt: { color: '#5B4030', fontFamily: 'Shippori', fontSize: 13, lineHeight: 22, textAlign: 'center', backgroundColor: '#FFF9EEDD', borderRadius: 13, paddingHorizontal: 13, paddingVertical: 12 },
   revealStage: { minHeight: 400, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   revealGlow: { position: 'absolute', top: 40, alignSelf: 'center', width: 320, height: 320, borderRadius: 160 },
   revealRing: { position: 'absolute', top: 20, alignSelf: 'center', width: 360, height: 360, borderRadius: 180, borderWidth: 2 },
   lightRay: { position: 'absolute', top: 0, left: '50%', marginLeft: -3, width: 6, height: 400, borderRadius: 3 },
   sparkle: { position: 'absolute', fontSize: 24, textShadowColor: '#FFF7DC', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 14 },
-  revealPaper: { width: '82%', height: 360, borderWidth: 1, borderColor: '#CDAF82', borderRadius: 6, overflow: 'hidden', shadowColor: '#5E3C28', shadowOpacity: 0.3, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
-  revealPaperImage: { borderRadius: 5, opacity: 0.72 },
+  revealPaper: { width: '82%', height: 360, borderRadius: 6, overflow: 'hidden', shadowColor: '#5E3C28', shadowOpacity: 0.3, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
+  revealPaperImage: { borderRadius: 6, opacity: 0.72 },
   revealPaperBody: { flex: 1, alignItems: 'center', justifyContent: 'space-around', paddingVertical: 20, overflow: 'hidden' },
   revealSeal: { width: 148, height: 148, borderRadius: 74, borderWidth: 1, borderColor: '#B88D5B88', backgroundColor: '#FFF9EF66', alignItems: 'center', justifyContent: 'center' },
   revealSealLabel: { color: '#8B6B51', fontSize: 11, letterSpacing: 3 },
@@ -189,7 +187,7 @@ const S = StyleSheet.create({
   drawButtonText: { color: '#FFF9EF', fontFamily: 'ShipporiBold', letterSpacing: 1 },
   replayButton: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 18 },
   replayButtonText: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 12, letterSpacing: 0.5, textDecorationLine: 'underline' },
-  paper: { marginHorizontal: 4, backgroundColor: '#FFF9EA', borderWidth: 1, borderColor: '#CDAF82', padding: 19, borderRadius: 4, shadowColor: '#5E3C28', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, overflow: 'hidden' },
+  paper: { marginHorizontal: 4, backgroundColor: '#FFF9EA', padding: 19, borderRadius: 4, shadowColor: '#5E3C28', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, overflow: 'hidden' },
   paperImage: { borderRadius: 4, opacity: 0.58 },
   date: { textAlign: 'center', color: '#8B6B51', fontSize: 10, letterSpacing: 2 },
   rank: { textAlign: 'center', color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 40, marginTop: 4 },
