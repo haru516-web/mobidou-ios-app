@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
+import Svg, { Defs, Image as SvgImage, Mask } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 
@@ -12,6 +13,22 @@ import { MOBIBOU_ACTION_FRAMES } from '../data/mobibouActionFrames';
 import { PRAYER_ATLASES, PRAYER_ACTION_ORDER, PRAYER_FRAME_COUNT } from '../data/prayerAtlasesV2';
 import { WashiPressable as Pressable } from './Washi';
 import { MobbyPullMesh, type MobbyPullMeshHandle } from './MobbyPullMesh';
+
+function MaskedPullBodyImage({ source, mask, size }: { source: ImageSourcePropType; mask: ImageSourcePropType; size: number }) {
+  const maskId = `mobby-pull-alpha-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  return (
+    <View pointerEvents="none" style={{ width: size, height: size }}>
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Defs>
+          <Mask id={maskId} x="0" y="0" width={size} height={size} maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" maskType="alpha">
+            <SvgImage href={mask} x="0" y="0" width={size} height={size} preserveAspectRatio="none" />
+          </Mask>
+        </Defs>
+        <SvgImage href={source} x="0" y="0" width={size} height={size} preserveAspectRatio="none" mask={`url(#${maskId})`} />
+      </Svg>
+    </View>
+  );
+}
 
 const MOBIBOU_REI_FRAME_LAYOUTS = [
   [16.06, -72.47, 178.54, 347.34],
@@ -602,9 +619,11 @@ export function PullableCompanion({
               transform: [{ translateX: pullTranslateX }, { translateY: totalTranslateY }, { rotate: pullRotationDeg }, { scaleX }, { scaleY }, { scale: totalScale }],
             }]}
           >
-            {!meshVisible ? <Image pointerEvents="none" source={displayBody} style={styles.pet} contentFit="contain" transition={0} /> : null}
+            {!meshVisible ? (status !== 'idle' && pullAsset
+              ? <MaskedPullBodyImage source={displayBody} mask={pet.image} size={210} />
+              : <Image pointerEvents="none" source={displayBody} style={styles.pet} contentFit="contain" transition={0} />) : null}
           </Animated.View>
-          {pullAsset ? <MobbyPullMesh ref={meshRef} source={pullAsset.body} size={210} visible={meshVisible} /> : null}
+          {pullAsset ? <MobbyPullMesh ref={meshRef} source={pullAsset.body} mask={pet.image} size={210} visible={meshVisible} /> : null}
           {prayerSequence ? <Animated.View pointerEvents="none" style={[styles.prayerLayer, { opacity: isPrayer ? 1 : 0, overflow: 'hidden', transform: [{ translateY: float }] }]}>
             {isMobibouPrayer ? MOBIBOU_ACTION_FRAMES.map((source, index) => {
               const [left, top, width, height] = MOBIBOU_PRAYER_FRAME_LAYOUTS[index];

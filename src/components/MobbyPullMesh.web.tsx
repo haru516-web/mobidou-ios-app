@@ -18,6 +18,7 @@ type MeshImageLayer = {
 };
 
 const layerImageCache = new Map<string, HTMLImageElement>();
+const silhouetteMaskCache = new WeakMap<HTMLImageElement, HTMLCanvasElement>();
 
 function getLayerImage(source: MobbyPullMeshLayer['source']) {
   const uri = Asset.fromModule(source as number).uri;
@@ -28,6 +29,30 @@ function getLayerImage(source: MobbyPullMeshLayer['source']) {
   image.src = uri;
   layerImageCache.set(uri, image);
   return image;
+}
+
+function getSilhouetteMask(image: HTMLImageElement, width: number, height: number) {
+  const cached = silhouetteMaskCache.get(image);
+  if (cached?.width === width && cached.height === height) return cached;
+  const mask = document.createElement('canvas');
+  mask.width = width;
+  mask.height = height;
+  const context = mask.getContext('2d', { willReadFrequently: true });
+  if (!context) return image;
+  context.drawImage(image, 0, 0, width, height);
+  try {
+    const pixels = context.getImageData(0, 0, width, height);
+    for (let index = 3; index < pixels.data.length; index += 4) {
+      // Drop the low-alpha shadow fringe where the exported pull art still has
+      // checkerboard colors, while retaining a crisp silhouette after scaling.
+      pixels.data[index] = pixels.data[index] >= 128 ? 255 : 0;
+    }
+    context.putImageData(pixels, 0, 0);
+  } catch {
+    return image;
+  }
+  silhouetteMaskCache.set(image, mask);
+  return mask;
 }
 
 // Match mobby-main's desktop carousel mesh density. Pointer updates are
@@ -104,10 +129,11 @@ function containLayer(
 
 export const SUPPORTS_PULL_MESH = true;
 
-export const MobbyPullMesh = forwardRef<MobbyPullMeshHandle, MobbyPullMeshProps>(function MobbyPullMesh({ source, size, visible, layers = [] }, ref) {
+export const MobbyPullMesh = forwardRef<MobbyPullMeshHandle, MobbyPullMeshProps>(function MobbyPullMesh({ source, mask: maskSource, size, visible, layers = [] }, ref) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const compositeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const maskImageRef = useRef<HTMLImageElement | null>(null);
   const imageLayersRef = useRef<{
     layer: MobbyPullMeshLayer;
     image: HTMLImageElement;
@@ -124,6 +150,8 @@ export const MobbyPullMesh = forwardRef<MobbyPullMeshHandle, MobbyPullMeshProps>
     const canvas = canvasRef.current;
     const image = imageRef.current;
     if (!canvas || !image?.complete || !image.naturalWidth) return;
+    const mask = maskImageRef.current;
+    if (maskSource && (!mask?.complete || !mask.naturalWidth)) return;
     const context = canvas.getContext('2d');
     if (!context) return;
     const spriteSize = sizeRef.current;
@@ -148,6 +176,14 @@ export const MobbyPullMesh = forwardRef<MobbyPullMeshHandle, MobbyPullMeshProps>
       if (!layerImage.complete || layerImage.naturalWidth <= 0) continue;
       const contained = containLayer(layer, layerImage, image.naturalWidth, image.naturalHeight);
       compositeContext.drawImage(contained.image, contained.x, contained.y, contained.width, contained.height);
+    }
+    if (mask) {
+      // The pull-body exports include editor checkerboard pixels in some
+      // transparent gaps (most visibly below the feet). Reapply the original
+      // character's alpha silhouette before meshing so those pixels stay clear.
+      compositeContext.globalCompositeOperation = 'destination-in';
+      compositeContext.drawImage(getSilhouetteMask(mask, composite.width, composite.height), 0, 0, composite.width, composite.height);
+      compositeContext.globalCompositeOperation = 'source-over';
     }
     const sourcePoint = (vertex: Vertex) => ({ x: vertex.u * image.naturalWidth, y: vertex.v * image.naturalHeight });
     const destinationPoint = (vertex: Vertex) => ({ x: vertex.baseX + vertex.offsetX, y: vertex.baseY + vertex.offsetY });
@@ -259,6 +295,7 @@ export const MobbyPullMesh = forwardRef<MobbyPullMeshHandle, MobbyPullMeshProps>
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.max(1, Math.round((size + padding * 2) * dpr));
     canvas.height = Math.max(1, Math.round((size + padding * 2) * dpr));
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
     verticesRef.current = [];
     for (let row = 0; row <= DIVISIONS; row += 1) {
       for (let column = 0; column <= DIVISIONS; column += 1) {
@@ -278,6 +315,29 @@ export const MobbyPullMesh = forwardRef<MobbyPullMeshHandle, MobbyPullMeshProps>
       frameRef.current = 0;
     };
   }, [size, source]);
+
+  useEffect(() => {
+    if (!maskSource) {
+      maskImageRef.current = null;
+      render();
+      return undefined;
+    }
+    let cancelled = false;
+    const mask = getLayerImage(maskSource);
+    const refresh = () => {
+      if (cancelled) return;
+      maskImageRef.current = mask.complete && mask.naturalWidth > 0 ? mask : null;
+      render();
+    };
+    mask.addEventListener('load', refresh);
+    mask.addEventListener('error', refresh);
+    refresh();
+    return () => {
+      cancelled = true;
+      mask.removeEventListener('load', refresh);
+      mask.removeEventListener('error', refresh);
+    };
+  }, [maskSource]);
 
   useEffect(() => {
     let cancelled = false;

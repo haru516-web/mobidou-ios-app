@@ -20,6 +20,8 @@ export type MobbyPullMeshLayer = {
 
 export type MobbyPullMeshProps = {
   source: ImageSourcePropType;
+  /** Full character art used as the alpha silhouette for the extracted pull body. */
+  mask?: ImageSourcePropType;
   size: number;
   visible: boolean;
   layers?: readonly MobbyPullMeshLayer[];
