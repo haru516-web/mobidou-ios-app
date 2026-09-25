@@ -10,6 +10,7 @@ import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { CUSTOM_HOME_WIDGET_IDS, setHomeWidgetSlot, type CustomHomeWidgetId, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork } from './HomeWidgetArtwork';
+import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
 // `borderCurve` is only supported by iOS. Keeping it out of the web/Android
 // style object avoids platform warnings while preserving the same smooth
@@ -287,30 +288,41 @@ type MobyPickerPopupProps = {
   selectedPet: PetId;
   onConfirm: (pet: PetId) => void;
   onClose: () => void;
+  guided?: boolean;
 };
 
-export function MobyPickerPopup({ selectedPet, onConfirm, onClose }: MobyPickerPopupProps) {
+export function MobyPickerPopup({ selectedPet, onConfirm, onClose, guided = false }: MobyPickerPopupProps) {
   const reduced = useReducedMotion();
   const [animation, closeAnimation] = usePopupAnimation(reduced);
   const [draftPet, setDraftPet] = useState<PetId>(selectedPet);
-  const closePopup = useCallback(() => closeAnimation(onClose), [closeAnimation, onClose]);
+  const [guideStage, setGuideStage] = useState<'choose' | 'confirm'>('choose');
+  const [tutorialRect, setTutorialRect] = useState<TutorialRect | null>(null);
+  const closePopup = useCallback(() => { if (!guided) closeAnimation(onClose); }, [closeAnimation, guided, onClose]);
   usePopupBackHandler(closePopup);
 
   return <PopupRoot style={[S.mobyRoot, FULL_POPUP_BOUNDS, FIXED_POPUP_ROOT]}>
-    <Animated.View style={[S.popupCard, S.mobyCard, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
+    <Animated.View style={[S.popupCard, S.mobyCard, guided && S.guidedMobyCard, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
       <WashiArt />
-      <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>モビーを選ぶ</Text><Text style={S.popupSubtitle}>いっしょに歩く相棒を選択</Text></View><PopupClose onPress={closePopup} /></View>
-      <ScrollView horizontal style={S.mobyScroll} contentContainerStyle={S.mobyGrid} showsHorizontalScrollIndicator={false} directionalLockEnabled>
-        {PET_CHARACTERS.map(pet => {
-          const selected = draftPet === pet.id;
-          return <Pressable key={pet.id} artwork={false} accessibilityRole="radio" accessibilityLabel={`${pet.name}。${pet.catchphrase}`} accessibilityState={{ selected }} onPress={() => setDraftPet(pet.id)} style={[S.mobyCardOption, selected && S.mobyCardOptionActive]}>
-            <Image source={PET_BACKGROUNDS[pet.id]} style={S.mobyCardBackdrop} contentFit="cover" pointerEvents="none" /><View pointerEvents="none" style={S.mobyCardWash} /><View pointerEvents="none" style={[S.mobyCardTint, { backgroundColor: pet.accent + '35' }]} />
-            <Image source={pet.image} style={S.mobyThumb} contentFit="contain" /><Text style={S.mobyName}>{pet.name}</Text><Text numberOfLines={1} style={S.mobyCatchphrase}>{pet.catchphrase}</Text>{selected && <View style={S.mobyCheck}><Icon name="checkmark" size={12} color="#FFF" /></View>}
-          </Pressable>;
-        })}
-      </ScrollView>
-      <View style={S.popupFooter}><Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>閉じる</Text></Pressable><Pressable artwork={false} accessibilityRole="button" accessibilityLabel="決定" onPress={() => closeAnimation(() => onConfirm(draftPet))} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>決定</Text></Pressable></View>
+      <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>モビーを選ぶ</Text><Text style={S.popupSubtitle}>いっしょに歩く相棒を選択</Text></View>{!guided && <PopupClose onPress={closePopup} />}</View>
+      <TutorialTarget active={guided && guideStage === 'choose'} onRectChange={setTutorialRect} style={[S.mobyScroll, guided && guideStage === 'choose' && S.guidedMobyTarget]}>
+        <ScrollView horizontal contentContainerStyle={S.mobyGrid} showsHorizontalScrollIndicator={false} directionalLockEnabled>
+          {PET_CHARACTERS.map(pet => {
+            const selected = draftPet === pet.id;
+            return <Pressable key={pet.id} artwork={false} accessibilityRole="radio" accessibilityLabel={`${pet.name}。${pet.catchphrase}`} accessibilityState={{ selected }} onPress={() => { setDraftPet(pet.id); if (guided) { setTutorialRect(null); setGuideStage('confirm'); } }} style={[S.mobyCardOption, selected && S.mobyCardOptionActive]}>
+              <Image source={PET_BACKGROUNDS[pet.id]} style={S.mobyCardBackdrop} contentFit="cover" pointerEvents="none" /><View pointerEvents="none" style={S.mobyCardWash} /><View pointerEvents="none" style={[S.mobyCardTint, { backgroundColor: pet.accent + '35' }]} />
+              <Image source={pet.image} style={S.mobyThumb} contentFit="contain" /><Text style={S.mobyName}>{pet.name}</Text><Text numberOfLines={1} style={S.mobyCatchphrase}>{pet.catchphrase}</Text>{selected && <View style={S.mobyCheck}><Icon name="checkmark" size={12} color="#FFF" /></View>}
+            </Pressable>;
+          })}
+        </ScrollView>
+      </TutorialTarget>
+      <View style={S.popupFooter}>
+        {!guided && <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>閉じる</Text></Pressable>}
+        <TutorialTarget active={guided && guideStage === 'confirm'} onRectChange={setTutorialRect} style={guided && S.guidedMobyConfirmTarget}>
+          <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="決定" onPress={() => closeAnimation(() => onConfirm(draftPet))} style={[S.popupFooterButton, S.popupFooterPrimary, guided && S.guidedMobyConfirmButton]}><Text style={S.popupFooterPrimaryText}>決定</Text></Pressable>
+        </TutorialTarget>
+      </View>
     </Animated.View>
+    {guided && <TutorialSpotlightOverlay targetRect={tutorialRect} step={guideStage === 'choose' ? '3 / 6' : '4 / 6'} title={guideStage === 'choose' ? '相棒にしたいモビーを選ぼう' : '選んだモビーを決定しよう'} detail={guideStage === 'choose' ? '好きな子のカードをタップ。左右にスワイプできます' : '画面右下の「決定」ボタンをタップ'} />}
   </PopupRoot>;
 }
 
@@ -461,6 +473,10 @@ const S = StyleSheet.create({
   popupCard: { width: '94%', maxWidth: 440, borderRadius: 22, borderWidth: 1, borderColor: '#D5BDA8', backgroundColor: '#FFF9EF', overflow: 'hidden', shadowColor: '#5D4634', shadowOffset: { width: 0, height: 8 }, shadowOpacity: .22, shadowRadius: 17, elevation: 8 },
   customCard: { position: 'absolute', height: 310, top: 92, padding: 16, overflow: 'visible' },
   mobyCard: { position: 'absolute', height: 252, bottom: 86, padding: 16 },
+  guidedMobyCard: { height: 320 },
+  guidedMobyTarget: { borderWidth: 2, borderColor: '#D3A752', borderRadius: 17, padding: 5 },
+  guidedMobyConfirmTarget: { padding: 5, borderRadius: 16 },
+  guidedMobyConfirmButton: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .46, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 8 },
   popupHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   popupTitle: { color: C.ink, fontFamily: 'Shippori', fontSize: 21, letterSpacing: 1 },
   popupSubtitle: { color: C.muted, fontSize: 10, letterSpacing: .8, marginTop: 5 },

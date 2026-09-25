@@ -8,7 +8,7 @@ import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500
 import { ShipporiMincho_700Bold } from '@expo-google-fonts/shippori-mincho/700Bold';
 import Svg, { Circle } from 'react-native-svg';
 import { Button, C, Clouds, Companion, Icon, Section, SERIF, Stamp, Torii } from './src/components';
-import { PET_CHARACTERS, getPetCharacter } from './src/petCatalog';
+import { PET_CHARACTERS, getPetCharacter, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets } from './src/services/progress';
 import { sourceLabel } from './src/services/steps';
@@ -29,6 +29,7 @@ import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork, HomeStepsArtwor
 import { FloatingMobby } from './src/components/FloatingMobby';
 import type { CustomHomeWidgetId, HomeWidgetId } from './src/services/homePreferences';
 import { OmikujiExperience } from './src/components/OmikujiExperience';
+import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './src/components/TutorialSpotlight';
 import { fortuneForDay, localOmikujiDay } from './src/data/omikuji';
 import { useOmikujiBrushFont } from './src/fonts/useOmikujiBrushFont';
 
@@ -36,6 +37,8 @@ type Tab = 'home' | 'book' | 'walk' | 'pets' | 'collection';
 type OutingTab = 'count' | 'map';
 type HomePopup = 'custom' | 'moby' | null;
 type HomeCardPopup = HomeWidgetId | null;
+type FirstRunStage = 'route' | 'character' | 'homeOmikuji' | 'drawOmikuji' | null;
+const FIRST_RUN_ROUTE_ID = 'sanctuary';
 type CollectionView = 'collection' | 'goshuin' | 'miniature' | 'passes';
 const fmt = (n: number) => n.toLocaleString('ja-JP');
 const OPENING_WORDMARK = require('./assets/mobidou-wordmark-brush.png');
@@ -276,10 +279,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const journey = useJourney();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { data, progress } = journey;
+  const onboardingPreview = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('onboarding-preview') === '1';
+  const [tutorialPreviewPet, setTutorialPreviewPet] = useState<PetId | null>(null);
+  const [tutorialPreviewDrawn, setTutorialPreviewDrawn] = useState(false);
   const [tab, setTab] = useState<Tab>('home');
   const [homePopup, setHomePopup] = useState<HomePopup>(null);
   const [homeCardPopup, setHomeCardPopup] = useState<HomeCardPopup>(null);
   const [omikujiModal, setOmikujiModal] = useState(false);
+  const [omikujiCardFocused, setOmikujiCardFocused] = useState(false);
+  const [omikujiAnimating, setOmikujiAnimating] = useState(false);
+  const [firstRunStage, setFirstRunStage] = useState<FirstRunStage>(null);
+  const [tutorialRect, setTutorialRect] = useState<TutorialRect | null>(null);
   const [homeDropTarget, setHomeDropTarget] = useState<0 | 1 | null>(null);
   const [outingTab, setOutingTab] = useState<OutingTab>('count');
   const [filter, setFilter] = useState<'all' | 'collected' | 'locked'>('all');
@@ -322,6 +332,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [info, setInfo] = useState<'privacy' | 'about' | null>(null);
   const [openingVisible, setOpeningVisible] = useState(true);
   const [routePicker, setRoutePicker] = useState(false);
+  const [guidedRoutePresented, setGuidedRoutePresented] = useState(false);
   const [routePickerFromBook, setRoutePickerFromBook] = useState(false);
   const [routePickerAfterCompletion, setRoutePickerAfterCompletion] = useState(false);
   const [promptedCompletedRouteId, setPromptedCompletedRouteId] = useState<string | null>(null);
@@ -342,10 +353,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [homeStageLayout, setHomeStageLayout] = useState<HomeLayout | null>(null);
   const scroll = useRef<ScrollView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
-  const pet = getPetCharacter(data.pet);
+  const pet = getPetCharacter(tutorialPreviewPet ?? data.pet);
   const omikujiDay = localOmikujiDay();
   const dailyFortune = fortuneForDay(omikujiDay, pet.id);
-  const omikujiDrawn = data.omikujiDay === omikujiDay;
+  const omikujiDrawn = onboardingPreview ? tutorialPreviewDrawn : data.omikujiDay === omikujiDay;
+  const isFirstRunOmikuji = firstRunStage === 'drawOmikuji';
+  const firstRunOmikujiComplete = isFirstRunOmikuji && omikujiDrawn && !omikujiAnimating;
   const floatingScreenLabel = tab === 'home'
     ? 'ホーム'
     : tab === 'book'
@@ -407,7 +420,22 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const move = (value: Tab) => { if (value === 'collection') { setCollectionZoom('standard'); setCollectionView('collection'); } if (value === 'book' && tab !== 'book') setBookOpen(false); setBookImageList(false); setHomePopup(null); setHomeCardPopup(null); setOmikujiModal(false); scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setHomeCardPopup(null); setHomePopup(kind); setTab('home'); scrollY.setValue(0); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const mapScreen = tab === 'walk' && outingTab === 'map';
-  const enterApp = () => { setOpeningVisible(false); scroll.current?.scrollTo({ y: 0, animated: false }); if (!data.onboarded) journey.enter(false); };
+  const enterApp = () => {
+    const firstRun = onboardingPreview || !data.onboarded;
+    setOpeningVisible(false);
+    scroll.current?.scrollTo({ y: 0, animated: false });
+    if (onboardingPreview) {
+      setGuidedRoutePresented(false);
+      setFirstRunStage('route');
+      setRoutePicker(true);
+    } else if (firstRun && progress.routeId) {
+      setFirstRunStage('character');
+      setHomePopup('moby');
+    } else if (firstRun) {
+      setGuidedRoutePresented(false);
+      setFirstRunStage('route');
+    }
+  };
   const renderBookSpread = (index: number) => {
     const book = activeShrines[index] ?? SHRINES[0];
     const reward = progress.rewards.find(entry => entry.id === book.id);
@@ -444,7 +472,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     : homeCushionContentY + HOME_CHARACTER_CUSHION_FOOT_INSET - (homeCompanionLayout.y + homeStageLayout.y + homeStageLayout.height);
   const openNextRoutePicker = () => { setRoutePickerAfterCompletion(true); setRoutePicker(true); };
   const selectPilgrimageRoute = (routeId: string) => {
-    journey.selectRoute(routeId);
+    const beginningFirstRun = firstRunStage === 'route';
+    if (beginningFirstRun) setFirstRunStage('character');
+    if (!onboardingPreview) journey.selectRoute(routeId);
     setFeatured(0);
     setFilter('all');
     setRoutePicker(false);
@@ -453,8 +483,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     // route has been completed). Mark it as already prompted so its picker does
     // not immediately reopen in a loop.
     setPromptedCompletedRouteId(routeRecords[routeId]?.completedAt ? routeId : null);
-    if (routePickerFromBook) { setRoutePickerFromBook(false); setBookOpen(false); move('book'); }
+    if (beginningFirstRun) { setOutingTab('count'); move('home'); setHomePopup('moby'); }
+    else if (routePickerFromBook) { setRoutePickerFromBook(false); setBookOpen(false); move('book'); }
     else { setOutingTab('count'); move('walk'); }
+  };
+  const closeOmikuji = () => {
+    if (isFirstRunOmikuji && !firstRunOmikujiComplete) return;
+    setOmikujiModal(false);
+    if (isFirstRunOmikuji) {
+      if (!onboardingPreview) journey.enter(false);
+      setFirstRunStage(null);
+    }
   };
   const closeRoutePicker = () => {
     if (!activeRoute) return;
@@ -467,16 +506,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     setRoutePickerFromBook(false);
     setRoutePickerAfterCompletion(false);
   };
-  const cardLocked = !!homeCardPopup;
-  const cardInteractionProps = {
-    disabled: cardLocked,
-    focusable: !cardLocked,
-    accessible: !cardLocked,
-    accessibilityElementsHidden: cardLocked,
-    importantForAccessibility: cardLocked ? 'no-hide-descendants' as const : 'auto' as const,
-    'aria-hidden': cardLocked ? true : undefined,
-    pointerEvents: cardLocked ? 'none' as const : 'auto' as const,
-  };
+  const cardInteractionPropsFor = (locked: boolean) => ({
+    disabled: locked,
+    focusable: !locked,
+    accessible: !locked,
+    accessibilityElementsHidden: locked,
+    importantForAccessibility: locked ? 'no-hide-descendants' as const : 'auto' as const,
+    'aria-hidden': locked ? true : undefined,
+    pointerEvents: locked ? 'none' as const : 'auto' as const,
+  });
+  const cardInteractionProps = cardInteractionPropsFor(!!homeCardPopup || firstRunStage === 'homeOmikuji');
+  const omikujiCardInteractionProps = cardInteractionPropsFor(!!homeCardPopup);
   const renderHomeWidget = (widget: CustomHomeWidgetId, slot: number) => {
     const selectedShrine = COLLECTION_SHRINES.find(shrine => shrine.id === data.homeWidgetItems[slot]) ?? latest;
     const openCard = (next: HomeWidgetId) => {
@@ -487,10 +527,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       <HomeGoshuinArtwork source={STAMP_IMAGES[selectedShrine.id]} background={currentBackground.image} />
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
-    if (widget === 'miniature') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-miniature-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={omikujiDrawn ? `今日のおみくじは${dailyFortune.rank}。全画面で詳しく見る` : '今日のおみくじを全画面で引く'} onPress={() => setOmikujiModal(true)} style={[S.homeWidgetCard, S.homeGoshuinOnlyCard, homeDropTarget === slot && S.homeWidgetDropTarget]}>
-      <HomeOmikujiArtwork fortune={omikujiDrawn ? dailyFortune : null} petName={pet.name} />
-      {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
-    </Pressable>;
+    if (widget === 'miniature') return <TutorialTarget key={`${widget}-${slot}`} active={firstRunStage === 'homeOmikuji'} onRectChange={setTutorialRect} style={S.homeOmikujiTargetWrapper}>
+      <Pressable nativeID={`home-widget-miniature-${slot}`} artwork={false} {...omikujiCardInteractionProps} accessibilityRole="button" accessibilityLabel={omikujiDrawn ? `今日のおみくじは${dailyFortune.rank}。全画面で詳しく見る` : '今日のおみくじを全画面で引く'} onFocus={() => setOmikujiCardFocused(true)} onBlur={() => setOmikujiCardFocused(false)} onPress={() => { if (firstRunStage === 'homeOmikuji') { setTutorialRect(null); setFirstRunStage('drawOmikuji'); } setOmikujiModal(true); }} style={[S.homeWidgetCard, S.homeGoshuinOnlyCard, { width: '100%' }, omikujiCardFocused && S.homeOmikujiCardFocused, firstRunStage === 'homeOmikuji' && S.onboardingHomeTarget, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+        <HomeOmikujiArtwork fortune={omikujiDrawn ? dailyFortune : null} petName={pet.name} />
+        {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
+      </Pressable>
+    </TutorialTarget>;
     if (widget === 'map') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-map-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel="巡礼マップ。拡大表示をひらく" onPress={() => openCard('map')} style={[S.homeWidgetCard, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
       <HomeMapArtwork />
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
@@ -502,16 +544,16 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   </Pressable>;
   useEffect(() => { setBackgroundSeason(currentBackground.season); }, [currentBackground.season]);
   useEffect(() => { setPetMenuOpen(false); }, [tab]);
-  useEffect(() => { if (!openingVisible && journey.ready && !progress.routeId) setRoutePicker(true); }, [openingVisible, journey.ready, progress.routeId, data.demo]);
+  useEffect(() => { if (!openingVisible && journey.ready && !progress.routeId && (firstRunStage === null || firstRunStage === 'route')) setRoutePicker(true); }, [openingVisible, journey.ready, progress.routeId, data.demo, firstRunStage]);
   useEffect(() => {
     if (tab !== 'home') {
       promptedOmikujiHomeEntry.current = false;
       return;
     }
-    if (promptedOmikujiHomeEntry.current || openingVisible || !journey.ready || routePicker || !progress.routeId) return;
+    if (promptedOmikujiHomeEntry.current || openingVisible || !journey.ready || routePicker || !progress.routeId || firstRunStage !== null) return;
     promptedOmikujiHomeEntry.current = true;
     if (!omikujiDrawn) setOmikujiModal(true);
-  }, [tab, openingVisible, journey.ready, routePicker, progress.routeId, omikujiDrawn]);
+  }, [tab, openingVisible, journey.ready, routePicker, progress.routeId, omikujiDrawn, firstRunStage]);
   useEffect(() => {
     if (!openingVisible && progress.routeId && progress.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId) {
       setPromptedCompletedRouteId(progress.routeId);
@@ -555,19 +597,23 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </>}
     <View style={[S.header, tab === 'collection' && S.collectionHeader]}>
       <View style={S.headerSide}><Text style={S.brandMini}>歩く、集める、</Text><Text style={S.brandMini}>好きになる。</Text></View>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="もび道 ホームへ" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.png')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.png')} style={S.logoMark} contentFit="contain" /></Pressable>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.gear}><Icon name="settings-outline" size={21} /></Pressable>
+      <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="もび道 ホームへ" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.png')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.png')} style={S.logoMark} contentFit="contain" /></Pressable>
+      <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.gear}><Icon name="settings-outline" size={21} /></Pressable>
     </View>
     {data.demo && <View style={[S.demoBar, tab === 'collection' && S.collectionChrome]}><View style={S.dot} /><Text style={S.demoText}>体験モード · 実際の歩数・御朱印帳とは別の記録</Text><Pressable accessibilityRole="button" accessibilityLabel="体験モードを終了" onPress={() => journey.enter(false)} style={{ padding: 7 }}><Icon name="close" size={14} color={C.red} /></Pressable></View>}
     {!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
     <ScrollView ref={scroll} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} contentContainerStyle={[S.content, tab === 'home' && S.homeContent, mapScreen && { paddingBottom: 0 }]} scrollEnabled={tab !== 'home' && tab !== 'book' && !homeCardPopup && !mapScreen && !detail} showsVerticalScrollIndicator={false} pointerEvents={homeCardPopup ? 'none' : 'auto'} accessibilityElementsHidden={!!homeCardPopup} aria-hidden={homeCardPopup ? true : undefined} importantForAccessibility={homeCardPopup ? 'no-hide-descendants' : 'auto'} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
       {tab === 'home' && <>
-        <View style={S.homeHeading}><View style={S.hairline} /><Text style={S.chapter}>日々を、ひとめぐり。</Text><View style={S.hairline} /></View>
-        <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? undefined : { transform: [{ translateY: homeCharacterShiftY }] }}>
-          <Companion pet={pet} haptics={data.haptics} onBond={journey.bond} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
-        </View>
+        {firstRunStage === 'homeOmikuji'
+          ? <View style={S.homeTutorialIntro}><Text style={S.chapter}>つぎは、おみくじを引こう。</Text></View>
+          : <>
+            <View style={S.homeHeading}><View style={S.hairline} /><Text style={S.chapter}>日々を、ひとめぐり。</Text><View style={S.hairline} /></View>
+            <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? undefined : { transform: [{ translateY: homeCharacterShiftY }] }}>
+              <Companion pet={pet} haptics={data.haptics} onBond={journey.bond} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+            </View>
+          </>}
         <View style={S.homeCardGroup} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCardGroupLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>
-          <View style={S.homeStepsSlot} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeStepsSlotLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>{renderHomeStepsCard()}</View>
+          {firstRunStage !== 'homeOmikuji' && <View style={S.homeStepsSlot} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeStepsSlotLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>{renderHomeStepsCard()}</View>}
           <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby' ? true : undefined} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
             <View style={S.homeWidgetGrid}>{data.homeWidgetOrder.map(renderHomeWidget)}</View>
           </View>
@@ -614,10 +660,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <Button title={`${pet.name}とふれあう`} onPress={() => move('home')} style={{ marginTop: 22 }} />
       </>}
     </ScrollView>
-    <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} screenLabel={floatingScreenLabel} menuActions={activeMenuActions} menuOpen={petMenuOpen} onPress={() => setPetMenuOpen(open => !open)} onMenuToggle={() => setPetMenuOpen(false)} />
+    {firstRunStage === null && <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} screenLabel={floatingScreenLabel} menuActions={activeMenuActions} menuOpen={petMenuOpen} onPress={() => setPetMenuOpen(open => !open)} onMenuToggle={() => setPetMenuOpen(false)} />}
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
-    {homePopup === 'moby' && <MobyPickerPopup selectedPet={data.pet} onConfirm={selectedPet => { journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
-    <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => { if (value === 'walk') setOutingTab('count'); move(value); }} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={activeMenuActions} disabled={!!homePopup || !!homeCardPopup} />
+    {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') setFirstRunStage('homeOmikuji'); }} onClose={() => setHomePopup(null)} />}
+    <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => { if (value === 'walk') setOutingTab('count'); move(value); }} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={activeMenuActions} disabled={!!homePopup || !!homeCardPopup || firstRunStage !== null} />
+    {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="5 / 6" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
     {homeCardPopup && <HomeWidgetPopup
       widget={homeCardPopup}
       latest={latest}
@@ -638,22 +685,24 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       onOpenSteps={() => { setOutingTab('count'); move('walk'); }}
       onClose={() => setHomeCardPopup(null)}
     />}
-    <Modal transparent visible={omikujiModal} animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => setOmikujiModal(false)}>
+    <Modal transparent visible={omikujiModal} animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => { if (!isFirstRunOmikuji) closeOmikuji(); }}>
       <SafeAreaView style={S.omikujiModal}>
-        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="おみくじを閉じる" onPress={() => setOmikujiModal(false)} style={S.omikujiBackdrop} />
+        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="おみくじを閉じる" disabled={isFirstRunOmikuji} onPress={closeOmikuji} style={S.omikujiBackdrop} />
         <ScrollView pointerEvents="box-none" contentContainerStyle={S.omikujiModalContent} showsVerticalScrollIndicator={false}>
           <View style={S.omikujiModalCard}>
             {!omikujiDrawn && <Image source={OMIKUJI_PRE_DRAW_BACKGROUND} contentFit="cover" style={S.omikujiPreDrawBackground} accessible={false} />}
-            <View style={S.omikujiCardClose}><Close onPress={() => setOmikujiModal(false)} /></View>
-            <OmikujiExperience pet={pet} fortune={dailyFortune} drawn={omikujiDrawn} visible={omikujiModal} onDraw={journey.drawDailyOmikuji} onReset={journey.resetDailyOmikuji} />
+            {!isFirstRunOmikuji && <View style={S.omikujiCardClose}><Close onPress={closeOmikuji} /></View>}
+            <OmikujiExperience pet={pet} fortune={dailyFortune} drawn={omikujiDrawn} visible={omikujiModal} onDraw={() => onboardingPreview ? setTutorialPreviewDrawn(true) : journey.drawDailyOmikuji()} onReset={() => onboardingPreview ? setTutorialPreviewDrawn(false) : journey.resetDailyOmikuji()} onAnimationStateChange={setOmikujiAnimating} guidedDraw={firstRunStage === 'drawOmikuji'} onGuidedTargetRectChange={setTutorialRect} />
+            {firstRunOmikujiComplete && <Button title="ホームへ進む" onPress={closeOmikuji} style={{ width: '90%', maxWidth: 330, alignSelf: 'center', marginTop: 8 }} />}
           </View>
         </ScrollView>
+        {firstRunStage === 'drawOmikuji' && !omikujiDrawn && !omikujiAnimating && <TutorialSpotlightOverlay targetRect={tutorialRect} step="6 / 6" title="今日のおみくじを引こう" detail="金色の枠の「今日のおみくじを引く」をタップ" />}
       </SafeAreaView>
     </Modal>
 
     <GoshuinImageListModal visible={bookImageList} route={activeRoute} shrines={activeShrines} acquiredCount={collected.length} onClose={() => setBookImageList(false)} onSelect={(shrine, index) => { setBookImageList(false); setFeatured(index); setDetail(shrine); }} />
 
-    <Modal visible={routePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeRoutePicker}><SafeAreaView style={S.modal}><PilgrimagePicker activeId={activeRoute?.id} records={routeRecords} pet={pet} onClose={closeRoutePicker} onSelect={selectPilgrimageRoute} /></SafeAreaView></Modal>
+    <Modal visible={routePicker} animationType="slide" presentationStyle="pageSheet" onShow={() => { if (firstRunStage === 'route') setGuidedRoutePresented(true); }} onRequestClose={closeRoutePicker}><SafeAreaView style={S.modal}><PilgrimagePicker key={firstRunStage === 'route' ? `guided-${FIRST_RUN_ROUTE_ID}` : 'route-picker'} activeId={activeRoute?.id} records={routeRecords} pet={pet} onClose={closeRoutePicker} onSelect={selectPilgrimageRoute} guidedRouteId={firstRunStage === 'route' ? FIRST_RUN_ROUTE_ID : undefined} guidedRoutePresented={guidedRoutePresented} /></SafeAreaView></Modal>
 
     <Modal visible={!!detail} transparent onShow={() => { setOverlayBusy(true); openDetailPopup(); }} onDismiss={() => { detailPopupProgress.stopAnimation(); detailPopupProgress.setValue(0); detailStampPreviewProgress.stopAnimation(); detailStampPreviewProgress.setValue(0); setDetail(null); setDetailStampPreview(false); setOverlayBusy(false); }} animationType="none" onRequestClose={() => { if (detailStampPreview) closeDetailStampPreview(); else closeDetailPopup(); }} presentationStyle="overFullScreen">
       <SafeAreaView style={[S.modal, { backgroundColor: 'transparent' }]}>
@@ -713,6 +762,10 @@ function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name'];
 
 const S = StyleSheet.create({
   homeGoshuinOnlyCard: { padding: 0, borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent' },
+  homeOmikujiCardFocused: { outlineStyle: 'solid', outlineColor: '#D9C7AE', outlineWidth: 1 },
+  homeTutorialIntro: { alignItems: 'center', paddingVertical: 12 },
+  homeOmikujiTargetWrapper: { width: '48%', height: 244 },
+  onboardingHomeTarget: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .4, shadowRadius: 11, shadowOffset: { width: 0, height: 2 }, elevation: 8 },
   omikujiModal: { flex: 1, width: '100%', maxWidth: 600, alignSelf: 'center' },
   omikujiBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#261A12A6' },
   omikujiModalContent: { flexGrow: 1, justifyContent: 'center', padding: 18 },

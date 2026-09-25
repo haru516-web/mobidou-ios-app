@@ -6,6 +6,7 @@ import { OMIKUJI_ATLASES } from '../data/omikujiAtlases';
 import type { PetCharacter } from '../petCatalog';
 import { useOmikujiBrushFont } from '../fonts/useOmikujiBrushFont';
 import { WashiPressable as Pressable } from './Washi';
+import { TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
 const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-washi-v1.png');
 // Frames 0–4 keep the paper inside the tube; repeat them three times before frames 5–7 reveal it.
@@ -28,7 +29,7 @@ const SPARKLE_POSITIONS: ViewStyle[] = [
   { top: '19%', left: '28%' }, { top: '18%', right: '27%' },
 ];
 
-export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onReset }: { pet: PetCharacter; fortune: OmikujiFortune; drawn: boolean; visible: boolean; onDraw: () => void; onReset: () => void }) {
+export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onReset, onAnimationStateChange, guidedDraw = false, onGuidedTargetRectChange }: { pet: PetCharacter; fortune: OmikujiFortune; drawn: boolean; visible: boolean; onDraw: () => void; onReset: () => void; onAnimationStateChange: (animating: boolean) => void; guidedDraw?: boolean; onGuidedTargetRectChange?: (rect: TutorialRect | null) => void }) {
   const [revealing, setRevealing] = useState(false);
   const [frame, setFrame] = useState<number | null>(null);
   const paperProgress = useRef(new Animated.Value(0)).current;
@@ -59,12 +60,16 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
       Animated.delay(170),
       Animated.timing(effectProgress, { toValue: 1, duration: effect.duration, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }),
       Animated.delay(150),
-    ]).start(() => setRevealing(false));
+    ]).start(({ finished }) => {
+      setRevealing(false);
+      if (finished) onAnimationStateChange(false);
+    });
   };
   playRevealRef.current = playReveal;
 
   const start = () => {
     if (revealing || pulling) return;
+    onAnimationStateChange(true);
     paperProgress.stopAnimation();
     effectProgress.stopAnimation();
     setFrame(0);
@@ -90,12 +95,13 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
   useEffect(() => {
     if (!visible) {
       autoPlayedOnOpen.current = false;
+      onAnimationStateChange(false);
       return;
     }
     if (autoPlayedOnOpen.current) return;
     autoPlayedOnOpen.current = true;
     if (drawn) start();
-  }, [visible, drawn]);
+  }, [visible, drawn, onAnimationStateChange]);
 
   const paperOpacity = paperProgress.interpolate({ inputRange: [0, 0.18, 1], outputRange: [0, 1, 1] });
   const paperScale = paperProgress.interpolate({ inputRange: [0, 1], outputRange: [0.62, 1] });
@@ -110,6 +116,7 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
   const rankScale = effectProgress.interpolate({ inputRange: [0, 0.42, 0.62, 1], outputRange: [0.74, 1.12, 1, 1] });
   const shineOpacity = effectProgress.interpolate({ inputRange: [0, 0.08, 0.38, 0.62, 1], outputRange: [0, 0, 0.8, 0, 0] });
   const shineX = effectProgress.interpolate({ inputRange: [0, 1], outputRange: [-390, 390] });
+  const drawButton = <Pressable accessibilityRole="button" accessibilityLabel="今日のおみくじを引く" onPress={start} style={[S.drawButton, guidedDraw && S.guidedDrawButton]}><Text style={[S.drawButtonText, brushTextStyle]}>今日のおみくじを引く</Text></Pressable>;
 
   return <View style={S.wrap}>
     {pulling && <View style={S.stage}>
@@ -145,7 +152,9 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
         <Image source={pet.image} contentFit="contain" accessibilityLabel={pet.name} style={S.petImage} />
       </View>
       <Text style={[S.prompt, brushTextStyle]}>今日の一枚を引いて、運勢をたしかめましょう。</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="今日のおみくじを引く" onPress={start} style={S.drawButton}><Text style={[S.drawButtonText, brushTextStyle]}>今日のおみくじを引く</Text></Pressable>
+      {guidedDraw
+        ? <TutorialTarget onRectChange={onGuidedTargetRectChange ?? (() => {})} style={S.guidedDrawTarget}>{drawButton}</TutorialTarget>
+        : drawButton}
     </>}
 
     {drawn && !pulling && !revealing && <>
@@ -184,6 +193,8 @@ const S = StyleSheet.create({
   revealRank: { fontFamily: 'ShipporiBold', fontSize: 44, marginTop: 2 },
   paperShine: { position: 'absolute', top: -34, bottom: -34, left: '48%', width: 48, borderRadius: 40, backgroundColor: '#FFFFFF88' },
   drawButton: { alignSelf: 'center', minHeight: 48, minWidth: 240, backgroundColor: '#A54E42', borderRadius: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  guidedDrawTarget: { alignSelf: 'center', padding: 7 },
+  guidedDrawButton: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .38, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 7 },
   drawButtonText: { color: '#FFF9EF', fontFamily: 'ShipporiBold', letterSpacing: 1 },
   replayButton: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 18 },
   replayButtonText: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 12, letterSpacing: 0.5, textDecorationLine: 'underline' },
