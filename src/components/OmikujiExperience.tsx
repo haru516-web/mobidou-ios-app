@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, ImageBackground, Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
-import { categoriesForFortune, type OmikujiFortune } from '../data/omikuji';
+import type { OmikujiFortune } from '../data/omikuji';
 import { OMIKUJI_ATLASES } from '../data/omikujiAtlases';
 import type { PetCharacter } from '../petCatalog';
 import { useOmikujiBrushFont } from '../fonts/useOmikujiBrushFont';
 import { WashiPressable as Pressable } from './Washi';
+import { OmikujiResultCard } from './OmikujiResultCard';
 import { TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
-const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-washi-v1.png');
+const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.png');
 // Frames 0–4 keep the paper inside the tube; repeat them three times before frames 5–7 reveal it.
 const DRAW_FRAME_SEQUENCE = [0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -149,6 +150,7 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
 
     {!drawn && !pulling && !revealing && <>
       <View style={S.petPrompt}>
+        <Text style={[S.fortuneHeading, brushTextStyle]}>今日の運勢</Text>
         <Image source={pet.image} contentFit="contain" accessibilityLabel={pet.name} style={S.petImage} />
       </View>
       <Text style={[S.prompt, brushTextStyle]}>今日の一枚を引いて、運勢をたしかめましょう。</Text>
@@ -158,14 +160,8 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
     </>}
 
     {drawn && !pulling && !revealing && <>
-      <ImageBackground source={OMIKUJI_RESULT_BACKGROUND} resizeMode="cover" imageStyle={S.paperImage} accessibilityLabel={`今日のおみくじは${fortune.rank}`} style={S.paper}>
-      <Text style={[S.date, brushTextStyle]}>本日のご縁みくじ</Text><Text style={[S.rank, brushTextStyle]}>{fortune.rank}</Text><Text style={[S.title, brushTextStyle]}>{fortune.title}</Text>
-      <Text style={[S.message, brushTextStyle]}>{fortune.message}</Text><View style={S.rule} />
-      {categoriesForFortune(fortune).map(item => <View key={item.label} style={S.row}><Text style={[S.label, brushTextStyle]}>{item.label}</Text><Text style={[S.value, brushTextStyle]}>{item.text}</Text></View>)}
-      <View style={S.tip}><Text style={[S.tipLabel, brushTextStyle]}>今日の小さな開運</Text><Text style={[S.tipText, brushTextStyle]}>{fortune.action}</Text><Text style={[S.lucky, brushTextStyle]}>吉もの　{fortune.lucky}</Text></View>
-      <Text style={[S.tomorrow, brushTextStyle]}>また明日、違うご縁が待っています。</Text>
-      </ImageBackground>
-      <Pressable accessibilityRole="button" accessibilityLabel="おみくじの演出をもう一度見る" onPress={start} style={S.replayButton}><Text style={[S.replayButtonText, brushTextStyle]}>演出をもう一度見る</Text></Pressable>
+      <OmikujiResultCard fortune={fortune} brushTextStyle={brushTextStyle} />
+      <Pressable accessibilityRole="button" accessibilityLabel="おみくじの演出をもう一度見る" onPress={start} style={S.replayButton}><Text style={[S.replayButtonText, brushTextStyle, S.resultTextEmphasis]}>演出をもう一度見る</Text></Pressable>
       {__DEV__ && <Pressable accessibilityRole="button" accessibilityLabel="おみくじを引く前の状態に戻す" onPress={onReset} style={S.replayButton}><Text style={[S.replayButtonText, brushTextStyle]}>引く前の状態に戻す（開発用）</Text></Pressable>}
     </>}
   </View>;
@@ -178,6 +174,7 @@ const S = StyleSheet.create({
   characterAtlas: { position: 'absolute', top: 0, width: 1680, height: 210 },
   petLine: { fontFamily: 'Shippori', color: '#5B4030', fontSize: 12, backgroundColor: '#FFF9EEDD', borderRadius: 13, paddingHorizontal: 13, paddingVertical: 7, overflow: 'hidden' },
   petPrompt: { alignItems: 'center', gap: 2, paddingTop: 2 },
+  fortuneHeading: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 28, lineHeight: 38, letterSpacing: 2, textAlign: 'center', marginBottom: 3 },
   petImage: { width: 126, height: 126 },
   prompt: { color: '#5B4030', fontFamily: 'Shippori', fontSize: 13, lineHeight: 22, textAlign: 'center', backgroundColor: '#FFF9EEDD', borderRadius: 13, paddingHorizontal: 13, paddingVertical: 12 },
   revealStage: { minHeight: 400, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
@@ -198,19 +195,6 @@ const S = StyleSheet.create({
   drawButtonText: { color: '#FFF9EF', fontFamily: 'ShipporiBold', letterSpacing: 1 },
   replayButton: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 18 },
   replayButtonText: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 12, letterSpacing: 0.5, textDecorationLine: 'underline' },
-  paper: { marginHorizontal: 4, backgroundColor: '#FFF9EA', padding: 19, borderRadius: 4, shadowColor: '#5E3C28', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, overflow: 'hidden' },
-  paperImage: { borderRadius: 4, opacity: 0.58 },
+  resultTextEmphasis: { fontWeight: '700' },
   date: { textAlign: 'center', color: '#8B6B51', fontSize: 10, letterSpacing: 2 },
-  rank: { textAlign: 'center', color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 40, marginTop: 4 },
-  title: { textAlign: 'center', color: '#3D3028', fontFamily: 'ShipporiBold', fontSize: 17, marginTop: 3 },
-  message: { color: '#5E5045', fontFamily: 'Shippori', fontSize: 12, lineHeight: 22, marginTop: 12 },
-  rule: { height: 1, backgroundColor: '#D8C3A6', marginVertical: 13 },
-  row: { flexDirection: 'row', marginVertical: 3 },
-  label: { width: 50, color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 11 },
-  value: { flex: 1, color: '#5E5045', fontSize: 11 },
-  tip: { marginTop: 13, backgroundColor: '#F2E6D3DD', padding: 12, borderRadius: 10 },
-  tipLabel: { color: '#8A5A3B', fontSize: 9, letterSpacing: 1 },
-  tipText: { color: '#3D3028', fontFamily: 'ShipporiBold', marginTop: 4 },
-  lucky: { color: '#79685A', fontSize: 10, marginTop: 5 },
-  tomorrow: { textAlign: 'center', color: '#8A7564', fontSize: 9, marginTop: 14 },
 });
