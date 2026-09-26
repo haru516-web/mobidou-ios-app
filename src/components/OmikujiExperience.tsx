@@ -35,7 +35,6 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
   const [frame, setFrame] = useState<number | null>(null);
   const paperProgress = useRef(new Animated.Value(0)).current;
   const effectProgress = useRef(new Animated.Value(0)).current;
-  const autoPlayedOnOpen = useRef(false);
   const onDrawRef = useRef(onDraw);
   onDrawRef.current = onDraw;
   const playRevealRef = useRef<() => void>(() => {});
@@ -95,14 +94,13 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
 
   useEffect(() => {
     if (!visible) {
-      autoPlayedOnOpen.current = false;
+      paperProgress.stopAnimation();
+      effectProgress.stopAnimation();
+      setFrame(null);
+      setRevealing(false);
       onAnimationStateChange(false);
-      return;
     }
-    if (autoPlayedOnOpen.current) return;
-    autoPlayedOnOpen.current = true;
-    if (drawn) start();
-  }, [visible, drawn, onAnimationStateChange]);
+  }, [visible, onAnimationStateChange, paperProgress, effectProgress]);
 
   const paperOpacity = paperProgress.interpolate({ inputRange: [0, 0.18, 1], outputRange: [0, 1, 1] });
   const paperScale = paperProgress.interpolate({ inputRange: [0, 1], outputRange: [0.62, 1] });
