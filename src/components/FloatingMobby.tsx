@@ -103,7 +103,7 @@ function WalkFrame({ source, petId, frame }: { source: ImageSourcePropType; petI
   </View>;
 }
 
-export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [], menuOpen = false, onPress, onMenuToggle }: { image: ImageSourcePropType; name: string; petId: PetId; screenLabel: string; menuActions?: readonly NavigationMenuAction[]; menuOpen?: boolean; onPress?: () => void; onMenuToggle?: () => void }) {
+export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [], menuOpen = false, resetToMenuOnMount = false, onPress, onMenuToggle }: { image: ImageSourcePropType; name: string; petId: PetId; screenLabel: string; menuActions?: readonly NavigationMenuAction[]; menuOpen?: boolean; resetToMenuOnMount?: boolean; onPress?: () => void; onMenuToggle?: () => void }) {
   const [layout, setLayout] = useState<LayoutSize>({ width: 0, height: 0 });
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [hydrated, setHydrated] = useState(false);
@@ -143,6 +143,11 @@ export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [
   }, [menuOpen, menuProgress]);
 
   useEffect(() => {
+    if (resetToMenuOnMount) {
+      savedRatioRef.current = null;
+      setHydrated(true);
+      return undefined;
+    }
     let active = true;
     void AsyncStorage.getItem(STORAGE_KEY).then(raw => {
       if (!active || !raw) return;
@@ -158,12 +163,12 @@ export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [
       if (active) setHydrated(true);
     });
     return () => { active = false; };
-  }, []);
+  }, [resetToMenuOnMount]);
 
   useEffect(() => {
     if (!hydrated || !layout.width || !layout.height) return;
     if (!initializedRef.current) {
-      const saved = savedRatioRef.current;
+      const saved = resetToMenuOnMount ? null : savedRatioRef.current;
       const initial = saved
         ? { x: saved.x * layout.width, y: saved.y * layout.height }
         : {
@@ -179,7 +184,7 @@ export function FloatingMobby({ image, name, petId, screenLabel, menuActions = [
     const next = clampPosition(positionRef.current, layout);
     positionRef.current = next;
     setPosition(next);
-  }, [hydrated, layout]);
+  }, [hydrated, layout, resetToMenuOnMount]);
 
   const persist = useCallback((point: Point) => {
     if (!layout.width || !layout.height) return;

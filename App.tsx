@@ -6,7 +6,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500Medium';
 import { ShipporiMincho_700Bold } from '@expo-google-fonts/shippori-mincho/700Bold';
-import Svg, { Circle } from 'react-native-svg';
 import { Button, C, Clouds, Companion, Icon, Section, SERIF, Stamp, Torii } from './src/components';
 import { PET_CHARACTERS, getPetCharacter, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
@@ -21,11 +20,13 @@ import { WashiArt, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_IMAGES } from './src/data/pilgrimageImages';
+import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from './src/data/pilgrimagePeekImages';
 import { COLLECTION_SHRINES, CollectionGallery, PassInventoryView, type CollectionZoom } from './src/components/CollectionGallery';
 import { BookPageTurn, type BookPageTurnHandle } from './src/components/BookPageTurn';
 import { HomeBottomNavigation, HomeCustomizationPopup, HomeWidgetPopup, MobyPickerPopup, type NavigationMenuAction, type PrimaryTab } from './src/components/HomeNavigation';
 import { CollectionImageList, GoshuinBookCover, GoshuinImageListModal } from './src/components/GoshuinBook';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
+import { StepProgressRing } from './src/components/StepProgressRing';
 import { FloatingMobby } from './src/components/FloatingMobby';
 import type { CustomHomeWidgetId, HomeWidgetId } from './src/services/homePreferences';
 import { OmikujiExperience } from './src/components/OmikujiExperience';
@@ -79,21 +80,6 @@ const OPENING_TIMELINE = [
 function displayDate(day: string) { const [y, m, d] = day.split('-'); return `${y}年${Number(m)}月${Number(d)}日`; }
 
 type HomeLayout = { y: number; height: number };
-
-function StepRing({ steps, goal }: { steps: number; goal: number }) {
-  const size = 248;
-  const stroke = 11;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = Math.min(1, Math.max(0, steps / goal));
-  return <View style={S.walkRingWrap}>
-    <Svg width={size} height={size} style={S.walkRingSvg}>
-      <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#D8D0C4" strokeWidth={stroke} fill="none" strokeLinecap="round" />
-      <Circle cx={size / 2} cy={size / 2} r={radius} stroke={C.red} strokeWidth={stroke} fill="none" strokeLinecap="round" strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={circumference * (1 - progress)} rotation={-90} origin={`${size / 2}, ${size / 2}`} />
-    </Svg>
-    <View style={S.walkRingCenter}><Text style={S.walkRingCount}>{fmt(steps)}</Text><Text style={S.walkRingUnit}>歩</Text><Text style={S.walkRingGoal}>目標 {fmt(goal)}歩</Text></View>
-  </View>;
-}
 
 function OpeningScene({ scene, width, frameIndex, progress }: { scene: (typeof OPENING_TIMELINE)[number]; width: number; frameIndex: number; progress: Animated.Value }) {
   const lastFrameIndex = OPENING_TIMELINE.length - 1;
@@ -332,9 +318,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [overlayBusy, setOverlayBusy] = useState(false);
   const [info, setInfo] = useState<'privacy' | 'about' | null>(null);
   const [openingVisible, setOpeningVisible] = useState(true);
+  const [openingHomeReady, setOpeningHomeReady] = useState(false);
   const [routePicker, setRoutePicker] = useState(false);
   const [guidedRoutePresented, setGuidedRoutePresented] = useState(false);
-  const [routePickerFromBook, setRoutePickerFromBook] = useState(false);
   const [routePickerAfterCompletion, setRoutePickerAfterCompletion] = useState(false);
   const [promptedCompletedRouteId, setPromptedCompletedRouteId] = useState<string | null>(null);
   const promptedOmikujiHomeEntry = useRef(false);
@@ -353,8 +339,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [homeCompanionLayout, setHomeCompanionLayout] = useState<HomeLayout | null>(null);
   const [homeStageLayout, setHomeStageLayout] = useState<HomeLayout | null>(null);
   const scroll = useRef<ScrollView>(null);
+  const openingHomeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const pet = getPetCharacter(tutorialPreviewPet ?? data.pet);
+  const nextRoutePeekMetric = PILGRIMAGE_PEEK_METRICS[pet.id];
+  const nextRoutePeekScale = Math.min(132 / nextRoutePeekMetric.width, 132 / nextRoutePeekMetric.height);
+  const nextRoutePeekWidth = nextRoutePeekMetric.width * nextRoutePeekScale;
+  const nextRoutePeekHeight = nextRoutePeekMetric.height * nextRoutePeekScale;
+  const nextRoutePeekBottom = nextRoutePeekMetric.bottom * nextRoutePeekHeight;
   const omikujiDay = localOmikujiDay();
   const dailyFortune = fortuneForDay(omikujiDay, pet.id);
   const omikujiDrawn = onboardingPreview ? tutorialPreviewDrawn : data.omikujiDay === omikujiDay;
@@ -370,7 +362,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           ? ({ collection: 'コレクション', goshuin: '御朱印', miniature: 'ミニチュア', passes: 'パス' } as const)[collectionView]
           : 'モビー';
   const activeMenuActions: NavigationMenuAction[] | undefined = tab === 'book' ? [
-    { label: '巡礼を選ぶ', hint: '御朱印帳の巡礼コースを選び直します', icon: 'map-outline', onPress: () => { setBookImageList(false); setRoutePickerFromBook(true); setRoutePicker(true); } },
+    { label: '巡礼を選ぶ', hint: '御朱印帳の巡礼コースを選び直します', icon: 'map-outline', onPress: () => { setBookImageList(false); setRoutePicker(true); } },
     { label: '御朱印画像一覧', hint: 'この巡礼の御朱印だけを一覧表示します', icon: 'images-outline', onPress: () => setBookImageList(true) },
   ] : tab === 'walk' ? [
     { label: '歩数カウント', hint: '今日の歩数と巡礼の進み具合を表示します', icon: 'footsteps-outline', onPress: () => { setOutingTab('count'); scroll.current?.scrollTo({ y: 0, animated: false }); } },
@@ -417,25 +409,38 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const bookPageTurnRef = useRef<BookPageTurnHandle>(null);
   const pendingIndex = progress.pending[0] ? (activeRoute?.ids.indexOf(progress.pending[0]) ?? -1) : -1;
   const pending = pendingIndex >= 0 ? activeShrines[pendingIndex] : SHRINES.find(s => s.id === progress.pending[0]);
-  const awardVisible = !!pending && data.onboarded && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !legacyBook && !homePopup && !homeCardPopup && !omikujiModal && !bookImageList;
+  const awardVisible = !!pending && data.onboarded && openingHomeReady && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !legacyBook && !homePopup && !homeCardPopup && !omikujiModal && !bookImageList;
   const move = (value: Tab) => { if (value === 'collection') { setCollectionZoom('standard'); setCollectionView('collection'); } if (value === 'book' && tab !== 'book') setBookOpen(false); setBookImageList(false); setHomePopup(null); setHomeCardPopup(null); setOmikujiModal(false); scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setHomeCardPopup(null); setHomePopup(kind); setTab('home'); scrollY.setValue(0); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const mapScreen = tab === 'walk' && outingTab === 'map';
   const enterApp = () => {
     const firstRun = onboardingPreview || !data.onboarded;
+    if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current);
+    move('home');
     setOpeningVisible(false);
-    scroll.current?.scrollTo({ y: 0, animated: false });
-    if (onboardingPreview) {
-      setGuidedRoutePresented(false);
-      setFirstRunStage('route');
-      setRoutePicker(true);
-    } else if (firstRun && progress.routeId) {
-      setFirstRunStage('character');
-      setHomePopup('moby');
-    } else if (firstRun) {
-      setGuidedRoutePresented(false);
-      setFirstRunStage('route');
+    setRoutePicker(false);
+    setFirstRunStage(null);
+    if (firstRun) {
+      setOpeningHomeReady(true);
+      if (onboardingPreview) {
+        setGuidedRoutePresented(false);
+        setFirstRunStage('route');
+        setRoutePicker(true);
+      } else if (progress.routeId) {
+        setFirstRunStage('character');
+        setHomePopup('moby');
+      } else {
+        setGuidedRoutePresented(false);
+        setFirstRunStage('route');
+      }
+      return;
     }
+
+    setOpeningHomeReady(false);
+    openingHomeTimer.current = setTimeout(() => {
+      setOpeningHomeReady(true);
+      openingHomeTimer.current = null;
+    }, 500);
   };
   const renderBookSpread = (index: number) => {
     const book = activeShrines[index] ?? SHRINES[0];
@@ -484,9 +489,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     // route has been completed). Mark it as already prompted so its picker does
     // not immediately reopen in a loop.
     setPromptedCompletedRouteId(routeRecords[routeId]?.completedAt ? routeId : null);
-    if (beginningFirstRun) { setOutingTab('count'); move('home'); setHomePopup('moby'); }
-    else if (routePickerFromBook) { setRoutePickerFromBook(false); setBookOpen(false); move('book'); }
-    else { setOutingTab('count'); move('walk'); }
+    setBookOpen(false);
+    setOutingTab('count');
+    move('home');
+    if (beginningFirstRun) setHomePopup('moby');
   };
   const closeOmikuji = () => {
     if (isFirstRunOmikuji && !firstRunOmikujiComplete) return;
@@ -504,7 +510,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       if (nextRouteId) { selectPilgrimageRoute(nextRouteId); return; }
     }
     setRoutePicker(false);
-    setRoutePickerFromBook(false);
     setRoutePickerAfterCompletion(false);
   };
   const cardInteractionPropsFor = (locked: boolean) => ({
@@ -543,24 +548,25 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const renderHomeStepsCard = () => <Pressable nativeID="home-widget-steps" artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数。今日${fmt(todaySteps)}歩。累計${fmt(totalSteps)}歩。${homeNextPointLabel ? `${homeNextPointLabel}。` : ''}拡大表示をひらく`} onPress={() => { if (!homeCardPopup) setHomeCardPopup('steps'); }} style={S.homeStepsCard}>
     <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
   </Pressable>;
+  useEffect(() => () => { if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current); }, []);
   useEffect(() => { setBackgroundSeason(currentBackground.season); }, [currentBackground.season]);
   useEffect(() => { setPetMenuOpen(false); }, [tab]);
-  useEffect(() => { if (!openingVisible && journey.ready && !progress.routeId && (firstRunStage === null || firstRunStage === 'route')) setRoutePicker(true); }, [openingVisible, journey.ready, progress.routeId, data.demo, firstRunStage]);
+  useEffect(() => { if (openingHomeReady && journey.ready && !progress.routeId && (firstRunStage === null || firstRunStage === 'route')) setRoutePicker(true); }, [openingHomeReady, journey.ready, progress.routeId, data.demo, firstRunStage]);
   useEffect(() => {
     if (tab !== 'home') {
       promptedOmikujiHomeEntry.current = false;
       return;
     }
-    if (promptedOmikujiHomeEntry.current || openingVisible || !journey.ready || routePicker || !progress.routeId || firstRunStage !== null) return;
+    if (promptedOmikujiHomeEntry.current || !openingHomeReady || openingVisible || !journey.ready || routePicker || !progress.routeId || firstRunStage !== null) return;
     promptedOmikujiHomeEntry.current = true;
     if (!omikujiDrawn) setOmikujiModal(true);
-  }, [tab, openingVisible, journey.ready, routePicker, progress.routeId, omikujiDrawn, firstRunStage]);
+  }, [tab, openingHomeReady, openingVisible, journey.ready, routePicker, progress.routeId, omikujiDrawn, firstRunStage]);
   useEffect(() => {
-    if (!openingVisible && progress.routeId && progress.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId) {
+    if (openingHomeReady && !openingVisible && progress.routeId && progress.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId) {
       setPromptedCompletedRouteId(progress.routeId);
       openNextRoutePicker();
     }
-  }, [openingVisible, progress.routeId, progress.completedAt, progress.pending.length, promptedCompletedRouteId]);
+  }, [openingHomeReady, openingVisible, progress.routeId, progress.completedAt, progress.pending.length, promptedCompletedRouteId]);
   useEffect(() => {
     if (settings || detail || routePicker || openingVisible || homePopup || homeCardPopup || omikujiModal) { setOverlayBusy(true); return; }
     const timer = setTimeout(() => setOverlayBusy(false), 380);
@@ -637,9 +643,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         {outingTab === 'count' && <>
           <View style={S.walkMinimal}>
             <View style={S.walkMinimalHeader}><View><Text style={S.walkMinimalTitle}>おでかけ</Text><Text style={S.walkMinimalSubtitle}>今日の歩数</Text></View><Pressable accessibilityRole="button" accessibilityLabel="歩数を更新" onPress={() => void (data.source === 'none' ? journey.connect() : journey.refresh())} disabled={journey.busy} style={S.walkRefresh}><Icon name="refresh" size={18} color={C.red} /><Text style={S.walkRefreshText}>{data.source === 'none' ? '連携' : journey.busy ? '更新中' : '更新'}</Text></Pressable></View>
-            <Text style={S.routeHeroTitle}>{activeRoute?.name}</Text><StepRing steps={routeSteps} goal={nextTarget} />
+            <Text style={S.routeHeroTitle}>{activeRoute?.name}</Text><StepProgressRing steps={routeSteps} goal={nextTarget} />
             <Text style={S.demoHelp}>{progress.completedAt ? '結願しました。次の巡礼へ出かけましょう。' : next ? `次は ${next.name} · あと ${fmt(Math.max(0, nextTarget - routeSteps))}歩` : 'この巡礼のすべてのご縁を結びました。'}</Text>
-            {progress.completedAt && <Button title="次の巡礼を選ぶ" icon="map-outline" onPress={openNextRoutePicker} style={{ marginTop: 16 }} />}
+            {progress.completedAt && <View style={S.nextPilgrimageAction}>
+              <Button title="次の巡礼を選ぶ" icon="map-outline" onPress={openNextRoutePicker} style={S.nextPilgrimageButton} />
+              <View pointerEvents="none" accessibilityLabel={`${pet.name}が次の巡礼を選ぶボタンから覗いている`} style={[S.nextPilgrimagePeek, { top: 56 - nextRoutePeekBottom + 6, height: nextRoutePeekHeight }]}>
+                <Image source={PILGRIMAGE_PEEK_IMAGES[pet.id]} contentFit="contain" style={[S.nextPilgrimagePeekImage, { width: nextRoutePeekWidth, height: nextRoutePeekHeight, left: (190 - nextRoutePeekWidth) / 2 }]} />
+              </View>
+            </View>}
           </View>
           {activeRoute && (data.demo ? <Button title="体験で1,000歩あるく" icon="footsteps-outline" onPress={journey.demoWalk} style={S.walkDemoButton} /> : <Button title={data.source === 'none' ? '歩数を連携する' : journey.busy ? '歩数を更新しています…' : '今日の歩数を更新'} icon="refresh" disabled={journey.busy} onPress={() => void (data.source === 'none' ? journey.connect() : journey.refresh())} style={S.walkDemoButton} />)}
         </>}
@@ -661,7 +672,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <Button title={`${pet.name}とふれあう`} onPress={() => move('home')} style={{ marginTop: 22 }} />
       </>}
     </ScrollView>
-    {firstRunStage === null && <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} screenLabel={floatingScreenLabel} menuActions={activeMenuActions} menuOpen={petMenuOpen} onPress={() => setPetMenuOpen(open => !open)} onMenuToggle={() => setPetMenuOpen(false)} />}
+    {firstRunStage === null && <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} screenLabel={floatingScreenLabel} menuActions={activeMenuActions} menuOpen={petMenuOpen} resetToMenuOnMount={data.onboarded && !onboardingPreview} onPress={() => setPetMenuOpen(open => !open)} onMenuToggle={() => setPetMenuOpen(false)} />}
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') setFirstRunStage('homeOmikuji'); }} onClose={() => setHomePopup(null)} />}
     <HomeBottomNavigation tab={tab === 'pets' ? 'home' : (tab as PrimaryTab)} onNavigate={value => { if (value === 'walk') setOutingTab('count'); move(value); }} onOpenCustom={() => openHomePopup('custom')} onOpenMoby={() => openHomePopup('moby')} menuActions={activeMenuActions} disabled={!!homePopup || !!homeCardPopup || firstRunStage !== null} />
@@ -671,6 +682,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       latest={latest}
       latestReward={!!latestReward}
       routeImage={homeRouteImage}
+      walkBackground={OUTING_BACKGROUND}
+      petName={pet.name}
+      petPeekImage={PILGRIMAGE_PEEK_IMAGES[pet.id]}
+      petPeekMetrics={nextRoutePeekMetric}
       routeName={activeRoute?.name}
       routeSubtitle={activeRoute?.subtitle}
       routeSteps={routeSteps}
@@ -679,9 +694,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       rewardCount={progress.rewards.length}
       routeTotal={activeRoute?.ids.length ?? 0}
       completed={!!progress.completedAt}
-      onOpenGoshuinDetail={() => { setFeatured(latestIndex); setDetail(latest); }}
-      onOpenGoshuinBook={() => move('book')}
+      refreshLabel={data.source === 'none' ? '連携' : journey.busy ? '更新中' : '更新'}
+      refreshBusy={journey.busy}
+      onRefreshSteps={() => void (data.source === 'none' ? journey.connect() : journey.refresh())}
       onOpenRoutePicker={() => setRoutePicker(true)}
+      onOpenNextRoutePicker={openNextRoutePicker}
       onOpenMap={() => { setOutingTab('map'); move('walk'); }}
       onOpenSteps={() => { setOutingTab('count'); move('walk'); }}
       onClose={() => setHomeCardPopup(null)}
@@ -789,6 +806,7 @@ const S = StyleSheet.create({
   bookWrap: { marginHorizontal: -17, marginTop: 38, paddingHorizontal: 5, paddingVertical: 5, backgroundColor: 'transparent', shadowColor: '#27170F', shadowOffset: { width: 0, height: 15 }, shadowOpacity: .34, shadowRadius: 17, elevation: 12 }, bookCoverEdge: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 8 }, bookPaperEdges: { position: 'absolute', top: 2, bottom: 3, left: 3, right: 3, borderRadius: 5, backgroundColor: '#DBCCAD', borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#AF9875' }, bookViewport: { position: 'relative', overflow: 'hidden', borderRadius: 3, minHeight: 340 }, openBook: { flexDirection: 'row', backgroundColor: '#FBF5E8', overflow: 'hidden', minHeight: 340, height: 340 }, bookLeft: { flex: 1, padding: 9, justifyContent: 'center', backgroundColor: '#F2EBDC', borderRightWidth: 1, borderColor: '#D4C5B0' }, bookBinding: { position: 'absolute', right: -1, top: 0, bottom: 0, width: 10, backgroundColor: '#73523536', borderLeftWidth: 1, borderColor: '#8E6E4A20' }, bookRight: { flex: 1.02, padding: 15, justifyContent: 'center', gap: 9, backgroundColor: '#FCF7EC' }, bookReading: { fontSize: 7, color: C.muted, letterSpacing: 1 }, bookName: { fontFamily: 'ShipporiBold', fontSize: 21, color: C.ink, lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: SERIF, fontSize: 12, lineHeight: 21, color: C.red }, bookDescription: { fontFamily: SERIF, fontSize: 9, lineHeight: 20, color: '#6C6050' }, bookLocation: { flex: 1, fontSize: 8, lineHeight: 14, color: '#887B68' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 9 },
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 150 }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 }, pageCounterHint: { color: '#958675', fontSize: 8, marginTop: 4, letterSpacing: .4 }, collectionProgress: { flexDirection: 'row', gap: 17, alignItems: 'center', paddingVertical: 19, paddingHorizontal: 4 }, progressLabel: { color: '#766754', fontSize: 12, fontFamily: SERIF }, count: { fontSize: 16, color: C.ink }, countRed: { color: C.red, fontSize: 26, fontFamily: SERIF }, filters: { flexDirection: 'row', gap: 8, marginBottom: 17 }, filter: { flex: 1, minHeight: 37, backgroundColor: '#EEE8DC', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, filterActive: { backgroundColor: C.red }, filterText: { color: '#7D705F', fontSize: 11 }, stampGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, stampCard: { width: '48%', flexGrow: 1, maxWidth: '49%', backgroundColor: '#FFFCF5', borderRadius: 10, padding: 9, borderWidth: 1, borderColor: '#E5DDCF' }, stampLabel: { paddingTop: 9, paddingBottom: 5, alignItems: 'center' }, stampName: { fontFamily: SERIF, color: C.ink, fontSize: 15 }, stampTheme: { fontSize: 8, color: C.muted, marginTop: 6 }, ownedDot: { position: 'absolute', top: 14, right: 14, width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF9EE', alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingVertical: 36, gap: 17 }, emptyTitle: { color: C.ink, fontFamily: SERIF, fontSize: 19, textAlign: 'center' }, emptyText: { fontSize: 11, color: C.muted, textAlign: 'center', lineHeight: 22 },
+  nextPilgrimageAction: { position: 'relative', alignItems: 'center', paddingTop: 56, marginTop: 16 }, nextPilgrimageButton: { marginTop: 0 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
   walkMinimal: { alignItems: 'center', minHeight: 420, paddingTop: 23, paddingBottom: 10 }, walkMinimalHeader: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }, walkMinimalTitle: { fontFamily: SERIF, color: C.ink, fontSize: 27, letterSpacing: 2 }, walkMinimalSubtitle: { color: C.muted, fontSize: 10, letterSpacing: 1, marginTop: 4 }, walkRefresh: { minHeight: 38, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 18, backgroundColor: '#FFFCF5D9', borderWidth: 1, borderColor: C.line }, walkRefreshText: { color: C.red, fontSize: 11 }, walkRingWrap: { width: 248, height: 248, alignItems: 'center', justifyContent: 'center', marginTop: 3 }, walkRingSvg: { position: 'absolute' }, walkRingCenter: { alignItems: 'center', justifyContent: 'center' }, walkRingCount: { fontSize: 49, fontWeight: '300', color: C.ink, letterSpacing: 1 }, walkRingUnit: { fontFamily: SERIF, fontSize: 16, color: C.muted, marginTop: -2 }, walkRingGoal: { fontSize: 10, color: C.muted, marginTop: 9, letterSpacing: 1 }, walkPeekStage: { width: '100%', height: 330, alignItems: 'center', justifyContent: 'flex-end', overflow: 'hidden', marginTop: -4 }, walkMobibouPeekImage: { position: 'absolute', width: '118%', height: 330, bottom: 0, zIndex: 3 }, walkPeekImage: { position: 'absolute', width: 322, height: 322, bottom: 50, zIndex: 3 }, walkToriiTop: { position: 'absolute', width: '118%', height: 210, bottom: -10, zIndex: 2 }, walkDemoButton: { width: '100%', marginTop: 16, marginBottom: 24 }, walkMinimalAction: { width: '100%', marginTop: 6 }, walkSummary: { alignItems: 'center', borderRadius: 20, backgroundColor: '#EEE8DC', padding: 25, marginBottom: 27 }, walkCount: { fontSize: 40, fontWeight: '300', color: C.ink, marginTop: 12 }, walkBlurb: { color: C.muted, fontSize: 11, marginTop: 8 }, route: { gap: 0 }, routeItem: { flexDirection: 'row', gap: 13 }, routeRail: { width: 26, alignItems: 'center' }, routeNode: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: '#C5AA92', alignItems: 'center', justifyContent: 'center', backgroundColor: C.paper, marginTop: 18 }, routeLine: { width: 1, flex: 1, backgroundColor: '#D5C4AF' }, routeCard: { flex: 1, padding: 15, borderWidth: 1, borderColor: C.line, borderRadius: 14, backgroundColor: '#FFFCF5', flexDirection: 'row', gap: 12, marginBottom: 17 }, routeThreshold: { color: C.red, fontSize: 13, fontWeight: '600', marginBottom: 8 }, routeStatus: { fontSize: 8, color: C.muted, fontWeight: '400' }, routeName: { fontFamily: SERIF, color: C.ink, fontSize: 19, marginBottom: 5 }, demoHelp: { textAlign: 'center', color: C.muted, fontSize: 9, lineHeight: 19 }, walkNote: { padding: 17, borderRadius: 14, backgroundColor: '#EEE8DB', flexDirection: 'row', gap: 12, marginTop: 24 }, walkNoteText: { fontSize: 10, lineHeight: 22, color: '#837662', flex: 1 },
   chosenPet: { backgroundColor: '#EEE7DA', borderRadius: 18, padding: 17, alignItems: 'center', overflow: 'hidden' }, chosenPetBackdrop: { ...StyleSheet.absoluteFillObject, opacity: .72 }, chosenPetWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9E9A8' }, chosenPetInfo: { alignItems: 'center', marginTop: -3 }, chosenName: { fontFamily: SERIF, fontSize: 24, color: C.ink, marginVertical: 7 }, affection: { color: C.red, fontSize: 10, marginTop: 7 }, petGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, petCard: { width: '31%', flexGrow: 1, maxWidth: '32%', paddingTop: 8, paddingBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2DACC', borderRadius: 13, backgroundColor: '#FFF9F0', overflow: 'hidden' }, petCardActive: { borderColor: C.red, backgroundColor: '#F3E5D7', borderWidth: 1.5 }, petBackdropImage: { ...StyleSheet.absoluteFillObject, opacity: .72 }, petBackdropWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9E9A8' }, petBackdropTint: { ...StyleSheet.absoluteFillObject }, petThumb: { width: 85, height: 95 }, petName: { fontSize: 10, color: '#675B4D', marginTop: 3 }, petCheck: { position: 'absolute', right: 6, top: 6, backgroundColor: C.red, borderRadius: 9, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   nav: { flexDirection: 'row', backgroundColor: '#FCF9F1', borderWidth: 1, borderColor: '#E3DACB', borderRadius: 24, marginHorizontal: 12, marginBottom: 8, overflow: 'hidden', paddingTop: 12, paddingBottom: 3 }, collectionNav: { backgroundColor: '#FCF9F18F' }, navItem: { flex: 1, alignItems: 'center', gap: 6, minHeight: 55 }, navText: { color: '#81796D', fontSize: 10, letterSpacing: 1 }, navIndicator: { width: 17, height: 3, backgroundColor: C.red, borderRadius: 4, marginTop: 1 },

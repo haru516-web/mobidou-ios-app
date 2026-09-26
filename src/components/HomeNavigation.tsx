@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, BackHandler, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
-import { C, Icon, Meter, Stamp, useReducedMotion } from '../components';
+import { C, Icon, Stamp, useReducedMotion } from '../components';
 import { PET_CHARACTERS, type PetId } from '../petCatalog';
 import { PET_BACKGROUNDS } from '../data/petBackgrounds';
 import { OMIKUJI_FORTUNES } from '../data/omikuji';
@@ -10,6 +10,7 @@ import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { CUSTOM_HOME_WIDGET_IDS, setHomeWidgetSlot, type CustomHomeWidgetId, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork } from './HomeWidgetArtwork';
+import { StepProgressRing } from './StepProgressRing';
 import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
 // `borderCurve` is only supported by iOS. Keeping it out of the web/Android
@@ -331,6 +332,10 @@ type HomeWidgetPopupProps = {
   latest: Shrine;
   latestReward?: boolean;
   routeImage: React.ComponentProps<typeof Image>['source'];
+  walkBackground: ImageSourcePropType;
+  petName: string;
+  petPeekImage: ImageSourcePropType;
+  petPeekMetrics: { width: number; height: number; bottom: number };
   routeName?: string;
   routeSubtitle?: string;
   routeSteps: number;
@@ -339,16 +344,19 @@ type HomeWidgetPopupProps = {
   rewardCount: number;
   routeTotal: number;
   completed: boolean;
-  onOpenGoshuinDetail: () => void;
-  onOpenGoshuinBook: () => void;
+  refreshLabel: string;
+  refreshBusy: boolean;
+  onRefreshSteps: () => void;
   onOpenRoutePicker: () => void;
+  onOpenNextRoutePicker: () => void;
   onOpenMap: () => void;
   onOpenSteps: () => void;
   onClose: () => void;
 };
 
 /**
- * A non-navigating, enlarged presentation of one of the two home cards.
+ * Home card overlays. The walking card reuses the outing scene; the other
+ * cards keep their focused detail presentations.
  * The full-screen root intentionally has no scrim press handler: tapping the
  * background is inert, while the explicit close button and back/escape are
  * the only dismissal paths.
@@ -358,6 +366,10 @@ export function HomeWidgetPopup({
   latest,
   latestReward = false,
   routeImage,
+  walkBackground,
+  petName,
+  petPeekImage,
+  petPeekMetrics,
   routeName,
   routeSubtitle,
   routeSteps,
@@ -366,9 +378,11 @@ export function HomeWidgetPopup({
   rewardCount,
   routeTotal,
   completed,
-  onOpenGoshuinDetail,
-  onOpenGoshuinBook,
+  refreshLabel,
+  refreshBusy,
+  onRefreshSteps,
   onOpenRoutePicker,
+  onOpenNextRoutePicker,
   onOpenMap,
   onOpenSteps,
   onClose,
@@ -388,17 +402,56 @@ export function HomeWidgetPopup({
   const meta = HOME_WIDGET_META[widget];
   const routeLabel = routeName ?? '巡礼の道';
   const routeCount = `${rewardCount}/${Math.max(1, routeTotal)}`;
-  const progressRatio = routeSteps / Math.max(1, nextTarget);
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const popupStampHeight = Math.min(420, viewportHeight * .58);
+  const popupStampWidth = Math.min(350, viewportWidth * .95);
+
+  if (widget === 'steps') {
+    const sceneWidth = Math.min(440, viewportWidth * .94);
+    const sceneHeight = Math.min(viewportHeight - 36, Math.min(480, Math.max(400, sceneWidth / .89)));
+    const ringSize = Math.min(220, sceneWidth * .58, sceneHeight * .54);
+    const ringTop = Math.round(sceneHeight * .105);
+    const peekScale = Math.min(156 / petPeekMetrics.width, 156 / petPeekMetrics.height);
+    const peekWidth = petPeekMetrics.width * peekScale;
+    const peekHeight = petPeekMetrics.height * peekScale;
+    const peekBottom = petPeekMetrics.bottom * peekHeight;
+    const actionLabel = completed ? '次の巡礼を選ぶ' : 'おでかけ歩数へ';
+    const actionIcon = completed ? 'map-outline' : 'footsteps-outline';
+    const action = completed ? onOpenNextRoutePicker : onOpenSteps;
+    const hint = nextName ? `次のご縁「${nextName}」まで ${Math.max(0, nextTarget - routeSteps).toLocaleString('ja-JP')}歩` : '今日のご縁が、すべて結ばれました。';
+
+    return <PopupRoot modalLabel="おでかけ歩数ポップアップ" style={[S.widgetPopupRoot, FIXED_POPUP_ROOT]}>
+      <Animated.View style={[S.popupCard, S.walkPopupCard, CONTINUOUS_CORNER, { width: sceneWidth, height: sceneHeight, opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
+        <Image source={walkBackground} contentFit="cover" style={S.walkPopupBackground} accessible={false} />
+        <View pointerEvents="none" style={S.walkPopupTint} />
+        <Text accessibilityRole="header" style={[S.walkPopupRouteName, { top: Math.max(12, ringTop - 32), paddingHorizontal: 72 }]} numberOfLines={1}>{routeLabel}</Text>
+        <View style={[S.walkPopupRing, { top: ringTop }]}><StepProgressRing steps={routeSteps} goal={nextTarget} size={ringSize} compact /></View>
+        {!completed && <Text style={[S.walkPopupHint, { top: ringTop + ringSize + 5, paddingHorizontal: 18 }]}>{hint}</Text>}
+        <View style={S.walkPopupTopActions}>
+          <Pressable artwork={false} disabled={refreshBusy} accessibilityRole="button" accessibilityLabel={`歩数を${refreshLabel}`} accessibilityState={{ disabled: refreshBusy }} onPress={onRefreshSteps} style={[S.walkPopupRefresh, refreshBusy && S.widgetPopupWalkRefreshDisabled]}><Icon name="refresh" size={16} color={C.red} /><Text style={S.widgetPopupWalkRefreshText}>{refreshLabel}</Text></Pressable>
+          <PopupClose onPress={closePopup} />
+        </View>
+        <View style={[S.walkPopupAction, { paddingTop: completed ? 56 : 0 }]}>
+          {completed && <View pointerEvents="none" accessibilityLabel={`${petName}が次の巡礼ボタンから覗いている`} style={[S.walkPopupPetPeek, { top: 56 - peekBottom + 6, height: peekHeight }]}>
+            <Image source={petPeekImage} contentFit="contain" style={{ position: 'absolute', bottom: 0, width: peekWidth, height: peekHeight, left: (190 - peekWidth) / 2 }} />
+          </View>}
+          <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={actionLabel} onPress={() => runAction(action)} style={S.walkPopupActionButton}>
+            <Icon name={actionIcon} size={17} color="#FFF9EF" /><Text style={S.walkPopupActionText}>{actionLabel}</Text>
+          </Pressable>
+        </View>
+      </Animated.View>
+    </PopupRoot>;
+  }
 
   const content = widget === 'goshuin' ? <>
     <Text style={S.widgetPopupEyebrow}>{latestReward ? '最近授かった御朱印' : 'はじめてのご縁'}</Text>
-    <View style={S.widgetPopupStampWrap}><Stamp shrine={latest} style={S.widgetPopupStamp} /></View>
-    <Text style={S.widgetPopupReading}>{latest.reading}</Text>
-    <Text style={S.widgetPopupName}>{latest.name}</Text>
-    <Text style={S.widgetPopupTheme}>{latest.theme}</Text>
-    <Text style={S.widgetPopupDescription}>{latest.description}</Text>
-    <View style={S.widgetPopupMeta}><Icon name="location-outline" size={18} color={C.gold} /><Text style={S.widgetPopupMetaText}>{latest.place}</Text></View>
-    <View style={S.widgetPopupMeta}><Icon name="leaf-outline" size={18} color={C.gold} /><Text style={S.widgetPopupMetaText}>{latest.blessing}</Text></View>
+    <View style={S.widgetPopupStampWrap}><Stamp shrine={latest} style={[S.widgetPopupStamp, { width: popupStampWidth, height: popupStampHeight }]} imageFit="contain" /></View>
+    <View style={S.widgetPopupCopyCard}>
+      <Text style={S.widgetPopupReading}>{latest.reading}</Text>
+      <Text style={S.widgetPopupName}>{latest.name}</Text>
+      <Text style={S.widgetPopupTheme}>{latest.theme}</Text>
+      <Text style={S.widgetPopupGoshuinDescription}>{latest.description}</Text>
+    </View>
   </> : widget === 'miniature' ? <>
     <View style={S.widgetPopupImageFrame}>
       <Image source={routeImage} contentFit="cover" style={S.widgetPopupImage} />
@@ -415,31 +468,24 @@ export function HomeWidgetPopup({
     </View>
     <View style={S.widgetPopupMeta}><Icon name="map-outline" size={19} color={C.gold} /><Text style={S.widgetPopupMetaText}>{nextName ? `次は ${nextName}` : '次のご縁をマップで探す'}</Text></View>
     <Text style={S.widgetPopupDescription}>巡礼マップでは、道のりと御朱印の順番をひとつの景色として確認できます。</Text>
-  </> : <>
-    <Text style={S.widgetPopupEyebrow}>今日のあしあと</Text>
-    <View style={S.widgetPopupStepValueRow}><Text style={S.widgetPopupStepValue}>{routeSteps.toLocaleString('ja-JP')}</Text><Text style={S.widgetPopupStepUnit}>歩</Text></View>
-    <Meter value={progressRatio} />
-    <Text style={S.widgetPopupStepCaption}>{nextName ? `次のご縁「${nextName}」まで ${Math.max(0, nextTarget - routeSteps).toLocaleString('ja-JP')}歩` : completed ? 'この巡礼を結願しました。' : '今日のご縁が、すべて結ばれました。'}</Text>
-    <View style={S.widgetPopupRouteSummary}><Icon name="map-outline" size={19} color={C.gold} /><View style={{ flex: 1 }}><Text style={S.widgetPopupRouteName}>{routeLabel}</Text><Text style={S.widgetPopupRouteNote}>{routeSubtitle ?? '一緒に歩く旅の景色'}</Text></View></View>
-    <Text style={S.widgetPopupDescription}>おでかけ画面では、歩数の連携・更新と、次の御朱印までの目安を確認できます。</Text>
-  </>;
+  </> : null;
 
-  return <PopupRoot modalLabel={widget === 'steps' ? '歩数の拡大表示' : `${meta.title}の拡大表示`} style={[S.widgetPopupRoot, FIXED_POPUP_ROOT]}>
+  return <PopupRoot modalLabel={`${meta.title}の拡大表示`} style={[S.widgetPopupRoot, FIXED_POPUP_ROOT]}>
     <Animated.View style={[S.popupCard, S.widgetPopupCard, CONTINUOUS_CORNER, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
       <WashiArt />
-      <View style={S.popupHeader}><View style={{ flex: 1 }}>{widget !== 'steps' && <Text accessibilityRole="header" style={S.popupTitle}>{meta.title}</Text>}<Text style={S.popupSubtitle}>{widget === 'steps' ? '今日のあしあと' : 'ホームカードを大きく表示'}</Text></View><PopupClose onPress={closePopup} /></View>
+      <View style={S.popupHeader}>
+        <View style={{ flex: 1 }}><Text accessibilityRole="header" style={[S.popupTitle, widget === 'goshuin' && S.widgetPopupTitle]}>{meta.title}</Text><Text style={[S.popupSubtitle, widget === 'goshuin' && S.widgetPopupSubtitle]}>ホームカードを大きく表示</Text></View>
+        <PopupClose onPress={closePopup} />
+      </View>
       <ScrollView style={S.widgetPopupScroll} contentContainerStyle={S.widgetPopupBody} showsVerticalScrollIndicator={false}>
         {content}
       </ScrollView>
-      <View style={S.widgetPopupFooter}>
+      {widget !== 'goshuin' && <View style={S.widgetPopupFooter}>
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>閉じる</Text></Pressable>
-        {widget === 'goshuin' ? <>
-          <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="御朱印詳細をひらく" onPress={() => runAction(onOpenGoshuinDetail)} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>御朱印詳細</Text></Pressable>
-          <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="御朱印帳へ移動" onPress={() => runAction(onOpenGoshuinBook)} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>御朱印帳へ</Text></Pressable>
-        </> : widget === 'miniature' ? <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="巡礼選択をひらく" onPress={() => runAction(onOpenRoutePicker)} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>巡礼を選び直す</Text></Pressable>
+        {widget === 'miniature' ? <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="巡礼選択をひらく" onPress={() => runAction(onOpenRoutePicker)} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>巡礼を選び直す</Text></Pressable>
           : widget === 'map' ? <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="巡礼マップをひらく" onPress={() => runAction(onOpenMap)} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>巡礼マップへ</Text></Pressable>
             : <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="おでかけ歩数をひらく" onPress={() => runAction(onOpenSteps)} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>おでかけ歩数へ</Text></Pressable>}
-      </View>
+      </View>}
     </Animated.View>
   </PopupRoot>;
 }
@@ -480,6 +526,8 @@ const S = StyleSheet.create({
   popupHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   popupTitle: { color: C.ink, fontFamily: 'Shippori', fontSize: 21, letterSpacing: 1 },
   popupSubtitle: { color: C.muted, fontSize: 10, letterSpacing: .8, marginTop: 5 },
+  widgetPopupTitle: { color: '#2E251F', fontFamily: 'ShipporiBold' },
+  widgetPopupSubtitle: { color: '#55483D', fontFamily: 'ShipporiBold', fontSize: 11, letterSpacing: .4 },
   popupHelp: { color: C.red, fontSize: 10, letterSpacing: 1, marginTop: 17, marginBottom: 9 },
   popupClose: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1E6D8', borderWidth: 1, borderColor: '#DECDBA' },
   popupCloseText: { fontSize: 28, lineHeight: 29, color: C.red, fontFamily: 'Shippori', fontWeight: '400' },
@@ -519,15 +567,31 @@ const S = StyleSheet.create({
   mobyCheck: { position: 'absolute', right: 6, top: 6, backgroundColor: C.red, borderRadius: 9, width: 19, height: 19, alignItems: 'center', justifyContent: 'center' },
   widgetPopupRoot: { top: 0, bottom: 0, zIndex: 90, justifyContent: 'center', paddingVertical: 18, paddingHorizontal: 12 },
   widgetPopupCard: { width: '100%', maxWidth: 440, maxHeight: '96%', padding: 18, borderRadius: 24 },
-  widgetPopupScroll: { flexGrow: 0, marginTop: 12 },
+  walkPopupCard: { position: 'relative', padding: 0, borderRadius: 24, borderColor: '#D7B58C', backgroundColor: '#EBD4AC' },
+  walkPopupBackground: { ...StyleSheet.absoluteFillObject },
+  walkPopupTint: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF2DD18' },
+  walkPopupRouteName: { position: 'absolute', left: 0, right: 0, zIndex: 3, color: '#34271F', fontFamily: 'Shippori', fontSize: 18, letterSpacing: 1, textAlign: 'center', textShadowColor: '#FFF5E5CC', textShadowRadius: 5 },
+  walkPopupRing: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
+  walkPopupHint: { position: 'absolute', left: 0, right: 0, color: '#544437', backgroundColor: '#FFF8E8A8', fontFamily: 'Shippori', fontSize: 10, lineHeight: 17, textAlign: 'center', paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
+  walkPopupTopActions: { position: 'absolute', top: 9, right: 9, zIndex: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  walkPopupRefresh: { minHeight: 36, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 18, backgroundColor: '#FFF9EFDF', borderWidth: 1, borderColor: '#D6BDA0' },
+  walkPopupAction: { position: 'absolute', left: 0, right: 0, bottom: 14, alignItems: 'center' },
+  walkPopupPetPeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 6 },
+  walkPopupActionButton: { width: '68%', maxWidth: 270, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, borderWidth: 1, borderColor: '#E6BCA0', backgroundColor: '#A84D42E8', paddingHorizontal: 14, zIndex: 5, shadowColor: '#52372B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: .24, shadowRadius: 6, elevation: 5 },
+  walkPopupActionText: { color: '#FFF9EF', fontFamily: 'Shippori', fontSize: 12, letterSpacing: .4 },
+  widgetPopupScroll: { flexGrow: 0, flexShrink: 1, minHeight: 0, marginTop: 12 },
   widgetPopupBody: { paddingBottom: 4, gap: 9 },
-  widgetPopupEyebrow: { color: C.red, fontSize: 10, letterSpacing: 1.2, textAlign: 'center', marginTop: 3 },
+  widgetPopupEyebrow: { color: '#843A30', fontFamily: 'ShipporiBold', fontSize: 12, letterSpacing: .7, textAlign: 'center', marginTop: 3 },
+  widgetPopupWalkRefreshDisabled: { opacity: .6 },
+  widgetPopupWalkRefreshText: { color: C.red, fontSize: 10 },
   widgetPopupStampWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 7 },
-  widgetPopupStamp: { width: 190, height: 210, maxWidth: '70%' },
-  widgetPopupReading: { color: C.muted, fontSize: 10, letterSpacing: 2, textAlign: 'center', marginTop: 3 },
-  widgetPopupName: { color: C.ink, fontFamily: 'Shippori', fontSize: 25, letterSpacing: 1.2, textAlign: 'center' },
-  widgetPopupTheme: { color: C.red, fontFamily: 'Shippori', fontSize: 15, lineHeight: 24, textAlign: 'center', marginTop: 2 },
+  widgetPopupStamp: { maxWidth: '90%' },
+  widgetPopupCopyCard: { width: '100%', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 16, borderWidth: 1, borderColor: '#D8C6AC', backgroundColor: '#FFF9EFEC' },
+  widgetPopupReading: { color: '#514539', fontFamily: 'ShipporiBold', fontSize: 12, letterSpacing: 1, textAlign: 'center' },
+  widgetPopupName: { color: '#2D241E', fontFamily: 'ShipporiBold', fontSize: 25, letterSpacing: .8, textAlign: 'center' },
+  widgetPopupTheme: { color: '#843A30', fontFamily: 'ShipporiBold', fontSize: 16, lineHeight: 25, textAlign: 'center', marginTop: 2 },
   widgetPopupLead: { color: C.ink, fontFamily: 'Shippori', fontSize: 16, lineHeight: 26, textAlign: 'center', marginTop: 5 },
+  widgetPopupGoshuinDescription: { color: '#44392F', fontFamily: 'ShipporiBold', fontSize: 12, lineHeight: 22, textAlign: 'center', marginTop: 3 },
   widgetPopupDescription: { color: '#6D6354', fontFamily: 'Shippori', fontSize: 11, lineHeight: 20, textAlign: 'center', marginTop: 2 },
   widgetPopupMeta: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F3EBDD', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, marginTop: 2 },
   widgetPopupMetaText: { color: '#776B59', fontSize: 11, lineHeight: 19, flex: 1 },
@@ -538,12 +602,5 @@ const S = StyleSheet.create({
   widgetPopupImageCopy: { position: 'absolute', left: 16, right: 16, bottom: 15 },
   widgetPopupImageRoute: { color: '#FFF9EF', fontFamily: 'Shippori', fontSize: 23, lineHeight: 31, textShadowColor: '#2B241A99', textShadowRadius: 4 },
   widgetPopupImageNote: { color: '#FFF9EFD9', fontSize: 10, lineHeight: 17, marginTop: 4, textShadowColor: '#2B241A99', textShadowRadius: 3 },
-  widgetPopupStepValueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 7, marginTop: 7 },
-  widgetPopupStepValue: { color: C.ink, fontSize: 62, fontWeight: '300', letterSpacing: 1 },
-  widgetPopupStepUnit: { color: C.muted, fontFamily: 'Shippori', fontSize: 18 },
-  widgetPopupStepCaption: { color: '#746959', fontSize: 12, lineHeight: 21, textAlign: 'center', marginTop: 10 },
-  widgetPopupRouteSummary: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F3EBDD', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11, marginTop: 6 },
-  widgetPopupRouteName: { color: C.ink, fontFamily: 'Shippori', fontSize: 14, lineHeight: 21 },
-  widgetPopupRouteNote: { color: C.muted, fontSize: 9, lineHeight: 15, marginTop: 2 },
   widgetPopupFooter: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
 });
