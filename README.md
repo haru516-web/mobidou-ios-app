@@ -30,10 +30,10 @@ HealthKitは読み取り専用です。権限要求が完了しても、Appleの
 - モビー: `D:\english-ios-app\src\petCatalog.ts` の現行26体をすべて選択可能。元リポジトリは読み取りのみ。
 - ふれあい: なでる・おやつ・話す、キャラ固有の一言、ジャンプ／傾き、ハート／団子、ふれあい回数と親密度。
 - 授与: 暗転、御朱印が押される動き、結縁印、光の粒、相棒のお祝い、触覚フィードバック。OSの視差効果を減らす設定に対応。
-- 設定: 歩数連携、振動、体験モード、プライバシー、アプリ案内。
-- AsyncStorageに記録を保存。再起動後の復元、日付変更、重複防止、未表示の授与演出のキュー保存。
+- 設定: 歩数連携、振動、体験モード、アカウント管理、プライバシー、アプリ案内。
+- AsyncStorageに記録を保存。再起動後の復元に加え、引き継ぎコードの書き出しと確認付き読み込みに対応。
 
-実歩数の御朱印帳と体験用の御朱印帳は別々に保持します。「翌日のめぐりを体験」は体験用の進行だけを進め、端末日付は変えません。選択キャラとふれあいは共通です。端末データの削除・クラウド同期機能はありません。
+実歩数の御朱印帳と体験用の御朱印帳は別々に保持します。「翌日のめぐりを体験」は体験用の進行だけを進め、端末日付は変えません。選択キャラとふれあいは共通です。認証サービスとクラウド同期は未接続で、ログイン画面には未接続の状態を表示します。
 
 ## 画像と世界観
 
@@ -65,6 +65,6 @@ npx expo export --platform ios --output-dir dist-ios
 - `modules/mobi-health/ios/MobiHealthModule.swift`: HealthKitの当日累積歩数。
 - `src/data/shrines.ts`: 架空の社と御朱印の対応。
 
-参照仕様書: `docs/original-design.md`。iOSを優先し、通知・サウンド・課金・アカウントは導入していません。
+参照仕様書: `docs/original-design.md`。iOSを優先し、通知・サウンド・課金は導入していません。
 
 技術参照: [Expo SDK 54 Pedometer](https://docs.expo.dev/versions/v54.0.0/sdk/pedometer/)、[Expo Image](https://docs.expo.dev/versions/v54.0.0/sdk/image/)。フォント: Shippori Mincho（SIL Open Font License、ライセンスは依存パッケージ内に同梱）。

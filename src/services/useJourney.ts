@@ -71,6 +71,64 @@ function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: numbe
   return { ...saved, [field]: next, [specialField]: addDropsForNewRewards(saved[specialField], previous, next) };
 }
 
+function normalizeSaved(value: unknown): Saved {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('記録の形式が正しくありません。');
+  const p = value as Partial<Saved>;
+  if (p.version !== 1 || !p.real || !p.trial) throw new Error('この引き継ぎコードには対応していません。');
+  const demo = p.demo === true;
+  const bookDesignState = normalizeBookDesignState({ demo, bookDesigns: p.bookDesigns, realBookDesigns: p.realBookDesigns, trialBookDesigns: p.trialBookDesigns });
+  const defaults = initial();
+  const loaded: Saved = {
+    ...defaults,
+    onboarded: p.onboarded === true,
+    demo,
+    real: normalizeProgress(p.real),
+    trial: normalizeProgress(p.trial),
+    realSpecial: normalizeSpecialCollection(p.realSpecial),
+    trialSpecial: normalizeSpecialCollection(p.trialSpecial),
+    ...bookDesignState,
+    pet: isPetId(p.pet) ? p.pet : 'mobibou',
+    haptics: p.haptics !== false,
+    source: ['healthkit', 'motion'].includes(p.source as string) ? p.source! : 'none',
+    backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : defaults.backgroundId,
+    homeWidgetOrder: normalizeHomeWidgetOrder(p.homeWidgetOrder),
+    homeWidgetItems: normalizeHomeWidgetItems(p.homeWidgetItems),
+    routes: Object.fromEntries(Object.entries(p.routes && typeof p.routes === 'object' ? p.routes : {}).map(([key, progress]) => [key, normalizeProgress(progress)])),
+    affection: Object.fromEntries(Object.entries(p.affection && typeof p.affection === 'object' ? p.affection : {}).filter(([key, count]) => isPetId(key) && Number.isFinite(count) && count >= 0)),
+    omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null,
+  };
+  loaded.realSpecial = loaded.real.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.realSpecial);
+  loaded.trialSpecial = loaded.trial.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.trialSpecial);
+  return loaded;
+}
+
+function readTransferData(raw: string): Saved {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('引き継ぎコードを読み取れません。コピーした内容を確認してください。');
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('引き継ぎコードの形式が正しくありません。');
+  const envelope = parsed as { format?: unknown; version?: unknown; data?: unknown };
+  if (envelope.format !== 'mobidou-transfer' || envelope.version !== 1) throw new Error('もび道で作成した引き継ぎコードではありません。');
+  try {
+    return normalizeSaved(envelope.data);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('この引き継ぎコード')) throw error;
+    throw new Error('引き継ぎコードの記録が壊れているため、読み込めません。');
+  }
+}
+
+function transferSummary(saved: Saved) {
+  return {
+    petId: saved.pet,
+    routeId: saved.real.routeId ?? null,
+    rewardCount: saved.real.rewards.length,
+    totalSteps: saved.real.totalSteps,
+  };
+}
+
 export function useJourney() {
   const [data, setData] = useState<Saved>(initial);
   const current = useRef(data);
@@ -95,13 +153,7 @@ export function useJourney() {
     AsyncStorage.getItem(KEY).then(raw => {
       if (!mounted.current) return;
       if (raw) {
-        const p = JSON.parse(raw) as Saved;
-        if (p.version !== 1) throw new Error('Unsupported save');
-        const demo = p.demo === true;
-        const bookDesignState = normalizeBookDesignState({ demo, bookDesigns: p.bookDesigns, realBookDesigns: p.realBookDesigns, trialBookDesigns: p.trialBookDesigns });
-        const loaded: Saved = { ...initial(), onboarded: p.onboarded === true, demo, real: normalizeProgress(p.real), trial: normalizeProgress(p.trial), realSpecial: normalizeSpecialCollection(p.realSpecial), trialSpecial: normalizeSpecialCollection(p.trialSpecial), ...bookDesignState, pet: isPetId(p.pet) ? p.pet : 'mobibou', haptics: p.haptics !== false, source: ['healthkit', 'motion'].includes(p.source) ? p.source : 'none', backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : initial().backgroundId, homeWidgetOrder: normalizeHomeWidgetOrder(p.homeWidgetOrder), homeWidgetItems: normalizeHomeWidgetItems(p.homeWidgetItems), routes: Object.fromEntries(Object.entries(p.routes ?? {}).map(([key, value]) => [key, normalizeProgress(value)])), affection: Object.fromEntries(Object.entries(p.affection ?? {}).filter(([k, v]) => isPetId(k) && Number.isFinite(v) && v >= 0)), omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null };
-        loaded.realSpecial = loaded.real.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.realSpecial);
-        loaded.trialSpecial = loaded.trial.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.trialSpecial);
+        const loaded = normalizeSaved(JSON.parse(raw));
         current.current = loaded; setData(loaded);
         void AsyncStorage.setItem(KEY, JSON.stringify(loaded));
       }
@@ -144,8 +196,35 @@ export function useJourney() {
     } catch (e) { setError(e instanceof Error ? e.message : '接続できませんでした。'); }
     finally { syncLock.current = false; setBusy(false); }
   };
+  const exportTransfer = useCallback(async () => {
+    await writing.current;
+    return JSON.stringify({ format: 'mobidou-transfer', version: 1, data: current.current });
+  }, []);
+  const previewTransfer = useCallback((raw: string) => transferSummary(readTransferData(raw)), []);
+  const importTransfer = useCallback(async (raw: string) => {
+    if (syncLock.current) throw new Error('歩数を更新中です。少し待ってからもう一度お試しください。');
+    const imported = { ...readTransferData(raw), onboarded: true };
+    syncLock.current = true;
+    setBusy(true);
+    try {
+      await writing.current;
+      await AsyncStorage.setItem(KEY, JSON.stringify(imported));
+      epoch.current++;
+      current.current = imported;
+      setData(imported);
+      readOnly.current = false;
+      setSynced('');
+      setError('');
+      writing.current = Promise.resolve();
+    } catch {
+      throw new Error('引き継いだ記録を保存できませんでした。端末の空き容量を確認してください。');
+    } finally {
+      syncLock.current = false;
+      setBusy(false);
+    }
+  }, []);
   return {
-    data, progress: data.demo ? data.trial : data.real, special: data.demo ? data.trialSpecial : data.realSpecial, ready, error, busy, synced, refresh, connect,
+    data, progress: data.demo ? data.trial : data.real, special: data.demo ? data.trialSpecial : data.realSpecial, ready, error, busy, synced, refresh, connect, exportTransfer, previewTransfer, importTransfer,
     dismissError: () => setError(''),
     enter: (demo: boolean) => { epoch.current++; change(p => ({ ...p, onboarded: true, demo, bookDesigns: cloneBookDesigns(demo ? p.trialBookDesigns : p.realBookDesigns) })); },
     demoWalk: () => change(p => updateSavedProgress(p, 'trial', rollDay(p.trial).steps + 1000)),

@@ -12,7 +12,7 @@ import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets } from './src/services/progress';
 import { sourceLabel } from './src/services/steps';
 import { useJourney } from './src/services/useJourney';
-import { BACKGROUND_OPTIONS, BACKGROUND_SEASONS, getBackgroundOption, type BackgroundSeason } from './src/data/backgrounds';
+import { getBackgroundOption } from './src/data/backgrounds';
 import { PET_BACKGROUNDS } from './src/data/petBackgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { pilgrimageShrines, PilgrimagePicker, RouteMap } from './src/components/PilgrimageScreen';
@@ -33,6 +33,7 @@ import { OmikujiExperience } from './src/components/OmikujiExperience';
 import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './src/components/TutorialSpotlight';
 import { fortuneForDay, localOmikujiDay } from './src/data/omikuji';
 import { useOmikujiBrushFont } from './src/fonts/useOmikujiBrushFont';
+import { AccountCenter, type AccountPage } from './src/components/AccountCenter';
 
 type Tab = 'home' | 'book' | 'walk' | 'pets' | 'collection';
 type OutingTab = 'count' | 'map';
@@ -266,7 +267,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const journey = useJourney();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { data, progress } = journey;
-  const onboardingPreview = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('onboarding-preview') === '1';
+  const accountPreview = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('account-preview') === '1';
+  const onboardingPreview = accountPreview || (__DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('onboarding-preview') === '1');
   const [tutorialPreviewPet, setTutorialPreviewPet] = useState<PetId | null>(null);
   const [tutorialPreviewDrawn, setTutorialPreviewDrawn] = useState(false);
   const [tab, setTab] = useState<Tab>('home');
@@ -315,6 +317,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     });
   };
   const [settings, setSettings] = useState(false);
+  const [accountPage, setAccountPage] = useState<AccountPage | null>(null);
+  const [accountEntryVisible, setAccountEntryVisible] = useState(false);
+  const [accountEntryPage, setAccountEntryPage] = useState<AccountPage>('welcome');
   const [overlayBusy, setOverlayBusy] = useState(false);
   const [info, setInfo] = useState<'privacy' | 'about' | null>(null);
   const [openingVisible, setOpeningVisible] = useState(true);
@@ -331,7 +336,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [petMenuOpen, setPetMenuOpen] = useState(false);
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
   const [collectionView, setCollectionView] = useState<CollectionView>('collection');
-  const [backgroundSeason, setBackgroundSeason] = useState<BackgroundSeason>(() => getBackgroundOption(data.backgroundId).season);
   const [scrollViewportHeight, setScrollViewportHeight] = useState(0);
   const [homeScrollLayout, setHomeScrollLayout] = useState<HomeLayout | null>(null);
   const [homeCardGroupLayout, setHomeCardGroupLayout] = useState<HomeLayout | null>(null);
@@ -394,7 +398,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const collectionRewardDates = Object.fromEntries(collectionRewards.map(reward => [reward.id, displayDate(reward.date)]));
   const routeBookOwned = !!activeRoute && data.bookDesigns.owned[activeRoute.id] === true;
   const routeBookSelected = !!activeRoute && data.bookDesigns.selected[activeRoute.id] === 'route' && routeBookOwned;
-  const backgroundChoices = BACKGROUND_OPTIONS.filter(option => option.season === backgroundSeason);
   const pointTargets = expandPointTargets(activeShrines.length, activeRoute?.targets ?? DAILY_TARGETS);
   const nextIndex = activeShrines.findIndex((shrine, index) => !progress.rewards.some(r => r.id === (activeRoute?.ids[index] ?? shrine.id)));
   const next = nextIndex >= 0 ? activeShrines[nextIndex] : undefined;
@@ -413,11 +416,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const move = (value: Tab) => { if (value === 'collection') { setCollectionZoom('standard'); setCollectionView('collection'); } if (value === 'book' && tab !== 'book') setBookOpen(false); setBookImageList(false); setHomePopup(null); setHomeCardPopup(null); setOmikujiModal(false); scrollY.setValue(0); setTab(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setHomeCardPopup(null); setHomePopup(kind); setTab('home'); scrollY.setValue(0); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const mapScreen = tab === 'walk' && outingTab === 'map';
-  const enterApp = () => {
-    const firstRun = onboardingPreview || !data.onboarded;
+  const continueIntoApp = (firstRun: boolean) => {
     if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current);
     move('home');
     setOpeningVisible(false);
+    setAccountEntryVisible(false);
     setRoutePicker(false);
     setFirstRunStage(null);
     if (firstRun) {
@@ -441,6 +444,41 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       setOpeningHomeReady(true);
       openingHomeTimer.current = null;
     }, 500);
+  };
+  const beginFirstRun = () => {
+    setAccountEntryPage('welcome');
+    continueIntoApp(true);
+  };
+  const enterApp = () => {
+    const firstRun = onboardingPreview || !data.onboarded;
+    if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current);
+    if (firstRun && !onboardingPreview) {
+      move('home');
+      setOpeningVisible(false);
+      setAccountEntryPage('welcome');
+      setAccountEntryVisible(true);
+      return;
+    }
+    continueIntoApp(firstRun);
+  };
+  const finishAccountImport = () => {
+    if (accountEntryVisible) {
+      setAccountEntryVisible(false);
+      setAccountEntryPage('welcome');
+      setFirstRunStage(null);
+      setSettings(false);
+      setAccountPage(null);
+      setOpeningVisible(false);
+      setOpeningHomeReady(true);
+      move('home');
+    } else if (journey.data.real.routeId) {
+      setAccountPage('manage');
+    } else {
+      setSettings(false);
+      setAccountPage(null);
+      setOpeningHomeReady(true);
+      move('home');
+    }
   };
   const renderBookSpread = (index: number) => {
     const book = activeShrines[index] ?? SHRINES[0];
@@ -549,9 +587,15 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
   </Pressable>;
   useEffect(() => () => { if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current); }, []);
-  useEffect(() => { setBackgroundSeason(currentBackground.season); }, [currentBackground.season]);
   useEffect(() => { setPetMenuOpen(false); }, [tab]);
-  useEffect(() => { if (openingHomeReady && journey.ready && !progress.routeId && (firstRunStage === null || firstRunStage === 'route')) setRoutePicker(true); }, [openingHomeReady, journey.ready, progress.routeId, data.demo, firstRunStage]);
+  useEffect(() => {
+    if (!accountPreview || !journey.ready) return;
+    setOpeningVisible(false);
+    setOpeningHomeReady(false);
+    setAccountEntryPage('welcome');
+    setAccountEntryVisible(true);
+  }, [accountPreview, journey.ready]);
+  useEffect(() => { if (openingHomeReady && journey.ready && !settings && !accountEntryVisible && !progress.routeId && (firstRunStage === null || firstRunStage === 'route')) setRoutePicker(true); }, [openingHomeReady, journey.ready, settings, accountEntryVisible, progress.routeId, data.demo, firstRunStage]);
   useEffect(() => {
     if (tab !== 'home') {
       promptedOmikujiHomeEntry.current = false;
@@ -756,20 +800,66 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <Modal visible={settings} onShow={() => setOverlayBusy(true)} onDismiss={() => { setSettings(false); setInfo(null); setOverlayBusy(false); }} animationType="slide" onRequestClose={() => setSettings(false)} presentationStyle="pageSheet"><SafeAreaView style={S.modal}><View style={S.modalHeader}><Text style={S.modalTitle}>旅のしたく</Text><Close onPress={() => { setInfo(null); setSettings(false); }} /></View>{!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text></View>}<ScrollView contentContainerStyle={S.settingsContent}>
+    <Modal visible={settings && !accountPage} onShow={() => setOverlayBusy(true)} onDismiss={() => { if (!accountPage) { setInfo(null); setOverlayBusy(false); } }} animationType="slide" onRequestClose={() => setSettings(false)} presentationStyle="pageSheet"><SafeAreaView style={S.modal}><View style={S.modalHeader}><Text style={S.modalTitle}>設定</Text><Close onPress={() => { setInfo(null); setSettings(false); setAccountPage(null); }} /></View>{!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text></View>}<ScrollView contentContainerStyle={S.settingsContent}>
+      <Section title="アカウント" /><View style={S.settingCard}><WashiArt /><Meta icon="person-circle-outline" text="未ログイン · この端末に保存" /><Text style={S.settingHelp}>ログインやクラウド同期は未設定です。アカウント画面からログイン状況を確認し、別の端末へ記録を引き継げます。</Text><Button title="アカウント管理" icon="person-circle-outline" onPress={() => setAccountPage('manage')} /></View>
       <Section title="歩数のつながり" /><View style={S.settingCard}><WashiArt /><Meta icon="footsteps-outline" text={sourceLabel[data.source]} /><Text style={S.settingHelp}>{data.source === 'healthkit' ? 'ヘルスケアの当日歩数を読み取ります。0歩のままの場合は、ヘルスケアの共有設定をご確認ください。読み取り権限の拒否はアプリから判別できません。' : data.source === 'motion' ? 'Expo Goではモーションとフィットネスから読み取ります。HealthKitはiOSの開発ビルドで利用できます。' : 'iPhoneで歩数を連携すると、今日の歩数で御朱印を集められます。'}
       </Text><Button title="歩数を連携する" disabled={journey.busy} onPress={() => void journey.connect()} />{Platform.OS === 'ios' && <Button title="iPhoneの設定をひらく" secondary onPress={() => void Linking.openSettings().catch(() => {})} style={{ marginTop: 10 }} />}</View>
       <View style={S.settingRow}><View style={{ flex: 1 }}><Text style={S.settingLabel}>ふれあいの振動</Text><Text style={S.settingHelp}>なでたとき・御朱印を授かったとき</Text></View><Switch accessibilityLabel="ふれあいの振動" value={data.haptics} onValueChange={journey.toggleHaptics} trackColor={{ true: C.red, false: '#CCC4B8' }} /></View>
       <Section title="巡礼の旅" /><Text style={S.settingHelp}>{activeRoute ? `${activeRoute.name}を巡礼中。途中で旅を変えても、これまでの記録は残ります。` : '最初に、これから辿る巡礼を選びます。'}</Text><Button title="巡礼コースを選ぶ" icon="map-outline" onPress={() => { setSettings(false); setRoutePicker(true); }} />
-      <Section title="背景の季節" /><Text style={S.settingHelp}>季節と景色を選ぶと、ホームの背景が切り替わります。選択は端末に保存されます。</Text>
-      <View style={S.seasonTabs}>{BACKGROUND_SEASONS.map(season => <Pressable key={season.id} accessibilityRole="button" accessibilityState={{ selected: backgroundSeason === season.id }} onPress={() => setBackgroundSeason(season.id)} style={[S.seasonTab, backgroundSeason === season.id && { backgroundColor: season.color, borderColor: season.color }]}><Text style={[S.seasonTabText, backgroundSeason === season.id && { color: '#FFF9EF' }]}>{season.label}</Text></Pressable>)}</View>
-      <View style={S.backgroundGrid}>{backgroundChoices.map(option => { const selectedBackground = data.backgroundId === option.id; return <Pressable key={option.id} accessibilityRole="button" accessibilityLabel={`${option.label}（${option.note}）を背景にする`} accessibilityState={{ selected: selectedBackground }} onPress={() => journey.chooseBackground(option.id)} style={[S.backgroundOption, selectedBackground && S.backgroundOptionActive]}><Image source={option.image} style={S.backgroundImage} contentFit="cover" /><View pointerEvents="none" style={S.backgroundOptionShade} /><View pointerEvents="none" style={S.backgroundOptionCopy}><Text style={S.backgroundOptionLabel}>{option.label}</Text><Text style={S.backgroundOptionNote}>{option.note}</Text></View>{selectedBackground && <View style={S.backgroundCheck}><Icon name="checkmark" size={13} color="#FFF" /></View>}</Pressable>; })}</View>
       <Section title="もび道を体験" /><Text style={S.settingHelp}>体験用の御朱印帳で、お散歩と授与演出を試せます。本番の記録には影響しません。</Text><Button title={data.demo ? '体験を終えて実記録にもどる' : '体験モードをはじめる'} secondary onPress={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} />
       <Section title="このアプリについて" /><Button title="プライバシーとデータ" secondary onPress={() => setInfo('privacy')} /><Button title="もび道について・利用上の案内" secondary onPress={() => setInfo('about')} style={{ marginTop: 10 }} />
       <Text style={S.footerNote}>{'もび道（もびどう） 1.0.0\n今日の一歩に、小さなご縁を。'}</Text>
-    </ScrollView>{!!info && (<View style={S.infoBackdrop}><View style={S.infoCard}><WashiArt /><Text style={S.modalTitle}>{info === 'privacy' ? 'プライバシーとデータ' : 'もび道について'}</Text><ScrollView style={{ maxHeight: 380 }}><Text style={S.infoText}>{info === 'privacy' ? 'もび道は、今日の歩数・集めた御朱印・選んだモビー・ふれあい回数・設定を端末内に保存します。\n\nログイン、広告、アクセス解析、サーバー送信はありません。GPSも使用しません。歩数は御朱印の解放にのみ使用し、ヘルスケアへ書き込みません。\n\n端末を変更しても記録は自動では引き継がれません。アプリを削除すると記録は失われる場合があります。歩数アクセスはiPhoneの設定からいつでも変更できます。' : 'もび道（もびどう）は、モビーと歩いて架空の御朱印を集めるアプリです。\n\n巡礼は、日常の場所から特別な場所へ移動し、道中の祈りや記録を経て日常へ戻る旅。もび道では、神域参詣・山岳修行・札所周回・観音巡礼・七願掛け・物語の聖地巡礼という6つの旅の型から選べます。\n\n各地点は社・宮・寺・観音堂などの参拝先として設計し、参拝後に境内の授与所で御朱印を授かります。登場する社・宮・地名・御朱印はすべて、もびの世界の創作です。実在の宗教施設や実際の参拝・授与品とは関係ありません。\n\n歩数は1日単位で、端末の現地時間に合わせて切り替わります。御朱印は順番に解放され、最後まで歩き切ると結願証・称号・専用の結願印を授かります。\n\n歩きながらの画面操作は立ち止まって。体調に合わせて、無理なく楽しんでください。'}</Text></ScrollView><Button title="とじる" onPress={() => setInfo(null)} /></View></View>)}</SafeAreaView></Modal>
+    </ScrollView>{!!info && (<View style={S.infoBackdrop}><View style={S.infoCard}><WashiArt /><Text style={S.modalTitle}>{info === 'privacy' ? 'プライバシーとデータ' : 'もび道について'}</Text><ScrollView style={{ maxHeight: 380 }}><Text style={S.infoText}>{info === 'privacy' ? 'もび道は、今日の歩数・集めた御朱印・選んだモビー・ふれあい回数・設定を端末内に保存します。\n\nログイン、広告、アクセス解析、サーバー送信はありません。GPSも使用しません。歩数は御朱印の解放にのみ使用し、ヘルスケアへ書き込みません。\n\n端末を変更しても記録は自動では引き継がれません。設定のアカウント管理から引き継ぎコードを作成し、新しい端末で読み込んでください。アプリを削除すると記録は失われる場合があります。歩数アクセスはiPhoneの設定からいつでも変更できます。' : 'もび道（もびどう）は、モビーと歩いて架空の御朱印を集めるアプリです。\n\n巡礼は、日常の場所から特別な場所へ移動し、道中の祈りや記録を経て日常へ戻る旅。もび道では、神域参詣・山岳修行・札所周回・観音巡礼・七願掛け・物語の聖地巡礼という6つの旅の型から選べます。\n\n各地点は社・宮・寺・観音堂などの参拝先として設計し、参拝後に境内の授与所で御朱印を授かります。登場する社・宮・地名・御朱印はすべて、もびの世界の創作です。実在の宗教施設や実際の参拝・授与品とは関係ありません。\n\n歩数は1日単位で、端末の現地時間に合わせて切り替わります。御朱印は順番に解放され、最後まで歩き切ると結願証・称号・専用の結願印を授かります。\n\n歩きながらの画面操作は立ち止まって。体調に合わせて、無理なく楽しんでください。'}</Text></ScrollView><Button title="とじる" onPress={() => setInfo(null)} /></View></View>)}</SafeAreaView></Modal>
 
 
+
+    <Modal
+      visible={!!accountPage || accountEntryVisible}
+      onShow={() => setOverlayBusy(true)}
+      onDismiss={() => setOverlayBusy(false)}
+      animationType="slide"
+      onRequestClose={() => {
+        if (accountEntryVisible) {
+          if (accountEntryPage !== 'welcome') setAccountEntryPage('welcome');
+        } else {
+          setAccountPage(page => page === 'manage' ? null : 'manage');
+        }
+      }}
+      presentationStyle="pageSheet"
+    >
+      <SafeAreaView style={S.modal}>
+        <View style={S.modalHeader}>
+          {(accountEntryVisible ? accountEntryPage : accountPage) !== 'welcome' && <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={accountEntryVisible ? 'はじめの画面へ戻る' : accountPage === 'manage' ? '設定に戻る' : 'アカウント画面へ戻る'}
+            onPress={() => accountEntryVisible
+              ? setAccountEntryPage('welcome')
+              : setAccountPage(page => page === 'manage' ? null : 'manage')}
+            style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+          ><Icon name="chevron-back" size={21} color={C.red} /></Pressable>}
+          <Text style={[S.modalTitle, (accountEntryVisible ? accountEntryPage : accountPage) !== 'welcome' && { flex: 1 }]}>
+            {accountEntryVisible
+              ? ({ welcome: 'はじめての方へ', login: 'ログイン', transfer: 'データ引き継ぎ', manage: 'アカウント' } as const)[accountEntryPage]
+              : ({ manage: 'アカウント', login: 'ログイン', transfer: 'データ引き継ぎ', welcome: 'はじめての方へ' } as const)[accountPage ?? 'manage']}
+          </Text>
+          {!accountEntryVisible && <Close onPress={() => setAccountPage(null)} />}
+        </View>
+        <AccountCenter
+          page={accountEntryVisible ? accountEntryPage : accountPage ?? 'manage'}
+          isFirstLaunch={accountEntryVisible}
+          localSummary={{ petId: data.pet, routeId: data.real.routeId ?? null, rewardCount: data.real.rewards.length, totalSteps: data.real.totalSteps }}
+          onNavigate={page => accountEntryVisible ? setAccountEntryPage(page) : setAccountPage(page)}
+          onBack={() => accountEntryVisible
+            ? setAccountEntryPage('welcome')
+            : setAccountPage(page => page === 'manage' ? null : 'manage')}
+          onStart={beginFirstRun}
+          onExport={journey.exportTransfer}
+          onPreviewTransfer={journey.previewTransfer}
+          onImportTransfer={journey.importTransfer}
+          onFinishImport={finishAccountImport}
+        />
+      </SafeAreaView>
+    </Modal>
 
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} onRedeemKeychainDrop={journey.redeemKeychainDrop} onDeclineKeychainDrop={journey.declineKeychainDrop} onClose={() => { const index = Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); setFeatured(index); move('book'); }} />}</Modal>
