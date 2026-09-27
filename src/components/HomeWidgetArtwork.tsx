@@ -9,6 +9,8 @@ import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
 import { OmikujiResultContent } from './OmikujiResultCard';
 
 const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.png');
+const OMIKUJI_HOME_UNDRAWN_BACKGROUND = require('../../assets/omikuji/omikuji-home-undrawn-bg-v1.png');
+const OMIKUJI_DRAW_CYLINDER = require('../../assets/omikuji/omikuji-draw-cylinder-v1.png');
 
 function CardBackground({ source, shade = '#FFF9EFA8' }: { source: ImageSourcePropType; shade?: string }) {
   return <>
@@ -23,25 +25,17 @@ export function HomeGoshuinArtwork({ source }: { source: ImageSourcePropType; ba
   </View>;
 }
 
-export function HomeOmikujiArtwork({ fortune, petName }: { fortune: OmikujiFortune | null; petName: string }) {
+export function HomeOmikujiArtwork({ fortune }: { fortune: OmikujiFortune | null; petName: string }) {
   const brushTextStyle = useOmikujiBrushFont();
   return <View pointerEvents="none" style={S.omikujiStage}>
-    <Image accessible={false} source={OMIKUJI_RESULT_BACKGROUND} contentFit="cover" style={[S.omikujiBackground, fortune && S.omikujiResultBackground]} />
-    {!fortune && <View style={S.omikujiBackgroundShade} />}
+    <Image accessible={false} source={fortune ? OMIKUJI_RESULT_BACKGROUND : OMIKUJI_HOME_UNDRAWN_BACKGROUND} contentFit="cover" style={[S.omikujiBackground, fortune && S.omikujiResultBackground]} />
     {fortune
       ? <View style={S.omikujiResultContentViewport}><View style={S.omikujiResultContentScale}><OmikujiResultContent fortune={fortune} brushTextStyle={brushTextStyle} /></View></View>
       : <View style={S.omikujiContent}>
-        <Text style={[S.omikujiKicker, brushTextStyle]}>本日のご縁みくじ</Text>
-        <Text style={[S.omikujiRank, S.omikujiUndrawnRank, brushTextStyle]}>未</Text>
-        <Text numberOfLines={1} style={[S.omikujiTitle, brushTextStyle]}>今日のご縁を、迎えにいこう</Text>
-        <Text numberOfLines={2} style={[S.omikujiMessage, brushTextStyle]}>{petName}がおみくじを引いてくれます</Text>
-        <View style={S.omikujiRule} />
-        <Text style={[S.omikujiPendingCategories, brushTextStyle]}>学問・願い事・健康・恋愛</Text>
-        <View style={S.omikujiActionPanel}>
-          <Text style={[S.omikujiActionLabel, brushTextStyle]}>今日の小さな開運</Text>
-          <Text numberOfLines={2} style={[S.omikujiAction, brushTextStyle]}>タップして今日の一枚を引く</Text>
+        <Text style={[S.omikujiMessage, brushTextStyle]}>おみくじを引けるよ</Text>
+        <View style={S.omikujiPreDrawHero}>
+          <Image accessible={false} source={OMIKUJI_DRAW_CYLINDER} contentFit="contain" style={S.omikujiDrawCylinder} />
         </View>
-        <Text style={[S.omikujiFooter, brushTextStyle]}>タップして今日のおみくじを引きましょう</Text>
       </View>}
   </View>;
 }
@@ -148,20 +142,11 @@ const S = StyleSheet.create({
   omikujiResultBackground: { opacity: 0.58 },
   omikujiResultContentViewport: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   omikujiResultContentScale: { width: '189%', transform: [{ scale: 0.53 }] },
-  omikujiBackgroundShade: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9EFA8' },
-  omikujiContent: { flex: 1, alignItems: 'center', paddingHorizontal: 7, paddingTop: 5, paddingBottom: 4 },
-  omikujiKicker: { color: '#8B6B51', fontFamily: 'ShipporiBold', fontSize: 7, lineHeight: 9, letterSpacing: 1.1 },
-  omikujiRank: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 30, lineHeight: 34, marginTop: 1 },
-  omikujiUndrawnRank: { fontSize: 24 },
-  omikujiTitle: { width: '100%', color: '#3D3028', fontFamily: 'ShipporiBold', textAlign: 'center', fontSize: 8.5, lineHeight: 12 },
-  omikujiMessage: { width: '100%', color: '#5E5045', fontFamily: 'Shippori', textAlign: 'center', fontSize: 7, lineHeight: 9.5, marginTop: 2 },
-  omikujiRule: { width: '82%', height: 1, backgroundColor: '#D8C3A6', marginTop: 3, marginBottom: 3 },
-  omikujiPendingCategories: { color: '#8B6B51', fontFamily: 'Shippori', textAlign: 'center', fontSize: 7, lineHeight: 11 },
-  omikujiActionPanel: { alignSelf: 'stretch', marginTop: 'auto', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6, backgroundColor: '#F2E6D3D9' },
-  omikujiActionLabel: { color: '#8A5A3B', fontSize: 6, lineHeight: 8 },
-  omikujiAction: { color: '#3D3028', fontFamily: 'ShipporiBold', fontSize: 8, lineHeight: 10, marginTop: 1 },
+  omikujiContent: { flex: 1, minHeight: 0, alignItems: 'center', paddingHorizontal: 7, paddingTop: 7, paddingBottom: 10 },
+  omikujiPreDrawHero: { flex: 1, minHeight: 0, width: '100%', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  omikujiDrawCylinder: { width: '100%', height: '100%' },
+  omikujiMessage: { width: '100%', color: '#5E5045', fontFamily: 'ShipporiBold', textAlign: 'center', fontSize: 10, lineHeight: 15, marginTop: 2 },
   omikujiLucky: { color: '#79685A', fontSize: 6, lineHeight: 8, marginTop: 1 },
-  omikujiFooter: { color: '#8A7564', textAlign: 'center', fontSize: 6, lineHeight: 8, marginTop: 3 },
   artworkImage: { ...StyleSheet.absoluteFillObject },
   cardBackground: { ...StyleSheet.absoluteFillObject },
   cardBackgroundShade: { ...StyleSheet.absoluteFillObject },
