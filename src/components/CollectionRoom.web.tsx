@@ -7,7 +7,7 @@ import { ClampToEdgeWrapping, RepeatWrapping, SRGBColorSpace, TextureLoader } fr
 const WOOD_PILLAR = require('../../assets/collection/collection-wood-pillar-bold-v1.png');
 const WOOD_BEAM = require('../../assets/collection/collection-wood-beam-bold-v1.png');
 const WOOD_BASE = require('../../assets/collection/collection-wood-base-bold-v1.png');
-const CABINET_BACKDROP = require('../../assets/collection/collection-cabinet-washi-backdrop-v1.png');
+const CABINET_BACKDROP = require('../../assets/collection/collection-cabinet-fusuma-full-v1.png');
 const WALL_HOOK = require('../../assets/collection/collection-wall-hook-v2.png');
 const GOSHUIN_STAND = require('../../assets/collection/collection-goshuin-stand-v1.png');
 
