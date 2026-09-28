@@ -1,4 +1,4 @@
-import React, { type Ref } from 'react';
+import { type Ref } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import type { BookPageTurnHandle } from './BookPageTurn';
 
