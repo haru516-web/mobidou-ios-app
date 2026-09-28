@@ -167,6 +167,7 @@ export function useJourney() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [synced, setSynced] = useState('');
+  const [corruptedBackup, setCorruptedBackup] = useState<string | null>(null);
   const writing = useRef(Promise.resolve());
   const mounted = useRef(true);
   const syncLock = useRef(false);
@@ -183,6 +184,7 @@ export function useJourney() {
   }, []);
   useEffect(() => {
     mounted.current = true;
+    AsyncStorage.getItem(CORRUPTED_BACKUP_KEY).then(backup => { if (mounted.current && backup) setCorruptedBackup(backup); }).catch(() => {});
     AsyncStorage.getItem(KEY).then(async raw => {
       if (!mounted.current || !raw) return;
       let loaded: Saved;
@@ -193,6 +195,7 @@ export function useJourney() {
         // a separate key before anything can overwrite it, then continue with
         // a fresh, writable record instead of silently dropping every change.
         await AsyncStorage.setItem(CORRUPTED_BACKUP_KEY, raw);
+        if (mounted.current) setCorruptedBackup(raw);
         if (mounted.current) setError('保存した記録を読み込めなかったため、新しく記録を始めます。以前のデータは端末内に退避しました。');
         return;
       }
@@ -271,6 +274,12 @@ export function useJourney() {
   return {
     data, progress: data.demo ? data.trial : data.real, special: data.demo ? data.trialSpecial : data.realSpecial, ready, error, busy, synced, refresh, connect, exportTransfer, previewTransfer, importTransfer,
     dismissError: () => setError(''),
+    /** The untouched text of a record that could not be loaded, if one was set aside. */
+    corruptedBackup,
+    discardCorruptedBackup: async () => {
+      await AsyncStorage.removeItem(CORRUPTED_BACKUP_KEY);
+      setCorruptedBackup(null);
+    },
     enter: (demo: boolean) => { epoch.current++; change(p => ({ ...p, onboarded: true, demo, bookDesigns: cloneBookDesigns(demo ? p.trialBookDesigns : p.realBookDesigns) })); },
     demoWalk: () => change(p => updateSavedProgress(p, 'trial', rollDay(p.trial).steps + 1000)),
     demoTomorrow: () => change(p => ({ ...p, trial: { ...p.trial, steps: 0, baseline: 0, highWater: 0, dayStart: p.trial.rewards.length, day: localDay() } })),
