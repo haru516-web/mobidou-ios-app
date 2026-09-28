@@ -56,14 +56,20 @@ export function freshProgress(date = new Date()): Progress {
   return { day: localDay(date), steps: 0, totalSteps: 0, dayStart: 0, rewards: [], pending: [] };
 }
 export function rollDay(progress: Progress, date = new Date()): Progress {
-  return progress.day === localDay(date) ? progress : { ...progress, day: localDay(date), steps: 0, dayStart: progress.rewards.length, ...(progress.routeId ? { baseline: 0, highWater: 0 } : {}) };
+  return progress.day === localDay(date) ? progress : { ...progress, day: localDay(date), steps: 0, highWater: 0, dayStart: progress.rewards.length, ...(progress.routeId ? { baseline: 0 } : {}) };
 }
 export function updateSteps(progress: Progress, steps: number, date = new Date()): Progress {
   const next = rollDay(progress, date);
   if (!Number.isFinite(steps) || steps < 0) return next;
   const value = Math.floor(steps);
   const previousTotal = Number.isFinite(next.totalSteps) && next.totalSteps >= 0 ? next.totalSteps : Math.max(0, next.steps);
-  const addedSteps = Math.max(0, value - next.steps);
+  // A device correction (HealthKit resync, source switch) can report a lower
+  // reading than before. Crediting against the day's peak reading so far —
+  // rather than the last stored value — stops a later rebound from being
+  // double-counted into totalSteps/routeSteps.
+  const dayPeakSoFar = Math.max(next.steps, next.highWater ?? 0);
+  const addedSteps = Math.max(0, value - dayPeakSoFar);
+  const highWater = Math.max(value, dayPeakSoFar);
   const rewards = [...next.rewards];
   const pending = [...next.pending];
   const credited = next.routeId ? creditedSteps(next) + addedSteps : value;
@@ -74,7 +80,7 @@ export function updateSteps(progress: Progress, steps: number, date = new Date()
       pending.push(id);
     }
   });
-  return { ...next, steps: value, totalSteps: previousTotal + addedSteps, rewards, pending, ...(next.routeId ? { routeSteps: credited, highWater: Math.max(value, next.highWater ?? 0), ...(rewards.length === routeIds(next).length ? { completedAt: next.completedAt ?? next.day } : {}) } : {}) };
+  return { ...next, steps: value, totalSteps: previousTotal + addedSteps, highWater, rewards, pending, ...(next.routeId ? { routeSteps: credited, ...(rewards.length === routeIds(next).length ? { completedAt: next.completedAt ?? next.day } : {}) } : {}) };
 }
 export function normalizeProgress(value: unknown, now = new Date()): Progress {
   if (!value || typeof value !== 'object') return freshProgress(now);
@@ -98,12 +104,13 @@ export function normalizeProgress(value: unknown, now = new Date()): Progress {
   }
   const maximumSameDayRewards = p.routeId ? ids.length : targets.length;
   if (!Number.isInteger(p.dayStart) || p.dayStart! < 0 || p.dayStart! > rewards.length || rewards.length - p.dayStart! > maximumSameDayRewards || !Number.isFinite(p.steps) || p.steps! < 0 || (p.totalSteps !== undefined && (!Number.isFinite(p.totalSteps) || p.totalSteps < 0))) throw new Error('Invalid saved day');
-  if (p.routeId && (![p.baseline ?? 0, p.highWater ?? p.steps, p.routeSteps ?? 0].every(n => Number.isFinite(n) && n! >= 0))) throw new Error('Invalid route steps');
+  if (p.highWater !== undefined && (!Number.isFinite(p.highWater) || p.highWater < 0)) throw new Error('Invalid saved day');
+  if (p.routeId && (![p.baseline ?? 0, p.routeSteps ?? 0].every(n => Number.isFinite(n) && n! >= 0))) throw new Error('Invalid route steps');
   const pending = p.pending.map(id => {
     const index = legacyIds.indexOf(id);
     return index >= 0 ? ids[index] : id;
   });
   const estimatedTotalSteps = estimateHistoricalSteps(p.day, p.steps!, rewards, !p.routeId);
-  const migratedRouteSteps = p.routeId ? Math.max(p.routeSteps ?? 0, routeTargets({ ...freshProgress(now), routeId: p.routeId }).at(rewards.length - 1) ?? 0) : undefined;
-  return rollDay({ day: p.day, steps: p.steps!, totalSteps: Math.max(p.totalSteps ?? 0, estimatedTotalSteps), dayStart: p.dayStart!, rewards, pending: [...new Set(pending.filter(id => rewards.some(r => r.id === id)))], ...(p.routeId ? { routeId: p.routeId, baseline: p.baseline ?? 0, highWater: p.highWater ?? p.steps, routeSteps: migratedRouteSteps, ...(rewards.length === ids.length ? { completedAt: p.completedAt ?? rewards[rewards.length - 1].date } : {}) } : {}) }, now);
+  const migratedRouteSteps = p.routeId ? Math.max(p.routeSteps ?? 0, rewards.length === 0 ? 0 : (routeTargets({ ...freshProgress(now), routeId: p.routeId })[rewards.length - 1] ?? 0)) : undefined;
+  return rollDay({ day: p.day, steps: p.steps!, totalSteps: Math.max(p.totalSteps ?? 0, estimatedTotalSteps), dayStart: p.dayStart!, highWater: p.highWater ?? p.steps!, rewards, pending: [...new Set(pending.filter(id => rewards.some(r => r.id === id)))], ...(p.routeId ? { routeId: p.routeId, baseline: p.baseline ?? 0, routeSteps: migratedRouteSteps, ...(rewards.length === ids.length ? { completedAt: p.completedAt ?? rewards[rewards.length - 1].date } : {}) } : {}) }, now);
 }
