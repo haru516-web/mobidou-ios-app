@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Linking, Modal, PanResponder, Platform, ScrollView, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Linking, Modal, Platform, ScrollView, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -34,6 +34,8 @@ import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './s
 import { fortuneForDay, localOmikujiDay } from './src/data/omikuji';
 import { useOmikujiBrushFont } from './src/fonts/useOmikujiBrushFont';
 import { AccountCenter, type AccountPage } from './src/components/AccountCenter';
+import { OpeningExperience } from './src/components/OpeningExperience';
+import { CollectionBackdrop, getHomeBackgroundMetrics, HomeAnchoredBackground } from './src/components/HomeBackdrops';
 
 type Tab = 'home' | 'book' | 'walk' | 'pets' | 'collection';
 type OutingTab = 'count' | 'map';
@@ -43,224 +45,21 @@ type FirstRunStage = 'route' | 'character' | 'homeOmikuji' | 'drawOmikuji' | nul
 const FIRST_RUN_ROUTE_ID = 'sanctuary';
 type CollectionView = 'collection' | 'goshuin' | 'miniature' | 'passes';
 const fmt = (n: number) => n.toLocaleString('ja-JP');
-const OPENING_WORDMARK = require('./assets/mobidou-wordmark-brush.png');
-const OPENING_EMBLEM = require('./assets/mobidou-opening-emblem.png');
-const COLLECTION_BACKDROP = require('./assets/collection/collection-room-home-harmony-v1.png');
 const OMIKUJI_ANIMATION_BACKGROUND = require('./assets/omikuji/omikuji-animation-washi-v1.png');
 const OMIKUJI_RESULT_BACKGROUND = require('./assets/omikuji/omikuji-result-paper-v2.png');
-const HOME_SCENE_BACKGROUND = require('./assets/backgrounds/mobidou-home-cushion-background-extended-v2.png');
 const GOSHUIN_BOOK_BACKGROUND = require('./assets/backgrounds/mobidou-goshuin-book-background-v3.png');
 const GOSHUIN_DETAIL_BACKGROUND = require('./assets/backgrounds/goshuin-detail-washi-v1.png');
 const OUTING_BACKGROUND = require('./assets/backgrounds/outing/daily-omikuji-shrine-v1.png');
-const HOME_BACKGROUND_SOURCE_HEIGHT = 2880;
-const HOME_BACKGROUND_FLOOR_SOURCE_Y = 862;
-const HOME_BACKGROUND_CUSHION_SOURCE_Y = 820;
-const HOME_BACKGROUND_FLOOR_RATIO = HOME_BACKGROUND_FLOOR_SOURCE_Y / HOME_BACKGROUND_SOURCE_HEIGHT;
-const HOME_BACKGROUND_CUSHION_OFFSET_RATIO = (HOME_BACKGROUND_FLOOR_SOURCE_Y - HOME_BACKGROUND_CUSHION_SOURCE_Y) / HOME_BACKGROUND_SOURCE_HEIGHT;
 // The character PNG has a small transparent lower margin. Keep that margin
 // above the image's cushion surface so the visible feet land on the cushion.
 const HOME_CHARACTER_CUSHION_FOOT_INSET = 23;
-const OPENING_TIMELINE = [
-  { id: '0500-pre-dawn', time: '05:00', label: '明け方', image: require('./assets/backgrounds/opening-cycle/01-0500-pre-dawn.png') },
-  { id: '0600-sunrise', time: '06:00', label: '朝焼け', image: require('./assets/backgrounds/opening-cycle/02-0600-sunrise.png') },
-  { id: '0700-morning', time: '07:00', label: '朝', image: require('./assets/backgrounds/opening-cycle/03-0700-morning.png') },
-  { id: '0830-morning', time: '08:30', label: '朝', image: require('./assets/backgrounds/opening-cycle/04-0830-morning.png') },
-  { id: '1000-late-morning', time: '10:00', label: '午前', image: require('./assets/backgrounds/opening-cycle/05-1000-late-morning.png') },
-  { id: '1130-before-noon', time: '11:30', label: '昼前', image: require('./assets/backgrounds/opening-cycle/06-1130-before-noon.png') },
-  { id: '1300-noon', time: '13:00', label: '正午', image: require('./assets/backgrounds/opening-cycle/07-1300-noon.png') },
-  { id: '1430-afternoon', time: '14:30', label: '午後', image: require('./assets/backgrounds/opening-cycle/08-1430-afternoon.png') },
-  { id: '1600-late-afternoon', time: '16:00', label: '昼下がり', image: require('./assets/backgrounds/opening-cycle/09-1600-late-afternoon.png') },
-  { id: '1730-golden-hour', time: '17:30', label: '黄金時間', image: require('./assets/backgrounds/opening-cycle/10-1730-golden-hour.png') },
-  { id: '1830-sunset', time: '18:30', label: '夕陽', image: require('./assets/backgrounds/opening-cycle/11-1830-sunset.png') },
-  { id: '1930-blue-hour', time: '19:30', label: '宵', image: require('./assets/backgrounds/opening-cycle/12-1930-blue-hour.png') },
-  { id: '2100-night', time: '21:00', label: '夜', image: require('./assets/backgrounds/opening-cycle/13-2100-night.png') },
-  { id: '2300-late-night', time: '23:00', label: '月夜', image: require('./assets/backgrounds/opening-cycle/14-2300-late-night.png') },
-  { id: '0200-midnight', time: '02:00', label: '深夜', image: require('./assets/backgrounds/opening-cycle/15-0200-midnight.png') },
-  { id: '0430-before-dawn', time: '04:30', label: '夜明け前', image: require('./assets/backgrounds/opening-cycle/16-0430-before-dawn.png') },
-] as const;
 function displayDate(day: string) { const [y, m, d] = day.split('-'); return `${y}年${Number(m)}月${Number(d)}日`; }
 
 type HomeLayout = { y: number; height: number };
 
-function OpeningScene({ scene, width, frameIndex, progress }: { scene: (typeof OPENING_TIMELINE)[number]; width: number; frameIndex: number; progress: Animated.Value }) {
-  const lastFrameIndex = OPENING_TIMELINE.length - 1;
-  const inputRange = frameIndex === 0
-    ? [0, 1]
-    : frameIndex === lastFrameIndex
-      ? [lastFrameIndex - 1, lastFrameIndex]
-      : [frameIndex - 1, frameIndex, frameIndex + 1];
-  const outputRange = frameIndex === 0
-    ? [1, 0]
-    : frameIndex === lastFrameIndex
-      ? [0, 1]
-      : [0, 1, 0];
-  return <Animated.View style={[S.openingScene, { width, opacity: progress.interpolate({ inputRange, outputRange, extrapolate: 'clamp' }) }]}>
-    <Image source={scene.image} contentFit="cover" style={S.openingSceneImage} />
-  </Animated.View>;
-}
-
-function OpeningExperience({ onEnter, error }: { onEnter: () => void; error?: string | null }) {
-  const [width, setWidth] = useState(0);
-  const [index, setIndex] = useState(0);
-  const indexRef = useRef(0);
-  const frameProgress = useRef(new Animated.Value(0)).current;
-  const enteringRef = useRef(false);
-  const autoRunningRef = useRef(false);
-  const gestureCommittedRef = useRef(false);
-  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoAnimationRef = useRef<{ stop: () => void } | null>(null);
-
-  const complete = useCallback(() => {
-    if (enteringRef.current) return;
-    enteringRef.current = true;
-    settleTimerRef.current = setTimeout(onEnter, 420);
-  }, [onEnter]);
-
-  useEffect(() => () => {
-    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    autoAnimationRef.current?.stop();
-  }, []);
-
-  useEffect(() => {
-    const listenerId = frameProgress.addListener(({ value }) => {
-      if (!autoRunningRef.current) return;
-      const visualIndex = Math.max(0, Math.min(OPENING_TIMELINE.length - 1, Math.round(value)));
-      if (visualIndex !== indexRef.current) {
-        indexRef.current = visualIndex;
-        setIndex(visualIndex);
-      }
-    });
-    return () => frameProgress.removeListener(listenerId);
-  }, [frameProgress]);
-
-  const startAutoJourney = useCallback(() => {
-    if (width <= 0 || autoRunningRef.current || enteringRef.current) return;
-    autoRunningRef.current = true;
-    gestureCommittedRef.current = true;
-    frameProgress.stopAnimation();
-    const startIndex = indexRef.current;
-    const finalIndex = OPENING_TIMELINE.length - 1;
-    setIndex(startIndex);
-    const animation = Animated.timing(frameProgress, {
-      toValue: finalIndex,
-      duration: 4000,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    });
-    autoAnimationRef.current = animation;
-    animation.start(({ finished }) => {
-      autoAnimationRef.current = null;
-      if (!finished) return;
-      indexRef.current = finalIndex;
-      setIndex(finalIndex);
-      complete();
-    });
-  }, [complete, frameProgress, width]);
-
-  const finishGesture = useCallback((gesture: { dx: number; dy: number }) => {
-    if (width <= 0 || autoRunningRef.current) return;
-    if (gestureCommittedRef.current) {
-      gestureCommittedRef.current = false;
-      return;
-    }
-    const threshold = Math.max(48, width * .18);
-    if (Math.hypot(gesture.dx, gesture.dy) >= threshold) startAutoJourney();
-  }, [startAutoJourney, width]);
-
-  const pan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => !enteringRef.current && !autoRunningRef.current,
-    onStartShouldSetPanResponderCapture: () => !enteringRef.current && !autoRunningRef.current,
-    onMoveShouldSetPanResponder: (_, gesture) => !enteringRef.current && !autoRunningRef.current && Math.hypot(gesture.dx, gesture.dy) > 4,
-    onMoveShouldSetPanResponderCapture: (_, gesture) => !enteringRef.current && !autoRunningRef.current && Math.hypot(gesture.dx, gesture.dy) > 4,
-    onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: () => {
-      gestureCommittedRef.current = false;
-      frameProgress.stopAnimation();
-    },
-    onPanResponderMove: (_, gesture) => {
-      if (width <= 0 || autoRunningRef.current) return;
-      if (gestureCommittedRef.current) return;
-      const threshold = Math.max(48, width * .18);
-      if (Math.hypot(gesture.dx, gesture.dy) >= threshold) {
-        gestureCommittedRef.current = true;
-        startAutoJourney();
-      }
-    },
-    onPanResponderRelease: (_, gesture) => finishGesture(gesture),
-    onPanResponderTerminate: (_, gesture) => finishGesture(gesture),
-  }), [finishGesture, frameProgress, startAutoJourney, width]);
-
-  return <SafeAreaView
-    accessibilityLabel="オープニング。画面を上下左右にスライドして開始"
-    accessibilityHint="どの方向にスライドしても、16枚の背景が時間の流れに沿って切り替わり、その後アプリを開始します"
-    style={[S.opening, Platform.OS === 'web' ? ({ touchAction: 'none', userSelect: 'none' } as any) : null]}
-    onLayout={event => setWidth(event.nativeEvent.layout.width)}
-    {...pan.panHandlers}
-  >
-    <View pointerEvents="none" style={[S.openingTrack, { width: Math.max(1, width) }]}>
-      {OPENING_TIMELINE.map((scene, sceneIndex) => <OpeningScene key={scene.id} scene={scene} width={width} frameIndex={sceneIndex} progress={frameProgress} />)}
-    </View>
-    <View pointerEvents="none" style={S.openingContent}>
-      <View style={S.openingMiddleSpace}>
-        <Image source={OPENING_WORDMARK} contentFit="contain" style={S.openingCenterWordmark} />
-        <Image source={OPENING_EMBLEM} contentFit="contain" style={S.openingEmblem} />
-      </View>
-      <View style={S.openingCopy}>
-        <Text style={S.openingTagline}>歩くたび、小さな旅。</Text>
-        <Text style={S.openingSubline}>モビーと歩いて、もびの世界へ。</Text>
-        <Text style={S.openingStage}>{OPENING_TIMELINE[index].time}  {OPENING_TIMELINE[index].label}</Text>
-     </View>
-     {!!error && <Text style={[S.errorText, S.openingError]}>{error}</Text>}
-      <Text style={S.openingSwipeHint}>画面をスライドしてね</Text>
-    </View>
-  </SafeAreaView>;
-}
-
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({ Shippori: ShipporiMincho_500Medium, ShipporiBold: ShipporiMincho_700Bold });
   return <SafeAreaProvider><StatusBar style="dark" /><Main fontsReady={fontsLoaded || !!fontError} /></SafeAreaProvider>;
-}
-
-function CollectionBackdrop({ scrollY, viewportWidth, viewportHeight }: { scrollY: Animated.Value; viewportWidth: number; viewportHeight: number }) {
-  const tileWidth = Math.max(1, Math.round(viewportHeight * (1024 / 1536)));
-  const initialInset = Math.max(0, Math.floor((tileWidth - viewportWidth) / 2));
-  const backgroundWidth = viewportWidth + initialInset + tileWidth;
-  const tileCount = Math.ceil(backgroundWidth / tileWidth) + 1;
-  const translateY = scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' });
-  return <View pointerEvents="none" style={S.collectionBackdropViewport}>
-    <Animated.View style={[S.collectionBackdropTrack, { left: -initialInset, width: tileCount * tileWidth }, { transform: [{ translateY }] }]}>
-      {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} contentFit="cover" style={[{ width: tileWidth, height: '100%', flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
-    </Animated.View>
-  </View>;
-}
-
-function getHomeBackgroundMetrics(floorY: number | null, viewportHeight: number) {
-  const height = Math.max(1, viewportHeight);
-  const measuredFloorY = Math.max(0, Math.min(height, floorY ?? Math.round(height * HOME_BACKGROUND_FLOOR_RATIO)));
-  const artHeight = floorY === null
-    ? height
-    : Math.max(
-      height,
-      measuredFloorY / HOME_BACKGROUND_FLOOR_RATIO,
-      (height - measuredFloorY) / Math.max(.001, 1 - HOME_BACKGROUND_FLOOR_RATIO),
-    );
-  return {
-    measuredFloorY,
-    artHeight,
-    artTop: measuredFloorY - artHeight * HOME_BACKGROUND_FLOOR_RATIO,
-    cushionOffset: artHeight * HOME_BACKGROUND_CUSHION_OFFSET_RATIO,
-  };
-}
-
-function HomeAnchoredBackground({ floorY, viewportHeight }: { floorY: number | null; viewportHeight: number }) {
-  // Anchor the source row where the cushion meets the floor to the measured
-  // card position. The extended floor absorbs extra height on tall screens.
-  const { artHeight, artTop } = getHomeBackgroundMetrics(floorY, viewportHeight);
-  const artStyle = { position: 'absolute' as const, left: 0, right: 0, top: artTop, height: artHeight };
-
-  return <View pointerEvents="none" style={S.backgroundScrollLayer}>
-    <Image source={HOME_SCENE_BACKGROUND} contentFit="fill" style={artStyle} />
-  </View>;
 }
 
 function Main({ fontsReady }: { fontsReady: boolean }) {
@@ -880,7 +679,7 @@ const S = StyleSheet.create({
   omikujiModalBackground: { ...StyleSheet.absoluteFillObject },
   omikujiCardClose: { position: 'absolute', top: 8, right: 8, zIndex: 4 },
   homeStepsSlot: { marginTop: -27, marginBottom: 2 }, homeStepsCard: { width: '100%', height: 132, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', overflow: 'hidden', alignItems: 'stretch' },
-  desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundScrollLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, overflow: 'hidden' }, backgroundScrollTrack: { position: 'absolute', left: 0, right: 0, top: 0, bottom: -260 }, bookBackgroundTrack: { bottom: 0 }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, bookBackgroundArt: { opacity: 1 }, collectionBackdropViewport: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#F5E8D4' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, bottom: -260, flexDirection: 'row' }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, bookBackgroundWash: { opacity: 0 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 12 },
+  desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundScrollLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, overflow: 'hidden' }, backgroundScrollTrack: { position: 'absolute', left: 0, right: 0, top: 0, bottom: -260 }, bookBackgroundTrack: { bottom: 0 }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, bookBackgroundArt: { opacity: 1 }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, bookBackgroundWash: { opacity: 0 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 12 },
   homeWidgetDropTarget: { borderWidth: 3, borderColor: '#B84C3D', transform: [{ scale: 1.025 }], shadowColor: '#8B2F23', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .35, shadowRadius: 9, elevation: 8 },
   homeDropOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#8B2F234D' },
   headerLogo: { width: 124, height: 45, marginTop: 5 },
@@ -898,5 +697,4 @@ const S = StyleSheet.create({
   modal: { flex: 1, backgroundColor: C.paper, width: '100%', maxWidth: 600, alignSelf: 'center' }, modalHeader: { padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: C.line }, modalTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink }, close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 11, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: SERIF, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: SERIF, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 29, color: '#6D6354', textAlign: 'center', marginTop: 18 }, meta: { flexDirection: 'row', gap: 11, alignItems: 'center' }, metaText: { fontSize: 12, color: '#776B59', flex: 1, lineHeight: 20 },
   detailModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#241D17A8' }, detailPopupLayout: { ...StyleSheet.absoluteFillObject, zIndex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 }, detailPopupCard: { position: 'relative', width: '90%', maxWidth: 500, height: '88%', maxHeight: 820, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#201810', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .3, shadowRadius: 22, elevation: 16 }, detailPopupContent: { flex: 1, paddingHorizontal: 22, paddingTop: 56, paddingBottom: 24 }, detailPopupClose: { position: 'absolute', top: 12, right: 12, zIndex: 10 }, detailStampTapTarget: { width: '65%', maxWidth: 290, alignSelf: 'center', marginVertical: 20 }, stampPreviewOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: 24 }, stampPreviewBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#211A16D9' }, stampPreviewFrame: { width: '88%', maxWidth: 360, shadowColor: '#160F0B', shadowOffset: { width: 0, height: 12 }, shadowOpacity: .45, shadowRadius: 20, elevation: 18 }, stampPreviewCard: { width: '100%', aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 9, borderWidth: 1, borderColor: '#E1D3BB', backgroundColor: '#F5EFDF' }, stampPreviewClose: { position: 'absolute', top: 12, right: 12, zIndex: 2 },
   settingsContent: { padding: 24, paddingBottom: 50 }, settingCard: { backgroundColor: '#FFFCF5', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: C.line }, settingHelp: { fontSize: 12, color: C.muted, lineHeight: 22, marginVertical: 13 }, settingRow: { flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: C.line, paddingVertical: 22 }, settingLabel: { color: C.ink, fontSize: 15 }, infoBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241AB0', justifyContent: 'center', alignItems: 'center', padding: 24 }, infoCard: { width: '100%', maxWidth: 420, backgroundColor: C.paper, borderRadius: 22, padding: 25, gap: 20 }, infoText: { fontSize: 13, lineHeight: 24, color: '#726653' },
-  opening: { flex: 1, width: '100%', maxWidth: 600, alignSelf: 'center', backgroundColor: '#F8EEDC', overflow: 'hidden' }, openingTrack: { ...StyleSheet.absoluteFillObject }, openingScene: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' }, openingSceneImage: { ...StyleSheet.absoluteFillObject }, openingContent: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 22 }, openingMiddleSpace: { flex: 1, minHeight: 290, width: '100%', alignItems: 'center', justifyContent: 'center' }, openingCenterWordmark: { width: 190, height: 58, marginBottom: 8 }, openingEmblem: { width: 220, height: 220, opacity: .96 }, openingCopy: { alignItems: 'center', paddingHorizontal: 12, marginBottom: 13 }, openingTagline: { fontFamily: SERIF, fontSize: 25, letterSpacing: 3, color: C.ink }, openingSubline: { fontSize: 11, letterSpacing: 1.5, color: '#765E4B', marginTop: 9 }, openingStage: { fontFamily: SERIF, fontSize: 12, letterSpacing: 2.5, color: '#765E4B', marginTop: 13 }, openingError: { marginBottom: 10, textAlign: 'center' }, openingSwipeHint: { fontFamily: 'ShipporiBold', fontSize: 14, color: '#FFF9EF', letterSpacing: 1.2, marginTop: 4, marginBottom: 4, transform: [{ translateY: -24 }], textShadowColor: '#3A2D27AA', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
 });
