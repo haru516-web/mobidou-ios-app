@@ -194,5 +194,5 @@ const S = StyleSheet.create({
   replayButton: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 18 },
   replayButtonText: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 12, letterSpacing: 0.5, textDecorationLine: 'underline' },
   resultTextEmphasis: { fontWeight: '700' },
-  date: { textAlign: 'center', color: '#8B6B51', fontSize: 10, letterSpacing: 2 },
+  date: { textAlign: 'center', color: '#8B6B51', fontSize: 11, letterSpacing: 2 },
 });

@@ -315,6 +315,6 @@ const S = StyleSheet.create({
   mobyCardTint: { ...StyleSheet.absoluteFillObject },
   mobyThumb: { width: 74, height: 79 },
   mobyName: { color: '#675B4D', fontFamily: 'Shippori', fontSize: 12, marginTop: 1, textAlign: 'center' },
-  mobyCatchphrase: { color: C.muted, fontSize: 10, marginTop: 2, maxWidth: '96%', textAlign: 'center' },
+  mobyCatchphrase: { color: C.muted, fontSize: 11, marginTop: 2, maxWidth: '96%', textAlign: 'center' },
   mobyCheck: { position: 'absolute', right: 6, top: 6, backgroundColor: C.red, borderRadius: 9, width: 19, height: 19, alignItems: 'center', justifyContent: 'center' },
 });
