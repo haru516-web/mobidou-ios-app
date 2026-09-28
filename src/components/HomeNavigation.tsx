@@ -20,15 +20,33 @@ const FULL_POPUP_BOUNDS = { top: 0, bottom: 0 };
 const HOME_WIDGET_CARD_HEIGHT = 244;
 const CUSTOM_WIDGET_PREVIEW_SCALE = 0.42;
 const NAV_BACKGROUND = require('../../assets/home-bottom-nav-washi-v1.webp');
-
+const SEGMENT_INSET = 3;
 export type PrimaryTab = 'home' | 'book' | 'walk' | 'collection';
 
 const PRIMARY_NAV_ITEMS = [
-  { id: 'home', title: 'ホーム', icon: 'home-outline', activeIcon: 'home' },
-  { id: 'book', title: '御朱印帳', icon: 'book-outline', activeIcon: 'book' },
-  { id: 'walk', title: 'おでかけ', icon: 'footsteps-outline', activeIcon: 'footsteps' },
-  { id: 'collection', title: 'コレクション', icon: 'albums-outline', activeIcon: 'albums' },
+  { id: 'home', title: 'ホーム', icon: 'home-outline' },
+  { id: 'book', title: '御朱印帳', icon: 'book-outline' },
+  { id: 'walk', title: 'おでかけ', icon: 'footsteps-outline' },
+  { id: 'collection', title: 'コレクション', icon: 'albums-outline' },
 ] as const;
+
+const SPRING = { damping: 22, stiffness: 260, mass: .8 };
+
+/** Slides a highlight to `index` among `count` equal slots of `width`. */
+function useSlidingHighlight(index: number, count: number, width: number) {
+  const reduced = useReducedMotion();
+  const offset = useRef(new Animated.Value(0)).current;
+  const placed = useRef(false);
+  const slot = width / Math.max(1, count);
+  useEffect(() => {
+    if (!width) return;
+    const target = slot * Math.max(0, index);
+    // Jump into place on the first layout; animate every change after that.
+    if (!placed.current || reduced) { offset.setValue(target); placed.current = true; return; }
+    Animated.spring(offset, { toValue: target, useNativeDriver: Platform.OS !== 'web', ...SPRING }).start();
+  }, [index, offset, reduced, slot, width]);
+  return { offset, slot };
+}
 
 type HomeBottomNavigationProps = {
   tab: PrimaryTab;
@@ -36,34 +54,35 @@ type HomeBottomNavigationProps = {
   disabled?: boolean;
 };
 
-/**
- * iOS-style tab bar: every primary screen is one tap away and every tab
- * carries its label. Screens inside a tab are switched with SegmentedControl,
- * so nothing is reachable only through a menu.
- */
+// The washi tab frame. The separate menu button that used to sit to its right
+// is gone (every screen is reachable from the tabs and segmented controls), so
+// the frame now spans the full width.
 export function HomeBottomNavigation({ tab, onNavigate, disabled = false }: HomeBottomNavigationProps) {
-  return <View style={S.navShell} pointerEvents={disabled ? 'none' : 'auto'} accessibilityRole="tablist" accessibilityElementsHidden={disabled} aria-hidden={disabled ? true : undefined} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
-    <Image source={NAV_BACKGROUND} contentFit="cover" style={S.navBackground} pointerEvents="none" />
-    <View style={S.primaryNav}>
-      {PRIMARY_NAV_ITEMS.map(item => {
-        const selected = tab === item.id;
-        return <Pressable key={item.id} artwork={false} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected }} onPress={() => onNavigate(item.id)} style={S.navItem}>
-          <Icon name={selected ? item.activeIcon : item.icon} size={24} color={selected ? C.red : '#7A7064'} />
-          <Text numberOfLines={1} style={[S.navLabel, selected && S.navLabelActive]}>{item.title}</Text>
-        </Pressable>;
-      })}
+  return <View style={S.navShell} pointerEvents={disabled ? 'none' : 'auto'} accessibilityElementsHidden={disabled} aria-hidden={disabled ? true : undefined} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
+    <View style={[S.primaryNavFrame, CONTINUOUS_CORNER]}>
+      <Image source={NAV_BACKGROUND} contentFit="cover" style={S.navBackground} pointerEvents="none" />
+      <View style={S.primaryNav} accessibilityRole="tablist">
+        {PRIMARY_NAV_ITEMS.map(item => <Pressable key={item.id} artwork={false} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected: tab === item.id }} onPress={() => onNavigate(item.id)} style={S.navItem}>
+          <Icon name={item.icon} size={22} color={tab === item.id ? C.red : '#81796D'} />
+          <View style={[S.navIndicator, { opacity: tab === item.id ? 1 : 0 }]} />
+        </Pressable>)}
+      </View>
     </View>
   </View>;
 }
 
 export type SegmentOption<T extends string> = { id: T; label: string };
 
-/** UISegmentedControl-style switcher for the sub-screens inside one tab. */
+/** UISegmentedControl-style switcher with a sliding paper thumb. */
 export function SegmentedControl<T extends string>({ options, value, onChange, label }: { options: readonly SegmentOption<T>[]; value: T; onChange: (value: T) => void; label: string }) {
-  return <View style={S.segmented} accessibilityRole="tablist" accessibilityLabel={label}>
+  const [width, setWidth] = useState(0);
+  const index = options.findIndex(option => option.id === value);
+  const { offset, slot } = useSlidingHighlight(index, options.length, width);
+  return <View style={[S.segmented, CONTINUOUS_CORNER]} accessibilityRole="tablist" accessibilityLabel={label} onLayout={event => setWidth(event.nativeEvent.layout.width - SEGMENT_INSET * 2)}>
+    {width > 0 && <Animated.View pointerEvents="none" style={[S.segmentThumb, CONTINUOUS_CORNER, { width: slot, transform: [{ translateX: offset }] }]} />}
     {options.map(option => {
       const selected = option.id === value;
-      return <Pressable key={option.id} artwork={false} accessibilityRole="tab" accessibilityLabel={option.label} accessibilityState={{ selected }} onPress={() => { if (!selected) onChange(option.id); }} style={[S.segment, selected && S.segmentActive, CONTINUOUS_CORNER]}>
+      return <Pressable key={option.id} artwork={false} accessibilityRole="tab" accessibilityLabel={option.label} accessibilityState={{ selected }} onPress={() => { if (!selected) onChange(option.id); }} style={S.segment}>
         <Text numberOfLines={1} style={[S.segmentText, selected && S.segmentTextActive]}>{option.label}</Text>
       </Pressable>;
     })}
@@ -281,17 +300,17 @@ export function MobyPickerPopup({ selectedPet, onConfirm, onClose, guided = fals
 }
 
 const S = StyleSheet.create({
-  navShell: { position: 'relative', zIndex: 40, overflow: 'hidden', borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#B89A7E', backgroundColor: '#FCF9F1' },
-  navBackground: { ...StyleSheet.absoluteFillObject, opacity: .7 },
-  primaryNav: { flexDirection: 'row', paddingTop: 6, paddingBottom: 4 },
-  navItem: { flex: 1, minHeight: 49, alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: 2 },
-  navLabel: { color: '#7A7064', fontSize: 11, letterSpacing: .2 },
-  navLabelActive: { color: C.red, fontWeight: '600' },
-  segmented: { flexDirection: 'row', padding: 3, borderRadius: 11, backgroundColor: '#E9DFD0', borderWidth: StyleSheet.hairlineWidth, borderColor: '#CDB9A0' },
-  segment: { flex: 1, minHeight: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  segmentActive: { backgroundColor: '#FFFCF6', shadowColor: '#3A2A1E', shadowOpacity: .14, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
-  segmentText: { color: '#6F6356', fontSize: 13, fontFamily: 'Shippori' },
-  segmentTextActive: { color: C.ink, fontFamily: 'ShipporiBold' },
+  navShell: { position: 'relative', zIndex: 40, marginHorizontal: 12, marginBottom: 8 },
+  primaryNavFrame: { backgroundColor: '#FCF9F1', borderWidth: 1, borderColor: '#A87552', borderRadius: 24, paddingTop: 10, paddingBottom: 3, overflow: 'hidden' },
+  navBackground: { ...StyleSheet.absoluteFillObject, opacity: .88 },
+  primaryNav: { flexDirection: 'row' },
+  navItem: { flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 2 },
+  navIndicator: { width: 17, height: 3, backgroundColor: C.red, borderRadius: 4, marginTop: 1 },
+  segmented: { flexDirection: 'row', padding: SEGMENT_INSET, borderRadius: 13, backgroundColor: '#E8DCCBE6', borderWidth: StyleSheet.hairlineWidth, borderColor: '#3A2A1E24' },
+  segmentThumb: { position: 'absolute', top: SEGMENT_INSET, bottom: SEGMENT_INSET, left: SEGMENT_INSET, borderRadius: 10, backgroundColor: '#FFFCF7', shadowColor: '#2A1D14', shadowOpacity: .16, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  segment: { flex: 1, height: 34, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  segmentText: { color: '#5F554B', fontSize: 13.5, fontWeight: '500' },
+  segmentTextActive: { color: C.ink, fontWeight: '700' },
   popupRoot: { position: 'absolute', left: 0, right: 0, top: 86, bottom: 77, zIndex: 30, alignItems: 'center' },
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },
   mobyRoot: { justifyContent: 'flex-start', zIndex: 90 },

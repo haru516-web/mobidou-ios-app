@@ -331,14 +331,20 @@ export function FloatingMobby({ image, name, petId, guide, open, onOpenChange, b
       style={[styles.guide, { left: guideLeft, top: guideTop }, animatedGuideStyle]}
     >
       <View style={[styles.guideTail, guideAbove ? styles.guideTailBelow : styles.guideTailAbove, { left: tailLeft }]} />
-      <Text style={styles.guideMessage}>{guide.message}</Text>
-      {guide.actions.map(action => <Pressable key={action.label} artwork={false} accessibilityRole="button" accessibilityLabel={action.label} onPress={() => { onOpenChange(false); action.onPress(); }} style={[styles.guideAction, action.primary && styles.guideActionPrimary]}>
-        <Icon name={action.icon} size={18} color={action.primary ? '#FFF9EF' : C.red} />
-        <Text numberOfLines={1} style={[styles.guideActionText, action.primary && styles.guideActionTextPrimary]}>{action.label}</Text>
-        <Icon name="chevron-forward" size={15} color={action.primary ? '#FFF9EFCC' : '#B09A86'} />
-      </Pressable>)}
+      <MobbyGuideContent guide={guide} onChoose={() => onOpenChange(false)} />
     </Animated.View> : null}
   </View>;
+}
+
+function MobbyGuideContent({ guide, onChoose }: { guide: MobbyGuide; onChoose: () => void }) {
+  return <>
+    <Text style={styles.guideMessage}>{guide.message}</Text>
+    {guide.actions.map(action => <Pressable key={action.label} artwork={false} accessibilityRole="button" accessibilityLabel={action.label} onPress={() => { onChoose(); action.onPress(); }} style={[styles.guideAction, action.primary && styles.guideActionPrimary]}>
+      <Icon name={action.icon} size={18} color={action.primary ? '#FFF9EF' : C.red} />
+      <Text numberOfLines={1} style={[styles.guideActionText, action.primary && styles.guideActionTextPrimary]}>{action.label}</Text>
+      <Icon name="chevron-forward" size={15} color={action.primary ? '#FFF9EFCC' : '#B09A86'} />
+    </Pressable>)}
+  </>;
 }
 
 const styles = StyleSheet.create({

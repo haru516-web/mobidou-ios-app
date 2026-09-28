@@ -47,6 +47,7 @@ const BOOK_VIEWS = [{ id: 'spread', label: '見開き' }, { id: 'list', label: '
 const OUTING_VIEWS = [{ id: 'count', label: '歩数' }, { id: 'map', label: '巡礼マップ' }] as const;
 const COLLECTION_VIEWS = [{ id: 'display', label: '展示' }, { id: 'goshuin', label: '御朱印' }, { id: 'miniature', label: 'ミニチュア' }, { id: 'passes', label: '授与品' }] as const;
 const SEGMENT_BLOCK_HEIGHT = 54;
+const TAB_TITLES: Record<Tab, string> = { home: 'ホーム', book: '御朱印帳', walk: 'おでかけ', collection: 'コレクション' };
 const fmt = (n: number) => n.toLocaleString('ja-JP');
 const OMIKUJI_ANIMATION_BACKGROUND = require('./assets/omikuji/omikuji-animation-washi-v1.webp');
 const OMIKUJI_RESULT_BACKGROUND = require('./assets/omikuji/omikuji-result-paper-v2.webp');
@@ -350,6 +351,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const cardInteractionProps = cardInteractionPropsFor(firstRunStage === 'homeOmikuji');
   const omikujiCardInteractionProps = cardInteractionPropsFor(false);
   const openOuting = (view: OutingTab) => { setOutingTab(view); move('walk'); };
+  // Long-pressing a home card edits the cards, like widgets on the Home Screen.
+  const editHomeCards = () => { if (firstRunStage === null) openHomePopup('custom'); };
   // Opening a shrine's page in the book from anywhere (detail, list, guide).
   const openBookPage = (index: number) => { setFeatured(index); setBookView('spread'); setBookOpen(true); move('book'); };
   const detailBookIndex = detail ? activeShrines.findIndex(shrine => shrine.id === detail.id) : -1;
@@ -357,23 +360,23 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // of a second, smaller copy of it.
   const renderHomeWidget = (widget: CustomHomeWidgetId, slot: number) => {
     const selectedShrine = COLLECTION_SHRINES.find(shrine => shrine.id === data.homeWidgetItems[slot]) ?? latest;
-    if (widget === 'goshuin') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-goshuin-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${selectedShrine.name}の御朱印。詳しく見る`} onPress={() => setDetail(selectedShrine)} style={[S.homeWidgetCard, { height: homeCardHeight }, S.homeGoshuinOnlyCard, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+    if (widget === 'goshuin') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-goshuin-${slot}`} artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${selectedShrine.name}の御朱印。詳しく見る`} onPress={() => setDetail(selectedShrine)} style={[S.homeWidgetCard, { height: homeCardHeight }, S.homeGoshuinOnlyCard, homeDropTarget === slot && S.homeWidgetDropTarget]}>
       <HomeGoshuinArtwork source={STAMP_IMAGES[selectedShrine.id]} background={currentBackground.image} />
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
     if (widget === 'miniature') return <TutorialTarget key={`${widget}-${slot}`} active={firstRunStage === 'homeOmikuji'} onRectChange={setTutorialRect} style={[S.homeOmikujiTargetWrapper, { height: homeCardHeight }]}>
-      <Pressable nativeID={`home-widget-miniature-${slot}`} artwork={false} {...omikujiCardInteractionProps} accessibilityRole="button" accessibilityLabel={omikujiDrawn ? `今日のおみくじは${dailyFortune.rank}。全画面で詳しく見る` : '今日のおみくじを全画面で引く'} onFocus={() => setOmikujiCardFocused(true)} onBlur={() => setOmikujiCardFocused(false)} onPress={() => { if (firstRunStage === 'homeOmikuji') { setTutorialRect(null); setFirstRunStage('drawOmikuji'); } setOmikujiModal(true); }} style={[S.homeWidgetCard, { height: homeCardHeight }, S.homeGoshuinOnlyCard, { width: '100%' }, omikujiCardFocused && S.homeOmikujiCardFocused, firstRunStage === 'homeOmikuji' && S.onboardingHomeTarget, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+      <Pressable nativeID={`home-widget-miniature-${slot}`} artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...omikujiCardInteractionProps} accessibilityRole="button" accessibilityLabel={omikujiDrawn ? `今日のおみくじは${dailyFortune.rank}。全画面で詳しく見る` : '今日のおみくじを全画面で引く'} onFocus={() => setOmikujiCardFocused(true)} onBlur={() => setOmikujiCardFocused(false)} onPress={() => { if (firstRunStage === 'homeOmikuji') { setTutorialRect(null); setFirstRunStage('drawOmikuji'); } setOmikujiModal(true); }} style={[S.homeWidgetCard, { height: homeCardHeight }, S.homeGoshuinOnlyCard, { width: '100%' }, omikujiCardFocused && S.homeOmikujiCardFocused, firstRunStage === 'homeOmikuji' && S.onboardingHomeTarget, homeDropTarget === slot && S.homeWidgetDropTarget]}>
         <HomeOmikujiArtwork fortune={omikujiDrawn ? dailyFortune : null} petName={pet.name} />
         {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
       </Pressable>
     </TutorialTarget>;
-    if (widget === 'map') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-map-${slot}`} artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel="巡礼マップをひらく" onPress={() => openOuting('map')} style={[S.homeWidgetCard, { height: homeCardHeight }, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+    if (widget === 'map') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-map-${slot}`} artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel="巡礼マップをひらく" onPress={() => openOuting('map')} style={[S.homeWidgetCard, { height: homeCardHeight }, { padding: 0 }, homeDropTarget === slot && S.homeWidgetDropTarget]}>
       <HomeMapArtwork />
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
     return null;
   };
-  const renderHomeStepsCard = () => <Pressable nativeID="home-widget-steps" artwork={false} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数。今日${fmt(todaySteps)}歩。累計${fmt(totalSteps)}歩。${homeNextPointLabel ? `${homeNextPointLabel}。` : ''}おでかけをひらく`} onPress={() => openOuting('count')} style={S.homeStepsCard}>
+  const renderHomeStepsCard = () => <Pressable nativeID="home-widget-steps" artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数。今日${fmt(todaySteps)}歩。累計${fmt(totalSteps)}歩。${homeNextPointLabel ? `${homeNextPointLabel}。` : ''}おでかけをひらく`} onPress={() => openOuting('count')} style={S.homeStepsCard}>
     <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
   </Pressable>;
   useEffect(() => () => { if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current); }, []);
@@ -461,16 +464,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </Animated.View>
       {tab !== 'book' && <Clouds />}
     </>}
-    <View style={[S.header, tab === 'collection' && S.collectionHeader]}>
-      <View style={S.headerSide}>
-        {tab === 'home' && firstRunStage === null && <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="ホームのカードを編集" onPress={() => openHomePopup('custom')} style={S.headerButton}><Text style={S.headerButtonText}>編集</Text></Pressable>}
-      </View>
-      <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="もび道 ホームへ" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
-      <View style={[S.headerSide, S.headerSideEnd]}>
-        <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.gear}><Icon name="settings-outline" size={22} color={C.ink} /></Pressable>
+    {/* Home shows the brush wordmark; every other tab gets an iOS-style large
+        title. Demo mode and settings share one glass cluster on the right. */}
+    <View style={S.header}>
+      {tab === 'home'
+        ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
+        : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
+      <View style={S.headerActions}>
+        {data.demo && <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="体験モード中。タップで体験を終えて実記録にもどる" onPress={() => journey.enter(false)} style={S.demoBadge}><View style={S.dot} /><Text style={S.demoBadgeText}>体験中</Text><Icon name="close" size={13} color="#8A6950" /></Pressable>}
+        <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable>
       </View>
     </View>
-    {data.demo && <View style={[S.demoBar, tab === 'collection' && S.collectionChrome]}><View style={S.dot} /><Text style={S.demoText}>体験モード · 実際の歩数・御朱印帳とは別の記録</Text><Pressable accessibilityRole="button" accessibilityLabel="体験モードを終了" onPress={() => journey.enter(false)} style={{ padding: 7 }}><Icon name="close" size={14} color={C.red} /></Pressable></View>}
     {!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
     <ScrollView ref={scroll} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} contentContainerStyle={[S.content, tab === 'home' && S.homeContent, mapScreen && { paddingBottom: 0 }]} scrollEnabled={tab !== 'home' && !(tab === 'book' && bookView === 'spread') && !mapScreen && !detail} showsVerticalScrollIndicator={false} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: Platform.OS !== 'web' })} scrollEventThrottle={16}>
       {tab === 'home' && <>
@@ -490,8 +494,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
 
       {tab === 'book' && <>
-        <View style={S.pageHeading}>
-          <Text style={S.pageTitle}>御朱印帳</Text>
+        <View style={S.routeRow}>
           {activeRoute && <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`巡礼中：${activeRoute.name}。巡礼を変える`} onPress={() => setRoutePicker(true)} style={S.routeChip}>
             <Icon name="map-outline" size={15} color={C.red} /><Text numberOfLines={1} style={S.routeChipText}>{activeRoute.name}</Text><Text style={S.routeChipAction}>変更</Text>
           </Pressable>}
@@ -662,10 +665,17 @@ function Close({ onPress }: { onPress: () => void }) { return <Pressable accessi
 function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name']; text: string }) { return <View style={S.meta}><Icon name={icon} size={18} color={C.gold} /><Text style={S.metaText}>{text}</Text></View>; }
 
 const S = StyleSheet.create({
-  headerSideEnd: { alignItems: 'flex-end' },
-  headerButton: { height: 44, minWidth: 60, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, borderRadius: 22, backgroundColor: '#FFFCF5E6', borderWidth: StyleSheet.hairlineWidth, borderColor: '#CDBEAC' },
-  headerButtonText: { color: C.red, fontSize: 15, fontFamily: 'ShipporiBold' },
-  routeChip: { marginTop: 10, maxWidth: '100%', minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, borderRadius: 18, backgroundColor: '#FFFCF5E6', borderWidth: 1, borderColor: '#DCCBB5' },
+  largeTitle: { flexShrink: 1, fontFamily: 'ShipporiBold', fontSize: 28, letterSpacing: 1.5, color: C.ink, textShadowColor: '#FFF9EFD9', textShadowRadius: 10 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  glassButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FBF6ECE6', borderWidth: StyleSheet.hairlineWidth, borderColor: '#3A2A1E2E', shadowColor: '#2A1D14', shadowOpacity: .12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  demoBadge: { height: 32, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 10, paddingRight: 8, borderRadius: 16, backgroundColor: '#F3E6D2F2', borderWidth: StyleSheet.hairlineWidth, borderColor: '#8A695066' },
+  demoBadgeText: { color: '#7A5A43', fontSize: 12, fontWeight: '600' },
+
+  routeRow: { alignItems: 'flex-start', marginTop: -2, marginBottom: 12 },
+ 
+ 
+ 
+  routeChip: { maxWidth: '100%', minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, borderRadius: 18, backgroundColor: '#FFFCF5E6', borderWidth: 1, borderColor: '#DCCBB5' },
   routeChipText: { flexShrink: 1, color: C.ink, fontFamily: SERIF, fontSize: 14 },
   routeChipAction: { color: C.red, fontSize: 13, marginLeft: 2 },
   segmentTop: { paddingTop: 4, paddingBottom: 14 },
@@ -686,13 +696,13 @@ const S = StyleSheet.create({
   desktop: { flex: 1, backgroundColor: '#E6E1D7', alignItems: 'center' }, app: { width: '100%', maxWidth: 480, flex: 1, backgroundColor: C.paper, overflow: 'hidden' }, backgroundScrollLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, overflow: 'hidden' }, backgroundScrollTrack: { position: 'absolute', left: 0, right: 0, top: 0, bottom: -260 }, bookBackgroundTrack: { bottom: 0 }, backgroundArt: { ...StyleSheet.absoluteFillObject, opacity: .76 }, bookBackgroundArt: { opacity: 1 }, backgroundWash: { ...StyleSheet.absoluteFillObject, backgroundColor: C.paper, opacity: .12 }, bookBackgroundWash: { opacity: 0 }, loading: { flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 25 }, muted: { color: C.muted, fontSize: 13 },
   homeWidgetDropTarget: { borderWidth: 3, borderColor: '#B84C3D', transform: [{ scale: 1.025 }], shadowColor: '#8B2F23', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .35, shadowRadius: 9, elevation: 8 },
   homeDropOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#8B2F234D' },
-  headerLogo: { width: 124, height: 45, marginTop: 5 },
-  header: { height: 87, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, headerSide: { width: 76, justifyContent: 'center' }, brand: { flexDirection: 'row', alignItems: 'center', gap: 5 }, logo: { fontFamily: 'ShipporiBold', fontSize: 39, letterSpacing: 2, color: C.ink }, logoMark: { width: 38, height: 38, borderRadius: 6, marginTop: 9, transform: [{ rotate: '8deg' }] }, gear: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFCF5CC', borderWidth: StyleSheet.hairlineWidth, borderColor: '#CDBEAC' },
+  headerLogo: { width: 112, height: 40 },
+  header: { height: 64, paddingLeft: 20, paddingRight: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, brand: { flexDirection: 'row', alignItems: 'center', gap: 5 }, logo: { fontFamily: 'ShipporiBold', fontSize: 39, letterSpacing: 2, color: C.ink }, logoMark: { width: 32, height: 32, borderRadius: 6, marginLeft: 2, transform: [{ rotate: '8deg' }] },
   content: { paddingHorizontal: 24, paddingBottom: 24 }, homeContent: { flexGrow: 1, paddingBottom: 0 }, chapter: { fontFamily: SERIF, color: '#766452', fontSize: 14, letterSpacing: 2 },
-  demoBar: { backgroundColor: '#EEE1CA', paddingLeft: 17, minHeight: 28, alignItems: 'center', flexDirection: 'row', gap: 5 }, collectionChrome: { backgroundColor: 'transparent' }, dot: { height: 4, width: 4, backgroundColor: C.red, borderRadius: 5 }, demoText: { color: '#8A6950', fontSize: 11, flex: 1 }, error: { backgroundColor: '#F5DCD4', margin: 10, padding: 9, flexDirection: 'row', alignItems: 'center', borderRadius: 8 }, errorText: { color: '#813D31', flexShrink: 1, fontSize: 12, lineHeight: 19 }, collectionHeader: { backgroundColor: 'transparent' },
+  dot: { height: 4, width: 4, backgroundColor: C.red, borderRadius: 5 }, error: { backgroundColor: '#F5DCD4', margin: 10, padding: 9, flexDirection: 'row', alignItems: 'center', borderRadius: 8 }, errorText: { color: '#813D31', flexShrink: 1, fontSize: 12, lineHeight: 19 },
   routeHeroTitle: { fontFamily: SERIF, color: C.ink, fontSize: 20, marginVertical: 7, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 }, homeWidgetsHidden: { opacity: 0 }, homeCardGroup: { marginTop: 'auto' }, homeWidgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'space-between', marginTop: 5, marginBottom: 8 }, homeWidgetCard: { width: '48%', height: 244, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', padding: 11, overflow: 'hidden', alignItems: 'stretch' },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 6 }, footerNote: { marginTop: 25, textAlign: 'center', color: '#9A9081', fontSize: 12, lineHeight: 19 },
-  pageHeading: { paddingTop: 9, paddingBottom: 23, alignItems: 'center' }, pageTitle: { fontFamily: SERIF, color: C.ink, fontSize: 28, letterSpacing: 2 }, subtitle: { color: C.muted, fontSize: 13, letterSpacing: 1, marginTop: 9 },
+ 
   bookWrap: { marginHorizontal: -17, marginTop: 38, paddingHorizontal: 5, paddingVertical: 5, backgroundColor: 'transparent', shadowColor: '#27170F', shadowOffset: { width: 0, height: 15 }, shadowOpacity: .34, shadowRadius: 17, elevation: 12 }, bookCoverEdge: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 8 }, bookPaperEdges: { position: 'absolute', top: 2, bottom: 3, left: 3, right: 3, borderRadius: 5, backgroundColor: '#DBCCAD', borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#AF9875' }, bookViewport: { position: 'relative', overflow: 'hidden', borderRadius: 3, minHeight: 340 }, openBook: { flexDirection: 'row', backgroundColor: '#FBF5E8', overflow: 'hidden', minHeight: 340, height: 340 }, bookLeft: { flex: 1, padding: 9, justifyContent: 'center', backgroundColor: '#F2EBDC', borderRightWidth: 1, borderColor: '#D4C5B0' }, bookBinding: { position: 'absolute', right: -1, top: 0, bottom: 0, width: 10, backgroundColor: '#73523536', borderLeftWidth: 1, borderColor: '#8E6E4A20' }, bookRight: { flex: 1.02, padding: 15, justifyContent: 'center', gap: 9, backgroundColor: '#FCF7EC' }, bookReading: { fontSize: 10, color: C.muted, letterSpacing: 1 }, bookName: { fontFamily: 'ShipporiBold', fontSize: 21, color: C.ink, lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: SERIF, fontSize: 12, lineHeight: 21, color: C.red }, bookDescription: { fontFamily: SERIF, fontSize: 11, lineHeight: 20, color: '#6C6050' }, bookLocation: { flex: 1, fontSize: 11, lineHeight: 14, color: '#887B68' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 12 },
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 110, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF9EFE6' }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 },
   nextPilgrimageAction: { position: 'relative', alignItems: 'center', paddingTop: 56, marginTop: 16 }, nextPilgrimageButton: { marginTop: 0 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
