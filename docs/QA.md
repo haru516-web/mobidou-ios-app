@@ -41,3 +41,10 @@ Codexブラウザ上の http://localhost:8083 にて実施。390×844 と375×66
 - 通信を切ったインストール済み本番ビルドでの起動・保存・歩数取得。
 
 AndroidのHealth ConnectとApp Store/TestFlightへの配信は今回実施していません。
+
+## 御朱印画像44枚の固有化 — 2026-09-28
+
+- 添付 `mobbyyellow.PNG` を造形参照にして未生成44社を個別生成。体型、レンズ、十字キー、丸ボタン2つの位置を維持し、社ごとの色・景色を反映。
+- `assets/goshuin/<id>.png` と `docs/prompt-<id>.txt` を44件追加。全画像1024×1536、PNG最適化後は約1.2〜1.4MB。
+- `STAMP_IMAGES` の44エントリを各社専用PNGへ変更。44件のSHA-256がすべて異なることを確認。
+- `npm run typecheck` 成功。`git diff --check` 成功。
