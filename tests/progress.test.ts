@@ -118,3 +118,23 @@ test('legacy numbered vow rewards migrate to named shrine IDs', () => {
   assert.deepEqual(normalized.rewards.map(reward => reward.id), ['kinboshi', 'sunamoon']);
   assert.deepEqual(normalized.pending, ['sunamoon']);
 });
+test('a route saved with zero rewards does not unlock every point on reload', () => {
+  const started = updateSteps(startRoute('mountain', 1000, day), 1500, day);
+  assert.equal(started.rewards.length, 0);
+  const reloaded = normalizeProgress(JSON.parse(JSON.stringify(started)), day);
+  assert.equal(reloaded.routeSteps, started.routeSteps);
+  assert.deepEqual(updateSteps(reloaded, 1501, day).rewards, []);
+});
+test('a downward step correction followed by a rebound does not double-count totalSteps', () => {
+  let p = updateSteps(freshProgress(day), 5000, day);
+  p = updateSteps(p, 4800, day);
+  p = updateSteps(p, 5000, day);
+  assert.equal(p.totalSteps, 5000);
+});
+test('a downward correction on a route does not double-count credited route steps', () => {
+  let route = startRoute('mountain', 0, day);
+  route = updateSteps(route, 5000, day);
+  route = updateSteps(route, 4800, day);
+  route = updateSteps(route, 5000, day);
+  assert.equal(route.routeSteps, 5000);
+});
