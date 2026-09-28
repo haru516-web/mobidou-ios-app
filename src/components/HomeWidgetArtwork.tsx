@@ -8,9 +8,9 @@ import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_W
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
 import { OmikujiResultContent } from './OmikujiResultCard';
 
-const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.png');
-const OMIKUJI_HOME_UNDRAWN_BACKGROUND = require('../../assets/omikuji/omikuji-home-undrawn-bg-v1.png');
-const OMIKUJI_DRAW_CYLINDER = require('../../assets/omikuji/omikuji-draw-cylinder-v1.png');
+const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.webp');
+const OMIKUJI_HOME_UNDRAWN_BACKGROUND = require('../../assets/omikuji/omikuji-home-undrawn-bg-v1.webp');
+const OMIKUJI_DRAW_CYLINDER = require('../../assets/omikuji/omikuji-draw-cylinder-v1.webp');
 
 function CardBackground({ source, shade = '#FFF9EFA8' }: { source: ImageSourcePropType; shade?: string }) {
   return <>

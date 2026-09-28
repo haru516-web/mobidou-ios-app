@@ -4,25 +4,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { C, SERIF } from '../components';
 
-const OPENING_WORDMARK = require('../../assets/mobidou-wordmark-brush.png');
-const OPENING_EMBLEM = require('../../assets/mobidou-opening-emblem.png');
+const OPENING_WORDMARK = require('../../assets/mobidou-wordmark-brush.webp');
+const OPENING_EMBLEM = require('../../assets/mobidou-opening-emblem.webp');
 const OPENING_TIMELINE = [
-  { id: '0500-pre-dawn', time: '05:00', label: '明け方', image: require('../../assets/backgrounds/opening-cycle/01-0500-pre-dawn.png') },
-  { id: '0600-sunrise', time: '06:00', label: '朝焼け', image: require('../../assets/backgrounds/opening-cycle/02-0600-sunrise.png') },
-  { id: '0700-morning', time: '07:00', label: '朝', image: require('../../assets/backgrounds/opening-cycle/03-0700-morning.png') },
-  { id: '0830-morning', time: '08:30', label: '朝', image: require('../../assets/backgrounds/opening-cycle/04-0830-morning.png') },
-  { id: '1000-late-morning', time: '10:00', label: '午前', image: require('../../assets/backgrounds/opening-cycle/05-1000-late-morning.png') },
-  { id: '1130-before-noon', time: '11:30', label: '昼前', image: require('../../assets/backgrounds/opening-cycle/06-1130-before-noon.png') },
-  { id: '1300-noon', time: '13:00', label: '正午', image: require('../../assets/backgrounds/opening-cycle/07-1300-noon.png') },
-  { id: '1430-afternoon', time: '14:30', label: '午後', image: require('../../assets/backgrounds/opening-cycle/08-1430-afternoon.png') },
-  { id: '1600-late-afternoon', time: '16:00', label: '昼下がり', image: require('../../assets/backgrounds/opening-cycle/09-1600-late-afternoon.png') },
-  { id: '1730-golden-hour', time: '17:30', label: '黄金時間', image: require('../../assets/backgrounds/opening-cycle/10-1730-golden-hour.png') },
-  { id: '1830-sunset', time: '18:30', label: '夕陽', image: require('../../assets/backgrounds/opening-cycle/11-1830-sunset.png') },
-  { id: '1930-blue-hour', time: '19:30', label: '宵', image: require('../../assets/backgrounds/opening-cycle/12-1930-blue-hour.png') },
-  { id: '2100-night', time: '21:00', label: '夜', image: require('../../assets/backgrounds/opening-cycle/13-2100-night.png') },
-  { id: '2300-late-night', time: '23:00', label: '月夜', image: require('../../assets/backgrounds/opening-cycle/14-2300-late-night.png') },
-  { id: '0200-midnight', time: '02:00', label: '深夜', image: require('../../assets/backgrounds/opening-cycle/15-0200-midnight.png') },
-  { id: '0430-before-dawn', time: '04:30', label: '夜明け前', image: require('../../assets/backgrounds/opening-cycle/16-0430-before-dawn.png') },
+  { id: '0500-pre-dawn', time: '05:00', label: '明け方', image: require('../../assets/backgrounds/opening-cycle/01-0500-pre-dawn.webp') },
+  { id: '0600-sunrise', time: '06:00', label: '朝焼け', image: require('../../assets/backgrounds/opening-cycle/02-0600-sunrise.webp') },
+  { id: '0700-morning', time: '07:00', label: '朝', image: require('../../assets/backgrounds/opening-cycle/03-0700-morning.webp') },
+  { id: '0830-morning', time: '08:30', label: '朝', image: require('../../assets/backgrounds/opening-cycle/04-0830-morning.webp') },
+  { id: '1000-late-morning', time: '10:00', label: '午前', image: require('../../assets/backgrounds/opening-cycle/05-1000-late-morning.webp') },
+  { id: '1130-before-noon', time: '11:30', label: '昼前', image: require('../../assets/backgrounds/opening-cycle/06-1130-before-noon.webp') },
+  { id: '1300-noon', time: '13:00', label: '正午', image: require('../../assets/backgrounds/opening-cycle/07-1300-noon.webp') },
+  { id: '1430-afternoon', time: '14:30', label: '午後', image: require('../../assets/backgrounds/opening-cycle/08-1430-afternoon.webp') },
+  { id: '1600-late-afternoon', time: '16:00', label: '昼下がり', image: require('../../assets/backgrounds/opening-cycle/09-1600-late-afternoon.webp') },
+  { id: '1730-golden-hour', time: '17:30', label: '黄金時間', image: require('../../assets/backgrounds/opening-cycle/10-1730-golden-hour.webp') },
+  { id: '1830-sunset', time: '18:30', label: '夕陽', image: require('../../assets/backgrounds/opening-cycle/11-1830-sunset.webp') },
+  { id: '1930-blue-hour', time: '19:30', label: '宵', image: require('../../assets/backgrounds/opening-cycle/12-1930-blue-hour.webp') },
+  { id: '2100-night', time: '21:00', label: '夜', image: require('../../assets/backgrounds/opening-cycle/13-2100-night.webp') },
+  { id: '2300-late-night', time: '23:00', label: '月夜', image: require('../../assets/backgrounds/opening-cycle/14-2300-late-night.webp') },
+  { id: '0200-midnight', time: '02:00', label: '深夜', image: require('../../assets/backgrounds/opening-cycle/15-0200-midnight.webp') },
+  { id: '0430-before-dawn', time: '04:30', label: '夜明け前', image: require('../../assets/backgrounds/opening-cycle/16-0430-before-dawn.webp') },
 ] as const;
 
 function OpeningScene({ scene, width, frameIndex, progress }: { scene: (typeof OPENING_TIMELINE)[number]; width: number; frameIndex: number; progress: Animated.Value }) {

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type ImageSourcePropType } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type ImageSourcePropType } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons as Icon } from '@expo/vector-icons';
 import { SHRINES, STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { PILGRIMAGE_IMAGES } from '../data/pilgrimageImages';
@@ -10,11 +11,11 @@ import { WashiArt, WashiPressable } from './Washi';
 import { CollectionRoom } from './CollectionRoom';
 import type { PassKind, SpecialCollection } from '../services/specialRewards';
 
-const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.png');
-const WALL_HOOK = require('../../assets/collection/collection-wall-hook-v2.png');
-const COLLECTION_BACKDROP = require('../../assets/collection/collection-room-home-harmony-v1.png');
-const COVER_CHANGE_TICKET = require('../../assets/tickets/ticket-cover-change-v2.png');
-const KEYCHAIN_DROP_TICKET = require('../../assets/tickets/ticket-keychain-drop-v2.png');
+const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.webp');
+const WALL_HOOK = require('../../assets/collection/collection-wall-hook-v2.webp');
+const COLLECTION_BACKDROP = require('../../assets/collection/collection-room-home-harmony-v1.webp');
+const COVER_CHANGE_TICKET = require('../../assets/tickets/ticket-cover-change-v2.webp');
+const KEYCHAIN_DROP_TICKET = require('../../assets/tickets/ticket-keychain-drop-v2.webp');
 const SERIF = 'Shippori';
 const KEYCHAIN_RAIL_Y = 0.14;
 // CabinetWorld's upper beam is centered at y=0.445, or 5.5% down from the top.
@@ -86,9 +87,9 @@ function KeychainArtwork({ shrine, locked, count, impulse, onPress, large = fals
   const hookLeft = (renderWidth - hookWidth) / 2 + (compact ? 0 : renderWidth <= 130 ? 3 : 0);
   return <Animated.View style={[large ? S.detailKeychainWrap : S.keychainWrap, { width: renderWidth, height: renderHeight }, top !== undefined && { top }, { transform: [{ translateY: lift }] }]}>
     <Pressable disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={onPress ? `${shrine.name}のキーホルダーを詳しく見る` : undefined} onPress={() => { swing(); onPress?.(); }} style={S.keychainButton}>
-      <Image source={artwork} resizeMode="contain" style={[S.keychain, locked && S.keychainLocked]} />
-      {!large && <View pointerEvents="none" style={[S.hookContactClip, { left: hookLeft, top: hookContactTop, width: hookWidth, height: hookContactHeight }]}><Image source={WALL_HOOK} resizeMode="stretch" style={{ position: 'absolute', left: 0, top: -hookHeight * .38, width: hookWidth, height: hookHeight }} /></View>}
-      {!dedicatedArtwork && <View pointerEvents="none" style={[S.shrineCharm, large && S.shrineCharmLarge, { width: charmSize, height: charmSize, borderRadius: charmSize / 2, left: large ? 99 : 70 * scale, bottom: large ? 73 : 49 * scale, borderColor: shrine.color }]}><Image source={STAMP_IMAGES[shrine.id]} resizeMode="contain" style={S.shrineCharmImage} /></View>}
+      <Image source={artwork} contentFit="contain" style={[S.keychain, locked && S.keychainLocked]} />
+      {!large && <View pointerEvents="none" style={[S.hookContactClip, { left: hookLeft, top: hookContactTop, width: hookWidth, height: hookContactHeight }]}><Image source={WALL_HOOK} contentFit="fill" style={{ position: 'absolute', left: 0, top: -hookHeight * .38, width: hookWidth, height: hookHeight }} /></View>}
+      {!dedicatedArtwork && <View pointerEvents="none" style={[S.shrineCharm, large && S.shrineCharmLarge, { width: charmSize, height: charmSize, borderRadius: charmSize / 2, left: large ? 99 : 70 * scale, bottom: large ? 73 : 49 * scale, borderColor: shrine.color }]}><Image source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.shrineCharmImage} /></View>}
       {!large && !compact && (locked ? <View style={[S.lock, { right: 7 * scale, bottom: 28 * scale, width: 30 * scale, height: 30 * scale, borderRadius: 15 * scale }]}><Icon name="lock-closed" size={Math.max(11, 14 * scale)} color="#fff8eb" /></View> : <View style={[S.quantity, { right: 5 * scale, bottom: 27 * scale, borderRadius: 12 * scale, paddingHorizontal: 7 * scale, paddingVertical: 4 * scale }]}><Text style={[S.quantityText, { fontSize: Math.max(8, 11 * scale) }]}>×{count}</Text></View>)}
     </Pressable>
   </Animated.View>;
@@ -109,7 +110,7 @@ function DisplayedStamp({ shrine, owned, sparkleCount, width, bottom, compact = 
   }, [compact, shimmer, sparkleCount]);
   return <View style={[S.stampStand, { width: renderWidth, height: renderHeight }, bottom !== undefined && { bottom }]}>
     {!compact && sparkleCount > 0 && <Animated.View style={[S.sparkleGlow, { opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [.35, .88] }), transform: [{ scale: shimmer.interpolate({ inputRange: [0, 1], outputRange: [.97, 1.06] }) }] }]} />}
-    <Image source={STAMP_IMAGES[shrine.id]} resizeMode="contain" style={[S.stamp, !owned && S.keychainLocked]} />
+    <Image source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={[S.stamp, !owned && S.keychainLocked]} />
     {!compact && sparkleCount > 0 && <><Animated.View pointerEvents="none" style={[S.sparkleSweep, { opacity: shimmer, transform: [{ translateX: shimmer.interpolate({ inputRange: [0, 1], outputRange: [-renderWidth * .56, renderWidth * .7] }) }, { rotate: '18deg' }] }]} /><View style={S.sparkleBadge}><Icon name="sparkles" size={12} color="#8b5920" /><Text style={S.sparkleText}>×{sparkleCount}</Text></View></>}
   </View>;
 }
@@ -122,7 +123,7 @@ function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWi
   const tileStripWidth = tileCount * tileWidth;
   return <View pointerEvents="none" style={[S.collectionBackdropLayer, { left: 0, width: trackWidth, height: roomHeight }]}>
     <View style={[S.collectionBackdropTrack, { width: tileStripWidth, height: roomHeight }]}>
-      {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} resizeMode="stretch" style={[{ width: tileWidth, height: roomHeight, flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
+      {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} contentFit="fill" style={[{ width: tileWidth, height: roomHeight, flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
     </View>
   </View>;
 }
@@ -134,11 +135,11 @@ export function PassInventoryView({ special }: { special: SpecialCollection }) {
     <Text style={S.passIntro}>現在所持しているパスを確認できます。</Text>
     <View style={S.ticketGrid}>
       <View style={S.ticketItem}>
-        <View style={S.ticketImageFrame}><Image source={COVER_CHANGE_TICKET} resizeMode="contain" style={S.ticketImage} accessible accessibilityLabel="旅の引換札。御朱印帳表紙替え引換券。巡礼の装いを新たに" /></View>
+        <View style={S.ticketImageFrame}><Image source={COVER_CHANGE_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の引換札。御朱印帳表紙替え引換券。巡礼の装いを新たに" /></View>
         <Text style={S.ticketBalance}>所持 {special.passes.coverChange}枚</Text>
       </View>
       <View style={S.ticketItem}>
-        <View style={S.ticketImageFrame}><Image source={KEYCHAIN_DROP_TICKET} resizeMode="contain" style={S.ticketImage} accessible accessibilityLabel="旅の授与札。ミニチュアキーホルダー引換券。ご縁を手元に" /></View>
+        <View style={S.ticketImageFrame}><Image source={KEYCHAIN_DROP_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の授与札。ミニチュアキーホルダー引換券。ご縁を手元に" /></View>
         <Text style={S.ticketBalance}>所持 {special.passes.keychainDrop}枚</Text>
       </View>
     </View>
@@ -281,12 +282,12 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
         <Text style={S.passIntro}>小さな一歩を、次の特別な出会いへ。</Text>
         <View style={S.ticketGrid}>
           <View style={S.ticketItem}>
-            <View style={S.ticketImageFrame}><Image source={COVER_CHANGE_TICKET} resizeMode="contain" style={S.ticketImage} accessible accessibilityLabel="旅の引換札。御朱印帳表紙替え引換券。巡礼の装いを新たに" /></View>
+            <View style={S.ticketImageFrame}><Image source={COVER_CHANGE_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の引換札。御朱印帳表紙替え引換券。巡礼の装いを新たに" /></View>
             <Text style={S.ticketBalance}>所持 {special.passes.coverChange}枚</Text>
             <WashiPressable accessibilityRole="button" accessibilityLabel={!activeRoute ? '巡礼を選んでから表紙を選ぶ' : coverNeedsTicket ? '御朱印帳表紙替え引換券を仮取得' : '御朱印帳の表紙を選ぶ'} accessibilityState={{ disabled: !activeRoute }} disabled={!activeRoute} artwork={false} onPress={handleCoverAction} style={S.ticketButton}><Text style={S.ticketButtonText}>{!activeRoute ? '巡礼を選ぶ' : coverNeedsTicket ? '表紙替え券を仮取得' : '表紙を選ぶ'}</Text></WashiPressable>
           </View>
           <View style={S.ticketItem}>
-            <View style={S.ticketImageFrame}><Image source={KEYCHAIN_DROP_TICKET} resizeMode="contain" style={S.ticketImage} accessible accessibilityLabel="旅の授与札。ミニチュアキーホルダー引換券。ご縁を手元に" /></View>
+            <View style={S.ticketImageFrame}><Image source={KEYCHAIN_DROP_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の授与札。ミニチュアキーホルダー引換券。ご縁を手元に" /></View>
             <Text style={S.ticketBalance}>所持 {special.passes.keychainDrop}枚</Text>
             <WashiPressable accessibilityRole="button" accessibilityLabel="ミニチュアキーホルダー引換券を仮取得" onPress={() => buy('keychainDrop', 'ミニチュアキーホルダー引換券')} artwork={false} style={S.ticketButton}><Text style={S.ticketButtonText}>1枚を仮取得</Text></WashiPressable>
           </View>
@@ -305,7 +306,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
             <Text style={S.coverPickerTitle}>旅の表紙を選ぶ</Text>
             {!activeRoute ? <Text style={S.coverPickerMessage}>巡礼を選ぶと、専用表紙を選択できます。</Text> : <>
               <Text style={S.coverPickerRoute}>{activeRoute.name}</Text>
-              <View style={S.coverPreview}><Image source={getGoshuinBookCover(activeRoute.id) as ImageSourcePropType} resizeMode="contain" style={S.coverPreviewImage} /></View>
+              <View style={S.coverPreview}><Image source={getGoshuinBookCover(activeRoute.id) as ImageSourcePropType} contentFit="contain" style={S.coverPreviewImage} /></View>
               <View style={S.coverChoices}>
                 <WashiPressable accessibilityRole="button" accessibilityState={{ selected: selectedCover === 'normal' }} onPress={() => chooseCover('normal')} artwork={false} style={[S.coverChoice, selectedCover === 'normal' && S.coverChoiceActive]}><Text style={S.coverChoiceTitle}>通常表紙</Text><Text style={S.coverChoiceMeta}>いつもの赤い表紙</Text></WashiPressable>
                 <WashiPressable accessibilityRole="button" accessibilityState={{ selected: selectedCover === 'route', disabled: !coverOwned }} disabled={!coverOwned} onPress={() => chooseCover('route')} artwork={false} style={[S.coverChoice, selectedCover === 'route' && S.coverChoiceActive, !coverOwned && S.coverChoiceDisabled]}><Text style={S.coverChoiceTitle}>巡礼の表紙</Text><Text style={S.coverChoiceMeta}>{coverOwned ? '解放済み · 選択できます' : '表紙替え券で解放'}</Text></WashiPressable>
@@ -330,7 +331,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
       <Modal visible={!!detail} transparent animationType="fade" onRequestClose={() => setDetail(null)}>
         <View style={S.backdrop}>
           <View style={S.detailCard}>
-            <Image source={PILGRIMAGE_IMAGES[routeForShrine(detail?.id ?? '')?.id ?? 'sanctuary']} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <Image source={PILGRIMAGE_IMAGES[routeForShrine(detail?.id ?? '')?.id ?? 'sanctuary']} style={StyleSheet.absoluteFill} contentFit="cover" />
             <View style={S.detailWash} /><WashiArt />
             <WashiPressable accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => setDetail(null)} style={S.close}><Icon name="close" size={20} color="#7f302d" /></WashiPressable>
             {detail && <>

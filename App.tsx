@@ -45,11 +45,11 @@ type FirstRunStage = 'route' | 'character' | 'homeOmikuji' | 'drawOmikuji' | nul
 const FIRST_RUN_ROUTE_ID = 'sanctuary';
 type CollectionView = 'collection' | 'goshuin' | 'miniature' | 'passes';
 const fmt = (n: number) => n.toLocaleString('ja-JP');
-const OMIKUJI_ANIMATION_BACKGROUND = require('./assets/omikuji/omikuji-animation-washi-v1.png');
-const OMIKUJI_RESULT_BACKGROUND = require('./assets/omikuji/omikuji-result-paper-v2.png');
-const GOSHUIN_BOOK_BACKGROUND = require('./assets/backgrounds/mobidou-goshuin-book-background-v3.png');
-const GOSHUIN_DETAIL_BACKGROUND = require('./assets/backgrounds/goshuin-detail-washi-v1.png');
-const OUTING_BACKGROUND = require('./assets/backgrounds/outing/daily-omikuji-shrine-v1.png');
+const OMIKUJI_ANIMATION_BACKGROUND = require('./assets/omikuji/omikuji-animation-washi-v1.webp');
+const OMIKUJI_RESULT_BACKGROUND = require('./assets/omikuji/omikuji-result-paper-v2.webp');
+const GOSHUIN_BOOK_BACKGROUND = require('./assets/backgrounds/mobidou-goshuin-book-background-v3.webp');
+const GOSHUIN_DETAIL_BACKGROUND = require('./assets/backgrounds/goshuin-detail-washi-v1.webp');
+const OUTING_BACKGROUND = require('./assets/backgrounds/outing/daily-omikuji-shrine-v1.webp');
 // The character PNG has a small transparent lower margin. Keep that margin
 // above the image's cushion surface so the visible feet land on the cushion.
 const HOME_CHARACTER_CUSHION_FOOT_INSET = 23;
@@ -447,7 +447,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </>}
     <View style={[S.header, tab === 'collection' && S.collectionHeader]}>
       <View style={S.headerSide}><Text style={S.brandMini}>歩く、集める、</Text><Text style={S.brandMini}>好きになる。</Text></View>
-      <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="もび道 ホームへ" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.png')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.png')} style={S.logoMark} contentFit="contain" /></Pressable>
+      <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="もび道 ホームへ" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
       <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.gear}><Icon name="settings-outline" size={21} /></Pressable>
     </View>
     {data.demo && <View style={[S.demoBar, tab === 'collection' && S.collectionChrome]}><View style={S.dot} /><Text style={S.demoText}>体験モード · 実際の歩数・御朱印帳とは別の記録</Text><Pressable accessibilityRole="button" accessibilityLabel="体験モードを終了" onPress={() => journey.enter(false)} style={{ padding: 7 }}><Icon name="close" size={14} color={C.red} /></Pressable></View>}
