@@ -31,8 +31,13 @@ export function NativeBookPageTurn({ pages, selectedIndex, onCommit, onBusyChang
     setImageUris({});
     void Promise.all(pages.map(async (page, index) => {
       if (!page.acquired) return [index, ''] as const;
-      const asset = await Asset.fromModule(page.imageSource).downloadAsync();
-      return [index, asset.localUri ?? asset.uri] as const;
+      // One failed image should blank only its own page, not every page.
+      try {
+        const asset = await Asset.fromModule(page.imageSource).downloadAsync();
+        return [index, asset.localUri ?? asset.uri] as const;
+      } catch {
+        return [index, ''] as const;
+      }
     })).then(entries => {
       if (!cancelled) setImageUris(Object.fromEntries(entries));
     }).catch(() => {

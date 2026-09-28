@@ -13,7 +13,7 @@ import { localOmikujiDay } from '../data/omikuji';
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
 export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
-type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null };
+type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
 export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
 export type BookDesignState = { bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns };
 
@@ -58,7 +58,7 @@ export function setActiveBookDesigns<T extends { demo: boolean; bookDesigns: Boo
 const initial = (): Saved => {
   const realBookDesigns = emptyBookDesigns();
   const trialBookDesigns = emptyBookDesigns();
-  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null };
+  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null, omikujiPetId: null };
 };
 
 function addDropsForNewRewards(collection: SpecialCollection, previous: Progress, next: Progress) {
@@ -68,6 +68,9 @@ function addDropsForNewRewards(collection: SpecialCollection, previous: Progress
 function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: number, date = new Date()): Saved {
   const previous = saved[field];
   const next = updateSteps(previous, steps, date);
+  // Periodic refreshes usually read the same count; skip the no-op so it
+  // neither re-renders the app nor rewrites storage.
+  if (JSON.stringify(next) === JSON.stringify(previous)) return saved;
   const specialField = field === 'real' ? 'realSpecial' : 'trialSpecial';
   return { ...saved, [field]: next, [specialField]: addDropsForNewRewards(saved[specialField], previous, next) };
 }
@@ -101,6 +104,7 @@ export function normalizeSaved(value: unknown): Saved {
     })),
     affection: Object.fromEntries(Object.entries(p.affection && typeof p.affection === 'object' ? p.affection : {}).filter(([key, count]) => isPetId(key) && Number.isFinite(count) && count >= 0)),
     omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null,
+    omikujiPetId: isPetId(p.omikujiPetId) ? p.omikujiPetId : null,
   };
   loaded.realSpecial = loaded.real.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.realSpecial);
   loaded.trialSpecial = loaded.trial.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.trialSpecial);
@@ -148,7 +152,9 @@ export function useJourney() {
   const epoch = useRef(0);
   const change = useCallback((fn: (prev: Saved) => Saved) => {
     if (readOnly.current) return;
-    const next = fn(current.current); current.current = next; setData(next);
+    const next = fn(current.current);
+    if (next === current.current) return;
+    current.current = next; setData(next);
     writing.current = writing.current.then(() => AsyncStorage.setItem(KEY, JSON.stringify(next))).catch(() => {
       if (mounted.current) setError('記録を保存できませんでした。端末の空き容量を確認してください。');
     });
@@ -177,7 +183,11 @@ export function useJourney() {
   const refresh = useCallback(async () => {
     if (syncLock.current || readOnly.current) return;
     const state = current.current;
-    change(prev => ({ ...prev, real: rollDay(prev.real), trial: rollDay(prev.trial) }));
+    change(prev => {
+      const real = rollDay(prev.real);
+      const trial = rollDay(prev.trial);
+      return real === prev.real && trial === prev.trial ? prev : { ...prev, real, trial };
+    });
     if (state.demo || state.source === 'none') return;
     syncLock.current = true; setBusy(true); const token = epoch.current;
     try {
@@ -256,8 +266,10 @@ export function useJourney() {
     choosePet: (pet: PetId) => change(p => ({ ...p, pet })),
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),
     saveHomeWidgetItems: (items: HomeWidgetItems) => change(p => ({ ...p, homeWidgetItems: normalizeHomeWidgetItems(items) })),
-    drawDailyOmikuji: () => change(p => ({ ...p, omikujiDay: localOmikujiDay() })),
-    resetDailyOmikuji: () => change(p => ({ ...p, omikujiDay: null })),
+    // Remember whose fortune was drawn so switching partners later the same
+    // day does not change an already drawn result.
+    drawDailyOmikuji: () => change(p => ({ ...p, omikujiDay: localOmikujiDay(), omikujiPetId: p.pet })),
+    resetDailyOmikuji: () => change(p => ({ ...p, omikujiDay: null, omikujiPetId: null })),
     chooseBackground: (backgroundId: BackgroundId) => change(p => ({ ...p, backgroundId })),
     purchaseBookDesign: (routeId: string) => change(p => setActiveBookDesigns(p, { owned: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).owned, [routeId]: true }, selected: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).selected, [routeId]: 'route' } })),
     selectBookDesign: (routeId: string, design: 'normal' | 'route') => change(p => {

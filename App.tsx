@@ -352,8 +352,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const nextRoutePeekHeight = nextRoutePeekMetric.height * nextRoutePeekScale;
   const nextRoutePeekBottom = nextRoutePeekMetric.bottom * nextRoutePeekHeight;
   const omikujiDay = localOmikujiDay();
-  const dailyFortune = fortuneForDay(omikujiDay, pet.id);
   const omikujiDrawn = onboardingPreview ? tutorialPreviewDrawn : data.omikujiDay === omikujiDay;
+  const dailyFortune = fortuneForDay(omikujiDay, omikujiDrawn && !onboardingPreview && data.omikujiPetId ? data.omikujiPetId : pet.id);
   const isFirstRunOmikuji = firstRunStage === 'drawOmikuji';
   const firstRunOmikujiComplete = isFirstRunOmikuji && omikujiDrawn && !omikujiAnimating;
   const floatingScreenLabel = tab === 'home'
@@ -386,6 +386,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const todaySteps = Math.max(0, progress.steps);
   const totalSteps = Math.max(todaySteps, progress.totalSteps ?? todaySteps);
   const activeShrines = pilgrimageShrines(activeRoute);
+  // Stable page data for the native page-curl view; rebuilding it on every
+  // render re-serialized every page and pushed it across the bridge again.
+  const nativeBookPages = useMemo(() => activeShrines.map(shrine => ({ name: shrine.name, reading: shrine.reading, theme: shrine.theme, place: shrine.place, imageSource: STAMP_IMAGES[shrine.id], acquired: progress.rewards.some(reward => reward.id === shrine.id) })), [activeRoute?.id, progress.rewards]);
   const routePrefix = data.demo ? 'trial:' : 'real:';
   const routeRecords = Object.fromEntries(PILGRIMAGES.flatMap(route => {
     const record = activeRoute?.id === route.id ? progress : data.routes?.[`${routePrefix}${route.id}`];
@@ -677,7 +680,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         {bookOpen && <><View style={S.bookWrap}>
           <View pointerEvents="none" style={[S.bookCoverEdge, activeRoute ? { backgroundColor: activeRoute.color } : null]} />
           <View pointerEvents="none" style={S.bookPaperEdges} />
-          <BookPageTurn key={activeRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={selectedIndex} itemCount={activeShrines.length} contentKey={activeRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={setFeatured} onBusyChange={setTurning} onOpenDetail={index => setDetail(activeShrines[index])} nativePages={activeShrines.map(shrine => ({ name: shrine.name, reading: shrine.reading, theme: shrine.theme, place: shrine.place, imageSource: STAMP_IMAGES[shrine.id], acquired: progress.rewards.some(reward => reward.id === shrine.id) }))} style={S.bookViewport} />
+          <BookPageTurn key={activeRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={selectedIndex} itemCount={activeShrines.length} contentKey={activeRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={setFeatured} onBusyChange={setTurning} onOpenDetail={index => setDetail(activeShrines[index])} nativePages={nativeBookPages} style={S.bookViewport} />
         </View>
         <View style={S.pager}><Pressable accessibilityRole="button" accessibilityLabel="前の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><View style={S.pageCounter}><Text style={S.pageCounterText}>{String(selectedIndex + 1).padStart(2, '0')} / {String(activeShrines.length).padStart(2, '0')}</Text><Text style={S.pageCounterHint}>左右の矢印でページをめくる</Text></View><Pressable accessibilityRole="button" accessibilityLabel="次の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
         </>}
