@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Defs, Image as SvgImage, Mask } from 'react-native-svg';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 
 import type { PetCharacter } from '../petCatalog';
@@ -11,7 +10,6 @@ import { PULL_ASSETS, type CoreMobbyId, type MobbyPullAsset, type PullFrame } fr
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 import { MOBIBOU_ACTION_FRAMES } from '../data/mobibouActionFrames';
 import { PRAYER_ATLASES, PRAYER_ACTION_ORDER, PRAYER_FRAME_COUNT } from '../data/prayerAtlasesV2';
-import { WashiPressable as Pressable } from './Washi';
 import { MobbyPullMesh, type MobbyPullMeshHandle } from './MobbyPullMesh';
 
 function MaskedPullBodyImage({ source, mask, size }: { source: ImageSourcePropType; mask: ImageSourcePropType; size: number }) {

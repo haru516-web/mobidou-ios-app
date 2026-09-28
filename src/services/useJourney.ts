@@ -11,8 +11,9 @@ import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidg
 import { localOmikujiDay } from '../data/omikuji';
 
 const KEY = '@mobidou/journey/v1';
+const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
 export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
-type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null };
+type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
 export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
 export type BookDesignState = { bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns };
 
@@ -57,7 +58,7 @@ export function setActiveBookDesigns<T extends { demo: boolean; bookDesigns: Boo
 const initial = (): Saved => {
   const realBookDesigns = emptyBookDesigns();
   const trialBookDesigns = emptyBookDesigns();
-  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null };
+  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null, omikujiPetId: null };
 };
 
 function addDropsForNewRewards(collection: SpecialCollection, previous: Progress, next: Progress) {
@@ -67,11 +68,14 @@ function addDropsForNewRewards(collection: SpecialCollection, previous: Progress
 function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: number, date = new Date()): Saved {
   const previous = saved[field];
   const next = updateSteps(previous, steps, date);
+  // Periodic refreshes usually read the same count; skip the no-op so it
+  // neither re-renders the app nor rewrites storage.
+  if (JSON.stringify(next) === JSON.stringify(previous)) return saved;
   const specialField = field === 'real' ? 'realSpecial' : 'trialSpecial';
   return { ...saved, [field]: next, [specialField]: addDropsForNewRewards(saved[specialField], previous, next) };
 }
 
-function normalizeSaved(value: unknown): Saved {
+export function normalizeSaved(value: unknown): Saved {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('記録の形式が正しくありません。');
   const p = value as Partial<Saved>;
   if (p.version !== 1 || !p.real || !p.trial) throw new Error('この引き継ぎコードには対応していません。');
@@ -93,16 +97,41 @@ function normalizeSaved(value: unknown): Saved {
     backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : defaults.backgroundId,
     homeWidgetOrder: normalizeHomeWidgetOrder(p.homeWidgetOrder),
     homeWidgetItems: normalizeHomeWidgetItems(p.homeWidgetItems),
-    routes: Object.fromEntries(Object.entries(p.routes && typeof p.routes === 'object' ? p.routes : {}).map(([key, progress]) => [key, normalizeProgress(progress)])),
+    // Archived route records are secondary; one malformed entry must not
+    // discard the whole save, so drop only that entry.
+    routes: Object.fromEntries(Object.entries(p.routes && typeof p.routes === 'object' ? p.routes : {}).flatMap(([key, progress]) => {
+      try { return [[key, normalizeProgress(progress)] as const]; } catch { return []; }
+    })),
     affection: Object.fromEntries(Object.entries(p.affection && typeof p.affection === 'object' ? p.affection : {}).filter(([key, count]) => isPetId(key) && Number.isFinite(count) && count >= 0)),
     omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null,
+    omikujiPetId: isPetId(p.omikujiPetId) ? p.omikujiPetId : null,
   };
   loaded.realSpecial = loaded.real.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.realSpecial);
   loaded.trialSpecial = loaded.trial.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.trialSpecial);
   return loaded;
 }
 
-function readTransferData(raw: string): Saved {
+/**
+ * Detects a transfer code that was cut off while copying or edited by hand.
+ * Without a server this cannot stop deliberate tampering (the hash can be
+ * recomputed); it only guards against silently importing a damaged record.
+ */
+function transferChecksum(data: unknown): string {
+  const text = JSON.stringify(data);
+  let a = 0x811c9dc5, b = 0x01000193 ^ text.length;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    a = Math.imul(a ^ code, 0x01000193);
+    b = Math.imul(b ^ code, 0x5bd1e995);
+  }
+  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
+}
+
+export function createTransferCode(saved: Saved): string {
+  return JSON.stringify({ format: 'mobidou-transfer', version: 1, checksum: transferChecksum(saved), data: saved });
+}
+
+export function readTransferData(raw: string): Saved {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -110,9 +139,11 @@ function readTransferData(raw: string): Saved {
     throw new Error('引き継ぎコードを読み取れません。コピーした内容を確認してください。');
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('引き継ぎコードの形式が正しくありません。');
-  const envelope = parsed as { format?: unknown; version?: unknown; data?: unknown };
+  const envelope = parsed as { format?: unknown; version?: unknown; checksum?: unknown; data?: unknown };
   if (envelope.format !== 'mobidou-transfer' || envelope.version !== 1) throw new Error('もび道で作成した引き継ぎコードではありません。');
   try {
+    // Codes exported before checksums existed have none; accept those as-is.
+    if (envelope.checksum !== undefined && envelope.checksum !== transferChecksum(envelope.data)) throw new Error('この引き継ぎコードは途中で欠けているか書き換えられているため、読み込めません。元の端末でコピーし直してください。');
     return normalizeSaved(envelope.data);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('この引き継ぎコード')) throw error;
@@ -136,6 +167,7 @@ export function useJourney() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [synced, setSynced] = useState('');
+  const [corruptedBackup, setCorruptedBackup] = useState<string | null>(null);
   const writing = useRef(Promise.resolve());
   const mounted = useRef(true);
   const syncLock = useRef(false);
@@ -143,20 +175,32 @@ export function useJourney() {
   const epoch = useRef(0);
   const change = useCallback((fn: (prev: Saved) => Saved) => {
     if (readOnly.current) return;
-    const next = fn(current.current); current.current = next; setData(next);
+    const next = fn(current.current);
+    if (next === current.current) return;
+    current.current = next; setData(next);
     writing.current = writing.current.then(() => AsyncStorage.setItem(KEY, JSON.stringify(next))).catch(() => {
       if (mounted.current) setError('記録を保存できませんでした。端末の空き容量を確認してください。');
     });
   }, []);
   useEffect(() => {
     mounted.current = true;
-    AsyncStorage.getItem(KEY).then(raw => {
-      if (!mounted.current) return;
-      if (raw) {
-        const loaded = normalizeSaved(JSON.parse(raw));
-        current.current = loaded; setData(loaded);
-        void AsyncStorage.setItem(KEY, JSON.stringify(loaded));
+    AsyncStorage.getItem(CORRUPTED_BACKUP_KEY).then(backup => { if (mounted.current && backup) setCorruptedBackup(backup); }).catch(() => {});
+    AsyncStorage.getItem(KEY).then(async raw => {
+      if (!mounted.current || !raw) return;
+      let loaded: Saved;
+      try {
+        loaded = normalizeSaved(JSON.parse(raw));
+      } catch {
+        // The stored record is unreadable. Keep the untouched original under
+        // a separate key before anything can overwrite it, then continue with
+        // a fresh, writable record instead of silently dropping every change.
+        await AsyncStorage.setItem(CORRUPTED_BACKUP_KEY, raw);
+        if (mounted.current) setCorruptedBackup(raw);
+        if (mounted.current) setError('保存した記録を読み込めなかったため、新しく記録を始めます。以前のデータは端末内に退避しました。');
+        return;
       }
+      current.current = loaded; setData(loaded);
+      void AsyncStorage.setItem(KEY, JSON.stringify(loaded));
     }).catch(() => { readOnly.current = true; if (mounted.current) setError('保存した記録を読み込めませんでした。元のデータは上書きせず、アプリを開き直してください。'); })
       .finally(() => { if (mounted.current) setReady(true); });
     return () => { mounted.current = false; };
@@ -164,7 +208,11 @@ export function useJourney() {
   const refresh = useCallback(async () => {
     if (syncLock.current || readOnly.current) return;
     const state = current.current;
-    change(prev => ({ ...prev, real: rollDay(prev.real), trial: rollDay(prev.trial) }));
+    change(prev => {
+      const real = rollDay(prev.real);
+      const trial = rollDay(prev.trial);
+      return real === prev.real && trial === prev.trial ? prev : { ...prev, real, trial };
+    });
     if (state.demo || state.source === 'none') return;
     syncLock.current = true; setBusy(true); const token = epoch.current;
     try {
@@ -198,7 +246,7 @@ export function useJourney() {
   };
   const exportTransfer = useCallback(async () => {
     await writing.current;
-    return JSON.stringify({ format: 'mobidou-transfer', version: 1, data: current.current });
+    return createTransferCode(current.current);
   }, []);
   const previewTransfer = useCallback((raw: string) => transferSummary(readTransferData(raw)), []);
   const importTransfer = useCallback(async (raw: string) => {
@@ -226,6 +274,12 @@ export function useJourney() {
   return {
     data, progress: data.demo ? data.trial : data.real, special: data.demo ? data.trialSpecial : data.realSpecial, ready, error, busy, synced, refresh, connect, exportTransfer, previewTransfer, importTransfer,
     dismissError: () => setError(''),
+    /** The untouched text of a record that could not be loaded, if one was set aside. */
+    corruptedBackup,
+    discardCorruptedBackup: async () => {
+      await AsyncStorage.removeItem(CORRUPTED_BACKUP_KEY);
+      setCorruptedBackup(null);
+    },
     enter: (demo: boolean) => { epoch.current++; change(p => ({ ...p, onboarded: true, demo, bookDesigns: cloneBookDesigns(demo ? p.trialBookDesigns : p.realBookDesigns) })); },
     demoWalk: () => change(p => updateSavedProgress(p, 'trial', rollDay(p.trial).steps + 1000)),
     demoTomorrow: () => change(p => ({ ...p, trial: { ...p.trial, steps: 0, baseline: 0, highWater: 0, dayStart: p.trial.rewards.length, day: localDay() } })),
@@ -243,8 +297,10 @@ export function useJourney() {
     choosePet: (pet: PetId) => change(p => ({ ...p, pet })),
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),
     saveHomeWidgetItems: (items: HomeWidgetItems) => change(p => ({ ...p, homeWidgetItems: normalizeHomeWidgetItems(items) })),
-    drawDailyOmikuji: () => change(p => ({ ...p, omikujiDay: localOmikujiDay() })),
-    resetDailyOmikuji: () => change(p => ({ ...p, omikujiDay: null })),
+    // Remember whose fortune was drawn so switching partners later the same
+    // day does not change an already drawn result.
+    drawDailyOmikuji: () => change(p => ({ ...p, omikujiDay: localOmikujiDay(), omikujiPetId: p.pet })),
+    resetDailyOmikuji: () => change(p => ({ ...p, omikujiDay: null, omikujiPetId: null })),
     chooseBackground: (backgroundId: BackgroundId) => change(p => ({ ...p, backgroundId })),
     purchaseBookDesign: (routeId: string) => change(p => setActiveBookDesigns(p, { owned: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).owned, [routeId]: true }, selected: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).selected, [routeId]: 'route' } })),
     selectBookDesign: (routeId: string, design: 'normal' | 'route') => change(p => {
