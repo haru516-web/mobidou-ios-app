@@ -1,0 +1,1099 @@
+# Asset image reference audit — 2026-09-28
+
+Generated before cleanup. The source scan covered App.tsx and all TypeScript/JavaScript files under src/, plus app.json image entries.
+
+- Image files found: 1076
+- Statically referenced image files: 952 (907.58 MiB)
+- Unreferenced image candidates: 124 (180.79 MiB)
+- Dynamic require calls: 0
+- Unresolved static image refs: 0
+
+## Referenced image files
+
+- `assets/backgrounds/autumn-maple.png`
+- `assets/backgrounds/autumn-mist.png`
+- `assets/backgrounds/goshuin-detail-washi-v1.png`
+- `assets/backgrounds/mobidou-goshuin-book-background-v3.png`
+- `assets/backgrounds/mobidou-home-cushion-background-extended-v2.png`
+- `assets/backgrounds/opening-cycle/01-0500-pre-dawn.png`
+- `assets/backgrounds/opening-cycle/02-0600-sunrise.png`
+- `assets/backgrounds/opening-cycle/03-0700-morning.png`
+- `assets/backgrounds/opening-cycle/04-0830-morning.png`
+- `assets/backgrounds/opening-cycle/05-1000-late-morning.png`
+- `assets/backgrounds/opening-cycle/06-1130-before-noon.png`
+- `assets/backgrounds/opening-cycle/07-1300-noon.png`
+- `assets/backgrounds/opening-cycle/08-1430-afternoon.png`
+- `assets/backgrounds/opening-cycle/09-1600-late-afternoon.png`
+- `assets/backgrounds/opening-cycle/10-1730-golden-hour.png`
+- `assets/backgrounds/opening-cycle/11-1830-sunset.png`
+- `assets/backgrounds/opening-cycle/12-1930-blue-hour.png`
+- `assets/backgrounds/opening-cycle/13-2100-night.png`
+- `assets/backgrounds/opening-cycle/14-2300-late-night.png`
+- `assets/backgrounds/opening-cycle/15-0200-midnight.png`
+- `assets/backgrounds/opening-cycle/16-0430-before-dawn.png`
+- `assets/backgrounds/outing/daily-omikuji-shrine-v1.png`
+- `assets/backgrounds/spring-dawn.png`
+- `assets/backgrounds/spring-rain.png`
+- `assets/backgrounds/summer-evening.png`
+- `assets/backgrounds/summer-green.png`
+- `assets/backgrounds/winter-clear.png`
+- `assets/backgrounds/winter-snow.png`
+- `assets/collection/collection-cabinet-fusuma-full-v1.png`
+- `assets/collection/collection-goshuin-stand-v1.png`
+- `assets/collection/collection-room-home-harmony-v1.png`
+- `assets/collection/collection-wall-hook-v2.png`
+- `assets/collection/collection-wood-base-bold-v1.png`
+- `assets/collection/collection-wood-beam-bold-v1.png`
+- `assets/collection/collection-wood-pillar-bold-v1.png`
+- `assets/collection/keychain-asagiri-shrine-transparent-v2.png`
+- `assets/collection/keychains/keychain-akane-v1-transparent.png`
+- `assets/collection/keychains/keychain-akatsuki-v1-transparent.png`
+- `assets/collection/keychains/keychain-amenagi-v1-transparent.png`
+- `assets/collection/keychains/keychain-aoba-v1-transparent.png`
+- `assets/collection/keychains/keychain-asagiri-v1-transparent.png`
+- `assets/collection/keychains/keychain-asatsuyu-v1-transparent.png`
+- `assets/collection/keychains/keychain-cloud-v1-transparent.png`
+- `assets/collection/keychains/keychain-flower-v1-transparent.png`
+- `assets/collection/keychains/keychain-forest-v1-transparent.png`
+- `assets/collection/keychains/keychain-funeakari-v1-transparent.png`
+- `assets/collection/keychains/keychain-gindrop-v1-transparent.png`
+- `assets/collection/keychains/keychain-hagoromo-v1-transparent.png`
+- `assets/collection/keychains/keychain-haneishi-v1-transparent.png`
+- `assets/collection/keychains/keychain-hasunomi-v1-transparent.png`
+- `assets/collection/keychains/keychain-hibikiishi-v1-transparent.png`
+- `assets/collection/keychains/keychain-hikari-v1-transparent.png`
+- `assets/collection/keychains/keychain-hoshifune-v1-transparent.png`
+- `assets/collection/keychains/keychain-hoshimizu-v1-transparent.png`
+- `assets/collection/keychains/keychain-hoshinooto-v1-transparent.png`
+- `assets/collection/keychains/keychain-hotarubi-v1-transparent.png`
+- `assets/collection/keychains/keychain-ichibanboshi-v1-transparent.png`
+- `assets/collection/keychains/keychain-iwakura-v1-transparent.png`
+- `assets/collection/keychains/keychain-kanadeboshi-v1-transparent.png`
+- `assets/collection/keychains/keychain-kawakagami-v1-transparent.png`
+- `assets/collection/keychains/keychain-kawaoto-v1-transparent.png`
+- `assets/collection/keychains/keychain-kazewatari-v1-transparent.png`
+- `assets/collection/keychains/keychain-kibou-v1-transparent.png`
+- `assets/collection/keychains/keychain-kinboshi-v1-transparent.png`
+- `assets/collection/keychains/keychain-kirikakushi-v1-transparent.png`
+- `assets/collection/keychains/keychain-kodama-v1-transparent.png`
+- `assets/collection/keychains/keychain-kokorone-v1-transparent.png`
+- `assets/collection/keychains/keychain-kokoroseki-v1-transparent.png`
+- `assets/collection/keychains/keychain-kujira-v1-transparent.png`
+- `assets/collection/keychains/keychain-kuroiwa-v1-transparent.png`
+- `assets/collection/keychains/keychain-mebuki-v1-transparent.png`
+- `assets/collection/keychains/keychain-megumi-v1-transparent.png`
+- `assets/collection/keychains/keychain-minamo-v1-transparent.png`
+- `assets/collection/keychains/keychain-mine-v1-transparent.png`
+- `assets/collection/keychains/keychain-mizunagi-v1-transparent.png`
+- `assets/collection/keychains/keychain-mizusumi-v1-transparent.png`
+- `assets/collection/keychains/keychain-moon-v1-transparent.png`
+- `assets/collection/keychains/keychain-morika-v1-transparent.png`
+- `assets/collection/keychains/keychain-morikage-v1-transparent.png`
+- `assets/collection/keychains/keychain-musubihoshi-v1-transparent.png`
+- `assets/collection/keychains/keychain-natsukage-v1-transparent.png`
+- `assets/collection/keychains/keychain-negai-v1-transparent.png`
+- `assets/collection/keychains/keychain-negaiishi-v1-transparent.png`
+- `assets/collection/keychains/keychain-nijiayumu-v1-transparent.png`
+- `assets/collection/keychains/keychain-rain-v1-transparent.png`
+- `assets/collection/keychains/keychain-sabaku-v1-transparent.png`
+- `assets/collection/keychains/keychain-sazanami-v1-transparent.png`
+- `assets/collection/keychains/keychain-shakunage-v1-transparent.png`
+- `assets/collection/keychains/keychain-shigure-v1-transparent.png`
+- `assets/collection/keychains/keychain-shionagi-v1-transparent.png`
+- `assets/collection/keychains/keychain-shiosai-v1-transparent.png`
+- `assets/collection/keychains/keychain-sorashiori-v1-transparent.png`
+- `assets/collection/keychains/keychain-star-v1-transparent.png`
+- `assets/collection/keychains/keychain-sunamoon-v1-transparent.png`
+- `assets/collection/keychains/keychain-suzumori-v1-transparent.png`
+- `assets/collection/keychains/keychain-takekaze-v1-transparent.png`
+- `assets/collection/keychains/keychain-takimori-v1-transparent.png`
+- `assets/collection/keychains/keychain-tenryu-v1-transparent.png`
+- `assets/collection/keychains/keychain-tsubaki-v1-transparent.png`
+- `assets/collection/keychains/keychain-tsubasa-v1-transparent.png`
+- `assets/collection/keychains/keychain-tsukikage-v1-transparent.png`
+- `assets/collection/keychains/keychain-tsukishirabe-v1-transparent.png`
+- `assets/collection/keychains/keychain-tsuzuri-v1-transparent.png`
+- `assets/collection/keychains/keychain-wakaba-v1-transparent.png`
+- `assets/collection/keychains/keychain-yanagi-v1-transparent.png`
+- `assets/collection/keychains/keychain-yasuragi-v1-transparent.png`
+- `assets/collection/keychains/keychain-yorunagi-v1-transparent.png`
+- `assets/collection/keychains/keychain-yukishiro-v1-transparent.png`
+- `assets/collection/keychains/keychain-yume-v1-transparent.png`
+- `assets/collection/keychains/keychain-yumeakari-v1-transparent.png`
+- `assets/goshuin-book-covers/circuit.png`
+- `assets/goshuin-book-covers/circuitWater.png`
+- `assets/goshuin-book-covers/compassion.png`
+- `assets/goshuin-book-covers/compassionMoon.png`
+- `assets/goshuin-book-covers/mountain.png`
+- `assets/goshuin-book-covers/mountainRidge.png`
+- `assets/goshuin-book-covers/sanctuary.png`
+- `assets/goshuin-book-covers/sanctuaryDawn.png`
+- `assets/goshuin-book-covers/story.png`
+- `assets/goshuin-book-covers/storyRiver.png`
+- `assets/goshuin-book-covers/vow.png`
+- `assets/goshuin-book-covers/vowSevenLights.png`
+- `assets/goshuin/akane.png`
+- `assets/goshuin/akatsuki.png`
+- `assets/goshuin/amenagi.png`
+- `assets/goshuin/aoba.png`
+- `assets/goshuin/asagiri.png`
+- `assets/goshuin/asatsuyu.png`
+- `assets/goshuin/ayakanade.png`
+- `assets/goshuin/cloud.png`
+- `assets/goshuin/flower.png`
+- `assets/goshuin/forest.png`
+- `assets/goshuin/funeakari.png`
+- `assets/goshuin/gindrop.png`
+- `assets/goshuin/hagoromo.png`
+- `assets/goshuin/haneishi.png`
+- `assets/goshuin/hasunomi.png`
+- `assets/goshuin/hibikiishi.png`
+- `assets/goshuin/hikari.png`
+- `assets/goshuin/hoshifune.png`
+- `assets/goshuin/hoshimizu.png`
+- `assets/goshuin/hoshinooto.png`
+- `assets/goshuin/hotarubi.png`
+- `assets/goshuin/ichibanboshi.png`
+- `assets/goshuin/iwakura.png`
+- `assets/goshuin/kagaribi.png`
+- `assets/goshuin/kanadeboshi.png`
+- `assets/goshuin/kanetsuki.png`
+- `assets/goshuin/kaori.png`
+- `assets/goshuin/kawakagami.png`
+- `assets/goshuin/kawaoto.png`
+- `assets/goshuin/kazewatari.png`
+- `assets/goshuin/kibou.png`
+- `assets/goshuin/kinboshi.png`
+- `assets/goshuin/kirikakushi.png`
+- `assets/goshuin/kodama.png`
+- `assets/goshuin/kokorone.png`
+- `assets/goshuin/kokoroseki.png`
+- `assets/goshuin/koyoi.png`
+- `assets/goshuin/kujira.png`
+- `assets/goshuin/kuroiwa.png`
+- `assets/goshuin/mebuki.png`
+- `assets/goshuin/megumi.png`
+- `assets/goshuin/minamo.png`
+- `assets/goshuin/mine.png`
+- `assets/goshuin/mizunagi.png`
+- `assets/goshuin/mizusumi.png`
+- `assets/goshuin/moon.png`
+- `assets/goshuin/morika.png`
+- `assets/goshuin/morikage.png`
+- `assets/goshuin/musubihoshi.png`
+- `assets/goshuin/natsukage.png`
+- `assets/goshuin/negai.png`
+- `assets/goshuin/negaiishi.png`
+- `assets/goshuin/nijiayumu.png`
+- `assets/goshuin/okuribi.png`
+- `assets/goshuin/oto.png`
+- `assets/goshuin/rain.png`
+- `assets/goshuin/sabaku.png`
+- `assets/goshuin/sazanami.png`
+- `assets/goshuin/shakunage.png`
+- `assets/goshuin/shigure.png`
+- `assets/goshuin/shionagi.png`
+- `assets/goshuin/shiosai.png`
+- `assets/goshuin/sorashiori.png`
+- `assets/goshuin/star.png`
+- `assets/goshuin/sunamoon.png`
+- `assets/goshuin/suzumori.png`
+- `assets/goshuin/suzushiro.png`
+- `assets/goshuin/takekaze.png`
+- `assets/goshuin/takimori.png`
+- `assets/goshuin/tenryu.png`
+- `assets/goshuin/tomoshibi.png`
+- `assets/goshuin/tsubaki.png`
+- `assets/goshuin/tsubasa.png`
+- `assets/goshuin/tsukikage.png`
+- `assets/goshuin/tsukishirabe.png`
+- `assets/goshuin/tsuzuri.png`
+- `assets/goshuin/wakaba.png`
+- `assets/goshuin/yanagi.png`
+- `assets/goshuin/yasuragi.png`
+- `assets/goshuin/yoi.png`
+- `assets/goshuin/yorunagi.png`
+- `assets/goshuin/yukibana.png`
+- `assets/goshuin/yukimori.png`
+- `assets/goshuin/yukishiro.png`
+- `assets/goshuin/yume.png`
+- `assets/goshuin/yumeakari.png`
+- `assets/home-bottom-nav-washi-v1.png`
+- `assets/mobidou-icon.png`
+- `assets/mobidou-opening-emblem.png`
+- `assets/mobidou-wordmark-brush.png`
+- `assets/mobies/actions/babumoby/babumoby-hakushu-01.png`
+- `assets/mobies/actions/babumoby/babumoby-hakushu-02.png`
+- `assets/mobies/actions/babumoby/babumoby-hakushu-03.png`
+- `assets/mobies/actions/babumoby/babumoby-hakushu-04.png`
+- `assets/mobies/actions/babumoby/babumoby-hakushu-05.png`
+- `assets/mobies/actions/babumoby/babumoby-hakushu-06.png`
+- `assets/mobies/actions/babumoby/babumoby-hakushu-07.png`
+- `assets/mobies/actions/babumoby/babumoby-hakushu-08.png`
+- `assets/mobies/actions/babumoby/babumoby-hakushu-storyboard.png`
+- `assets/mobies/actions/babumoby/babumoby-rei-01.png`
+- `assets/mobies/actions/babumoby/babumoby-rei-02.png`
+- `assets/mobies/actions/babumoby/babumoby-rei-03.png`
+- `assets/mobies/actions/babumoby/babumoby-rei-04.png`
+- `assets/mobies/actions/babumoby/babumoby-rei-05.png`
+- `assets/mobies/actions/babumoby/babumoby-rei-06.png`
+- `assets/mobies/actions/babumoby/babumoby-rei-07.png`
+- `assets/mobies/actions/babumoby/babumoby-rei-08.png`
+- `assets/mobies/actions/babumoby/babumoby-rei-storyboard.png`
+- `assets/mobies/actions/bearmobby/bearmobby-hakushu-01.png`
+- `assets/mobies/actions/bearmobby/bearmobby-hakushu-02.png`
+- `assets/mobies/actions/bearmobby/bearmobby-hakushu-03.png`
+- `assets/mobies/actions/bearmobby/bearmobby-hakushu-04.png`
+- `assets/mobies/actions/bearmobby/bearmobby-hakushu-05.png`
+- `assets/mobies/actions/bearmobby/bearmobby-hakushu-06.png`
+- `assets/mobies/actions/bearmobby/bearmobby-hakushu-07.png`
+- `assets/mobies/actions/bearmobby/bearmobby-hakushu-08.png`
+- `assets/mobies/actions/bearmobby/bearmobby-hakushu-storyboard.png`
+- `assets/mobies/actions/bearmobby/bearmobby-rei-01.png`
+- `assets/mobies/actions/bearmobby/bearmobby-rei-02.png`
+- `assets/mobies/actions/bearmobby/bearmobby-rei-03.png`
+- `assets/mobies/actions/bearmobby/bearmobby-rei-04.png`
+- `assets/mobies/actions/bearmobby/bearmobby-rei-05.png`
+- `assets/mobies/actions/bearmobby/bearmobby-rei-06.png`
+- `assets/mobies/actions/bearmobby/bearmobby-rei-07.png`
+- `assets/mobies/actions/bearmobby/bearmobby-rei-08.png`
+- `assets/mobies/actions/bearmobby/bearmobby-rei-storyboard.png`
+- `assets/mobies/actions/boymobby/boymobby-hakushu-01.png`
+- `assets/mobies/actions/boymobby/boymobby-hakushu-02.png`
+- `assets/mobies/actions/boymobby/boymobby-hakushu-03.png`
+- `assets/mobies/actions/boymobby/boymobby-hakushu-04.png`
+- `assets/mobies/actions/boymobby/boymobby-hakushu-05.png`
+- `assets/mobies/actions/boymobby/boymobby-hakushu-06.png`
+- `assets/mobies/actions/boymobby/boymobby-hakushu-07.png`
+- `assets/mobies/actions/boymobby/boymobby-hakushu-08.png`
+- `assets/mobies/actions/boymobby/boymobby-hakushu-storyboard.png`
+- `assets/mobies/actions/boymobby/boymobby-rei-01.png`
+- `assets/mobies/actions/boymobby/boymobby-rei-02.png`
+- `assets/mobies/actions/boymobby/boymobby-rei-03.png`
+- `assets/mobies/actions/boymobby/boymobby-rei-04.png`
+- `assets/mobies/actions/boymobby/boymobby-rei-05.png`
+- `assets/mobies/actions/boymobby/boymobby-rei-06.png`
+- `assets/mobies/actions/boymobby/boymobby-rei-07.png`
+- `assets/mobies/actions/boymobby/boymobby-rei-08.png`
+- `assets/mobies/actions/boymobby/boymobby-rei-storyboard.png`
+- `assets/mobies/actions/dogmobby/dogmobby-hakushu-01.png`
+- `assets/mobies/actions/dogmobby/dogmobby-hakushu-02.png`
+- `assets/mobies/actions/dogmobby/dogmobby-hakushu-03.png`
+- `assets/mobies/actions/dogmobby/dogmobby-hakushu-04.png`
+- `assets/mobies/actions/dogmobby/dogmobby-hakushu-05.png`
+- `assets/mobies/actions/dogmobby/dogmobby-hakushu-06.png`
+- `assets/mobies/actions/dogmobby/dogmobby-hakushu-07.png`
+- `assets/mobies/actions/dogmobby/dogmobby-hakushu-08.png`
+- `assets/mobies/actions/dogmobby/dogmobby-hakushu-storyboard.png`
+- `assets/mobies/actions/dogmobby/dogmobby-rei-01.png`
+- `assets/mobies/actions/dogmobby/dogmobby-rei-02.png`
+- `assets/mobies/actions/dogmobby/dogmobby-rei-03.png`
+- `assets/mobies/actions/dogmobby/dogmobby-rei-04.png`
+- `assets/mobies/actions/dogmobby/dogmobby-rei-05.png`
+- `assets/mobies/actions/dogmobby/dogmobby-rei-06.png`
+- `assets/mobies/actions/dogmobby/dogmobby-rei-07.png`
+- `assets/mobies/actions/dogmobby/dogmobby-rei-08.png`
+- `assets/mobies/actions/dogmobby/dogmobby-rei-storyboard.png`
+- `assets/mobies/actions/lanimobby/lanimobby-hakushu-01.png`
+- `assets/mobies/actions/lanimobby/lanimobby-hakushu-02.png`
+- `assets/mobies/actions/lanimobby/lanimobby-hakushu-03.png`
+- `assets/mobies/actions/lanimobby/lanimobby-hakushu-04.png`
+- `assets/mobies/actions/lanimobby/lanimobby-hakushu-05.png`
+- `assets/mobies/actions/lanimobby/lanimobby-hakushu-06.png`
+- `assets/mobies/actions/lanimobby/lanimobby-hakushu-07.png`
+- `assets/mobies/actions/lanimobby/lanimobby-hakushu-08.png`
+- `assets/mobies/actions/lanimobby/lanimobby-hakushu-storyboard.png`
+- `assets/mobies/actions/lanimobby/lanimobby-rei-01.png`
+- `assets/mobies/actions/lanimobby/lanimobby-rei-02.png`
+- `assets/mobies/actions/lanimobby/lanimobby-rei-03.png`
+- `assets/mobies/actions/lanimobby/lanimobby-rei-04.png`
+- `assets/mobies/actions/lanimobby/lanimobby-rei-05.png`
+- `assets/mobies/actions/lanimobby/lanimobby-rei-06.png`
+- `assets/mobies/actions/lanimobby/lanimobby-rei-07.png`
+- `assets/mobies/actions/lanimobby/lanimobby-rei-08.png`
+- `assets/mobies/actions/lanimobby/lanimobby-rei-storyboard.png`
+- `assets/mobies/actions/mobibou/mobibou-hakushu-01.png`
+- `assets/mobies/actions/mobibou/mobibou-hakushu-02.png`
+- `assets/mobies/actions/mobibou/mobibou-hakushu-03.png`
+- `assets/mobies/actions/mobibou/mobibou-hakushu-04.png`
+- `assets/mobies/actions/mobibou/mobibou-hakushu-05.png`
+- `assets/mobies/actions/mobibou/mobibou-hakushu-06.png`
+- `assets/mobies/actions/mobibou/mobibou-hakushu-07.png`
+- `assets/mobies/actions/mobibou/mobibou-hakushu-08.png`
+- `assets/mobies/actions/mobibou/mobibou-hakushu-storyboard.png`
+- `assets/mobies/actions/mobibou/mobibou-rei-01.png`
+- `assets/mobies/actions/mobibou/mobibou-rei-02.png`
+- `assets/mobies/actions/mobibou/mobibou-rei-03.png`
+- `assets/mobies/actions/mobibou/mobibou-rei-04.png`
+- `assets/mobies/actions/mobibou/mobibou-rei-05.png`
+- `assets/mobies/actions/mobibou/mobibou-rei-06.png`
+- `assets/mobies/actions/mobibou/mobibou-rei-07.png`
+- `assets/mobies/actions/mobibou/mobibou-rei-08.png`
+- `assets/mobies/actions/mobibou/mobibou-rei-storyboard.png`
+- `assets/mobies/actions/mobichi/mobichi-hakushu-01.png`
+- `assets/mobies/actions/mobichi/mobichi-hakushu-02.png`
+- `assets/mobies/actions/mobichi/mobichi-hakushu-03.png`
+- `assets/mobies/actions/mobichi/mobichi-hakushu-04.png`
+- `assets/mobies/actions/mobichi/mobichi-hakushu-05.png`
+- `assets/mobies/actions/mobichi/mobichi-hakushu-06.png`
+- `assets/mobies/actions/mobichi/mobichi-hakushu-07.png`
+- `assets/mobies/actions/mobichi/mobichi-hakushu-08.png`
+- `assets/mobies/actions/mobichi/mobichi-hakushu-storyboard.png`
+- `assets/mobies/actions/mobichi/mobichi-rei-01.png`
+- `assets/mobies/actions/mobichi/mobichi-rei-02.png`
+- `assets/mobies/actions/mobichi/mobichi-rei-03.png`
+- `assets/mobies/actions/mobichi/mobichi-rei-04.png`
+- `assets/mobies/actions/mobichi/mobichi-rei-05.png`
+- `assets/mobies/actions/mobichi/mobichi-rei-06.png`
+- `assets/mobies/actions/mobichi/mobichi-rei-07.png`
+- `assets/mobies/actions/mobichi/mobichi-rei-08.png`
+- `assets/mobies/actions/mobichi/mobichi-rei-storyboard.png`
+- `assets/mobies/actions/mobirin/mobirin-hakushu-01.png`
+- `assets/mobies/actions/mobirin/mobirin-hakushu-02.png`
+- `assets/mobies/actions/mobirin/mobirin-hakushu-03.png`
+- `assets/mobies/actions/mobirin/mobirin-hakushu-04.png`
+- `assets/mobies/actions/mobirin/mobirin-hakushu-05.png`
+- `assets/mobies/actions/mobirin/mobirin-hakushu-06.png`
+- `assets/mobies/actions/mobirin/mobirin-hakushu-07.png`
+- `assets/mobies/actions/mobirin/mobirin-hakushu-08.png`
+- `assets/mobies/actions/mobirin/mobirin-hakushu-storyboard.png`
+- `assets/mobies/actions/mobirin/mobirin-rei-01.png`
+- `assets/mobies/actions/mobirin/mobirin-rei-02.png`
+- `assets/mobies/actions/mobirin/mobirin-rei-03.png`
+- `assets/mobies/actions/mobirin/mobirin-rei-04.png`
+- `assets/mobies/actions/mobirin/mobirin-rei-05.png`
+- `assets/mobies/actions/mobirin/mobirin-rei-06.png`
+- `assets/mobies/actions/mobirin/mobirin-rei-07.png`
+- `assets/mobies/actions/mobirin/mobirin-rei-08.png`
+- `assets/mobies/actions/mobirin/mobirin-rei-storyboard.png`
+- `assets/mobies/actions/mobiyan/mobiyan-hakushu-01.png`
+- `assets/mobies/actions/mobiyan/mobiyan-hakushu-02.png`
+- `assets/mobies/actions/mobiyan/mobiyan-hakushu-03.png`
+- `assets/mobies/actions/mobiyan/mobiyan-hakushu-04.png`
+- `assets/mobies/actions/mobiyan/mobiyan-hakushu-05.png`
+- `assets/mobies/actions/mobiyan/mobiyan-hakushu-06.png`
+- `assets/mobies/actions/mobiyan/mobiyan-hakushu-07.png`
+- `assets/mobies/actions/mobiyan/mobiyan-hakushu-08.png`
+- `assets/mobies/actions/mobiyan/mobiyan-hakushu-storyboard.png`
+- `assets/mobies/actions/mobiyan/mobiyan-rei-01.png`
+- `assets/mobies/actions/mobiyan/mobiyan-rei-02.png`
+- `assets/mobies/actions/mobiyan/mobiyan-rei-03.png`
+- `assets/mobies/actions/mobiyan/mobiyan-rei-04.png`
+- `assets/mobies/actions/mobiyan/mobiyan-rei-05.png`
+- `assets/mobies/actions/mobiyan/mobiyan-rei-06.png`
+- `assets/mobies/actions/mobiyan/mobiyan-rei-07.png`
+- `assets/mobies/actions/mobiyan/mobiyan-rei-08.png`
+- `assets/mobies/actions/mobiyan/mobiyan-rei-storyboard.png`
+- `assets/mobies/actions/mobiyura/mobiyura-hakushu-01.png`
+- `assets/mobies/actions/mobiyura/mobiyura-hakushu-02.png`
+- `assets/mobies/actions/mobiyura/mobiyura-hakushu-03.png`
+- `assets/mobies/actions/mobiyura/mobiyura-hakushu-04.png`
+- `assets/mobies/actions/mobiyura/mobiyura-hakushu-05.png`
+- `assets/mobies/actions/mobiyura/mobiyura-hakushu-06.png`
+- `assets/mobies/actions/mobiyura/mobiyura-hakushu-07.png`
+- `assets/mobies/actions/mobiyura/mobiyura-hakushu-08.png`
+- `assets/mobies/actions/mobiyura/mobiyura-hakushu-storyboard.png`
+- `assets/mobies/actions/mobiyura/mobiyura-rei-01.png`
+- `assets/mobies/actions/mobiyura/mobiyura-rei-02.png`
+- `assets/mobies/actions/mobiyura/mobiyura-rei-03.png`
+- `assets/mobies/actions/mobiyura/mobiyura-rei-04.png`
+- `assets/mobies/actions/mobiyura/mobiyura-rei-05.png`
+- `assets/mobies/actions/mobiyura/mobiyura-rei-06.png`
+- `assets/mobies/actions/mobiyura/mobiyura-rei-07.png`
+- `assets/mobies/actions/mobiyura/mobiyura-rei-08.png`
+- `assets/mobies/actions/mobiyura/mobiyura-rei-storyboard.png`
+- `assets/mobies/actions/ojimobby/ojimobby-hakushu-01.png`
+- `assets/mobies/actions/ojimobby/ojimobby-hakushu-02.png`
+- `assets/mobies/actions/ojimobby/ojimobby-hakushu-03.png`
+- `assets/mobies/actions/ojimobby/ojimobby-hakushu-04.png`
+- `assets/mobies/actions/ojimobby/ojimobby-hakushu-05.png`
+- `assets/mobies/actions/ojimobby/ojimobby-hakushu-06.png`
+- `assets/mobies/actions/ojimobby/ojimobby-hakushu-07.png`
+- `assets/mobies/actions/ojimobby/ojimobby-hakushu-08.png`
+- `assets/mobies/actions/ojimobby/ojimobby-hakushu-storyboard.png`
+- `assets/mobies/actions/ojimobby/ojimobby-rei-01.png`
+- `assets/mobies/actions/ojimobby/ojimobby-rei-02.png`
+- `assets/mobies/actions/ojimobby/ojimobby-rei-03.png`
+- `assets/mobies/actions/ojimobby/ojimobby-rei-04.png`
+- `assets/mobies/actions/ojimobby/ojimobby-rei-05.png`
+- `assets/mobies/actions/ojimobby/ojimobby-rei-06.png`
+- `assets/mobies/actions/ojimobby/ojimobby-rei-07.png`
+- `assets/mobies/actions/ojimobby/ojimobby-rei-08.png`
+- `assets/mobies/actions/ojimobby/ojimobby-rei-storyboard.png`
+- `assets/mobies/actions/potemoby/potemoby-hakushu-01.png`
+- `assets/mobies/actions/potemoby/potemoby-hakushu-02.png`
+- `assets/mobies/actions/potemoby/potemoby-hakushu-03.png`
+- `assets/mobies/actions/potemoby/potemoby-hakushu-04.png`
+- `assets/mobies/actions/potemoby/potemoby-hakushu-05.png`
+- `assets/mobies/actions/potemoby/potemoby-hakushu-06.png`
+- `assets/mobies/actions/potemoby/potemoby-hakushu-07.png`
+- `assets/mobies/actions/potemoby/potemoby-hakushu-08.png`
+- `assets/mobies/actions/potemoby/potemoby-hakushu-storyboard.png`
+- `assets/mobies/actions/potemoby/potemoby-rei-01.png`
+- `assets/mobies/actions/potemoby/potemoby-rei-02.png`
+- `assets/mobies/actions/potemoby/potemoby-rei-03.png`
+- `assets/mobies/actions/potemoby/potemoby-rei-04.png`
+- `assets/mobies/actions/potemoby/potemoby-rei-05.png`
+- `assets/mobies/actions/potemoby/potemoby-rei-06.png`
+- `assets/mobies/actions/potemoby/potemoby-rei-07.png`
+- `assets/mobies/actions/potemoby/potemoby-rei-08.png`
+- `assets/mobies/actions/potemoby/potemoby-rei-storyboard.png`
+- `assets/mobies/actions/reamobby/reamobby-hakushu-01.png`
+- `assets/mobies/actions/reamobby/reamobby-hakushu-02.png`
+- `assets/mobies/actions/reamobby/reamobby-hakushu-03.png`
+- `assets/mobies/actions/reamobby/reamobby-hakushu-04.png`
+- `assets/mobies/actions/reamobby/reamobby-hakushu-05.png`
+- `assets/mobies/actions/reamobby/reamobby-hakushu-06.png`
+- `assets/mobies/actions/reamobby/reamobby-hakushu-07.png`
+- `assets/mobies/actions/reamobby/reamobby-hakushu-08.png`
+- `assets/mobies/actions/reamobby/reamobby-hakushu-storyboard.png`
+- `assets/mobies/actions/reamobby/reamobby-rei-01.png`
+- `assets/mobies/actions/reamobby/reamobby-rei-02.png`
+- `assets/mobies/actions/reamobby/reamobby-rei-03.png`
+- `assets/mobies/actions/reamobby/reamobby-rei-04.png`
+- `assets/mobies/actions/reamobby/reamobby-rei-05.png`
+- `assets/mobies/actions/reamobby/reamobby-rei-06.png`
+- `assets/mobies/actions/reamobby/reamobby-rei-07.png`
+- `assets/mobies/actions/reamobby/reamobby-rei-08.png`
+- `assets/mobies/actions/reamobby/reamobby-rei-storyboard.png`
+- `assets/mobies/actions/reomoby/reomoby-hakushu-01.png`
+- `assets/mobies/actions/reomoby/reomoby-hakushu-02.png`
+- `assets/mobies/actions/reomoby/reomoby-hakushu-03.png`
+- `assets/mobies/actions/reomoby/reomoby-hakushu-04.png`
+- `assets/mobies/actions/reomoby/reomoby-hakushu-05.png`
+- `assets/mobies/actions/reomoby/reomoby-hakushu-06.png`
+- `assets/mobies/actions/reomoby/reomoby-hakushu-07.png`
+- `assets/mobies/actions/reomoby/reomoby-hakushu-08.png`
+- `assets/mobies/actions/reomoby/reomoby-hakushu-storyboard.png`
+- `assets/mobies/actions/reomoby/reomoby-rei-01.png`
+- `assets/mobies/actions/reomoby/reomoby-rei-02.png`
+- `assets/mobies/actions/reomoby/reomoby-rei-03.png`
+- `assets/mobies/actions/reomoby/reomoby-rei-04.png`
+- `assets/mobies/actions/reomoby/reomoby-rei-05.png`
+- `assets/mobies/actions/reomoby/reomoby-rei-06.png`
+- `assets/mobies/actions/reomoby/reomoby-rei-07.png`
+- `assets/mobies/actions/reomoby/reomoby-rei-08.png`
+- `assets/mobies/actions/reomoby/reomoby-rei-storyboard.png`
+- `assets/mobies/actions/shikamobby/shikamobby-hakushu-01.png`
+- `assets/mobies/actions/shikamobby/shikamobby-hakushu-02.png`
+- `assets/mobies/actions/shikamobby/shikamobby-hakushu-03.png`
+- `assets/mobies/actions/shikamobby/shikamobby-hakushu-04.png`
+- `assets/mobies/actions/shikamobby/shikamobby-hakushu-05.png`
+- `assets/mobies/actions/shikamobby/shikamobby-hakushu-06.png`
+- `assets/mobies/actions/shikamobby/shikamobby-hakushu-07.png`
+- `assets/mobies/actions/shikamobby/shikamobby-hakushu-08.png`
+- `assets/mobies/actions/shikamobby/shikamobby-hakushu-storyboard.png`
+- `assets/mobies/actions/shikamobby/shikamobby-rei-01.png`
+- `assets/mobies/actions/shikamobby/shikamobby-rei-02.png`
+- `assets/mobies/actions/shikamobby/shikamobby-rei-03.png`
+- `assets/mobies/actions/shikamobby/shikamobby-rei-04.png`
+- `assets/mobies/actions/shikamobby/shikamobby-rei-05.png`
+- `assets/mobies/actions/shikamobby/shikamobby-rei-06.png`
+- `assets/mobies/actions/shikamobby/shikamobby-rei-07.png`
+- `assets/mobies/actions/shikamobby/shikamobby-rei-08.png`
+- `assets/mobies/actions/shikamobby/shikamobby-rei-storyboard.png`
+- `assets/mobies/actions/uyumobby/uyumobby-hakushu-01.png`
+- `assets/mobies/actions/uyumobby/uyumobby-hakushu-02.png`
+- `assets/mobies/actions/uyumobby/uyumobby-hakushu-03.png`
+- `assets/mobies/actions/uyumobby/uyumobby-hakushu-04.png`
+- `assets/mobies/actions/uyumobby/uyumobby-hakushu-05.png`
+- `assets/mobies/actions/uyumobby/uyumobby-hakushu-06.png`
+- `assets/mobies/actions/uyumobby/uyumobby-hakushu-07.png`
+- `assets/mobies/actions/uyumobby/uyumobby-hakushu-08.png`
+- `assets/mobies/actions/uyumobby/uyumobby-hakushu-storyboard.png`
+- `assets/mobies/actions/uyumobby/uyumobby-rei-01.png`
+- `assets/mobies/actions/uyumobby/uyumobby-rei-02.png`
+- `assets/mobies/actions/uyumobby/uyumobby-rei-03.png`
+- `assets/mobies/actions/uyumobby/uyumobby-rei-04.png`
+- `assets/mobies/actions/uyumobby/uyumobby-rei-05.png`
+- `assets/mobies/actions/uyumobby/uyumobby-rei-06.png`
+- `assets/mobies/actions/uyumobby/uyumobby-rei-07.png`
+- `assets/mobies/actions/uyumobby/uyumobby-rei-08.png`
+- `assets/mobies/actions/uyumobby/uyumobby-rei-storyboard.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-hakushu-01.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-hakushu-02.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-hakushu-03.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-hakushu-04.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-hakushu-05.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-hakushu-06.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-hakushu-07.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-hakushu-08.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-hakushu-storyboard.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-rei-01.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-rei-02.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-rei-03.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-rei-04.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-rei-05.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-rei-06.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-rei-07.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-rei-08.png`
+- `assets/mobies/actions/wolfmobby/wolfmobby-rei-storyboard.png`
+- `assets/mobies/actions/yami/yami-hakushu-01.png`
+- `assets/mobies/actions/yami/yami-hakushu-02.png`
+- `assets/mobies/actions/yami/yami-hakushu-03.png`
+- `assets/mobies/actions/yami/yami-hakushu-04.png`
+- `assets/mobies/actions/yami/yami-hakushu-05.png`
+- `assets/mobies/actions/yami/yami-hakushu-06.png`
+- `assets/mobies/actions/yami/yami-hakushu-07.png`
+- `assets/mobies/actions/yami/yami-hakushu-08.png`
+- `assets/mobies/actions/yami/yami-hakushu-storyboard.png`
+- `assets/mobies/actions/yami/yami-rei-01.png`
+- `assets/mobies/actions/yami/yami-rei-02.png`
+- `assets/mobies/actions/yami/yami-rei-03.png`
+- `assets/mobies/actions/yami/yami-rei-04.png`
+- `assets/mobies/actions/yami/yami-rei-05.png`
+- `assets/mobies/actions/yami/yami-rei-06.png`
+- `assets/mobies/actions/yami/yami-rei-07.png`
+- `assets/mobies/actions/yami/yami-rei-08.png`
+- `assets/mobies/actions/yami/yami-rei-storyboard.png`
+- `assets/mobies/babumoby.webp`
+- `assets/mobies/backgrounds/mobichi.png`
+- `assets/mobies/backgrounds/mobirin.png`
+- `assets/mobies/backgrounds/yami.png`
+- `assets/mobies/bearmobby.png`
+- `assets/mobies/boymobby.png`
+- `assets/mobies/dogmobby.png`
+- `assets/mobies/lanimobby.png`
+- `assets/mobies/mobibou.webp`
+- `assets/mobies/mobichi.webp`
+- `assets/mobies/mobirin.webp`
+- `assets/mobies/mobiyan.webp`
+- `assets/mobies/mobiyura.webp`
+- `assets/mobies/ojimobby.png`
+- `assets/mobies/omikuji/babumoby/draw-v2.png`
+- `assets/mobies/omikuji/bearmobby/draw-v2.png`
+- `assets/mobies/omikuji/boymobby/draw-v2.png`
+- `assets/mobies/omikuji/dogmobby/draw-v2.png`
+- `assets/mobies/omikuji/lanimobby/draw-v2.png`
+- `assets/mobies/omikuji/mobibou/draw-v2.png`
+- `assets/mobies/omikuji/mobichi/draw-v2.png`
+- `assets/mobies/omikuji/mobirin/draw-v2.png`
+- `assets/mobies/omikuji/mobiyan/draw-v2.png`
+- `assets/mobies/omikuji/mobiyura/draw-v2.png`
+- `assets/mobies/omikuji/ojimobby/draw-v2.png`
+- `assets/mobies/omikuji/potemoby/draw-v2.png`
+- `assets/mobies/omikuji/reamobby/draw-v2.png`
+- `assets/mobies/omikuji/reomoby/draw-v2.png`
+- `assets/mobies/omikuji/shikamobby/draw-v2.png`
+- `assets/mobies/omikuji/uyumobby/draw-v2.png`
+- `assets/mobies/omikuji/wolfmobby/draw-v2.png`
+- `assets/mobies/omikuji/yami/draw-v2.png`
+- `assets/mobies/pilgrimage-walk/babumoby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/babumoby.png`
+- `assets/mobies/pilgrimage-walk/bearmobby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/bearmobby.png`
+- `assets/mobies/pilgrimage-walk/boymobby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/boymobby.png`
+- `assets/mobies/pilgrimage-walk/dogmobby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/dogmobby.png`
+- `assets/mobies/pilgrimage-walk/lanimobby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/lanimobby.png`
+- `assets/mobies/pilgrimage-walk/mobibou-map-peek.png`
+- `assets/mobies/pilgrimage-walk/mobibou.png`
+- `assets/mobies/pilgrimage-walk/mobichi-map-peek.png`
+- `assets/mobies/pilgrimage-walk/mobichi.png`
+- `assets/mobies/pilgrimage-walk/mobirin-map-peek.png`
+- `assets/mobies/pilgrimage-walk/mobirin.png`
+- `assets/mobies/pilgrimage-walk/mobiyan-map-peek.png`
+- `assets/mobies/pilgrimage-walk/mobiyan.png`
+- `assets/mobies/pilgrimage-walk/mobiyura-map-peek.png`
+- `assets/mobies/pilgrimage-walk/mobiyura.png`
+- `assets/mobies/pilgrimage-walk/ojimobby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/ojimobby.png`
+- `assets/mobies/pilgrimage-walk/potemoby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/potemoby.png`
+- `assets/mobies/pilgrimage-walk/reamobby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/reamobby.png`
+- `assets/mobies/pilgrimage-walk/reomoby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/reomoby.png`
+- `assets/mobies/pilgrimage-walk/shikamobby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/shikamobby.png`
+- `assets/mobies/pilgrimage-walk/uyumobby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/uyumobby.png`
+- `assets/mobies/pilgrimage-walk/wolfmobby-map-peek.png`
+- `assets/mobies/pilgrimage-walk/wolfmobby.png`
+- `assets/mobies/pilgrimage-walk/yami-map-peek.png`
+- `assets/mobies/pilgrimage-walk/yami.png`
+- `assets/mobies/potemoby.webp`
+- `assets/mobies/prayer-v2/babumoby/hakushu.png`
+- `assets/mobies/prayer-v2/babumoby/rei.png`
+- `assets/mobies/prayer-v2/bearmobby/hakushu.png`
+- `assets/mobies/prayer-v2/bearmobby/rei.png`
+- `assets/mobies/prayer-v2/boymobby/hakushu.png`
+- `assets/mobies/prayer-v2/boymobby/rei.png`
+- `assets/mobies/prayer-v2/dogmobby/hakushu.png`
+- `assets/mobies/prayer-v2/dogmobby/rei.png`
+- `assets/mobies/prayer-v2/lanimobby/hakushu.png`
+- `assets/mobies/prayer-v2/lanimobby/rei.png`
+- `assets/mobies/prayer-v2/mobibou/hakushu.png`
+- `assets/mobies/prayer-v2/mobibou/rei.png`
+- `assets/mobies/prayer-v2/mobichi/hakushu.png`
+- `assets/mobies/prayer-v2/mobichi/rei.png`
+- `assets/mobies/prayer-v2/mobirin/hakushu.png`
+- `assets/mobies/prayer-v2/mobirin/rei.png`
+- `assets/mobies/prayer-v2/mobiyan/hakushu.png`
+- `assets/mobies/prayer-v2/mobiyan/rei.png`
+- `assets/mobies/prayer-v2/mobiyura/hakushu.png`
+- `assets/mobies/prayer-v2/mobiyura/rei.png`
+- `assets/mobies/prayer-v2/ojimobby/hakushu.png`
+- `assets/mobies/prayer-v2/ojimobby/rei.png`
+- `assets/mobies/prayer-v2/potemoby/hakushu.png`
+- `assets/mobies/prayer-v2/potemoby/rei.png`
+- `assets/mobies/prayer-v2/reamobby/hakushu.png`
+- `assets/mobies/prayer-v2/reamobby/rei.png`
+- `assets/mobies/prayer-v2/reomoby/hakushu.png`
+- `assets/mobies/prayer-v2/reomoby/rei.png`
+- `assets/mobies/prayer-v2/shikamobby/hakushu.png`
+- `assets/mobies/prayer-v2/shikamobby/rei.png`
+- `assets/mobies/prayer-v2/uyumobby/hakushu.png`
+- `assets/mobies/prayer-v2/uyumobby/rei.png`
+- `assets/mobies/prayer-v2/wolfmobby/hakushu.png`
+- `assets/mobies/prayer-v2/wolfmobby/rei.png`
+- `assets/mobies/prayer-v2/yami/hakushu.png`
+- `assets/mobies/prayer-v2/yami/rei.png`
+- `assets/mobies/pull/babu-body-clean.webp`
+- `assets/mobies/pull/babu-button-left.webp`
+- `assets/mobies/pull/babu-button-right.webp`
+- `assets/mobies/pull/babu-cross.webp`
+- `assets/mobies/pull/babu-lens.webp`
+- `assets/mobies/pull/guide-mouth-1.webp`
+- `assets/mobies/pull/guide-mouth-10.webp`
+- `assets/mobies/pull/guide-mouth-2.webp`
+- `assets/mobies/pull/guide-mouth-3.webp`
+- `assets/mobies/pull/guide-mouth-4.webp`
+- `assets/mobies/pull/guide-mouth-5.webp`
+- `assets/mobies/pull/guide-mouth-6.webp`
+- `assets/mobies/pull/guide-mouth-7.webp`
+- `assets/mobies/pull/guide-mouth-8.webp`
+- `assets/mobies/pull/guide-mouth-9.webp`
+- `assets/mobies/pull/mobibou-body-clean.webp`
+- `assets/mobies/pull/mobibou-button-left.webp`
+- `assets/mobies/pull/mobibou-button-right.webp`
+- `assets/mobies/pull/mobibou-cross.webp`
+- `assets/mobies/pull/mobibou-lens.webp`
+- `assets/mobies/pull/mobichi-body-clean.webp`
+- `assets/mobies/pull/mobichi-button-left.webp`
+- `assets/mobies/pull/mobichi-button-right.webp`
+- `assets/mobies/pull/mobichi-cross.webp`
+- `assets/mobies/pull/mobichi-eye-1.webp`
+- `assets/mobies/pull/mobichi-eye-2.webp`
+- `assets/mobies/pull/mobichi-eye-3.webp`
+- `assets/mobies/pull/mobichi-eye-4.webp`
+- `assets/mobies/pull/mobichi-eye-5.webp`
+- `assets/mobies/pull/mobichi-eye-6.webp`
+- `assets/mobies/pull/mobichi-eye-7.webp`
+- `assets/mobies/pull/mobichi-eye-8.webp`
+- `assets/mobies/pull/mobichi-eye-9.webp`
+- `assets/mobies/pull/mobichi-lens.webp`
+- `assets/mobies/pull/mobirin-body-clean.webp`
+- `assets/mobies/pull/mobirin-button-left.webp`
+- `assets/mobies/pull/mobirin-button-right.webp`
+- `assets/mobies/pull/mobirin-cross.webp`
+- `assets/mobies/pull/mobirin-eye-1.webp`
+- `assets/mobies/pull/mobirin-eye-2.webp`
+- `assets/mobies/pull/mobirin-eye-3.webp`
+- `assets/mobies/pull/mobirin-eye-4.webp`
+- `assets/mobies/pull/mobirin-eye-5.webp`
+- `assets/mobies/pull/mobirin-eye-6.webp`
+- `assets/mobies/pull/mobirin-eye-7.webp`
+- `assets/mobies/pull/mobirin-eye-8.webp`
+- `assets/mobies/pull/mobirin-eye-9.webp`
+- `assets/mobies/pull/mobirin-lens.webp`
+- `assets/mobies/pull/mobiyan-body-clean.webp`
+- `assets/mobies/pull/mobiyan-button-left.webp`
+- `assets/mobies/pull/mobiyan-button-right.webp`
+- `assets/mobies/pull/mobiyan-cross.webp`
+- `assets/mobies/pull/mobiyan-eye-1.webp`
+- `assets/mobies/pull/mobiyan-eye-2.webp`
+- `assets/mobies/pull/mobiyan-eye-3.webp`
+- `assets/mobies/pull/mobiyan-eye-4.webp`
+- `assets/mobies/pull/mobiyan-eye-5.webp`
+- `assets/mobies/pull/mobiyan-eye-6.webp`
+- `assets/mobies/pull/mobiyan-eye-7.webp`
+- `assets/mobies/pull/mobiyan-eye-8.webp`
+- `assets/mobies/pull/mobiyan-eye-9.webp`
+- `assets/mobies/pull/mobiyan-eye-default.webp`
+- `assets/mobies/pull/mobiyan-lens.webp`
+- `assets/mobies/pull/mobiyan-mouth-1.webp`
+- `assets/mobies/pull/mobiyan-mouth-10.webp`
+- `assets/mobies/pull/mobiyan-mouth-2.webp`
+- `assets/mobies/pull/mobiyan-mouth-3.webp`
+- `assets/mobies/pull/mobiyan-mouth-4.webp`
+- `assets/mobies/pull/mobiyan-mouth-5.webp`
+- `assets/mobies/pull/mobiyan-mouth-6.webp`
+- `assets/mobies/pull/mobiyan-mouth-7.webp`
+- `assets/mobies/pull/mobiyan-mouth-8.webp`
+- `assets/mobies/pull/mobiyan-mouth-9.webp`
+- `assets/mobies/pull/mobiyan-mouth-original-1.webp`
+- `assets/mobies/pull/mobiyan-mouth-original-2.webp`
+- `assets/mobies/pull/mobiyan-mouth-original-6.webp`
+- `assets/mobies/pull/mobiyan-mouth-original-7.webp`
+- `assets/mobies/pull/mobiyan-mouth-yanki-7.webp`
+- `assets/mobies/pull/pote-body-clean.webp`
+- `assets/mobies/pull/pote-button-left.webp`
+- `assets/mobies/pull/pote-button-right.webp`
+- `assets/mobies/pull/pote-cross.webp`
+- `assets/mobies/pull/pote-lens.webp`
+- `assets/mobies/pull/reo-body-clean.webp`
+- `assets/mobies/pull/reo-button-left.webp`
+- `assets/mobies/pull/reo-button-right.webp`
+- `assets/mobies/pull/reo-cross.webp`
+- `assets/mobies/pull/reo-lens.webp`
+- `assets/mobies/pull/yami-body-clean.webp`
+- `assets/mobies/pull/yami-button-left.webp`
+- `assets/mobies/pull/yami-button-right.webp`
+- `assets/mobies/pull/yami-cross.webp`
+- `assets/mobies/pull/yami-eye-1.webp`
+- `assets/mobies/pull/yami-eye-2.webp`
+- `assets/mobies/pull/yami-eye-3.webp`
+- `assets/mobies/pull/yami-eye-4.webp`
+- `assets/mobies/pull/yami-eye-5.webp`
+- `assets/mobies/pull/yami-eye-6.webp`
+- `assets/mobies/pull/yami-eye-7.webp`
+- `assets/mobies/pull/yami-eye-8.webp`
+- `assets/mobies/pull/yami-eye-9.webp`
+- `assets/mobies/pull/yami-lens.webp`
+- `assets/mobies/pull/yura-body-clean.webp`
+- `assets/mobies/pull/yura-button-left.webp`
+- `assets/mobies/pull/yura-button-right.webp`
+- `assets/mobies/pull/yura-cross.webp`
+- `assets/mobies/pull/yura-lens.webp`
+- `assets/mobies/reactions/babumoby_babu_pull_reaction_01_startled.webp`
+- `assets/mobies/reactions/babumoby_babu_pull_reaction_02_hold_cheek.webp`
+- `assets/mobies/reactions/babumoby_babu_pull_reaction_03_baby_protest.webp`
+- `assets/mobies/reactions/babumoby_babu_pull_reaction_04_sulking.webp`
+- `assets/mobies/reactions/babumoby_babu_tease_reaction_01_notice.webp`
+- `assets/mobies/reactions/babumoby_babu_tease_reaction_02_escape.webp`
+- `assets/mobies/reactions/babumoby_babu_tease_reaction_03_push_away.webp`
+- `assets/mobies/reactions/babumoby_babu_tease_reaction_04_tantrum.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_09_bawling_waterfall.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_10_defensive_curl.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_11_frantic_no.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_12_dramatic_faint.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_13_furious_stomp.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_14_backward_escape.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_15_cheek_shield.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_16_floor_cling.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_17_starfish_tantrum.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_18_offended_turnaway.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_19_tiny_rage_shake.webp`
+- `assets/mobies/reactions/babumoby_extra_reaction_20_ultimate_enough.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_09_bawling_waterfall.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_10_defensive_curl.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_11_frantic_no.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_12_dramatic_faint.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_13_furious_stomp.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_14_backward_escape.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_15_cheek_shield.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_16_floor_cling.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_17_starfish_tantrum.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_18_offended_turnaway.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_19_tiny_rage_shake.webp`
+- `assets/mobies/reactions/mobibou_extra_reaction_20_ultimate_enough.webp`
+- `assets/mobies/reactions/mobibou_pull_reaction_01_startled.webp`
+- `assets/mobies/reactions/mobibou_pull_reaction_02_hold_cheek.webp`
+- `assets/mobies/reactions/mobibou_pull_reaction_03_angry_protest.webp`
+- `assets/mobies/reactions/mobibou_pull_reaction_04_sulking.webp`
+- `assets/mobies/reactions/mobibou_tease_reaction_01_notice.webp`
+- `assets/mobies/reactions/mobibou_tease_reaction_02_escape.webp`
+- `assets/mobies/reactions/mobibou_tease_reaction_03_swatt.webp`
+- `assets/mobies/reactions/mobibou_tease_reaction_04_stomp.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_09_bawling_waterfall.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_10_defensive_curl.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_11_frantic_no.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_12_dramatic_faint.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_13_furious_stomp.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_14_backward_escape.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_15_cheek_shield.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_16_floor_cling.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_17_starfish_tantrum.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_18_offended_turnaway.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_19_tiny_rage_shake.webp`
+- `assets/mobies/reactions/mobichi_extra_reaction_20_ultimate_enough.webp`
+- `assets/mobies/reactions/mobichi_mobichi_pull_reaction_01_startled.webp`
+- `assets/mobies/reactions/mobichi_mobichi_pull_reaction_02_hold_cheek.webp`
+- `assets/mobies/reactions/mobichi_mobichi_pull_reaction_03_indignant_protest.webp`
+- `assets/mobies/reactions/mobichi_mobichi_pull_reaction_04_dignified_sulk.webp`
+- `assets/mobies/reactions/mobichi_mobichi_tease_reaction_01_notice.webp`
+- `assets/mobies/reactions/mobichi_mobichi_tease_reaction_02_escape.webp`
+- `assets/mobies/reactions/mobichi_mobichi_tease_reaction_03_swatt.webp`
+- `assets/mobies/reactions/mobichi_mobichi_tease_reaction_04_gentlemanly_stomp.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_09_bawling_waterfall.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_10_defensive_curl.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_11_frantic_no.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_12_dramatic_faint.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_13_furious_stomp.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_14_backward_escape.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_15_cheek_shield.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_16_floor_cling.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_17_starfish_tantrum.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_18_offended_turnaway.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_19_tiny_rage_shake.webp`
+- `assets/mobies/reactions/mobirin_extra_reaction_20_ultimate_enough.webp`
+- `assets/mobies/reactions/mobirin_mobirin_pull_reaction_01_startled.webp`
+- `assets/mobies/reactions/mobirin_mobirin_pull_reaction_02_hold_cheek.webp`
+- `assets/mobies/reactions/mobirin_mobirin_pull_reaction_03_indignant_protest.webp`
+- `assets/mobies/reactions/mobirin_mobirin_pull_reaction_04_dignified_sulk.webp`
+- `assets/mobies/reactions/mobirin_mobirin_tease_reaction_01_notice.webp`
+- `assets/mobies/reactions/mobirin_mobirin_tease_reaction_02_escape.webp`
+- `assets/mobies/reactions/mobirin_mobirin_tease_reaction_03_swatt.webp`
+- `assets/mobies/reactions/mobirin_mobirin_tease_reaction_04_gentlemanly_stomp.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_09_bawling_waterfall.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_10_defensive_curl.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_11_frantic_no.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_12_dramatic_faint.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_13_furious_stomp.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_14_backward_escape.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_15_cheek_shield.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_16_floor_cling.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_17_starfish_tantrum.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_18_offended_turnaway.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_19_tiny_rage_shake.webp`
+- `assets/mobies/reactions/mobiyan_extra_reaction_20_ultimate_enough.webp`
+- `assets/mobies/reactions/mobiyan_pull_reaction_01_startled.webp`
+- `assets/mobies/reactions/mobiyan_pull_reaction_02_hold_cheek.webp`
+- `assets/mobies/reactions/mobiyan_pull_reaction_03_indignant_protest.webp`
+- `assets/mobies/reactions/mobiyan_pull_reaction_04_dignified_sulk.webp`
+- `assets/mobies/reactions/mobiyan_tease_reaction_01_notice.webp`
+- `assets/mobies/reactions/mobiyan_tease_reaction_02_escape.webp`
+- `assets/mobies/reactions/mobiyan_tease_reaction_03_swatt.webp`
+- `assets/mobies/reactions/mobiyan_tease_reaction_04_stomp.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_09_bawling_waterfall.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_10_defensive_curl.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_11_frantic_no.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_12_dramatic_faint.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_13_furious_stomp.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_14_backward_escape.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_15_cheek_shield.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_16_floor_cling.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_17_starfish_tantrum.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_18_offended_turnaway.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_19_tiny_rage_shake.webp`
+- `assets/mobies/reactions/mobiyura_extra_reaction_20_ultimate_enough.webp`
+- `assets/mobies/reactions/mobiyura_pull_reaction_01_startled.webp`
+- `assets/mobies/reactions/mobiyura_pull_reaction_02_hold_cheek.webp`
+- `assets/mobies/reactions/mobiyura_pull_reaction_03_dramatic_protest.webp`
+- `assets/mobies/reactions/mobiyura_pull_reaction_04_haughty_sulk.webp`
+- `assets/mobies/reactions/mobiyura_tease_reaction_01_notice.webp`
+- `assets/mobies/reactions/mobiyura_tease_reaction_02_escape.webp`
+- `assets/mobies/reactions/mobiyura_tease_reaction_03_swatt.webp`
+- `assets/mobies/reactions/mobiyura_tease_reaction_04_dramatic_stomp.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_09_bawling_waterfall.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_10_defensive_curl.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_11_frantic_no.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_12_dramatic_faint.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_13_furious_stomp.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_14_backward_escape.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_15_cheek_shield.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_16_floor_cling.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_17_starfish_tantrum.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_18_offended_turnaway.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_19_tiny_rage_shake.webp`
+- `assets/mobies/reactions/potemoby_extra_reaction_20_ultimate_enough.webp`
+- `assets/mobies/reactions/potemoby_pote_pull_reaction_01_sleepy_startled.webp`
+- `assets/mobies/reactions/potemoby_pote_pull_reaction_02_hold_cheek.webp`
+- `assets/mobies/reactions/potemoby_pote_pull_reaction_03_lazy_protest.webp`
+- `assets/mobies/reactions/potemoby_pote_pull_reaction_04_lazy_sulk.webp`
+- `assets/mobies/reactions/potemoby_pote_tease_reaction_01_notice.webp`
+- `assets/mobies/reactions/potemoby_pote_tease_reaction_02_lazy_escape.webp`
+- `assets/mobies/reactions/potemoby_pote_tease_reaction_03_lazy_swatt.webp`
+- `assets/mobies/reactions/potemoby_pote_tease_reaction_04_heavy_stomp.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_09_bawling_waterfall.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_10_defensive_curl.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_11_frantic_no.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_12_dramatic_faint.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_13_furious_stomp.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_14_backward_escape.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_15_cheek_shield.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_16_floor_cling.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_17_starfish_tantrum.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_18_offended_turnaway.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_19_tiny_rage_shake.webp`
+- `assets/mobies/reactions/reomoby_extra_reaction_20_ultimate_enough.webp`
+- `assets/mobies/reactions/reomoby_pull_reaction_01_startled.webp`
+- `assets/mobies/reactions/reomoby_pull_reaction_02_hold_cheek.webp`
+- `assets/mobies/reactions/reomoby_pull_reaction_03_aristocratic_protest.webp`
+- `assets/mobies/reactions/reomoby_pull_reaction_04_haughty_sulk.webp`
+- `assets/mobies/reactions/reomoby_tease_reaction_01_notice.webp`
+- `assets/mobies/reactions/reomoby_tease_reaction_02_escape.webp`
+- `assets/mobies/reactions/reomoby_tease_reaction_03_swatt.webp`
+- `assets/mobies/reactions/reomoby_tease_reaction_04_royal_stomp.webp`
+- `assets/mobies/reactions/yami_extra_reaction_09_bawling_waterfall.webp`
+- `assets/mobies/reactions/yami_extra_reaction_10_defensive_curl.webp`
+- `assets/mobies/reactions/yami_extra_reaction_11_frantic_no.webp`
+- `assets/mobies/reactions/yami_extra_reaction_12_dramatic_faint.webp`
+- `assets/mobies/reactions/yami_extra_reaction_13_furious_stomp.webp`
+- `assets/mobies/reactions/yami_extra_reaction_14_backward_escape.webp`
+- `assets/mobies/reactions/yami_extra_reaction_15_cheek_shield.webp`
+- `assets/mobies/reactions/yami_extra_reaction_16_floor_cling.webp`
+- `assets/mobies/reactions/yami_extra_reaction_17_starfish_tantrum.webp`
+- `assets/mobies/reactions/yami_extra_reaction_18_offended_turnaway.webp`
+- `assets/mobies/reactions/yami_extra_reaction_19_tiny_rage_shake.webp`
+- `assets/mobies/reactions/yami_extra_reaction_20_ultimate_enough.webp`
+- `assets/mobies/reactions/yami_pull_reaction_01_startled.webp`
+- `assets/mobies/reactions/yami_pull_reaction_02_hold_cheek.webp`
+- `assets/mobies/reactions/yami_pull_reaction_03_indignant_protest.webp`
+- `assets/mobies/reactions/yami_pull_reaction_04_dignified_sulk.webp`
+- `assets/mobies/reactions/yami_tease_reaction_01_notice.webp`
+- `assets/mobies/reactions/yami_tease_reaction_02_escape.webp`
+- `assets/mobies/reactions/yami_tease_reaction_03_swatt.webp`
+- `assets/mobies/reactions/yami_tease_reaction_04_stomp.webp`
+- `assets/mobies/reamobby.png`
+- `assets/mobies/reomoby.webp`
+- `assets/mobies/shikamobby.png`
+- `assets/mobies/uyumobby.png`
+- `assets/mobies/wolfmobby.png`
+- `assets/mobies/yami-mobby.webp`
+- `assets/omikuji/omikuji-animation-washi-v1.png`
+- `assets/omikuji/omikuji-draw-cylinder-v1.png`
+- `assets/omikuji/omikuji-home-undrawn-bg-v1.png`
+- `assets/omikuji/omikuji-result-paper-v2.png`
+- `assets/pilgrimage-v2/button-washi.png`
+- `assets/pilgrimage-v2/card-washi.png`
+- `assets/pilgrimage-v2/ceremony-gate.png`
+- `assets/pilgrimage-v2/ceremony-stage.png`
+- `assets/pilgrimage-v2/map-washi.png`
+- `assets/pilgrimage-v2/route-circuit.png`
+- `assets/pilgrimage-v2/route-compassion.png`
+- `assets/pilgrimage-v2/route-festival.png`
+- `assets/pilgrimage-v2/route-mountain.png`
+- `assets/pilgrimage-v2/route-sanctuary.png`
+- `assets/pilgrimage-v2/route-story.png`
+- `assets/pilgrimage-v2/route-vow.png`
+- `assets/tickets/ticket-cover-change-v2.png`
+- `assets/tickets/ticket-keychain-drop-v2.png`
+
+## Unreferenced image candidates shown before deletion
+
+- `assets/backgrounds/mobidou-goshuin-book-background-v2.png` — 2.14 MiB
+- `assets/backgrounds/mobidou-home-cushion-background.png` — 2.35 MiB
+- `assets/backgrounds/mobidou-home-temp.png` — 2.25 MiB
+- `assets/backgrounds/mobidou-opening.png` — 2.79 MiB
+- `assets/backgrounds/opening-midnight.png` — 2.42 MiB
+- `assets/backgrounds/opening-night.png` — 2.80 MiB
+- `assets/collection/collection-cabinet-washi-backdrop-v1.png` — 2.99 MiB
+- `assets/collection/collection-room-backdrop-v1.png` — 2.11 MiB
+- `assets/collection/collection-room-backdrop-v2.png` — 2.05 MiB
+- `assets/collection/collection-room-backdrop-v3.png` — 2.05 MiB
+- `assets/collection/collection-room-backdrop-v4.png` — 2.37 MiB
+- `assets/collection/collection-room-backdrop-v5.png` — 2.53 MiB
+- `assets/collection/collection-room-reference-v1.png` — 2.15 MiB
+- `assets/collection/collection-wall-hook-v1.png` — 1.27 MiB
+- `assets/collection/collection-washi-wall-v2.png` — 2.22 MiB
+- `assets/collection/collection-wood-grain-v1.png` — 2.73 MiB
+- `assets/collection/collection-wood-washi-surface.png` — 2.49 MiB
+- `assets/collection/keychain-asagiri-shrine-transparent.png` — 2.46 MiB
+- `assets/collection/keychain-rain-shrine-v1-transparent.png` — 3.00 MiB
+- `assets/collection/keychain-rain-shrine-v1.png` — 2.68 MiB
+- `assets/foreground/mobibou-torii-full.png` — 2.87 MiB
+- `assets/foreground/mobibou-torii-peek.png` — 2.67 MiB
+- `assets/foreground/mobidou-torii-top.png` — 1.11 MiB
+- `assets/home-menu-landscape-v2.png` — 2.69 MiB
+- `assets/home-menu-panel-washi-v1.png` — 3.22 MiB
+- `assets/mobidou-wordmark-tamanegi.png` — 0.02 MiB
+- `assets/mobies/cat1mobby.png` — 1.86 MiB
+- `assets/mobies/cat2mobby.png` — 2.31 MiB
+- `assets/mobies/cat3mobby.png` — 2.53 MiB
+- `assets/mobies/cat4mobby.png` — 3.20 MiB
+- `assets/mobies/fashionablemobby.png` — 2.81 MiB
+- `assets/mobies/gamermobby.png` — 1.81 MiB
+- `assets/mobies/garibenmobby.png` — 2.69 MiB
+- `assets/mobies/koreamobby.png` — 2.54 MiB
+- `assets/mobies/mobibou-peek.png` — 1.93 MiB
+- `assets/mobies/omikuji/babumoby/draw.png` — 1.72 MiB
+- `assets/mobies/omikuji/bearmobby/draw.png` — 2.20 MiB
+- `assets/mobies/omikuji/boymobby/draw.png` — 2.38 MiB
+- `assets/mobies/omikuji/dogmobby/draw.png` — 2.29 MiB
+- `assets/mobies/omikuji/lanimobby/draw.png` — 2.50 MiB
+- `assets/mobies/omikuji/mobibou/draw.png` — 2.44 MiB
+- `assets/mobies/omikuji/mobichi/draw.png` — 2.01 MiB
+- `assets/mobies/omikuji/mobirin/draw.png` — 1.91 MiB
+- `assets/mobies/omikuji/mobiyan/draw.png` — 2.47 MiB
+- `assets/mobies/omikuji/mobiyura/draw.png` — 1.78 MiB
+- `assets/mobies/omikuji/ojimobby/draw.png` — 2.19 MiB
+- `assets/mobies/omikuji/potemoby/draw.png` — 2.02 MiB
+- `assets/mobies/omikuji/reamobby/draw.png` — 2.44 MiB
+- `assets/mobies/omikuji/reomoby/draw.png` — 2.48 MiB
+- `assets/mobies/omikuji/shikamobby/draw.png` — 2.08 MiB
+- `assets/mobies/omikuji/uyumobby/draw.png` — 1.96 MiB
+- `assets/mobies/omikuji/wolfmobby/draw.png` — 2.41 MiB
+- `assets/mobies/omikuji/yami/draw.png` — 2.20 MiB
+- `assets/mobies/prayer-v2/babumoby/source.png` — 2.03 MiB
+- `assets/mobies/prayer-v2/bearmobby/source.png` — 1.84 MiB
+- `assets/mobies/prayer-v2/boymobby/source.png` — 2.17 MiB
+- `assets/mobies/prayer-v2/dogmobby/source.png` — 2.01 MiB
+- `assets/mobies/prayer-v2/lanimobby/source.png` — 2.11 MiB
+- `assets/mobies/prayer-v2/mobichi/source.png` — 1.93 MiB
+- `assets/mobies/prayer-v2/mobirin/source.png` — 1.80 MiB
+- `assets/mobies/prayer-v2/mobiyan/source.png` — 2.13 MiB
+- `assets/mobies/prayer-v2/mobiyura/source.png` — 2.07 MiB
+- `assets/mobies/prayer-v2/ojimobby/source.png` — 1.98 MiB
+- `assets/mobies/prayer-v2/potemoby/source.png` — 1.78 MiB
+- `assets/mobies/prayer-v2/reamobby/source.png` — 2.04 MiB
+- `assets/mobies/prayer-v2/reomoby/source.png` — 2.23 MiB
+- `assets/mobies/prayer-v2/shikamobby/source.png` — 1.85 MiB
+- `assets/mobies/prayer-v2/uyumobby/source.png` — 2.04 MiB
+- `assets/mobies/prayer-v2/wolfmobby/source.png` — 2.02 MiB
+- `assets/mobies/prayer-v2/yami/source.png` — 1.88 MiB
+- `assets/mobies/pull/babu-noneye.webp` — 0.10 MiB
+- `assets/mobies/pull/mobibou-noneye.webp` — 0.19 MiB
+- `assets/mobies/pull/mobichi-mouth-1.webp` — 0.02 MiB
+- `assets/mobies/pull/mobichi-mouth-10.webp` — 0.01 MiB
+- `assets/mobies/pull/mobichi-mouth-2.webp` — 0.01 MiB
+- `assets/mobies/pull/mobichi-mouth-3.webp` — 0.02 MiB
+- `assets/mobies/pull/mobichi-mouth-4.webp` — 0.01 MiB
+- `assets/mobies/pull/mobichi-mouth-5.webp` — 0.01 MiB
+- `assets/mobies/pull/mobichi-mouth-6.webp` — 0.01 MiB
+- `assets/mobies/pull/mobichi-mouth-7.webp` — 0.01 MiB
+- `assets/mobies/pull/mobichi-mouth-8.webp` — 0.01 MiB
+- `assets/mobies/pull/mobichi-mouth-9.webp` — 0.01 MiB
+- `assets/mobies/pull/mobichi-noneye.webp` — 1.05 MiB
+- `assets/mobies/pull/mobirin-mouth-1.webp` — 0.02 MiB
+- `assets/mobies/pull/mobirin-mouth-10.webp` — 0.01 MiB
+- `assets/mobies/pull/mobirin-mouth-2.webp` — 0.02 MiB
+- `assets/mobies/pull/mobirin-mouth-3.webp` — 0.02 MiB
+- `assets/mobies/pull/mobirin-mouth-4.webp` — 0.02 MiB
+- `assets/mobies/pull/mobirin-mouth-5.webp` — 0.02 MiB
+- `assets/mobies/pull/mobirin-mouth-6.webp` — 0.02 MiB
+- `assets/mobies/pull/mobirin-mouth-7.webp` — 0.01 MiB
+- `assets/mobies/pull/mobirin-mouth-8.webp` — 0.01 MiB
+- `assets/mobies/pull/mobirin-mouth-9.webp` — 0.01 MiB
+- `assets/mobies/pull/mobirin-noneye.webp` — 1.00 MiB
+- `assets/mobies/pull/mobiyan-mouth-original-10.webp` — 0.01 MiB
+- `assets/mobies/pull/mobiyan-mouth-original-3.webp` — 0.01 MiB
+- `assets/mobies/pull/mobiyan-mouth-original-4.webp` — 0.01 MiB
+- `assets/mobies/pull/mobiyan-mouth-original-5.webp` — 0.00 MiB
+- `assets/mobies/pull/mobiyan-mouth-original-8.webp` — 0.01 MiB
+- `assets/mobies/pull/mobiyan-mouth-original-9.webp` — 0.01 MiB
+- `assets/mobies/pull/mobiyan-noneye.webp` — 1.10 MiB
+- `assets/mobies/pull/pote-noneye.webp` — 0.17 MiB
+- `assets/mobies/pull/reo-noneye.webp` — 0.14 MiB
+- `assets/mobies/pull/yami-mouth-1.webp` — 0.01 MiB
+- `assets/mobies/pull/yami-mouth-10.webp` — 0.01 MiB
+- `assets/mobies/pull/yami-mouth-2.webp` — 0.02 MiB
+- `assets/mobies/pull/yami-mouth-3.webp` — 0.01 MiB
+- `assets/mobies/pull/yami-mouth-4.webp` — 0.01 MiB
+- `assets/mobies/pull/yami-mouth-5.webp` — 0.01 MiB
+- `assets/mobies/pull/yami-mouth-6.webp` — 0.01 MiB
+- `assets/mobies/pull/yami-mouth-7.webp` — 0.02 MiB
+- `assets/mobies/pull/yami-mouth-8.webp` — 0.02 MiB
+- `assets/mobies/pull/yami-mouth-9.webp` — 0.01 MiB
+- `assets/mobies/pull/yami-noneye.webp` — 1.08 MiB
+- `assets/mobies/pull/yura-noneye.webp` — 0.12 MiB
+- `assets/omikuji/omikuji-pre-draw-washi-v1.png` — 1.96 MiB
+- `assets/omikuji/omikuji-props-8-v1-packed.png` — 0.46 MiB
+- `assets/omikuji/omikuji-props-8-v1.png` — 1.05 MiB
+- `assets/omikuji/omikuji-result-washi-v1.png` — 2.50 MiB
+- `assets/pilgrimage-v2/ceremony-shrine.png` — 3.16 MiB
+- `assets/tickets/sources-v2/ticket-cover-change-base.png` — 2.89 MiB
+- `assets/tickets/sources-v2/ticket-keychain-drop-base.png` — 2.79 MiB
+- `assets/tickets/ticket-cover-change-v1.png` — 2.54 MiB
+- `assets/tickets/ticket-keychain-drop-v1.png` — 2.54 MiB
+
+## Dynamic require calls
+
+None found.
+
+## Unresolved static references
+
+None found.

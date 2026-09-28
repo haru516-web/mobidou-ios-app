@@ -20,7 +20,7 @@ const FIXED_POPUP_ROOT = Platform.OS === 'web' ? ({ position: 'fixed' } as any) 
 const FULL_POPUP_BOUNDS = { top: 0, bottom: 0 };
 const HOME_WIDGET_CARD_HEIGHT = 244;
 const CUSTOM_WIDGET_PREVIEW_SCALE = 0.42;
-const NAV_BACKGROUND = require('../../assets/home-bottom-nav-washi-v1.png');
+const NAV_BACKGROUND = require('../../assets/home-bottom-nav-washi-v1.webp');
 
 export type PrimaryTab = 'home' | 'book' | 'walk' | 'collection';
 

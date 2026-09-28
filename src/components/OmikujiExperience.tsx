@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, ImageBackground, Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { Image } from 'expo-image';
+import { Animated, Easing, Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Image, ImageBackground } from 'expo-image';
 import type { OmikujiFortune } from '../data/omikuji';
 import { OMIKUJI_ATLASES } from '../data/omikujiAtlases';
 import type { PetCharacter } from '../petCatalog';
@@ -9,7 +9,7 @@ import { WashiPressable as Pressable } from './Washi';
 import { OmikujiResultCard } from './OmikujiResultCard';
 import { TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
-const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.png');
+const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.webp');
 // Frames 0–4 keep the paper inside the tube; repeat them three times before frames 5–7 reveal it.
 const DRAW_FRAME_SEQUENCE = [0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -127,7 +127,7 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
       <Animated.View pointerEvents="none" style={[S.revealRing, { borderColor: effect.color, opacity: ringOpacity, transform: [{ scale: ringScale }] }]} />
       {[0, 45, 90, 135].map(angle => <Animated.View key={angle} pointerEvents="none" style={[S.lightRay, { backgroundColor: effect.glow, opacity: glowOpacity, transform: [{ rotate: `${angle}deg` }, { rotate: raysRotation }, { scaleY: glowScale }] }]} />)}
       <Animated.View style={[S.revealPaper, { opacity: paperOpacity, transform: [{ translateY: paperY }, { scale: paperScale }, { rotate: paperRotation }] }]}>
-        <ImageBackground source={OMIKUJI_RESULT_BACKGROUND} resizeMode="cover" imageStyle={S.revealPaperImage} style={S.revealPaperBody}>
+        <ImageBackground source={OMIKUJI_RESULT_BACKGROUND} contentFit="cover" imageStyle={S.revealPaperImage} style={S.revealPaperBody}>
           <Text style={[S.date, brushTextStyle]}>本日のご縁みくじ</Text>
           <Animated.View style={[S.revealSeal, { borderColor: effect.color, transform: [{ scale: rankScale }] }]}>
             <Text style={[S.revealSealLabel, brushTextStyle]}>運勢</Text>

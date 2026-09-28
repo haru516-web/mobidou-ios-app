@@ -31,8 +31,8 @@ function locate(frame: number) {
 }
 type Metric = { columns: number; width: number; height: number; cellWidth: number; left: number; top: number; cropWidth: number; cropHeight: number };
 const metrics = rawMetrics as Record<string, Metric>;
-const STAGE = require('../../assets/pilgrimage-v2/ceremony-stage.png');
-const GATE = require('../../assets/pilgrimage-v2/ceremony-gate.png');
+const STAGE = require('../../assets/pilgrimage-v2/ceremony-stage.webp');
+const GATE = require('../../assets/pilgrimage-v2/ceremony-gate.webp');
 const REVEAL_PARTICLES = [
   { glyph: '✦', angle: -92, distance: 122, size: 18, color: '#D7B77F', delay: .12 },
   { glyph: '✧', angle: -56, distance: 108, size: 16, color: '#C98E72', delay: .18 },

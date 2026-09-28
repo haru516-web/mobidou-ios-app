@@ -1,11 +1,12 @@
 import React from 'react';
-import { ImageBackground, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { ImageBackground } from 'expo-image';
 import { categoriesForFortune, type OmikujiFortune } from '../data/omikuji';
 
-const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.png');
+const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.webp');
 
 export function OmikujiResultCard({ fortune, brushTextStyle }: { fortune: OmikujiFortune; brushTextStyle?: TextStyle }) {
-  return <ImageBackground source={OMIKUJI_RESULT_BACKGROUND} resizeMode="cover" imageStyle={S.paperImage} accessibilityLabel={`今日のおみくじは${fortune.rank}`} style={S.paper}>
+  return <ImageBackground source={OMIKUJI_RESULT_BACKGROUND} contentFit="cover" imageStyle={S.paperImage} accessibilityLabel={`今日のおみくじは${fortune.rank}`} style={S.paper}>
     <OmikujiResultContent fortune={fortune} brushTextStyle={brushTextStyle} />
   </ImageBackground>;
 }

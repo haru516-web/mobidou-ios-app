@@ -110,7 +110,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     name: 'くまモビー',
     catchphrase: 'ゆっくり寄り添うくま',
     accent: '#F2D1B1',
-    image: require('../assets/mobies/bearmobby.png'),
+    image: require('../assets/mobies/bearmobby.webp'),
     meaningTemplates: ['{meaning}ってことだよ。あわてず、ひとつずつ覚えようね。', '{meaning}という意味だね。ぼくはこういう言葉、好きだな。'],
   },
   {
@@ -118,7 +118,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     name: 'ボーイモビー',
     catchphrase: '元気なキャップボーイ',
     accent: '#BFD7F5',
-    image: require('../assets/mobies/boymobby.png'),
+    image: require('../assets/mobies/boymobby.webp'),
     meaningTemplates: ['{meaning}ってこと！ いいね、またひとつ使える言葉が増えた。', '{meaning}って意味だよ。次に見つけたらすぐ使ってみよう！'],
   },
   {
@@ -126,7 +126,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     name: 'いぬモビー',
     catchphrase: 'まっすぐなわんこ',
     accent: '#D9A66C',
-    image: require('../assets/mobies/dogmobby.png'),
+    image: require('../assets/mobies/dogmobby.webp'),
     meaningTemplates: ['{meaning}って意味だよ！ わかったら、しっぽを振りたくなるね。', '{meaning}ってこと。大丈夫、何度でも一緒に覚えよう！'],
   },
   {
@@ -134,7 +134,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     name: 'ラニモビー',
     catchphrase: '静かに甘えるふわふわねこ',
     accent: '#E7D3D2',
-    image: require('../assets/mobies/lanimobby.png'),
+    image: require('../assets/mobies/lanimobby.webp'),
     meaningTemplates: ['{meaning}って意味だよ。ふわっとした言葉だけど、ちゃんと伝わるね。', '{meaning}ってこと。ゆっくり言うと、もっと自然に聞こえるよ。'],
   },
   {
@@ -142,7 +142,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     name: 'おじモビー',
     catchphrase: '渋くて物知りなおじさん',
     accent: '#CBB79C',
-    image: require('../assets/mobies/ojimobby.png'),
+    image: require('../assets/mobies/ojimobby.webp'),
     meaningTemplates: ['{meaning}という意味じゃ。昔から、こういう言葉は会話の味になるんじゃよ。', '{meaning}ってことだな。急がず、使う場面ごと覚えるといい。'],
   },
   {
@@ -150,7 +150,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     name: 'レアモビー',
     catchphrase: '森から来た気まぐれねこ',
     accent: '#C8A46E',
-    image: require('../assets/mobies/reamobby.png'),
+    image: require('../assets/mobies/reamobby.webp'),
     meaningTemplates: ['{meaning}って意味。珍しい言葉を見つけると、ちょっと得した気分になるね。', '{meaning}ってことだよ。森の中で聞いたら、もっと不思議に響きそう。'],
   },
   {
@@ -158,7 +158,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     name: 'しかモビー',
     catchphrase: '森を駆けるやさしいしか',
     accent: '#D6A36F',
-    image: require('../assets/mobies/shikamobby.png'),
+    image: require('../assets/mobies/shikamobby.webp'),
     meaningTemplates: ['{meaning}という意味だよ。木漏れ日みたいに、ゆっくり覚えていこう。', '{meaning}ってこと。森で誰かに会ったら、使ってみたい言葉だね。'],
   },
   {
@@ -166,7 +166,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     name: 'うゆモビー',
     catchphrase: 'ふんわり甘えんぼ',
     accent: '#E7D7D3',
-    image: require('../assets/mobies/uyumobby.png'),
+    image: require('../assets/mobies/uyumobby.webp'),
     meaningTemplates: ['{meaning}って意味だよ。やさしい感じで、覚えやすいね。', '{meaning}ってこと。わからなくても、もう一度聞いていいからね。'],
   },
   {
@@ -174,7 +174,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     name: 'ウルフモビー',
     catchphrase: '静かに燃えるオオカミ',
     accent: '#AEBBCB',
-    image: require('../assets/mobies/wolfmobby.png'),
+    image: require('../assets/mobies/wolfmobby.webp'),
     meaningTemplates: ['{meaning}って意味だ。短くても、使う場面を選べば強く伝わる。', '{meaning}ということだな。言葉は数より、タイミングが大事だ。'],
   },
 ] as const;
