@@ -65,3 +65,20 @@ test('one malformed archived route is dropped without discarding the whole save'
   assert.equal(saved.onboarded, true);
   assert.deepEqual(Object.keys(saved.routes ?? {}), ['real:mountain']);
 });
+
+test('transfer codes round-trip and reject a damaged or edited code', async () => {
+  const { createTransferCode, readTransferData } = await import('../src/services/useJourney.ts');
+  const fresh = { day: '2026-09-09', steps: 0, totalSteps: 0, dayStart: 0, rewards: [], pending: [] };
+  const saved = normalizeSaved({ version: 1, onboarded: true, real: fresh, trial: fresh });
+  const code = createTransferCode(saved);
+  assert.equal(readTransferData(code).onboarded, true);
+
+  const edited = JSON.parse(code);
+  edited.data.real.totalSteps = 999999;
+  assert.throws(() => readTransferData(JSON.stringify(edited)), /書き換えられている/);
+
+  // Codes exported before checksums were added carry none and still import.
+  const legacy = JSON.parse(code);
+  delete legacy.checksum;
+  assert.equal(readTransferData(JSON.stringify(legacy)).onboarded, true);
+});

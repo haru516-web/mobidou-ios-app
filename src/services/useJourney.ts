@@ -111,7 +111,27 @@ export function normalizeSaved(value: unknown): Saved {
   return loaded;
 }
 
-function readTransferData(raw: string): Saved {
+/**
+ * Detects a transfer code that was cut off while copying or edited by hand.
+ * Without a server this cannot stop deliberate tampering (the hash can be
+ * recomputed); it only guards against silently importing a damaged record.
+ */
+function transferChecksum(data: unknown): string {
+  const text = JSON.stringify(data);
+  let a = 0x811c9dc5, b = 0x01000193 ^ text.length;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    a = Math.imul(a ^ code, 0x01000193);
+    b = Math.imul(b ^ code, 0x5bd1e995);
+  }
+  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
+}
+
+export function createTransferCode(saved: Saved): string {
+  return JSON.stringify({ format: 'mobidou-transfer', version: 1, checksum: transferChecksum(saved), data: saved });
+}
+
+export function readTransferData(raw: string): Saved {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -119,9 +139,11 @@ function readTransferData(raw: string): Saved {
     throw new Error('引き継ぎコードを読み取れません。コピーした内容を確認してください。');
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('引き継ぎコードの形式が正しくありません。');
-  const envelope = parsed as { format?: unknown; version?: unknown; data?: unknown };
+  const envelope = parsed as { format?: unknown; version?: unknown; checksum?: unknown; data?: unknown };
   if (envelope.format !== 'mobidou-transfer' || envelope.version !== 1) throw new Error('もび道で作成した引き継ぎコードではありません。');
   try {
+    // Codes exported before checksums existed have none; accept those as-is.
+    if (envelope.checksum !== undefined && envelope.checksum !== transferChecksum(envelope.data)) throw new Error('この引き継ぎコードは途中で欠けているか書き換えられているため、読み込めません。元の端末でコピーし直してください。');
     return normalizeSaved(envelope.data);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('この引き継ぎコード')) throw error;
@@ -221,7 +243,7 @@ export function useJourney() {
   };
   const exportTransfer = useCallback(async () => {
     await writing.current;
-    return JSON.stringify({ format: 'mobidou-transfer', version: 1, data: current.current });
+    return createTransferCode(current.current);
   }, []);
   const previewTransfer = useCallback((raw: string) => transferSummary(readTransferData(raw)), []);
   const importTransfer = useCallback(async (raw: string) => {
