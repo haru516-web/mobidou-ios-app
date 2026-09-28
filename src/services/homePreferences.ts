@@ -1,3 +1,5 @@
+// Note: the saved ID `miniature` is the daily omikuji card. The name is kept
+// only so existing saves keep loading.
 export const HOME_WIDGET_IDS = ['goshuin', 'miniature', 'map', 'steps'] as const;
 export const CUSTOM_HOME_WIDGET_IDS = ['goshuin', 'miniature', 'map'] as const;
 

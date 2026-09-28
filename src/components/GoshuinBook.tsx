@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
-import { BackHandler, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { C, Icon } from '../components';
+import { C } from '../components';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import type { Pilgrimage } from '../data/pilgrimages';
 import { getGoshuinBookCover } from '../data/goshuinBookCovers';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
+
+export type ShrineGridKind = 'goshuin' | 'miniature';
 
 export function GoshuinBookCover({ route, onOpen }: { route: Pilgrimage; onOpen: () => void }) {
   return <View style={S.coverStage}>
@@ -16,47 +18,27 @@ export function GoshuinBookCover({ route, onOpen }: { route: Pilgrimage; onOpen:
   </View>;
 }
 
-export function GoshuinImageListModal({ visible, route, shrines, acquiredCount, onClose, onSelect }: { visible: boolean; route?: Pilgrimage; shrines: Shrine[]; acquiredCount: number; onClose: () => void; onSelect: (shrine: Shrine, index: number) => void }) {
-  useEffect(() => {
-    if (!visible) return;
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; });
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return () => subscription.remove();
-    const keydown = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); onClose(); } };
-    window.addEventListener('keydown', keydown);
-    return () => { subscription.remove(); window.removeEventListener('keydown', keydown); };
-  }, [onClose, visible]);
-  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <View style={S.modalRoot} accessibilityViewIsModal role="dialog" aria-modal accessibilityLabel={`${route?.name ?? ''}の御朱印画像一覧`}>
-      <View style={S.scrim} />
-      <View style={S.modalCard}>
-        <WashiArt />
-        <View style={S.modalHeader}><View><Text style={S.modalEyebrow}>御朱印画像一覧</Text><Text numberOfLines={1} style={S.modalTitle}>{route?.name}</Text></View><Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={S.close}><Icon name="close" size={23} color={C.red} /></Pressable></View>
-        <ScrollView contentContainerStyle={S.grid} showsVerticalScrollIndicator={false}>
-          {shrines.map((shrine, index) => {
-            const acquired = index < acquiredCount;
-            return <Pressable artwork={false} key={`${shrine.id}-${index}`} accessibilityRole="button" accessibilityLabel={`${shrine.name}の御朱印、${acquired ? '取得済み' : '未取得'}`} onPress={() => onSelect(shrine, index)} style={[S.tile, !acquired && S.tileUnacquired]}>
-              <Image source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.stamp} />
-            </Pressable>;
-          })}
-        </ScrollView>
-      </View>
-    </View>
-  </Modal>;
-}
-
-export function CollectionImageList({ kind, shrines, ownedIds }: { kind: 'goshuin' | 'miniature'; shrines: readonly Shrine[]; ownedIds: readonly string[] }) {
+/**
+ * The one grid used for every goshuin / miniature list (御朱印帳の一覧 and
+ * コレクションの一覧), so both places look and behave the same.
+ */
+export function ShrineGrid({ kind, shrines, ownedIds, onSelect }: { kind: ShrineGridKind; shrines: readonly Shrine[]; ownedIds: readonly string[]; onSelect: (shrine: Shrine, index: number) => void }) {
   const owned = new Set(ownedIds);
-  const title = kind === 'goshuin' ? '御朱印画像一覧' : 'ミニチュア一覧';
-  return <View style={S.inlineCard} accessibilityLabel={title}>
+  const ownedCount = shrines.filter(shrine => owned.has(shrine.id)).length;
+  const noun = kind === 'goshuin' ? '御朱印' : 'ミニチュア';
+  return <View style={S.card} accessibilityLabel={`${noun}の一覧`}>
     <WashiArt />
-    <View style={S.inlineHeader}><Text style={S.modalEyebrow}>{title}</Text><Text style={S.inlineCount}>所持 {owned.size} / {shrines.length}</Text></View>
+    <Text style={S.count}>{`${noun} ${ownedCount} / ${shrines.length}`}</Text>
     <View style={S.grid}>
-      {shrines.map(shrine => {
+      {shrines.map((shrine, index) => {
         const acquired = owned.has(shrine.id);
         const source = kind === 'goshuin' ? STAMP_IMAGES[shrine.id] : COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
-        return <View key={shrine.id} accessibilityLabel={`${shrine.name}の${kind === 'goshuin' ? '御朱印' : 'ミニチュア'}、${acquired ? '取得済み' : '未取得'}`} style={[S.tile, !acquired && S.tileUnacquired]}>
-          <Image source={source} contentFit="contain" style={S.stamp} />
-        </View>;
+        return <Pressable artwork={false} key={`${shrine.id}-${index}`} accessibilityRole="button" accessibilityLabel={`${shrine.name}の${noun}、${acquired ? '取得済み' : '未取得'}`} onPress={() => onSelect(shrine, index)} style={S.cell}>
+          <View style={[S.tile, !acquired && S.tileUnacquired]}>
+            {source ? <Image source={source} contentFit="contain" style={[S.image, !acquired && S.imageUnacquired]} /> : null}
+          </View>
+          <Text numberOfLines={1} style={[S.name, !acquired && S.nameUnacquired]}>{acquired ? shrine.name : '未取得'}</Text>
+        </Pressable>;
       })}
     </View>
   </View>;
@@ -66,7 +48,14 @@ const S = StyleSheet.create({
   coverStage: { minHeight: 500, alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
   cover: { width: '68%', maxWidth: 288, aspectRatio: 2 / 3, overflow: 'visible', backgroundColor: 'transparent' },
   coverImage: { ...StyleSheet.absoluteFillObject },
-  modalRoot: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 18 }, scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: '#271E18AA' }, modalCard: { width: '100%', maxWidth: 440, maxHeight: '82%', borderRadius: 22, backgroundColor: '#FFF9EF', padding: 17, overflow: 'hidden' }, modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }, modalEyebrow: { color: C.red, fontSize: 10, letterSpacing: 1.2 }, modalTitle: { color: C.ink, fontFamily: 'Shippori', fontSize: 20, marginTop: 4, maxWidth: 310 }, close: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F0E5D7', alignItems: 'center', justifyContent: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }, tile: { width: '31%', aspectRatio: .82, borderRadius: 10, borderWidth: 1, borderColor: '#DED0BD', backgroundColor: '#FFFDF7', padding: 5, overflow: 'hidden' }, tileUnacquired: { opacity: .28, backgroundColor: '#E9E2D7' }, stamp: { width: '100%', height: '100%' },
-  inlineCard: { borderRadius: 22, backgroundColor: '#FFF9EF', padding: 17, overflow: 'hidden', minHeight: 420 }, inlineHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }, inlineCount: { color: C.muted, fontSize: 10 },
+  card: { borderRadius: 20, backgroundColor: '#FFF9EF', padding: 14, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
+  count: { color: C.muted, fontSize: 13, marginBottom: 12, textAlign: 'right' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: '3.5%', rowGap: 12 },
+  cell: { width: '31%' },
+  tile: { width: '100%', aspectRatio: .82, borderRadius: 10, borderWidth: 1, borderColor: '#DED0BD', backgroundColor: '#FFFDF7', padding: 5, overflow: 'hidden' },
+  tileUnacquired: { backgroundColor: '#EEE7DC', borderStyle: 'dashed' },
+  image: { width: '100%', height: '100%' },
+  imageUnacquired: { opacity: .22 },
+  name: { color: C.ink, fontFamily: 'Shippori', fontSize: 12, marginTop: 5, textAlign: 'center' },
+  nameUnacquired: { color: '#9A8F80' },
 });

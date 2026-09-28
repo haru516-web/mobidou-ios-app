@@ -18,7 +18,8 @@ export function StepProgressRing({ steps, goal, size = 248, compact = false }: S
 
   return <View style={[S.wrap, { width: size, height: size, marginTop: size >= 240 ? 3 : 0 }]}>
     <Svg width={size} height={size} style={S.svg}>
-      <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#D8D0C4" strokeWidth={stroke} fill="none" strokeLinecap="round" />
+      {/* A paper disc behind the numbers keeps them legible over photo backgrounds. */}
+      <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#D8D0C4" strokeWidth={stroke} fill="#FFF9EF" fillOpacity={.88} strokeLinecap="round" />
       <Circle cx={size / 2} cy={size / 2} r={radius} stroke={C.red} strokeWidth={stroke} fill="none" strokeLinecap="round" strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={circumference * (1 - progress)} rotation={-90} origin={`${size / 2}, ${size / 2}`} />
     </Svg>
     <View style={S.center}>
@@ -32,8 +33,8 @@ const S = StyleSheet.create({
   wrap: { alignItems: 'center', justifyContent: 'center' },
   svg: { position: 'absolute' },
   center: { alignItems: 'center', justifyContent: 'center' },
-  count: { fontWeight: '300', color: C.ink, letterSpacing: 1 },
+  count: { fontWeight: '400', color: C.ink, letterSpacing: 1 },
   compactCount: { fontWeight: '500', color: '#201812' },
   unit: { fontFamily: SERIF, fontSize: 16, color: C.muted, marginTop: -2 },
-  goal: { fontSize: 10, color: C.muted, marginTop: 9, letterSpacing: 1 },
+  goal: { fontSize: 13, color: '#6F6356', marginTop: 9, letterSpacing: 1 },
 });
