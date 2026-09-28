@@ -6,7 +6,8 @@ import type { PetId } from '../petCatalog';
 import { PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import rawWalkMetrics from '../data/pilgrimageSpriteMetrics.json';
 import { C, Icon } from '../components';
-import { WashiPressable as Pressable } from './Washi';
+import type { PopButtonId } from '../data/popButtonImages';
+import { PopButton } from './PopButton';
 
 // v5: the default spot moved off the old menu button.
 const STORAGE_KEY = 'mobidou.floating-mobby-position.v5';
@@ -14,7 +15,10 @@ const DEFAULT_Y_RATIO = 0.4;
 const MOBBY_SIZE = 88;
 const EDGE_GUTTER = 8;
 const TOP_CLEARANCE = 64;
-const GUIDE_WIDTH = 260;
+const MENU_RADIUS = 104;
+const MENU_ITEM_WIDTH = 82;
+const MENU_ITEM_HEIGHT = 92;
+const MENU_DISC_CENTER_Y = 32;
 const WALK_DISPLAY_HEIGHT = MOBBY_SIZE - 6;
 
 type WalkMetric = {
@@ -33,19 +37,12 @@ const walkMetrics = rawWalkMetrics as Record<string, WalkMetric>;
 type Point = { x: number; y: number };
 type LayoutSize = { width: number; height: number };
 
-export type MobbyGuideAction = {
+export type MobbyMenuItem = {
+  id: PopButtonId;
   label: string;
   icon: React.ComponentProps<typeof Icon>['name'];
   onPress: () => void;
-  primary?: boolean;
-};
-
-/** What Mobby says when tapped: one situational line plus shortcuts. */
-export type MobbyGuide = {
-  message: string;
-  actions: readonly MobbyGuideAction[];
-  /** Shows a small dot on Mobby when there is something worth doing now. */
-  attention?: boolean;
+  badge?: number;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -111,13 +108,13 @@ function WalkFrame({ source, petId, frame }: { source: ImageSourcePropType; petI
  * tap opens a small guide: what to do next, with shortcuts. Navigation itself
  * lives in the tab bar and segmented controls, so Mobby is never required.
  */
-export function FloatingMobby({ image, name, petId, guide, open, onOpenChange, bottomInset, resetPositionOnMount = false }: { image: ImageSourcePropType; name: string; petId: PetId; guide: MobbyGuide; open: boolean; onOpenChange: (open: boolean) => void; bottomInset: number; resetPositionOnMount?: boolean }) {
+export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOpenChange, bottomInset, resetPositionOnMount = false }: { image: ImageSourcePropType; name: string; petId: PetId; items: readonly MobbyMenuItem[]; badge?: number; open: boolean; onOpenChange: (open: boolean) => void; bottomInset: number; resetPositionOnMount?: boolean }) {
   const [layout, setLayout] = useState<LayoutSize>({ width: 0, height: 0 });
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [hydrated, setHydrated] = useState(false);
   const [walking, setWalking] = useState(false);
   const [walkFrame, setWalkFrame] = useState(0);
-  const [guideHeight, setGuideHeight] = useState(0);
+  const [menuMounted, setMenuMounted] = useState(open);
   const savedRatioRef = useRef<Point | null>(null);
   const initializedRef = useRef(false);
   const positionRef = useRef(position);
@@ -126,7 +123,7 @@ export function FloatingMobby({ image, name, petId, guide, open, onOpenChange, b
   const draggingRef = useRef(false);
   const movedRef = useRef(false);
   const activePointerIdRef = useRef<number | null>(null);
-  const guideProgress = useRef(new Animated.Value(open ? 1 : 0)).current;
+  const menuProgress = useRef(new Animated.Value(open ? 1 : 0)).current;
   const walkSource = PILGRIMAGE_WALK_ATLASES[petId];
   const toggle = useCallback(() => onOpenChange(!open), [onOpenChange, open]);
 
@@ -142,15 +139,13 @@ export function FloatingMobby({ image, name, petId, guide, open, onOpenChange, b
   }, [walking]);
 
   useEffect(() => {
-    const animation = Animated.timing(guideProgress, {
-      toValue: open ? 1 : 0,
-      duration: 200,
-      easing: open ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
-      useNativeDriver: Platform.OS !== 'web',
-    });
-    animation.start();
+    if (open) setMenuMounted(true);
+    const animation = open
+      ? Animated.spring(menuProgress, { toValue: 1, damping: 14, stiffness: 170, mass: .8, useNativeDriver: Platform.OS !== 'web' })
+      : Animated.timing(menuProgress, { toValue: 0, duration: 170, easing: Easing.in(Easing.cubic), useNativeDriver: Platform.OS !== 'web' });
+    animation.start(({ finished }) => { if (finished && !open) setMenuMounted(false); });
     return () => animation.stop();
-  }, [open, guideProgress]);
+  }, [open, menuProgress]);
 
   useEffect(() => {
     if (resetPositionOnMount) {
@@ -288,19 +283,19 @@ export function FloatingMobby({ image, name, petId, guide, open, onOpenChange, b
     setLayout({ width, height });
   }, []);
 
-  // The guide opens above Mobby when there is room, otherwise below it, and
-  // is kept inside the screen horizontally.
-  const guideLeft = clamp(position.x + MOBBY_SIZE / 2 - GUIDE_WIDTH / 2, EDGE_GUTTER, Math.max(EDGE_GUTTER, layout.width - GUIDE_WIDTH - EDGE_GUTTER));
-  const guideAbove = position.y - guideHeight - 10 >= EDGE_GUTTER;
-  const guideTop = guideAbove ? position.y - guideHeight - 10 : position.y + MOBBY_SIZE + 6;
-  const tailLeft = clamp(position.x + MOBBY_SIZE / 2 - guideLeft - 8, 16, GUIDE_WIDTH - 32);
-  const animatedGuideStyle = {
-    opacity: guideProgress,
-    transform: [
-      { translateY: guideProgress.interpolate({ inputRange: [0, 1], outputRange: [guideAbove ? 8 : -8, 0] }) },
-      { scale: guideProgress.interpolate({ inputRange: [0, 1], outputRange: [.96, 1] }) },
-    ],
-  };
+  // The menu fans out around Mobby toward the middle of the screen, so it
+  // opens into free space wherever Mobby has been dragged. Each button pops
+  // out from Mobby with a small stagger, then floats in place.
+  const centerX = position.x + MOBBY_SIZE / 2;
+  const centerY = position.y + MOBBY_SIZE / 2;
+  const towardMiddle = Math.atan2(layout.height / 2 - centerY, layout.width / 2 - centerX);
+  const spread = Math.min(Math.PI * .85, (Math.PI / 4.2) * Math.max(0, items.length - 1));
+  const menuSlots = items.map((_, index) => {
+    const angle = towardMiddle + (items.length <= 1 ? 0 : (index / (items.length - 1) - .5) * spread);
+    const left = clamp(centerX + Math.cos(angle) * MENU_RADIUS - MENU_ITEM_WIDTH / 2, 4, Math.max(4, layout.width - MENU_ITEM_WIDTH - 4));
+    const top = clamp(centerY + Math.sin(angle) * MENU_RADIUS - MENU_DISC_CENTER_Y, 4, Math.max(4, layout.height - bottomInset - MENU_ITEM_HEIGHT));
+    return { left, top };
+  });
   const petVisual = walking
     ? walkSource
       ? <WalkFrame source={walkSource} petId={petId} frame={walkFrame} />
@@ -308,11 +303,11 @@ export function FloatingMobby({ image, name, petId, guide, open, onOpenChange, b
     : <Image pointerEvents="none" source={image} contentFit="contain" style={styles.image} />;
 
   return <View pointerEvents="box-none" onLayout={handleLayout} style={styles.overlay}>
-    {open && <RNPressable accessibilityRole="button" accessibilityLabel={`${name}の案内を閉じる`} onPress={() => onOpenChange(false)} style={StyleSheet.absoluteFill} />}
+    {open && <RNPressable accessibilityRole="button" accessibilityLabel={`${name}のメニューを閉じる`} onPress={() => onOpenChange(false)} style={[StyleSheet.absoluteFill, styles.scrim]} />}
     {initializedRef.current ? <View
       {...webHandlers}
       accessibilityRole="button"
-      accessibilityLabel={`${name}。タップで案内を${open ? '閉じる' : 'ひらく'}`}
+      accessibilityLabel={`${name}。タップでメニューを${open ? '閉じる' : 'ひらく'}${badge > 0 ? `。新着${badge}件` : ''}`}
       accessibilityHint="ドラッグで画面内の好きな場所へ動かせます"
       accessibilityState={{ expanded: open }}
       onAccessibilityTap={toggle}
@@ -320,48 +315,38 @@ export function FloatingMobby({ image, name, petId, guide, open, onOpenChange, b
     >
       <View pointerEvents="none" style={styles.shadow} />
       {petVisual}
-      {guide.attention && !open && <View pointerEvents="none" style={styles.attention} />}
+      {badge > 0 && !open && <View pointerEvents="none" style={styles.badge}><Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text></View>}
     </View> : null}
-    {initializedRef.current ? <Animated.View
-      pointerEvents={open ? 'auto' : 'none'}
-      accessibilityElementsHidden={!open}
-      aria-hidden={!open ? true : undefined}
-      importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
-      onLayout={event => { const height = event.nativeEvent.layout.height; setGuideHeight(previous => previous === height ? previous : height); }}
-      style={[styles.guide, { left: guideLeft, top: guideTop }, animatedGuideStyle]}
-    >
-      <View style={[styles.guideTail, guideAbove ? styles.guideTailBelow : styles.guideTailAbove, { left: tailLeft }]} />
-      <MobbyGuideContent guide={guide} onChoose={() => onOpenChange(false)} />
-    </Animated.View> : null}
+    {initializedRef.current && menuMounted ? items.map((item, index) => {
+      const slot = menuSlots[index];
+      const start = Math.min(.5, index * .1);
+      const itemProgress = menuProgress.interpolate({ inputRange: [start, Math.min(1, start + .5)], outputRange: [0, 1], extrapolate: 'clamp' });
+      return <Animated.View
+        key={item.id}
+        pointerEvents={open ? 'box-none' : 'none'}
+        accessibilityElementsHidden={!open}
+        importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
+        style={[styles.menuItem, { left: slot.left, top: slot.top, opacity: itemProgress, transform: [
+          { translateX: itemProgress.interpolate({ inputRange: [0, 1], outputRange: [centerX - slot.left - MENU_ITEM_WIDTH / 2, 0] }) },
+          { translateY: itemProgress.interpolate({ inputRange: [0, 1], outputRange: [centerY - slot.top - MENU_DISC_CENTER_Y, 0] }) },
+          { scale: itemProgress.interpolate({ inputRange: [0, 1], outputRange: [.3, 1] }) },
+        ] }]}
+      >
+        <PopButton id={item.id} label={item.label} icon={item.icon} badge={item.badge} phase={index / Math.max(1, items.length)} onPress={() => { onOpenChange(false); item.onPress(); }} />
+      </Animated.View>;
+    }) : null}
   </View>;
-}
-
-function MobbyGuideContent({ guide, onChoose }: { guide: MobbyGuide; onChoose: () => void }) {
-  return <>
-    <Text style={styles.guideMessage}>{guide.message}</Text>
-    {guide.actions.map(action => <Pressable key={action.label} artwork={false} accessibilityRole="button" accessibilityLabel={action.label} onPress={() => { onChoose(); action.onPress(); }} style={[styles.guideAction, action.primary && styles.guideActionPrimary]}>
-      <Icon name={action.icon} size={18} color={action.primary ? '#FFF9EF' : C.red} />
-      <Text numberOfLines={1} style={[styles.guideActionText, action.primary && styles.guideActionTextPrimary]}>{action.label}</Text>
-      <Icon name="chevron-forward" size={15} color={action.primary ? '#FFF9EFCC' : '#B09A86'} />
-    </Pressable>)}
-  </>;
 }
 
 const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, zIndex: 55 },
+  scrim: { backgroundColor: '#2A1D1459' },
   anchor: { position: 'absolute', width: MOBBY_SIZE, height: MOBBY_SIZE, alignItems: 'center', justifyContent: 'center' },
   image: { width: 82, height: 82 },
   shadow: { position: 'absolute', bottom: 4, width: 49, height: 8, borderRadius: 20, backgroundColor: '#4A3B3025' },
-  attention: { position: 'absolute', top: 8, right: 10, width: 14, height: 14, borderRadius: 7, backgroundColor: C.red, borderWidth: 2, borderColor: '#FFF9EF' },
+  badge: { position: 'absolute', top: 4, right: 6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: C.red, borderWidth: 2, borderColor: '#FFF9EF' },
+  badgeText: { color: '#FFF9EF', fontSize: 11, fontWeight: '800' },
   webDrag: { cursor: 'grab', touchAction: 'none', userSelect: 'none' } as any,
   walkFallback: { width: MOBBY_SIZE, height: MOBBY_SIZE, alignItems: 'center', justifyContent: 'center' },
-  guide: { position: 'absolute', width: GUIDE_WIDTH, padding: 12, gap: 8, zIndex: 60, borderRadius: 18, borderWidth: 1, borderColor: '#D8C8B3', backgroundColor: '#FFF9EF', shadowColor: '#5B4433', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 9 },
-  guideTail: { position: 'absolute', width: 16, height: 16, backgroundColor: '#FFF9EF', borderColor: '#D8C8B3', transform: [{ rotate: '45deg' }] },
-  guideTailBelow: { bottom: -8, borderRightWidth: 1, borderBottomWidth: 1 },
-  guideTailAbove: { top: -8, borderLeftWidth: 1, borderTopWidth: 1 },
-  guideMessage: { color: '#4E3A2D', fontFamily: 'ShipporiBold', fontSize: 15, lineHeight: 22, paddingHorizontal: 2, paddingBottom: 2 },
-  guideAction: { minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 12, backgroundColor: '#FFFCF6', borderWidth: 1, borderColor: '#E7DCCB' },
-  guideActionPrimary: { backgroundColor: C.red, borderColor: C.red },
-  guideActionText: { flex: 1, color: '#5E4A3C', fontFamily: 'ShipporiBold', fontSize: 14 },
-  guideActionTextPrimary: { color: '#FFF9EF' },
+  menuItem: { position: 'absolute', width: MENU_ITEM_WIDTH, zIndex: 60 },
 });

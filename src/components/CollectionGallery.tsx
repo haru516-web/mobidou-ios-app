@@ -129,15 +129,20 @@ function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWi
   </View>;
 }
 
-export type CollectionGalleryView = 'display' | 'miniatures' | 'passes';
+export type CollectionSection = 'goshuin' | 'miniatures' | 'passes';
+
+function SectionHeading({ title, note }: { title: string; note?: string }) {
+  return <View style={S.sectionHeading}><Text style={S.sectionTitle}>{title}</Text>{!!note && <Text style={S.sectionNote}>{note}</Text>}</View>;
+}
 
 /**
- * `display` is the swipeable 展示室, `miniatures` the list view of the same
- * keychains (both open the keychain detail below), and `passes` the pass
- * wallet, which also owns the book-cover picker so the cover change stays
- * reachable.
+ * One continuous page: the swipeable 展示室, then the 御朱印 list (passed in,
+ * since its detail lives in App), the ミニチュア list (sharing the keychain
+ * detail below), and the pass wallet, which also owns the book-cover picker.
+ * `onSectionLayout` reports where each section starts so the pop buttons can
+ * jump to it.
  */
-export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, activeRoute, coverOwned = false, selectedCover = 'normal', onRedeemCoverChange, onSelectCover, zoom, onZoomChange, view = 'display' }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; activeRoute?: Pilgrimage; coverOwned?: boolean; selectedCover?: 'normal' | 'route'; onRedeemCoverChange?: (routeId: string) => void; onSelectCover?: (routeId: string, design: 'normal' | 'route') => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; view?: CollectionGalleryView }) {
+export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, activeRoute, coverOwned = false, selectedCover = 'normal', onRedeemCoverChange, onSelectCover, zoom, onZoomChange, goshuinSection, onSectionLayout }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; activeRoute?: Pilgrimage; coverOwned?: boolean; selectedCover?: 'normal' | 'route'; onRedeemCoverChange?: (routeId: string) => void; onSelectCover?: (routeId: string, design: 'normal' | 'route') => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; goshuinSection?: React.ReactNode; onSectionLayout?: (section: CollectionSection, y: number) => void }) {
   const { width, height } = useWindowDimensions();
   const viewportWidth = Math.min(480, Math.max(1, width));
   const roomHeight = Math.max(470, Math.min(720, height - 220));
@@ -230,7 +235,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
 
   return (
     <View>
-      {view === 'display' && <View onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={[S.roomStage, { width: viewportWidth, height: roomHeight, marginHorizontal: -24 }]}>
+      <View onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={[S.roomStage, { width: viewportWidth, height: roomHeight, marginHorizontal: -24 }]}>
         <ScrollView
           ref={displayScroll}
           horizontal
@@ -266,9 +271,18 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
             </View>
           </View>
         </ScrollView>
+      </View>
+      {goshuinSection && <View onLayout={({ nativeEvent }) => onSectionLayout?.('goshuin', nativeEvent.layout.y)} style={S.section}>
+        <SectionHeading title="御朱印" note={`${rewarded.size} / ${showcase.length}`} />
+        {goshuinSection}
       </View>}
-      {view === 'miniatures' && <ShrineGrid kind="miniature" shrines={showcase} ownedIds={showcase.filter(shrine => (special.keychains[shrine.id] ?? 0) > 0).map(shrine => shrine.id)} onSelect={shrine => setDetail(shrine)} />}
-      {view === 'passes' && <View style={S.passWallet}>
+      <View onLayout={({ nativeEvent }) => onSectionLayout?.('miniatures', nativeEvent.layout.y)} style={S.section}>
+        <SectionHeading title="ミニチュア" note={`${showcase.filter(shrine => (special.keychains[shrine.id] ?? 0) > 0).length} / ${showcase.length}`} />
+        <ShrineGrid showCount={false} kind="miniature" shrines={showcase} ownedIds={showcase.filter(shrine => (special.keychains[shrine.id] ?? 0) > 0).map(shrine => shrine.id)} onSelect={shrine => setDetail(shrine)} />
+      </View>
+      <View onLayout={({ nativeEvent }) => onSectionLayout?.('passes', nativeEvent.layout.y)} style={S.section}>
+      <SectionHeading title="授与品" />
+      <View style={S.passWallet}>
         <WashiArt />
         <View style={S.passHeader}><View><Text style={S.passEyebrow}>旅の授与品</Text><Text style={S.passTitle}>集めたパス</Text></View><Icon name="ticket-outline" size={25} color="#9b443c" /></View>
         <Text style={S.passIntro}>小さな一歩を、次の特別な出会いへ。</Text>
@@ -287,7 +301,8 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
         {!!purchaseNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{purchaseNotice}</Text>}
         {!!coverNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{coverNotice}</Text>}
         <Text style={S.passNote}>仮取得はテスト用です。決済は発生しません</Text>
-      </View>}
+      </View>
+      </View>
 
       <Modal visible={coverPickerOpen} transparent animationType="fade" onRequestClose={() => setCoverPickerOpen(false)}>
         <View style={S.backdrop}>
@@ -344,6 +359,10 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
 }
 
 const S = StyleSheet.create({
+  section: { marginTop: 26 },
+  sectionHeading: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
+  sectionTitle: { fontFamily: SERIF, fontSize: 21, color: '#3C3026', letterSpacing: 1 },
+  sectionNote: { color: '#786A58', fontSize: 13 },
   ticketItem: { flex: 1, minWidth: 0, alignItems: 'center' },
   ticketImageFrame: { width: '100%', aspectRatio: 2 / 3, position: 'relative' },
   ticketImage: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },

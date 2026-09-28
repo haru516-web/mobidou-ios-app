@@ -20,7 +20,6 @@ const FULL_POPUP_BOUNDS = { top: 0, bottom: 0 };
 const HOME_WIDGET_CARD_HEIGHT = 244;
 const CUSTOM_WIDGET_PREVIEW_SCALE = 0.42;
 const NAV_BACKGROUND = require('../../assets/home-bottom-nav-washi-v1.webp');
-const SEGMENT_INSET = 3;
 export type PrimaryTab = 'home' | 'book' | 'walk' | 'collection';
 
 const PRIMARY_NAV_ITEMS = [
@@ -29,24 +28,6 @@ const PRIMARY_NAV_ITEMS = [
   { id: 'walk', title: 'おでかけ', icon: 'footsteps-outline' },
   { id: 'collection', title: 'コレクション', icon: 'albums-outline' },
 ] as const;
-
-const SPRING = { damping: 22, stiffness: 260, mass: .8 };
-
-/** Slides a highlight to `index` among `count` equal slots of `width`. */
-function useSlidingHighlight(index: number, count: number, width: number) {
-  const reduced = useReducedMotion();
-  const offset = useRef(new Animated.Value(0)).current;
-  const placed = useRef(false);
-  const slot = width / Math.max(1, count);
-  useEffect(() => {
-    if (!width) return;
-    const target = slot * Math.max(0, index);
-    // Jump into place on the first layout; animate every change after that.
-    if (!placed.current || reduced) { offset.setValue(target); placed.current = true; return; }
-    Animated.spring(offset, { toValue: target, useNativeDriver: Platform.OS !== 'web', ...SPRING }).start();
-  }, [index, offset, reduced, slot, width]);
-  return { offset, slot };
-}
 
 type HomeBottomNavigationProps = {
   tab: PrimaryTab;
@@ -68,24 +49,6 @@ export function HomeBottomNavigation({ tab, onNavigate, disabled = false }: Home
         </Pressable>)}
       </View>
     </View>
-  </View>;
-}
-
-export type SegmentOption<T extends string> = { id: T; label: string };
-
-/** UISegmentedControl-style switcher with a sliding paper thumb. */
-export function SegmentedControl<T extends string>({ options, value, onChange, label }: { options: readonly SegmentOption<T>[]; value: T; onChange: (value: T) => void; label: string }) {
-  const [width, setWidth] = useState(0);
-  const index = options.findIndex(option => option.id === value);
-  const { offset, slot } = useSlidingHighlight(index, options.length, width);
-  return <View style={[S.segmented, CONTINUOUS_CORNER]} accessibilityRole="tablist" accessibilityLabel={label} onLayout={event => setWidth(event.nativeEvent.layout.width - SEGMENT_INSET * 2)}>
-    {width > 0 && <Animated.View pointerEvents="none" style={[S.segmentThumb, CONTINUOUS_CORNER, { width: slot, transform: [{ translateX: offset }] }]} />}
-    {options.map(option => {
-      const selected = option.id === value;
-      return <Pressable key={option.id} artwork={false} accessibilityRole="tab" accessibilityLabel={option.label} accessibilityState={{ selected }} onPress={() => { if (!selected) onChange(option.id); }} style={S.segment}>
-        <Text numberOfLines={1} style={[S.segmentText, selected && S.segmentTextActive]}>{option.label}</Text>
-      </Pressable>;
-    })}
   </View>;
 }
 
@@ -306,11 +269,6 @@ const S = StyleSheet.create({
   primaryNav: { flexDirection: 'row' },
   navItem: { flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 2 },
   navIndicator: { width: 17, height: 3, backgroundColor: C.red, borderRadius: 4, marginTop: 1 },
-  segmented: { flexDirection: 'row', padding: SEGMENT_INSET, borderRadius: 13, backgroundColor: '#E8DCCBE6', borderWidth: StyleSheet.hairlineWidth, borderColor: '#3A2A1E24' },
-  segmentThumb: { position: 'absolute', top: SEGMENT_INSET, bottom: SEGMENT_INSET, left: SEGMENT_INSET, borderRadius: 10, backgroundColor: '#FFFCF7', shadowColor: '#2A1D14', shadowOpacity: .16, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
-  segment: { flex: 1, height: 34, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  segmentText: { color: '#5F554B', fontSize: 13.5, fontWeight: '500' },
-  segmentTextActive: { color: C.ink, fontWeight: '700' },
   popupRoot: { position: 'absolute', left: 0, right: 0, top: 86, bottom: 77, zIndex: 30, alignItems: 'center' },
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },
   mobyRoot: { justifyContent: 'flex-start', zIndex: 90 },

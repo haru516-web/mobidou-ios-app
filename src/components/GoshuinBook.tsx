@@ -22,13 +22,13 @@ export function GoshuinBookCover({ route, onOpen }: { route: Pilgrimage; onOpen:
  * The one grid used for every goshuin / miniature list (御朱印帳の一覧 and
  * コレクションの一覧), so both places look and behave the same.
  */
-export function ShrineGrid({ kind, shrines, ownedIds, onSelect }: { kind: ShrineGridKind; shrines: readonly Shrine[]; ownedIds: readonly string[]; onSelect: (shrine: Shrine, index: number) => void }) {
+export function ShrineGrid({ kind, shrines, ownedIds, onSelect, showCount = true }: { kind: ShrineGridKind; shrines: readonly Shrine[]; ownedIds: readonly string[]; onSelect: (shrine: Shrine, index: number) => void; showCount?: boolean }) {
   const owned = new Set(ownedIds);
   const ownedCount = shrines.filter(shrine => owned.has(shrine.id)).length;
   const noun = kind === 'goshuin' ? '御朱印' : 'ミニチュア';
   return <View style={S.card} accessibilityLabel={`${noun}の一覧`}>
     <WashiArt />
-    <Text style={S.count}>{`${noun} ${ownedCount} / ${shrines.length}`}</Text>
+    {showCount && <Text style={S.count}>{`${noun} ${ownedCount} / ${shrines.length}`}</Text>}
     <View style={S.grid}>
       {shrines.map((shrine, index) => {
         const acquired = owned.has(shrine.id);
