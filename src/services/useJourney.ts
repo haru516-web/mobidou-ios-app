@@ -11,6 +11,7 @@ import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidg
 import { localOmikujiDay } from '../data/omikuji';
 
 const KEY = '@mobidou/journey/v1';
+const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
 export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
 type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null };
 export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
@@ -71,7 +72,7 @@ function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: numbe
   return { ...saved, [field]: next, [specialField]: addDropsForNewRewards(saved[specialField], previous, next) };
 }
 
-function normalizeSaved(value: unknown): Saved {
+export function normalizeSaved(value: unknown): Saved {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('記録の形式が正しくありません。');
   const p = value as Partial<Saved>;
   if (p.version !== 1 || !p.real || !p.trial) throw new Error('この引き継ぎコードには対応していません。');
@@ -93,7 +94,11 @@ function normalizeSaved(value: unknown): Saved {
     backgroundId: isBackgroundId(p.backgroundId) ? p.backgroundId : defaults.backgroundId,
     homeWidgetOrder: normalizeHomeWidgetOrder(p.homeWidgetOrder),
     homeWidgetItems: normalizeHomeWidgetItems(p.homeWidgetItems),
-    routes: Object.fromEntries(Object.entries(p.routes && typeof p.routes === 'object' ? p.routes : {}).map(([key, progress]) => [key, normalizeProgress(progress)])),
+    // Archived route records are secondary; one malformed entry must not
+    // discard the whole save, so drop only that entry.
+    routes: Object.fromEntries(Object.entries(p.routes && typeof p.routes === 'object' ? p.routes : {}).flatMap(([key, progress]) => {
+      try { return [[key, normalizeProgress(progress)] as const]; } catch { return []; }
+    })),
     affection: Object.fromEntries(Object.entries(p.affection && typeof p.affection === 'object' ? p.affection : {}).filter(([key, count]) => isPetId(key) && Number.isFinite(count) && count >= 0)),
     omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null,
   };
@@ -150,13 +155,21 @@ export function useJourney() {
   }, []);
   useEffect(() => {
     mounted.current = true;
-    AsyncStorage.getItem(KEY).then(raw => {
-      if (!mounted.current) return;
-      if (raw) {
-        const loaded = normalizeSaved(JSON.parse(raw));
-        current.current = loaded; setData(loaded);
-        void AsyncStorage.setItem(KEY, JSON.stringify(loaded));
+    AsyncStorage.getItem(KEY).then(async raw => {
+      if (!mounted.current || !raw) return;
+      let loaded: Saved;
+      try {
+        loaded = normalizeSaved(JSON.parse(raw));
+      } catch {
+        // The stored record is unreadable. Keep the untouched original under
+        // a separate key before anything can overwrite it, then continue with
+        // a fresh, writable record instead of silently dropping every change.
+        await AsyncStorage.setItem(CORRUPTED_BACKUP_KEY, raw);
+        if (mounted.current) setError('保存した記録を読み込めなかったため、新しく記録を始めます。以前のデータは端末内に退避しました。');
+        return;
       }
+      current.current = loaded; setData(loaded);
+      void AsyncStorage.setItem(KEY, JSON.stringify(loaded));
     }).catch(() => { readOnly.current = true; if (mounted.current) setError('保存した記録を読み込めませんでした。元のデータは上書きせず、アプリを開き直してください。'); })
       .finally(() => { if (mounted.current) setReady(true); });
     return () => { mounted.current = false; };
