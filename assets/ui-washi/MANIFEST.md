@@ -24,10 +24,15 @@
 | `assets/ui-washi/goshuin/route-plate.webp` | 768×256 | WEBP |
 | `assets/ui-washi/home/bubble-left.webp` | 1024×640 | WEBP |
 | `assets/ui-washi/home/bubble-right.webp` | 1024×640 | WEBP |
+| `assets/ui-washi/home/bubble-wide-left.webp` | 1600×470 | WEBP |
+| `assets/ui-washi/home/bubble-wide-right.webp` | 1600×470 | WEBP |
 | `assets/ui-washi/home/nav-bar.webp` | 1536×360 | WEBP |
 | `assets/ui-washi/home/nav-tab-active.webp` | 256×256 | WEBP |
 | `assets/ui-washi/home/plate-goshuin.webp` | 1024×512 | WEBP |
 | `assets/ui-washi/home/plate-omikuji.webp` | 1024×512 | WEBP |
+| `assets/ui-washi/home/plate-portrait-goshuin.webp` | 640×1000 | WEBP |
+| `assets/ui-washi/home/plate-portrait-omikuji.webp` | 640×1000 | WEBP |
+| `assets/ui-washi/home/plate-steps-wide.webp` | 1600×640 | WEBP |
 | `assets/ui-washi/home/plate-steps.webp` | 1024×512 | WEBP |
 | `assets/ui-washi/walk/enso-stroke.webp` | 1024×1024 | WEBP |
 | `assets/ui-washi/walk/enso-track.webp` | 1024×1024 | WEBP |
