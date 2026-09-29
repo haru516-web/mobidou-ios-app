@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { C, Icon } from '../components';
+import { BRUSH, C, Icon } from '../components';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import type { Pilgrimage } from '../data/pilgrimages';
@@ -105,12 +105,12 @@ const S = StyleSheet.create({
   tileUnacquired: { backgroundColor: '#EEE7DC', borderStyle: 'dashed' },
   image: { width: '100%', height: '100%' },
   imageUnacquired: { opacity: .22 },
-  name: { color: C.ink, fontFamily: 'Shippori', fontSize: 12, marginTop: 5, textAlign: 'center' },
+  name: { color: C.ink, fontFamily: BRUSH, fontSize: 12, marginTop: 5, textAlign: 'center' },
   nameUnacquired: { color: '#9A8F80' },
   count2: { color: C.muted, fontSize: 13 },
   pagedHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
-  pagedTitle: { fontFamily: 'ShipporiBold', fontSize: 19, color: C.ink, letterSpacing: 1 },
-  pagedName: { color: C.ink, fontFamily: 'Shippori', fontSize: 11, marginTop: 4, textAlign: 'center' },
+  pagedTitle: { fontFamily: BRUSH, fontSize: 19, color: C.ink, letterSpacing: 1 },
+  pagedName: { color: C.ink, fontFamily: BRUSH, fontSize: 11, marginTop: 4, textAlign: 'center' },
   pagedPager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, paddingTop: 8 },
   pagedArrow: { width: 44, height: 36, borderRadius: 18, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' },
   pagedCounter: { fontFamily: 'Shippori', fontSize: 15, color: C.ink, letterSpacing: 2, minWidth: 64, textAlign: 'center' },

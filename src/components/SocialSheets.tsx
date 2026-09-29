@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { C, Icon, SERIF } from '../components';
+import { BRUSH, C, Icon } from '../components';
 import { getPetCharacter, type PetCharacter } from '../petCatalog';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { PagedBody } from './PagedBody';
@@ -201,11 +201,11 @@ export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean
 const S = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: C.paper, width: '100%', maxWidth: 600, alignSelf: 'center' },
   sheetHeader: { paddingHorizontal: 22, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: C.line },
-  sheetTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink },
+  sheetTitle: { fontFamily: BRUSH, fontSize: 23, color: C.ink },
   close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' },
   sheetBody: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 14, marginBottom: 2 },
-  sectionTitle: { fontFamily: 'ShipporiBold', fontSize: 17, color: C.ink },
+  sectionTitle: { fontFamily: BRUSH, fontSize: 17, color: C.ink },
   sectionNote: { fontSize: 13, color: C.muted },
   card: { overflow: 'hidden', borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFCF5', padding: 14 },
   cardMuted: { opacity: .6 },
@@ -219,26 +219,26 @@ const S = StyleSheet.create({
   noticeIconTodo: { backgroundColor: C.red },
   noticeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.red },
-  noticeTitle: { flex: 1, fontFamily: 'ShipporiBold', fontSize: 15, lineHeight: 21, color: C.ink },
+  noticeTitle: { flex: 1, fontFamily: BRUSH, fontSize: 15, lineHeight: 21, color: C.ink },
   noticeBody: { marginTop: 3, color: '#6D6354', fontSize: 13, lineHeight: 19 },
   noticeDate: { marginTop: 4, color: C.muted, fontSize: 12 },
   inlineAction: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 8, minHeight: 32, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: '#D6BFB0', backgroundColor: '#FFF9EF' },
-  inlineActionText: { color: C.red, fontSize: 13, fontWeight: '600' },
+  inlineActionText: { color: C.red, fontFamily: BRUSH, fontSize: 13 },
   giftHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  giftTitle: { flex: 1, fontFamily: 'ShipporiBold', fontSize: 16, color: C.ink },
+  giftTitle: { flex: 1, fontFamily: BRUSH, fontSize: 16, color: C.ink },
   giftMessage: { marginTop: 6, color: '#6D6354', fontSize: 13, lineHeight: 19 },
   giftItems: { marginTop: 10, gap: 8 },
   giftItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, borderRadius: 12, backgroundColor: '#F6EDDF' },
   giftTicket: { width: 30, height: 44 },
-  giftItemName: { flex: 1, color: C.ink, fontSize: 13 },
+  giftItemName: { flex: 1, color: C.ink, fontFamily: BRUSH, fontSize: 13 },
   giftItemCount: { color: C.red, fontFamily: 'ShipporiBold', fontSize: 15 },
   giftFooter: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   giftMeta: { flex: 1, color: C.muted, fontSize: 12 },
   giftReceived: { color: C.muted, fontSize: 13, fontWeight: '600' },
   primarySmall: { minHeight: 38, minWidth: 64, paddingHorizontal: 14, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: C.red },
-  primarySmallText: { color: '#FFF9EF', fontSize: 14, fontWeight: '700' },
+  primarySmallText: { color: '#FFF9EF', fontFamily: BRUSH, fontSize: 14 },
   secondarySmall: { minHeight: 38, paddingHorizontal: 12, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D6BFB0' },
-  secondarySmallText: { color: C.red, fontSize: 13, fontWeight: '600' },
+  secondarySmallText: { color: C.red, fontFamily: BRUSH, fontSize: 13 },
   disabled: { opacity: .45 },
   myCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   myLabel: { color: C.muted, fontSize: 12 },
@@ -248,6 +248,6 @@ const S = StyleSheet.create({
   codeInput: { flex: 1, minHeight: 42, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFFFF', color: C.ink, fontSize: 16, letterSpacing: 1 },
   personRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  personName: { fontFamily: 'ShipporiBold', fontSize: 16, color: C.ink },
+  personName: { fontFamily: BRUSH, fontSize: 16, color: C.ink },
   personMeta: { marginTop: 2, color: C.muted, fontSize: 12 },
 });

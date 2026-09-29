@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Linking, Modal, Platform, StyleSheet, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Linking, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500Medium';
 import { ShipporiMincho_700Bold } from '@expo-google-fonts/shippori-mincho/700Bold';
-import { Button, C, Clouds, Companion, Icon, Section, SERIF, Stamp, Torii } from './src/components';
+import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku/400Regular';
+import { BRUSH, Button, C, Clouds, Companion, Icon, Section, SERIF, Stamp, Torii } from './src/components';
 import { getPetCharacter, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets } from './src/services/progress';
@@ -34,14 +35,13 @@ import type { CustomHomeWidgetId } from './src/services/homePreferences';
 import { OmikujiExperience } from './src/components/OmikujiExperience';
 import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './src/components/TutorialSpotlight';
 import { fortuneForDay, localOmikujiDay } from './src/data/omikuji';
-import { useOmikujiBrushFont } from './src/fonts/useOmikujiBrushFont';
 import { AccountCenter, type AccountPage } from './src/components/AccountCenter';
 import { OpeningExperience } from './src/components/OpeningExperience';
 import { CollectionBackdrop, getHomeBackgroundMetrics, HomeAnchoredBackground } from './src/components/HomeBackdrops';
 
 type Tab = PrimaryTab;
 type HomePopup = 'custom' | 'moby' | null;
-type FirstRunStage = 'route' | 'character' | 'homeOmikuji' | 'drawOmikuji' | null;
+type FirstRunStage = 'route' | 'character' | 'homeCompanion' | 'floatingMenu' | 'floatingDrag' | 'homeOmikuji' | 'drawOmikuji' | null;
 const FIRST_RUN_ROUTE_ID = 'sanctuary';
 // 御朱印帳 = the current pilgrimage; コレクション = everything collected so far.
 // Each tab is one integrated page; pop buttons jump to a section instead of
@@ -72,7 +72,7 @@ function displayDate(day: string) { const [y, m, d] = day.split('-'); return `${
 type HomeLayout = { y: number; height: number };
 
 export default function App() {
-  const [fontsLoaded, fontError] = useFonts({ Shippori: ShipporiMincho_500Medium, ShipporiBold: ShipporiMincho_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Shippori: ShipporiMincho_500Medium, ShipporiBold: ShipporiMincho_700Bold, [BRUSH]: YujiSyuku_400Regular });
   return <SafeAreaProvider><StatusBar style="dark" /><Main fontsReady={fontsLoaded || !!fontError} /></SafeAreaProvider>;
 }
 
@@ -95,7 +95,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [featured, setFeatured] = useState(0);
   const [detail, setDetail] = useState<Shrine | null>(null);
   const [detailStampPreview, setDetailStampPreview] = useState(false);
-  const brushTextStyle = useOmikujiBrushFont(!!detail);
   const detailPopupProgress = useRef(new Animated.Value(0)).current;
   const detailStampPreviewProgress = useRef(new Animated.Value(0)).current;
   const openDetailPopup = () => {
@@ -208,6 +207,23 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Like a UITabBarController, each tab keeps the sub-screen it was left on.
   const move = (value: Tab) => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); scrollY.setValue(0); setTab(value); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setMobbyMenuOpen(false); setHomePopup(kind); setTab('home'); scrollY.setValue(0); };
+  const handleTutorialCompanionBond = () => {
+    journey.bond();
+    if (firstRunStage === 'homeCompanion') {
+      setTutorialRect(null);
+      setFirstRunStage('floatingMenu');
+    }
+  };
+  const handleMobbyOpenChange = (open: boolean) => {
+    setMobbyMenuOpen(open);
+    if (firstRunStage === 'floatingMenu' && open) {
+      setTutorialRect(null);
+      setFirstRunStage('floatingDrag');
+    } else if (firstRunStage === 'floatingDrag' && !open) {
+      setTutorialRect(null);
+      setFirstRunStage('homeOmikuji');
+    }
+  };
   const continueIntoApp = (firstRun: boolean) => {
     if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current);
     move('home');
@@ -508,7 +524,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           ? <View style={S.homeTutorialIntro}><Text style={S.chapter}>つぎは、おみくじを引こう。</Text></View>
           : <>
             <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? undefined : { transform: [{ translateY: homeCharacterShiftY }] }}>
-              <Companion pet={pet} haptics={data.haptics} onBond={journey.bond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+              <TutorialTarget active={firstRunStage === 'homeCompanion'} onRectChange={setTutorialRect}>
+                <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+              </TutorialTarget>
             </View>
           </>}
         <View style={S.homeCardGroup} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCardGroupLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>
@@ -575,11 +593,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
-    {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') setFirstRunStage('homeOmikuji'); }} onClose={() => setHomePopup(null)} />}
+    {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') { setTutorialRect(null); setFirstRunStage('homeCompanion'); } }} onClose={() => setHomePopup(null)} />}
     <View onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
       <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} />
     </View>
-    {firstRunStage === null && !homePopup && <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} items={mobbyMenu} badge={unreadNotices + giftsWaiting} open={mobbyMenuOpen} onOpenChange={setMobbyMenuOpen} bottomInset={navHeight} spotKey={mobbySpotKey} spot={mobbySpot} resetPositionOnMount={onboardingPreview} />}
+    {/* Keep the floating Mobby mounted through the fortune-card step so closing its menu cannot cancel an active drag. */}
+    {(firstRunStage === null || firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag' || firstRunStage === 'homeOmikuji') && !homePopup && <>
+      {(firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag') && <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <TutorialTarget key={firstRunStage} active onRectChange={setTutorialRect} style={{ position: 'absolute', right: 8, top: mobbySpot.offset, width: 88, height: 88 }}><View style={StyleSheet.absoluteFill} /></TutorialTarget>
+      </View>}
+      <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} items={mobbyMenu} badge={unreadNotices + giftsWaiting} open={mobbyMenuOpen} onOpenChange={handleMobbyOpenChange} bottomInset={navHeight} spotKey={mobbySpotKey} spot={mobbySpot} resetPositionOnMount={onboardingPreview} />
+    </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={gifts} receivedIds={receivedGiftIds} demo={data.demo} onReceive={receiveGift} onClose={() => setSocialSheet(null)} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} onClose={() => setSocialSheet(null)} />
@@ -587,7 +611,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       <Text style={S.indexLead}>{activeRoute?.name}</Text>
       <ShrineGrid kind="goshuin" shrines={activeShrines} ownedIds={collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} />
     </Sheet>
-    {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="5 / 6" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
+    {firstRunStage === 'homeCompanion' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="5 / 9" title="ホームのモビーとふれあおう" detail="ほっぺを引っぱると伸びるよ。タップで二礼二拍手一礼。" />}
+    {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="6 / 9" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
+    {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="7 / 9" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
+    {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="8 / 9" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
     <Modal transparent visible={omikujiModal} animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => { if (!isFirstRunOmikuji) closeOmikuji(); }}>
       <SafeAreaView style={S.omikujiModal}>
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="おみくじを閉じる" disabled={isFirstRunOmikuji} onPress={closeOmikuji} style={S.omikujiBackdrop} />
@@ -599,7 +626,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
             {firstRunOmikujiComplete && <Button title="ホームへ進む" onPress={closeOmikuji} style={{ width: '90%', maxWidth: 330, alignSelf: 'center', marginTop: 8 }} />}
           </View>
         </View></FitToHeight>
-        {firstRunStage === 'drawOmikuji' && !omikujiDrawn && !omikujiAnimating && <TutorialSpotlightOverlay targetRect={tutorialRect} step="6 / 6" title="今日のおみくじを引こう" detail="金色の枠の「今日のおみくじを引く」をタップ" />}
+        {firstRunStage === 'drawOmikuji' && !omikujiDrawn && !omikujiAnimating && <TutorialSpotlightOverlay targetRect={tutorialRect} step="9 / 9" title="今日のおみくじを引こう" detail="金色の枠の「今日のおみくじを引く」をタップ" />}
       </SafeAreaView>
     </Modal>
 
@@ -614,15 +641,15 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           <Animated.View style={[S.detailPopupCard, { opacity: detailPopupProgress, transform: [{ translateY: detailPopupProgress.interpolate({ inputRange: [0, 1], outputRange: [480, 0] }) }] }]}>
             <Image source={GOSHUIN_DETAIL_BACKGROUND} contentFit="cover" style={StyleSheet.absoluteFillObject} accessible={false} pointerEvents="none" />
             <View style={[S.detailPopupScroll, S.detailPopupContent]}>
-              <Text style={[S.detailReading, brushTextStyle]}>{detail.reading}</Text>
-              <Text style={[S.detailName, brushTextStyle]}>{detail.name}</Text>
+              <Text style={S.detailReading}>{detail.reading}</Text>
+              <Text style={S.detailName}>{detail.name}</Text>
               <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${detail.name}の御朱印を拡大表示`} onPress={openDetailStampPreview} style={S.detailStampTapTarget}>
                 <Stamp shrine={detail} style={{ width: '100%', height: '100%' }} />
               </Pressable>
-              <Text style={[S.detailTheme, brushTextStyle]}>{detail.theme}</Text>
-              <Text style={[S.detailDescription, brushTextStyle]}>{detail.description}</Text>
-              <Text style={[S.footerNote, brushTextStyle]}>もびの世界だけに存在する、架空の社・御朱印です。</Text>
-              {detailBookIndex >= 0 && tab !== 'book' && <Button title="御朱印帳でこのページをひらく" onPress={() => closeDetailPopup(() => openBookPage(detailBookIndex))} secondary textStyle={brushTextStyle} />}
+              <Text style={S.detailTheme}>{detail.theme}</Text>
+              <Text style={S.detailDescription}>{detail.description}</Text>
+              <Text style={S.footerNote}>もびの世界だけに存在する、架空の社・御朱印です。</Text>
+              {detailBookIndex >= 0 && tab !== 'book' && <Button title="御朱印帳でこのページをひらく" onPress={() => closeDetailPopup(() => openBookPage(detailBookIndex))} secondary />}
             </View>
             {!detailStampPreview && <View style={S.detailPopupClose}><Close onPress={() => closeDetailPopup()} /></View>}
           </Animated.View>
@@ -640,7 +667,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <Modal visible={settings && !accountPage} onShow={() => setOverlayBusy(true)} onDismiss={() => { if (!accountPage) { setInfo(null); setOverlayBusy(false); } }} animationType="slide" onRequestClose={() => setSettings(false)} presentationStyle="pageSheet"><SafeAreaView style={S.modal}><View style={S.modalHeader}><Text style={S.modalTitle}>設定</Text><Close onPress={() => { setInfo(null); setSettings(false); setAccountPage(null); }} /></View>{!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text></View>}<PagedBody style={S.settingsContent} gap={14}>
+    <Modal visible={settings && !accountPage} onShow={() => setOverlayBusy(true)} onDismiss={() => { if (!accountPage) { setInfo(null); setOverlayBusy(false); } }} animationType="slide" onRequestClose={() => setSettings(false)} presentationStyle="pageSheet"><SafeAreaView style={S.modal}><View style={S.modalHeader}><Text style={S.modalTitle}>設定</Text><Close onPress={() => { setInfo(null); setSettings(false); setAccountPage(null); }} /></View>{!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text></View>}<ScrollView style={S.settingsContent} contentContainerStyle={S.settingsScrollContent} showsVerticalScrollIndicator={false}>
       {!!journey.corruptedBackup && <View key="backup"><Section title="読み込めなかった記録" /><View style={S.settingCard}><WashiArt /><Text style={S.settingHelp}>以前の記録を読み込めなかったため、端末内に退避しています。お問い合わせや手作業での復旧に使えるよう、内容を表示してコピーできます。</Text><TextInput accessibilityLabel="退避した記録。長押ししてすべて選択しコピー" value={journey.corruptedBackup} editable={false} multiline selectTextOnFocus textAlignVertical="top" style={S.backupText} />{confirmDiscardBackup ? <><Text style={S.settingHelp}>削除すると元に戻せません。削除しますか？</Text><Button title="退避した記録を削除する" onPress={() => { void journey.discardCorruptedBackup(); setConfirmDiscardBackup(false); }} /><Button title="やめる" secondary onPress={() => setConfirmDiscardBackup(false)} style={{ marginTop: 10 }} /></> : <Button title="退避した記録を削除" secondary onPress={() => setConfirmDiscardBackup(true)} style={{ marginTop: 10 }} />}</View></View>}
       <View key="account"><Section title="アカウント" /><View style={S.settingCard}><WashiArt /><Meta icon="person-circle-outline" text="未ログイン · この端末に保存" /><Text style={S.settingHelp}>ログインやクラウド同期は未設定です。アカウント画面からログイン状況を確認し、別の端末へ記録を引き継げます。</Text><Button title="アカウント管理" icon="person-circle-outline" onPress={() => setAccountPage('manage')} /></View></View>
       <View key="steps"><Section title="歩数のつながり" /><View style={S.settingCard}><WashiArt /><Meta icon="footsteps-outline" text={sourceLabel[data.source]} /><Text style={S.settingHelp}>{data.source === 'healthkit' ? 'ヘルスケアの当日歩数を読み取ります。0歩のままの場合は、ヘルスケアの共有設定をご確認ください。読み取り権限の拒否はアプリから判別できません。' : data.source === 'motion' ? 'Expo Goではモーションとフィットネスから読み取ります。HealthKitはiOSの開発ビルドで利用できます。' : 'iPhoneで歩数を連携すると、今日の歩数で御朱印を集められます。'}
@@ -650,7 +677,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       <View key="demo"><Section title="もび道を体験" /><Text style={S.settingHelp}>体験用の御朱印帳で、お散歩と授与演出を試せます。本番の記録には影響しません。</Text><Button title={data.demo ? '体験を終えて実記録にもどる' : '体験モードをはじめる'} secondary onPress={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} /></View>
       <View key="about"><Section title="このアプリについて" /><Button title="プライバシーとデータ" secondary onPress={() => setInfo('privacy')} /><Button title="もび道について・利用上の案内" secondary onPress={() => setInfo('about')} style={{ marginTop: 10 }} />
       <Text style={S.footerNote}>{'もび道（もびどう） 1.0.0\n今日の一歩に、小さなご縁を。'}</Text></View>
-    </PagedBody>{!!info && (<View style={S.infoBackdrop}><View style={S.infoCard}><WashiArt /><Text style={S.modalTitle}>{info === 'privacy' ? 'プライバシーとデータ' : 'もび道について'}</Text><View style={{ height: Math.min(430, windowHeight * .5) }}><PagedBody gap={14}>{(info === 'privacy' ? 'もび道は、今日の歩数・集めた御朱印・選んだモビー・ふれあい回数・設定を端末内に保存します。\n\nログイン、広告、アクセス解析、サーバー送信はありません。GPSも使用しません。歩数は御朱印の解放にのみ使用し、ヘルスケアへ書き込みません。\n\n端末を変更しても記録は自動では引き継がれません。設定のアカウント管理から引き継ぎコードを作成し、新しい端末で読み込んでください。アプリを削除すると記録は失われる場合があります。歩数アクセスはiPhoneの設定からいつでも変更できます。' : 'もび道（もびどう）は、モビーと歩いて架空の御朱印を集めるアプリです。\n\n巡礼は、日常の場所から特別な場所へ移動し、道中の祈りや記録を経て日常へ戻る旅。もび道では、神域参詣・山岳修行・札所周回・観音巡礼・七願掛け・物語の聖地巡礼という6つの旅の型から選べます。\n\n各地点は社・宮・寺・観音堂などの参拝先として設計し、参拝後に境内の授与所で御朱印を授かります。登場する社・宮・地名・御朱印はすべて、もびの世界の創作です。実在の宗教施設や実際の参拝・授与品とは関係ありません。\n\n歩数は1日単位で、端末の現地時間に合わせて切り替わります。御朱印は順番に解放され、最後まで歩き切ると結願証・称号・専用の結願印を授かります。\n\n歩きながらの画面操作は立ち止まって。体調に合わせて、無理なく楽しんでください。').split('\n\n').map((paragraph, index) => <Text key={index} style={S.infoText}>{paragraph}</Text>)}</PagedBody></View><Button title="とじる" onPress={() => setInfo(null)} /></View></View>)}</SafeAreaView></Modal>
+    </ScrollView>{!!info && (<View style={S.infoBackdrop}><View style={S.infoCard}><WashiArt /><Text style={S.modalTitle}>{info === 'privacy' ? 'プライバシーとデータ' : 'もび道について'}</Text><View style={{ height: Math.min(430, windowHeight * .5) }}><PagedBody gap={14}>{(info === 'privacy' ? 'もび道は、今日の歩数・集めた御朱印・選んだモビー・ふれあい回数・設定を端末内に保存します。\n\nログイン、広告、アクセス解析、サーバー送信はありません。GPSも使用しません。歩数は御朱印の解放にのみ使用し、ヘルスケアへ書き込みません。\n\n端末を変更しても記録は自動では引き継がれません。設定のアカウント管理から引き継ぎコードを作成し、新しい端末で読み込んでください。アプリを削除すると記録は失われる場合があります。歩数アクセスはiPhoneの設定からいつでも変更できます。' : 'もび道（もびどう）は、モビーと歩いて架空の御朱印を集めるアプリです。\n\n巡礼は、日常の場所から特別な場所へ移動し、道中の祈りや記録を経て日常へ戻る旅。もび道では、神域参詣・山岳修行・札所周回・観音巡礼・七願掛け・物語の聖地巡礼という6つの旅の型から選べます。\n\n各地点は社・宮・寺・観音堂などの参拝先として設計し、参拝後に境内の授与所で御朱印を授かります。登場する社・宮・地名・御朱印はすべて、もびの世界の創作です。実在の宗教施設や実際の参拝・授与品とは関係ありません。\n\n歩数は1日単位で、端末の現地時間に合わせて切り替わります。御朱印は順番に解放され、最後まで歩き切ると結願証・称号・専用の結願印を授かります。\n\n歩きながらの画面操作は立ち止まって。体調に合わせて、無理なく楽しんでください。').split('\n\n').map((paragraph, index) => <Text key={index} style={S.infoText}>{paragraph}</Text>)}</PagedBody></View><Button title="とじる" onPress={() => setInfo(null)} /></View></View>)}</SafeAreaView></Modal>
 
 
 
@@ -713,13 +740,13 @@ const S = StyleSheet.create({
   pageTop: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -4, marginBottom: 8 },
   pageTopText: { flex: 1, paddingRight: 4 },
   pageEyebrow: { color: C.red, fontSize: 12, fontWeight: '700', letterSpacing: 1, textShadowColor: '#FFF9EF', textShadowRadius: 6 },
-  pageLead: { marginTop: 3, fontFamily: 'ShipporiBold', fontSize: 18, lineHeight: 25, color: C.ink, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
+  pageLead: { marginTop: 3, fontFamily: BRUSH, fontSize: 18, lineHeight: 25, color: C.ink, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
   walkActionButton: { width: '100%', marginTop: 0 },
   sectionBlock: { marginTop: 18 },
-  sectionHeading: { fontFamily: 'ShipporiBold', fontSize: 21, letterSpacing: 1, color: C.ink, marginBottom: 4, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
+  sectionHeading: { fontFamily: BRUSH, fontSize: 21, letterSpacing: 1, color: C.ink, marginBottom: 4, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
   jumpRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: -4, marginBottom: 8 },
-  indexLead: { fontFamily: 'ShipporiBold', fontSize: 17, color: C.ink, marginBottom: 4 },
-  largeTitle: { flexShrink: 1, fontFamily: 'ShipporiBold', fontSize: 28, letterSpacing: 1.5, color: C.ink, textShadowColor: '#FFF9EFD9', textShadowRadius: 10 },
+  indexLead: { fontFamily: BRUSH, fontSize: 17, color: C.ink, marginBottom: 4 },
+  largeTitle: { flexShrink: 1, fontFamily: BRUSH, fontSize: 28, letterSpacing: 1.5, color: C.ink, textShadowColor: '#FFF9EFD9', textShadowRadius: 10 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   glassButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FBF6ECE6', borderWidth: StyleSheet.hairlineWidth, borderColor: '#3A2A1E2E', shadowColor: '#2A1D14', shadowOpacity: .12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   demoBadge: { height: 32, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 10, paddingRight: 8, borderRadius: 16, backgroundColor: '#F3E6D2F2', borderWidth: StyleSheet.hairlineWidth, borderColor: '#8A695066' },
@@ -742,16 +769,16 @@ const S = StyleSheet.create({
   homeWidgetDropTarget: { borderWidth: 3, borderColor: '#B84C3D', transform: [{ scale: 1.025 }], shadowColor: '#8B2F23', shadowOffset: { width: 0, height: 4 }, shadowOpacity: .35, shadowRadius: 9, elevation: 8 },
   homeDropOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#8B2F234D' },
   headerLogo: { width: 112, height: 40 },
-  header: { height: 64, paddingLeft: 20, paddingRight: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, brand: { flexDirection: 'row', alignItems: 'center', gap: 5 }, logo: { fontFamily: 'ShipporiBold', fontSize: 39, letterSpacing: 2, color: C.ink }, logoMark: { width: 32, height: 32, borderRadius: 6, marginLeft: 2, transform: [{ rotate: '8deg' }] },
-  content: { flex: 1, paddingHorizontal: 24, paddingBottom: 12, overflow: 'hidden' }, homeContent: { paddingBottom: 0 }, chapter: { fontFamily: SERIF, color: '#766452', fontSize: 14, letterSpacing: 2 },
+  header: { height: 64, paddingLeft: 20, paddingRight: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, brand: { flexDirection: 'row', alignItems: 'center', gap: 5 }, logo: { fontFamily: BRUSH, fontSize: 39, letterSpacing: 2, color: C.ink }, logoMark: { width: 32, height: 32, borderRadius: 6, marginLeft: 2, transform: [{ rotate: '8deg' }] },
+  content: { flex: 1, paddingHorizontal: 24, paddingBottom: 12, overflow: 'hidden' }, homeContent: { paddingBottom: 0 }, chapter: { fontFamily: BRUSH, color: '#766452', fontSize: 14, letterSpacing: 2 },
   dot: { height: 4, width: 4, backgroundColor: C.red, borderRadius: 5 }, error: { backgroundColor: '#F5DCD4', margin: 10, padding: 9, flexDirection: 'row', alignItems: 'center', borderRadius: 8 }, errorText: { color: '#813D31', flexShrink: 1, fontSize: 12, lineHeight: 19 },
   homeWidgetsHidden: { opacity: 0 }, homeCardGroup: { marginTop: 'auto' }, homeWidgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'space-between', marginTop: 5, marginBottom: 8 }, homeWidgetCard: { width: '48%', height: 244, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', padding: 11, overflow: 'hidden', alignItems: 'stretch' },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 6 }, footerNote: { marginTop: 25, textAlign: 'center', color: '#9A9081', fontSize: 12, lineHeight: 19 },
-  bookWrap: { marginHorizontal: -17, marginTop: 38, paddingHorizontal: 5, paddingVertical: 5, backgroundColor: 'transparent', shadowColor: '#27170F', shadowOffset: { width: 0, height: 15 }, shadowOpacity: .34, shadowRadius: 17, elevation: 12 }, bookCoverEdge: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 8 }, bookPaperEdges: { position: 'absolute', top: 2, bottom: 3, left: 3, right: 3, borderRadius: 5, backgroundColor: '#DBCCAD', borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#AF9875' }, bookViewport: { position: 'relative', overflow: 'hidden', borderRadius: 3, minHeight: 340 }, openBook: { flexDirection: 'row', backgroundColor: '#FBF5E8', overflow: 'hidden', minHeight: 340, height: 340 }, bookLeft: { flex: 1, padding: 9, justifyContent: 'center', backgroundColor: '#F2EBDC', borderRightWidth: 1, borderColor: '#D4C5B0' }, bookBinding: { position: 'absolute', right: -1, top: 0, bottom: 0, width: 10, backgroundColor: '#73523536', borderLeftWidth: 1, borderColor: '#8E6E4A20' }, bookRight: { flex: 1.02, padding: 15, justifyContent: 'center', gap: 9, backgroundColor: '#FCF7EC' }, bookReading: { fontSize: 11, color: C.muted, letterSpacing: 1 }, bookName: { fontFamily: 'ShipporiBold', fontSize: 21, color: C.ink, lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: SERIF, fontSize: 12, lineHeight: 21, color: C.red }, bookDescription: { fontFamily: SERIF, fontSize: 11, lineHeight: 20, color: '#6C6050' }, bookLocation: { flex: 1, fontSize: 11, lineHeight: 14, color: '#887B68' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 12 },
+  bookWrap: { marginHorizontal: -17, marginTop: 38, paddingHorizontal: 5, paddingVertical: 5, backgroundColor: 'transparent', shadowColor: '#27170F', shadowOffset: { width: 0, height: 15 }, shadowOpacity: .34, shadowRadius: 17, elevation: 12 }, bookCoverEdge: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 8 }, bookPaperEdges: { position: 'absolute', top: 2, bottom: 3, left: 3, right: 3, borderRadius: 5, backgroundColor: '#DBCCAD', borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#AF9875' }, bookViewport: { position: 'relative', overflow: 'hidden', borderRadius: 3, minHeight: 340 }, openBook: { flexDirection: 'row', backgroundColor: '#FBF5E8', overflow: 'hidden', minHeight: 340, height: 340 }, bookLeft: { flex: 1, padding: 9, justifyContent: 'center', backgroundColor: '#F2EBDC', borderRightWidth: 1, borderColor: '#D4C5B0' }, bookBinding: { position: 'absolute', right: -1, top: 0, bottom: 0, width: 10, backgroundColor: '#73523536', borderLeftWidth: 1, borderColor: '#8E6E4A20' }, bookRight: { flex: 1.02, padding: 15, justifyContent: 'center', gap: 9, backgroundColor: '#FCF7EC' }, bookReading: { fontSize: 11, color: C.muted, letterSpacing: 1 }, bookName: { fontFamily: BRUSH, fontSize: 21, color: C.ink, lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: BRUSH, fontSize: 12, lineHeight: 21, color: C.red }, bookDescription: { fontFamily: SERIF, fontSize: 11, lineHeight: 20, color: '#6C6050' }, bookLocation: { flex: 1, fontSize: 11, lineHeight: 14, color: '#887B68' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 12, fontFamily: BRUSH },
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 110, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF9EFE6' }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 },
   nextPilgrimageAction: { position: 'relative', alignSelf: 'stretch', alignItems: 'center', paddingTop: 56, marginTop: 58 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
   walkMinimal: { flex: 1, alignItems: 'center', paddingTop: 2, paddingBottom: 6 },
-  modal: { flex: 1, backgroundColor: C.paper, width: '100%', maxWidth: 600, alignSelf: 'center' }, modalHeader: { padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: C.line }, modalTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink }, close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 12, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: SERIF, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: SERIF, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 26, color: '#6D6354', textAlign: 'center', marginTop: 8 }, meta: { flexDirection: 'row', gap: 11, alignItems: 'center' }, metaText: { fontSize: 12, color: '#776B59', flex: 1, lineHeight: 20 },
+  modal: { flex: 1, backgroundColor: C.paper, width: '100%', maxWidth: 600, alignSelf: 'center' }, modalHeader: { padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: C.line }, modalTitle: { fontFamily: BRUSH, fontSize: 23, color: C.ink }, close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 12, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: BRUSH, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: BRUSH, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 26, color: '#6D6354', textAlign: 'center', marginTop: 8 }, meta: { flexDirection: 'row', gap: 11, alignItems: 'center' }, metaText: { fontSize: 12, color: '#776B59', flex: 1, lineHeight: 20 },
   detailModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#241D17A8' }, detailPopupLayout: { ...StyleSheet.absoluteFillObject, zIndex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 }, detailPopupCard: { position: 'relative', width: '90%', maxWidth: 500, height: '88%', maxHeight: 820, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#201810', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .3, shadowRadius: 22, elevation: 16 }, detailPopupScroll: { flex: 1 }, detailPopupContent: { paddingHorizontal: 22, paddingTop: 52, paddingBottom: 18 }, detailPopupClose: { position: 'absolute', top: 12, right: 12, zIndex: 10 }, detailStampTapTarget: { flex: 1, minHeight: 90, aspectRatio: 2 / 3, maxWidth: 290, alignSelf: 'center', marginVertical: 12 }, stampPreviewOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: 24 }, stampPreviewBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#211A16D9' }, stampPreviewFrame: { width: '88%', maxWidth: 360, shadowColor: '#160F0B', shadowOffset: { width: 0, height: 12 }, shadowOpacity: .45, shadowRadius: 20, elevation: 18 }, stampPreviewCard: { width: '100%', aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 9, borderWidth: 1, borderColor: '#E1D3BB', backgroundColor: '#F5EFDF' }, stampPreviewClose: { position: 'absolute', top: 12, right: 12, zIndex: 2 },
-  settingsContent: { flex: 1, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 8 }, backupText: { minHeight: 90, maxHeight: 160, borderWidth: 1, borderColor: C.line, borderRadius: 10, padding: 10, fontSize: 12, lineHeight: 15, color: C.ink, backgroundColor: '#FFFFFF' }, settingCard: { backgroundColor: '#FFFCF5', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.line }, settingHelp: { fontSize: 12, color: C.muted, lineHeight: 20, marginVertical: 8 }, settingRow: { flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: C.line, paddingVertical: 12 }, settingLabel: { color: C.ink, fontSize: 15 }, infoBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241AB0', justifyContent: 'center', alignItems: 'center', padding: 24 }, infoCard: { width: '100%', maxWidth: 420, backgroundColor: C.paper, borderRadius: 22, padding: 25, gap: 20 }, infoText: { fontSize: 13, lineHeight: 24, color: '#726653' },
+  settingsContent: { flex: 1, paddingHorizontal: 24, paddingTop: 8 }, settingsScrollContent: { gap: 14, paddingBottom: 24 }, backupText: { minHeight: 90, maxHeight: 160, borderWidth: 1, borderColor: C.line, borderRadius: 10, padding: 10, fontSize: 12, lineHeight: 15, color: C.ink, backgroundColor: '#FFFFFF' }, settingCard: { backgroundColor: '#FFFCF5', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.line }, settingHelp: { fontSize: 12, color: C.muted, lineHeight: 20, marginVertical: 8 }, settingRow: { flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: C.line, paddingVertical: 12 }, settingLabel: { color: C.ink, fontFamily: BRUSH, fontSize: 15 }, infoBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241AB0', justifyContent: 'center', alignItems: 'center', padding: 24 }, infoCard: { width: '100%', maxWidth: 420, backgroundColor: C.paper, borderRadius: 22, padding: 25, gap: 20 }, infoText: { fontSize: 13, lineHeight: 24, color: '#726653' },
 });

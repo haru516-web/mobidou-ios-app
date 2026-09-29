@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, BackHandler, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
-import { C, Icon, useReducedMotion } from '../components';
+import { BRUSH, C, Icon, useReducedMotion } from '../components';
 import { PET_CHARACTERS, type PetId } from '../petCatalog';
 import { PET_BACKGROUNDS } from '../data/petBackgrounds';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
@@ -258,7 +258,7 @@ export function MobyPickerPopup({ selectedPet, onConfirm, onClose, guided = fals
         </TutorialTarget>
       </View>
     </Animated.View>
-    {guided && <TutorialSpotlightOverlay targetRect={tutorialRect} step={guideStage === 'choose' ? '3 / 6' : '4 / 6'} title={guideStage === 'choose' ? '相棒にしたいモビーを選ぼう' : '選んだモビーを決定しよう'} detail={guideStage === 'choose' ? '好きな子のカードをタップ。左右にスワイプできます' : '画面右下の「決定」ボタンをタップ'} />}
+    {guided && <TutorialSpotlightOverlay targetRect={tutorialRect} step={guideStage === 'choose' ? '3 / 9' : '4 / 9'} title={guideStage === 'choose' ? '相棒にしたいモビーを選ぼう' : '選んだモビーを決定しよう'} detail={guideStage === 'choose' ? '好きな子のカードをタップ。左右にスワイプできます' : '画面右下の「決定」ボタンをタップ'} />}
   </PopupRoot>;
 }
 
@@ -281,7 +281,7 @@ const S = StyleSheet.create({
   guidedMobyConfirmTarget: { padding: 5, borderRadius: 16 },
   guidedMobyConfirmButton: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .46, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 8 },
   popupHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  popupTitle: { color: C.ink, fontFamily: 'Shippori', fontSize: 21, letterSpacing: 1 },
+  popupTitle: { color: C.ink, fontFamily: BRUSH, fontSize: 21, letterSpacing: 1 },
   popupSubtitle: { color: C.muted, fontSize: 12, letterSpacing: .8, marginTop: 5 },
   popupHelp: { color: C.red, fontSize: 12, letterSpacing: 1, marginTop: 17, marginBottom: 9 },
   popupClose: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1E6D8', borderWidth: 1, borderColor: '#DECDBA' },
@@ -293,7 +293,7 @@ const S = StyleSheet.create({
   widgetTilePressable: { flex: 1, overflow: 'hidden', borderRadius: 14 },
   itemChoice: { width: 104, height: 116, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#DCCBB9', backgroundColor: '#FFF9EF', alignItems: 'center', padding: 5 },
   itemChoiceImage: { width: 84, height: 86 },
-  itemChoiceName: { color: C.ink, fontFamily: 'Shippori', fontSize: 11, maxWidth: 92 },
+  itemChoiceName: { color: C.ink, fontFamily: BRUSH, fontSize: 11, maxWidth: 92 },
   emptyMiniatures: { width: 270, height: 116, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F3EBDD', borderWidth: 1, borderColor: '#DCCBB9' },
   emptyMiniaturesText: { color: C.muted, fontFamily: 'Shippori', fontSize: 12 },
   widgetTileSelected: { borderWidth: 2, borderColor: C.red, backgroundColor: '#FFF4E8' },
@@ -304,8 +304,8 @@ const S = StyleSheet.create({
   popupFooterButton: { minWidth: 98, minHeight: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   popupFooterSecondary: { borderWidth: 1, borderColor: '#D6BFB0', backgroundColor: '#FFF9EF' },
   popupFooterPrimary: { backgroundColor: C.red },
-  popupFooterSecondaryText: { color: C.red, fontFamily: 'Shippori', fontSize: 14 },
-  popupFooterPrimaryText: { color: '#FFF9EF', fontFamily: 'Shippori', fontSize: 14 },
+  popupFooterSecondaryText: { color: C.red, fontFamily: BRUSH, fontSize: 14 },
+  popupFooterPrimaryText: { color: '#FFF9EF', fontFamily: BRUSH, fontSize: 14 },
   mobyScroll: { flexGrow: 0, marginTop: 10 },
   mobyGrid: { flexDirection: 'row', gap: 9, paddingVertical: 3 },
   mobyCardOption: { width: 112, height: 116, alignItems: 'center', justifyContent: 'flex-end', paddingVertical: 6, paddingHorizontal: 3, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#E2DACC', backgroundColor: '#FFF9F0' },
@@ -314,7 +314,7 @@ const S = StyleSheet.create({
   mobyCardWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9E9A8' },
   mobyCardTint: { ...StyleSheet.absoluteFillObject },
   mobyThumb: { width: 74, height: 79 },
-  mobyName: { color: '#675B4D', fontFamily: 'Shippori', fontSize: 12, marginTop: 1, textAlign: 'center' },
+  mobyName: { color: '#675B4D', fontFamily: BRUSH, fontSize: 12, marginTop: 1, textAlign: 'center' },
   mobyCatchphrase: { color: C.muted, fontSize: 11, marginTop: 2, maxWidth: '96%', textAlign: 'center' },
   mobyCheck: { position: 'absolute', right: 6, top: 6, backgroundColor: C.red, borderRadius: 9, width: 19, height: 19, alignItems: 'center', justifyContent: 'center' },
 });

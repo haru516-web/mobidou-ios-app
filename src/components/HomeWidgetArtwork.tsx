@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
+import { BRUSH } from '../components';
 import type { PetId } from '../petCatalog';
 import type { OmikujiFortune } from '../data/omikuji';
-import { useOmikujiBrushFont } from '../fonts/useOmikujiBrushFont';
 import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_FRAME_WIDTH, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
 import { OmikujiResultContent } from './OmikujiResultCard';
@@ -26,13 +26,12 @@ export function HomeGoshuinArtwork({ source }: { source: ImageSourcePropType; ba
 }
 
 export function HomeOmikujiArtwork({ fortune }: { fortune: OmikujiFortune | null; petName: string }) {
-  const brushTextStyle = useOmikujiBrushFont();
   return <View pointerEvents="none" style={S.omikujiStage}>
     <Image accessible={false} source={fortune ? OMIKUJI_RESULT_BACKGROUND : OMIKUJI_HOME_UNDRAWN_BACKGROUND} contentFit="cover" style={[S.omikujiBackground, fortune && S.omikujiResultBackground]} />
     {fortune
-      ? <View style={S.omikujiResultContentViewport}><View style={S.omikujiResultContentScale}><OmikujiResultContent fortune={fortune} brushTextStyle={brushTextStyle} /></View></View>
+      ? <View style={S.omikujiResultContentViewport}><View style={S.omikujiResultContentScale}><OmikujiResultContent fortune={fortune} /></View></View>
       : <View style={S.omikujiContent}>
-        <Text style={[S.omikujiMessage, brushTextStyle]}>おみくじを引けるよ</Text>
+        <Text style={S.omikujiMessage}>おみくじを引けるよ</Text>
         <View style={S.omikujiPreDrawHero}>
           <Image accessible={false} source={OMIKUJI_DRAW_CYLINDER} contentFit="contain" style={S.omikujiDrawCylinder} />
         </View>
@@ -144,7 +143,7 @@ const S = StyleSheet.create({
   omikujiContent: { flex: 1, minHeight: 0, alignItems: 'center', paddingHorizontal: 7, paddingTop: 7, paddingBottom: 10 },
   omikujiPreDrawHero: { flex: 1, minHeight: 0, width: '100%', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   omikujiDrawCylinder: { width: '100%', height: '100%' },
-  omikujiMessage: { width: '100%', color: '#5E5045', fontFamily: 'ShipporiBold', textAlign: 'center', fontSize: 11, lineHeight: 15, marginTop: 2 },
+  omikujiMessage: { width: '100%', color: '#5E5045', fontFamily: BRUSH, textAlign: 'center', fontSize: 11, lineHeight: 15, marginTop: 2 },
   omikujiLucky: { color: '#79685A', fontSize: 9, lineHeight: 8, marginTop: 1 },
   artworkImage: { ...StyleSheet.absoluteFillObject },
   cardBackground: { ...StyleSheet.absoluteFillObject },
@@ -168,7 +167,7 @@ const S = StyleSheet.create({
   stepsCopy: { alignItems: 'center' },
   stepsValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 1 },
   stepsValue: { color: '#3A3127', fontSize: 32, fontWeight: '300', letterSpacing: .5 },
-  stepsUnit: { color: '#766452', fontFamily: 'ShipporiBold', fontSize: 13 },
+  stepsUnit: { color: '#766452', fontFamily: BRUSH, fontSize: 13 },
   stepsRail: { position: 'relative', width: '86%', height: 112 },
   stepsLine: { position: 'absolute', left: 0, right: 0, top: 28, height: 4, borderRadius: 3, backgroundColor: '#D7C8B6' },
   stepsLineFill: { position: 'absolute', left: 0, top: 28, height: 4, borderRadius: 3, backgroundColor: '#A54E42' },

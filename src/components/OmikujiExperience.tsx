@@ -4,7 +4,7 @@ import { Image, ImageBackground } from 'expo-image';
 import type { OmikujiFortune } from '../data/omikuji';
 import { OMIKUJI_ATLASES } from '../data/omikujiAtlases';
 import type { PetCharacter } from '../petCatalog';
-import { useOmikujiBrushFont } from '../fonts/useOmikujiBrushFont';
+import { BRUSH } from '../components';
 import { WashiPressable as Pressable } from './Washi';
 import { OmikujiResultCard } from './OmikujiResultCard';
 import { TutorialTarget, type TutorialRect } from './TutorialSpotlight';
@@ -41,7 +41,6 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
   const effect = REVEAL_EFFECTS[fortune.rank];
   const pulling = frame !== null;
   const atlas = OMIKUJI_ATLASES[pet.id] ?? pet.image;
-  const brushTextStyle = useOmikujiBrushFont(visible);
 
   useEffect(() => () => {
     paperProgress.stopAnimation();
@@ -115,12 +114,12 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
   const rankScale = effectProgress.interpolate({ inputRange: [0, 0.42, 0.62, 1], outputRange: [0.74, 1.12, 1, 1] });
   const shineOpacity = effectProgress.interpolate({ inputRange: [0, 0.08, 0.38, 0.62, 1], outputRange: [0, 0, 0.8, 0, 0] });
   const shineX = effectProgress.interpolate({ inputRange: [0, 1], outputRange: [-390, 390] });
-  const drawButton = <Pressable accessibilityRole="button" accessibilityLabel="今日のおみくじを引く" onPress={start} style={[S.drawButton, guidedDraw && S.guidedDrawButton]}><Text style={[S.drawButtonText, brushTextStyle]}>今日のおみくじを引く</Text></Pressable>;
+  const drawButton = <Pressable accessibilityRole="button" accessibilityLabel="今日のおみくじを引く" onPress={start} style={[S.drawButton, guidedDraw && S.guidedDrawButton]}><Text style={S.drawButtonText}>今日のおみくじを引く</Text></Pressable>;
 
   return <View style={S.wrap}>
     {pulling && <View style={S.stage}>
       <View style={S.spriteViewport}><Image source={atlas} contentFit="fill" style={[S.characterAtlas, { left: -210 * (frame ?? 0) }]} /></View>
-      <Text style={[S.petLine, brushTextStyle]}>{pet.name}が、心をこめて引いています…</Text>
+      <Text style={S.petLine}>{pet.name}が、心をこめて引いています…</Text>
     </View>}
     {revealing && <View accessible accessibilityLabel="おみくじの紙を引き寄せ、運勢をひらいています" style={S.revealStage}>
       <Animated.View pointerEvents="none" style={[S.revealGlow, { backgroundColor: effect.glow, opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
@@ -128,10 +127,10 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
       {[0, 45, 90, 135].map(angle => <Animated.View key={angle} pointerEvents="none" style={[S.lightRay, { backgroundColor: effect.glow, opacity: glowOpacity, transform: [{ rotate: `${angle}deg` }, { rotate: raysRotation }, { scaleY: glowScale }] }]} />)}
       <Animated.View style={[S.revealPaper, { opacity: paperOpacity, transform: [{ translateY: paperY }, { scale: paperScale }, { rotate: paperRotation }] }]}>
         <ImageBackground source={OMIKUJI_RESULT_BACKGROUND} contentFit="cover" imageStyle={S.revealPaperImage} style={S.revealPaperBody}>
-          <Text style={[S.date, brushTextStyle]}>本日のご縁みくじ</Text>
+          <Text style={S.date}>本日のご縁みくじ</Text>
           <Animated.View style={[S.revealSeal, { borderColor: effect.color, transform: [{ scale: rankScale }] }]}>
-            <Text style={[S.revealSealLabel, brushTextStyle]}>運勢</Text>
-            <Animated.Text style={[S.revealRank, brushTextStyle, { color: effect.color, opacity: rankOpacity, textShadowColor: effect.glow, textShadowRadius: effect.sparkleSize / 2, transform: [{ scale: rankScale }] }]}>{fortune.rank}</Animated.Text>
+            <Text style={S.revealSealLabel}>運勢</Text>
+            <Animated.Text style={[S.revealRank, { color: effect.color, opacity: rankOpacity, textShadowColor: effect.glow, textShadowRadius: effect.sparkleSize / 2, transform: [{ scale: rankScale }] }]}>{fortune.rank}</Animated.Text>
           </Animated.View>
           <Animated.View pointerEvents="none" style={[S.paperShine, { opacity: shineOpacity, transform: [{ translateX: shineX }, { rotate: '18deg' }] }]} />
         </ImageBackground>
@@ -148,19 +147,19 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
 
     {!drawn && !pulling && !revealing && <>
       <View style={S.petPrompt}>
-        <Text style={[S.fortuneHeading, brushTextStyle]}>今日の運勢</Text>
+        <Text style={S.fortuneHeading}>今日の運勢</Text>
         <Image source={pet.image} contentFit="contain" accessibilityLabel={pet.name} style={S.petImage} />
       </View>
-      <Text style={[S.prompt, brushTextStyle]}>今日の一枚を引いて、運勢をたしかめましょう。</Text>
+      <Text style={S.prompt}>今日の一枚を引いて、運勢をたしかめましょう。</Text>
       {guidedDraw
         ? <TutorialTarget onRectChange={onGuidedTargetRectChange ?? (() => {})} style={S.guidedDrawTarget}>{drawButton}</TutorialTarget>
         : drawButton}
     </>}
 
     {drawn && !pulling && !revealing && <>
-      <OmikujiResultCard fortune={fortune} brushTextStyle={brushTextStyle} />
-      <Pressable accessibilityRole="button" accessibilityLabel="おみくじの演出をもう一度見る" onPress={start} style={S.replayButton}><Text style={[S.replayButtonText, brushTextStyle, S.resultTextEmphasis]}>演出をもう一度見る</Text></Pressable>
-      {__DEV__ && <Pressable accessibilityRole="button" accessibilityLabel="おみくじを引く前の状態に戻す" onPress={onReset} style={S.replayButton}><Text style={[S.replayButtonText, brushTextStyle]}>引く前の状態に戻す（開発用）</Text></Pressable>}
+      <OmikujiResultCard fortune={fortune} />
+      <Pressable accessibilityRole="button" accessibilityLabel="おみくじの演出をもう一度見る" onPress={start} style={S.replayButton}><Text style={[S.replayButtonText, S.resultTextEmphasis]}>演出をもう一度見る</Text></Pressable>
+      {__DEV__ && <Pressable accessibilityRole="button" accessibilityLabel="おみくじを引く前の状態に戻す" onPress={onReset} style={S.replayButton}><Text style={S.replayButtonText}>引く前の状態に戻す（開発用）</Text></Pressable>}
     </>}
   </View>;
 }
@@ -172,7 +171,7 @@ const S = StyleSheet.create({
   characterAtlas: { position: 'absolute', top: 0, width: 1680, height: 210 },
   petLine: { fontFamily: 'Shippori', color: '#5B4030', fontSize: 12, backgroundColor: '#FFF9EEDD', borderRadius: 13, paddingHorizontal: 13, paddingVertical: 7, overflow: 'hidden' },
   petPrompt: { alignItems: 'center', gap: 2, paddingTop: 2 },
-  fortuneHeading: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 28, lineHeight: 38, letterSpacing: 2, textAlign: 'center', marginBottom: 3 },
+  fortuneHeading: { color: '#A54E42', fontFamily: BRUSH, fontSize: 28, lineHeight: 38, letterSpacing: 2, textAlign: 'center', marginBottom: 3 },
   petImage: { width: 126, height: 126 },
   prompt: { color: '#5B4030', fontFamily: 'Shippori', fontSize: 13, lineHeight: 22, textAlign: 'center', backgroundColor: '#FFF9EEDD', borderRadius: 13, paddingHorizontal: 13, paddingVertical: 12 },
   revealStage: { minHeight: 400, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
@@ -185,14 +184,14 @@ const S = StyleSheet.create({
   revealPaperBody: { flex: 1, alignItems: 'center', justifyContent: 'space-around', paddingVertical: 20, overflow: 'hidden' },
   revealSeal: { width: 148, height: 148, borderRadius: 74, borderWidth: 1, borderColor: '#B88D5B88', backgroundColor: '#FFF9EF66', alignItems: 'center', justifyContent: 'center' },
   revealSealLabel: { color: '#8B6B51', fontSize: 11, letterSpacing: 3 },
-  revealRank: { fontFamily: 'ShipporiBold', fontSize: 44, marginTop: 2 },
+  revealRank: { fontFamily: BRUSH, fontSize: 44, marginTop: 2 },
   paperShine: { position: 'absolute', top: -34, bottom: -34, left: '48%', width: 48, borderRadius: 40, backgroundColor: '#FFFFFF88' },
   drawButton: { alignSelf: 'center', minHeight: 48, minWidth: 240, backgroundColor: '#A54E42', borderRadius: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   guidedDrawTarget: { alignSelf: 'center', padding: 7 },
   guidedDrawButton: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .38, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 7 },
-  drawButtonText: { color: '#FFF9EF', fontFamily: 'ShipporiBold', letterSpacing: 1 },
+  drawButtonText: { color: '#FFF9EF', fontFamily: BRUSH, letterSpacing: 1 },
   replayButton: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 18 },
-  replayButtonText: { color: '#A54E42', fontFamily: 'ShipporiBold', fontSize: 12, letterSpacing: 0.5, textDecorationLine: 'underline' },
+  replayButtonText: { color: '#A54E42', fontFamily: BRUSH, fontSize: 12, letterSpacing: 0.5, textDecorationLine: 'underline' },
   resultTextEmphasis: { fontWeight: '700' },
   date: { textAlign: 'center', color: '#8B6B51', fontSize: 11, letterSpacing: 2 },
 });

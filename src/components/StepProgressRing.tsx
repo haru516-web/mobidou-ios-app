@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { C, SERIF } from '../components';
+import { BRUSH, C } from '../components';
 
 type StepProgressRingProps = {
   steps: number;
@@ -35,6 +35,6 @@ const S = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   count: { fontWeight: '400', color: C.ink, letterSpacing: 1 },
   compactCount: { fontWeight: '500', color: '#201812' },
-  unit: { fontFamily: SERIF, fontSize: 16, color: C.muted, marginTop: -2 },
+  unit: { fontFamily: BRUSH, fontSize: 16, color: C.muted, marginTop: -2 },
   goal: { fontSize: 13, color: '#6F6356', marginTop: 9, letterSpacing: 1 },
 });
