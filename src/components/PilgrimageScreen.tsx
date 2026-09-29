@@ -85,7 +85,7 @@ export function RouteMap({ route, count, progress, pet, onStop, showSpeech = fal
   </View>;
 }
 
-export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet, guidedRouteId, guidedRoutePresented = false }: { activeId?: string; onSelect: (id: string) => void; onClose: () => void; records: Record<string, Progress>; pet?: Pick<PetCharacter, 'id' | 'image' | 'name'>; guidedRouteId?: string; guidedRoutePresented?: boolean }) {
+export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet, guidedRouteId, guidedRoutePresented = false, bare = false }: { bare?: boolean; activeId?: string; onSelect: (id: string) => void; onClose: () => void; records: Record<string, Progress>; pet?: Pick<PetCharacter, 'id' | 'image' | 'name'>; guidedRouteId?: string; guidedRoutePresented?: boolean }) {
   const [preview, setPreview] = useState<Pilgrimage | null>(null);
   const [tutorialRect, setTutorialRect] = useState<TutorialRect | null>(null);
   const reportTutorialRect = setTutorialRect;
@@ -102,9 +102,9 @@ export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet, gu
   };
   const rows: Pilgrimage[][] = [];
   for (let i = 0; i < PILGRIMAGES.length; i += 2) rows.push(PILGRIMAGES.slice(i, i + 2));
-  return <View style={{ flex: 1, backgroundColor: C.paper }}>
-    <View style={S.header}><View><Text style={S.kicker}>もびの世界を歩く</Text><Text style={S.title}>{preview ? preview.name : 'どの旅へ、出かけよう。'}</Text></View>{(preview || activeId) && !guidedRouteId && <Pressable accessibilityRole="button" accessibilityLabel={preview ? 'コース一覧に戻る' : '巡礼選択を閉じる'} onPress={() => preview ? setPreview(null) : onClose()} style={S.close}><Icon name={preview ? 'arrow-back' : 'close'} /></Pressable>}</View>
-    <PagedBody style={{ flex: 1, paddingHorizontal: 22 }} gap={12}>
+  return <View style={{ flex: 1, backgroundColor: bare ? 'transparent' : C.paper }}>
+    <View style={[S.header, bare && S.headerBare]}><View><Text style={S.kicker}>もびの世界を歩く</Text><Text style={S.title}>{preview ? preview.name : 'どの旅へ、出かけよう。'}</Text></View>{(preview || activeId) && !guidedRouteId && <Pressable accessibilityRole="button" accessibilityLabel={preview ? 'コース一覧に戻る' : '巡礼選択を閉じる'} onPress={() => preview ? setPreview(null) : onClose()} style={S.close}><Icon name={preview ? 'arrow-back' : 'close'} /></Pressable>}</View>
+    <PagedBody style={{ flex: 1, paddingHorizontal: bare ? 2 : 22 }} gap={12}>
       {preview ? guidedRouteId ? <>
         <View key="guided-hero"><Image source={PILGRIMAGE_IMAGES[preview.id]} accessibilityLabel={preview.subtitle} style={[S.hero, { height: 170 }]} contentFit="cover" />
         <Text style={[S.kicker, { color: preview.color, marginTop: 16 }]}>{preview.type} · {preview.ids.length}か所</Text>
@@ -121,7 +121,7 @@ export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet, gu
         <Text key="note" style={S.small}>登場する寺社や景色は、もびの世界の創作です。</Text>
       </>}
     </PagedBody>
-    {preview && <View style={S.footer}>
+    {preview && <View style={[S.footer, bare && S.footerBare]}>
       {guidedRouteId
         ? <TutorialTarget active={guidedRoutePresented} onRectChange={reportTutorialRect} style={S.guidedRouteTarget}>{startButton(preview)}</TutorialTarget>
         : startButton(preview)}
@@ -136,6 +136,7 @@ export function CompletionPage({ route, progress, onChooseNext }: { route: Pilgr
 }
 
 const S = StyleSheet.create({
+  headerBare: { padding: 6, paddingTop: 4 }, footerBare: { paddingHorizontal: 2, paddingBottom: 4 },
   guidedRouteTarget: { alignSelf: 'stretch', marginTop: 15, padding: 5 }, guidedRouteButton: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .48, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 9 },
   guidedMapCardTarget: { alignSelf: 'stretch' }, guidedMapCard: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .42, shadowRadius: 11, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
   gridRow: { flexDirection: 'row', gap: 12 }, gridCardSlot: { flex: 1, minWidth: 0 }, gridCard: { marginBottom: 0, overflow: 'hidden' }, gridCardImage: { width: '100%', height: 96 }, gridCardCopy: { padding: 11, gap: 3 }, gridCardTitle: { fontFamily: BRUSH, fontSize: 16, lineHeight: 22, color: C.ink, minHeight: 44 }, footer: { paddingHorizontal: 22, paddingTop: 6, paddingBottom: 16, gap: 4 },

@@ -25,6 +25,7 @@ import { BookPageTurn, type BookPageTurnHandle } from './src/components/BookPage
 import { HomeBottomNavigation, HomeCustomizationPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
 import { BookIndexPopup, GoshuinBookCover } from './src/components/GoshuinBook';
 import { CroppedArt } from './src/components/CroppedArt';
+import { ScrollPopup } from './src/components/ScrollPopup';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
 import { StepProgressRing } from './src/components/StepProgressRing';
 import { FloatingMobby, type MobbyMenuItem, type MobbySpot } from './src/components/FloatingMobby';
@@ -72,6 +73,7 @@ function displayDate(day: string) { const [y, m, d] = day.split('-'); return `${
 
 type HomeLayout = { y: number; height: number };
 
+const SETTINGS_BACKGROUND = require('./assets/ui-washi/settings/settings-bg.webp');
 const BOOK_PAGE_LEFT = require('./assets/ui-washi/goshuin/page-left.webp');
 const BOOK_PAGE_RIGHT = require('./assets/ui-washi/goshuin/page-right.webp');
 const BOOK_CLOTH = require('./assets/ui-washi/goshuin/book-cover.webp');
@@ -643,7 +645,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
 
 
-    <Modal visible={routePicker} animationType="slide" presentationStyle="pageSheet" onShow={() => { if (firstRunStage === 'route') setGuidedRoutePresented(true); }} onRequestClose={closeRoutePicker}><SafeAreaView style={S.modal}><PilgrimagePicker key={firstRunStage === 'route' ? `guided-${FIRST_RUN_ROUTE_ID}` : 'route-picker'} activeId={activeRoute?.id} records={routeRecords} pet={pet} onClose={closeRoutePicker} onSelect={selectPilgrimageRoute} guidedRouteId={firstRunStage === 'route' ? FIRST_RUN_ROUTE_ID : undefined} guidedRoutePresented={guidedRoutePresented} /></SafeAreaView></Modal>
+    <ScrollPopup variant="wide" visible={routePicker} title="巡礼を選ぶ" onShow={() => { if (firstRunStage === 'route') setGuidedRoutePresented(true); }} onClose={closeRoutePicker}>
+      {() => <PilgrimagePicker bare key={firstRunStage === 'route' ? `guided-${FIRST_RUN_ROUTE_ID}` : 'route-picker'} activeId={activeRoute?.id} records={routeRecords} pet={pet} onClose={closeRoutePicker} onSelect={selectPilgrimageRoute} guidedRouteId={firstRunStage === 'route' ? FIRST_RUN_ROUTE_ID : undefined} guidedRoutePresented={guidedRoutePresented} />}
+    </ScrollPopup>
 
     <Modal visible={!!detail} transparent onShow={() => { setOverlayBusy(true); openDetailPopup(); }} onDismiss={() => { detailPopupProgress.stopAnimation(); detailPopupProgress.setValue(0); detailStampPreviewProgress.stopAnimation(); detailStampPreviewProgress.setValue(0); setDetail(null); setDetailStampPreview(false); setOverlayBusy(false); }} animationType="none" onRequestClose={() => { if (detailStampPreview) closeDetailStampPreview(); else closeDetailPopup(); }} presentationStyle="overFullScreen">
       <SafeAreaView style={[S.modal, { backgroundColor: 'transparent' }]}>
@@ -679,7 +683,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <Modal visible={settings && !accountPage} onShow={() => setOverlayBusy(true)} onDismiss={() => { if (!accountPage) { setInfo(null); setOverlayBusy(false); } }} animationType="slide" onRequestClose={() => setSettings(false)} presentationStyle="pageSheet"><SafeAreaView style={S.modal}><View style={S.modalHeader}><Text style={S.modalTitle}>設定</Text><Close onPress={() => { setInfo(null); setSettings(false); setAccountPage(null); }} /></View>{!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text></View>}<ScrollView style={S.settingsContent} contentContainerStyle={S.settingsScrollContent} showsVerticalScrollIndicator={false}>
+    <Modal visible={settings && !accountPage} onShow={() => setOverlayBusy(true)} onDismiss={() => { if (!accountPage) { setInfo(null); setOverlayBusy(false); } }} animationType="slide" onRequestClose={() => setSettings(false)} presentationStyle="pageSheet"><SafeAreaView style={S.modal}><Image accessible={false} source={SETTINGS_BACKGROUND} contentFit="cover" pointerEvents="none" style={StyleSheet.absoluteFill} /><View style={S.modalHeader}><Text style={S.modalTitle}>設定</Text><Close onPress={() => { setInfo(null); setSettings(false); setAccountPage(null); }} /></View>{!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text></View>}<ScrollView style={S.settingsContent} contentContainerStyle={S.settingsScrollContent} showsVerticalScrollIndicator={false}>
       {!!journey.corruptedBackup && <View key="backup"><Section title="読み込めなかった記録" /><View style={S.settingCard}><WashiArt /><Text style={S.settingHelp}>以前の記録を読み込めなかったため、端末内に退避しています。お問い合わせや手作業での復旧に使えるよう、内容を表示してコピーできます。</Text><TextInput accessibilityLabel="退避した記録。長押ししてすべて選択しコピー" value={journey.corruptedBackup} editable={false} multiline selectTextOnFocus textAlignVertical="top" style={S.backupText} />{confirmDiscardBackup ? <><Text style={S.settingHelp}>削除すると元に戻せません。削除しますか？</Text><Button title="退避した記録を削除する" onPress={() => { void journey.discardCorruptedBackup(); setConfirmDiscardBackup(false); }} /><Button title="やめる" secondary onPress={() => setConfirmDiscardBackup(false)} style={{ marginTop: 10 }} /></> : <Button title="退避した記録を削除" secondary onPress={() => setConfirmDiscardBackup(true)} style={{ marginTop: 10 }} />}</View></View>}
       <View key="account"><Section title="アカウント" /><View style={S.settingCard}><WashiArt /><Meta icon="person-circle-outline" text="未ログイン · この端末に保存" /><Text style={S.settingHelp}>ログインやクラウド同期は未設定です。アカウント画面からログイン状況を確認し、別の端末へ記録を引き継げます。</Text><Button title="アカウント管理" icon="person-circle-outline" onPress={() => setAccountPage('manage')} /></View></View>
       <View key="steps"><Section title="歩数のつながり" /><View style={S.settingCard}><WashiArt /><Meta icon="footsteps-outline" text={sourceLabel[data.source]} /><Text style={S.settingHelp}>{data.source === 'healthkit' ? 'ヘルスケアの当日歩数を読み取ります。0歩のままの場合は、ヘルスケアの共有設定をご確認ください。読み取り権限の拒否はアプリから判別できません。' : data.source === 'motion' ? 'Expo Goではモーションとフィットネスから読み取ります。HealthKitはiOSの開発ビルドで利用できます。' : 'iPhoneで歩数を連携すると、今日の歩数で御朱印を集められます。'}
