@@ -8,8 +8,9 @@ import type { PetCharacter } from '../petCatalog';
 import { reactionLine, type ReactionKind } from '../data/reactions';
 import { PULL_ASSETS, type CoreMobbyId, type MobbyPullAsset, type PullFrame } from '../data/mobbyPullAssets';
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
-import { MOBIBOU_ACTION_FRAMES } from '../data/mobibouActionFrames';
-import { PRAYER_ATLASES, PRAYER_ACTION_ORDER, PRAYER_FRAME_COUNT } from '../data/prayerAtlasesV2';
+import { MOBIBOU_ACTION_FRAMES, MOBIBOU_PRAYER_ORDER } from '../data/mobibouActionFrames';
+import { buildPrayerTimeline } from '../data/prayerTiming';
+import { PRAYER_ATLASES, PRAYER_ACTION_ORDER } from '../data/prayerAtlasesV2';
 import { MobbyPullMesh, SUPPORTS_PULL_MESH, type MobbyPullMeshHandle } from './MobbyPullMesh';
 import { PULL_PART_ANCHORS } from '../data/pullPartAnchors';
 import { PULL_GL_TEXTURES } from '../data/pullGlTextures';
@@ -31,7 +32,8 @@ function MaskedPullBodyImage({ source, mask, size }: { source: ImageSourcePropTy
   );
 }
 
-const MOBIBOU_REI_FRAME_LAYOUTS = [
+type FrameLayout = readonly [left: number, top: number, width: number, height: number];
+const MOBIBOU_REI_FRAME_LAYOUTS: readonly FrameLayout[] = [
   [16.06, -72.47, 178.54, 347.34],
   [16.39, -72.47, 176.56, 347.34],
   [16.39, -72.47, 176.56, 347.34],
@@ -40,8 +42,8 @@ const MOBIBOU_REI_FRAME_LAYOUTS = [
   [16.06, -72.47, 176.56, 347.34],
   [17.05, -72.47, 176.56, 347.34],
   [16.06, -72.47, 178.54, 347.34],
-] as const;
-const MOBIBOU_HAKUSHU_FRAME_LAYOUTS = [
+];
+const MOBIBOU_HAKUSHU_FRAME_LAYOUTS: readonly FrameLayout[] = [
   [15.65, -72.23, 179.36, 346.42],
   [16.65, -72.23, 177.37, 346.42],
   [16.65, -72.23, 177.37, 346.42],
@@ -50,14 +52,10 @@ const MOBIBOU_HAKUSHU_FRAME_LAYOUTS = [
   [16.65, -72.23, 177.37, 346.42],
   [16.65, -72.23, 177.37, 346.42],
   [15.65, -72.23, 179.36, 346.42],
-] as const;
-const MOBIBOU_PRAYER_FRAME_LAYOUTS = [
-  ...MOBIBOU_REI_FRAME_LAYOUTS,
-  ...MOBIBOU_REI_FRAME_LAYOUTS,
-  ...MOBIBOU_HAKUSHU_FRAME_LAYOUTS,
-  ...MOBIBOU_HAKUSHU_FRAME_LAYOUTS,
-  ...MOBIBOU_REI_FRAME_LAYOUTS,
-] as const;
+];
+const MOBIBOU_PRAYER_FRAME_LAYOUTS = MOBIBOU_PRAYER_ORDER.flatMap(action => (action === 'rei' ? MOBIBOU_REI_FRAME_LAYOUTS : MOBIBOU_HAKUSHU_FRAME_LAYOUTS));
+const MOBIBOU_PRAYER_TIMELINE = buildPrayerTimeline(MOBIBOU_PRAYER_ORDER);
+const ATLAS_PRAYER_TIMELINE = buildPrayerTimeline(PRAYER_ACTION_ORDER);
 
 const C = {
   paper: '#F8F4EB',
@@ -221,7 +219,7 @@ export function PullableCompanion({
   const meshRef = useRef<MobbyPullMeshHandle>(null);
   const rig = useMemo(createPullRig, []);
   const rigSpecRef = useRef<RigSpec | null>(null);
-  const prayerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prayerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMeshError = useCallback(() => setMeshFailed(true), []);
   const handleMeshFrame = useCallback(() => {
@@ -243,7 +241,7 @@ export function PullableCompanion({
   }, []);
 
   const clearPrayerTimer = useCallback(() => {
-    if (prayerTimerRef.current) clearInterval(prayerTimerRef.current);
+    if (prayerTimerRef.current) clearTimeout(prayerTimerRef.current);
     prayerTimerRef.current = null;
   }, []);
 
@@ -386,20 +384,24 @@ export function PullableCompanion({
     setLine(`${pet.name}のお参り。`);
     onBond();
     haptic(Haptics.ImpactFeedbackStyle.Medium);
-    let index = 0;
-    prayerTimerRef.current = setInterval(() => {
-      index += 1;
-      if (index >= PRAYER_FRAME_COUNT) {
-        clearPrayerTimer();
-        setPrayerFrame(null);
-        setStatus('idle');
-        setLine('きれいにお参りできたな。');
-        return;
-      }
-      setPrayerFrame(index);
-      if (index === 19 || index === 27) haptic(Haptics.ImpactFeedbackStyle.Light);
-    }, 90);
-  }, [clearLineTimer, clearPrayerTimer, clearReactionTimers, haptic, onBond, pet.name, prayerFrame, prayerReady, prayerSequence, reactionMotion, resetPose, specialMotion]);
+    const timeline = isMobibouPrayer ? MOBIBOU_PRAYER_TIMELINE : ATLAS_PRAYER_TIMELINE;
+    const advance = (index: number) => {
+      prayerTimerRef.current = setTimeout(() => {
+        const next = index + 1;
+        if (next >= timeline.durations.length) {
+          clearPrayerTimer();
+          setPrayerFrame(null);
+          setStatus('idle');
+          setLine('きれいにお参りできたな。');
+          return;
+        }
+        setPrayerFrame(next);
+        if (timeline.clapFrames.includes(next)) haptic(Haptics.ImpactFeedbackStyle.Light);
+        advance(next);
+      }, timeline.durations[index]);
+    };
+    advance(0);
+  }, [clearLineTimer, clearPrayerTimer, clearReactionTimers, haptic, isMobibouPrayer, onBond, pet.name, prayerFrame, prayerReady, prayerSequence, reactionMotion, resetPose, specialMotion]);
 
   const finishReaction = useCallback(() => {
     setReactionFrame(null);
