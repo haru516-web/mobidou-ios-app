@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { BRUSH } from '../components';
 
 export function TutorialTapHint({ step, label, detail }: { step: string; label: string; detail: string }) {
   return <View pointerEvents="none" style={S.hint}>
@@ -18,6 +19,6 @@ const S = StyleSheet.create({
   stepBadge: { minWidth: 54, height: 44, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#815C3B' },
   step: { color: '#FFF8E9', fontSize: 11, fontWeight: '700', letterSpacing: .25 },
   copy: { flex: 1, gap: 2 },
-  title: { color: '#3D3328', fontFamily: 'ShipporiBold', fontSize: 14, lineHeight: 19 },
+  title: { color: '#3D3328', fontFamily: BRUSH, fontSize: 14, lineHeight: 19 },
   detail: { color: '#786853', fontSize: 11, lineHeight: 16 },
 });

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { PagedBody } from './PagedBody';
-import { Button, C, Icon, SERIF, Section } from '../components';
+import { BRUSH, Button, C, Icon, SERIF, Section } from '../components';
 import { getPilgrimage } from '../data/pilgrimages';
 import { getPetCharacter, type PetId } from '../petCatalog';
 import { WashiArt } from './Washi';
@@ -197,7 +197,7 @@ const S = StyleSheet.create({
   welcomeArt: { height: 92, width: 92, borderRadius: 46, alignSelf: 'center', backgroundColor: '#F1E7D8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: 5 },
   welcomeIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FFF9EF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E4D3BD' },
   kicker: { color: C.gold, fontSize: 11, letterSpacing: 1.8, textAlign: 'center', marginTop: 8 },
-  title: { fontFamily: SERIF, fontSize: 26, lineHeight: 39, color: C.ink, textAlign: 'center', marginTop: 0 },
+  title: { fontFamily: BRUSH, fontSize: 26, lineHeight: 39, color: C.ink, textAlign: 'center', marginTop: 0 },
   body: { fontSize: 12, lineHeight: 22, color: '#746958', textAlign: 'center' },
   primary: { marginTop: 8 },
   secondaryButton: { marginTop: 2 },
@@ -205,7 +205,7 @@ const S = StyleSheet.create({
   statusCard: { borderRadius: 17, backgroundColor: '#FFFCF5', borderWidth: 1, borderColor: C.line, padding: 19, alignItems: 'center', gap: 9, overflow: 'hidden' },
   statusIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#F3E8DC', alignItems: 'center', justifyContent: 'center' },
   successIcon: { backgroundColor: '#E8F0E8' },
-  statusTitle: { fontFamily: SERIF, color: C.ink, fontSize: 19, textAlign: 'center' },
+  statusTitle: { fontFamily: BRUSH, color: C.ink, fontSize: 19, textAlign: 'center' },
   transferSection: { padding: 15, borderRadius: 15, borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFCF5', gap: 9 },
   small: { color: C.muted, fontSize: 11, lineHeight: 19 },
   summaryLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 3 },
@@ -213,7 +213,7 @@ const S = StyleSheet.create({
   codeOutput: { minHeight: 104, maxHeight: 170, borderRadius: 9, borderWidth: 1, borderColor: '#DDD1C0', backgroundColor: '#F7F2E9', color: '#766B5C', padding: 10, fontSize: 12, lineHeight: 14, fontFamily: 'monospace' },
   codeInput: { minHeight: 120, maxHeight: 220, borderRadius: 9, borderWidth: 1, borderColor: '#D9CBB8', backgroundColor: '#FFFDF8', color: C.ink, padding: 11, fontSize: 11, lineHeight: 18 },
   previewCard: { borderRadius: 11, padding: 12, backgroundColor: '#F2EBDD', gap: 7 },
-  previewTitle: { fontFamily: SERIF, fontSize: 14, color: C.ink },
+  previewTitle: { fontFamily: BRUSH, fontSize: 14, color: C.ink },
   previewText: { color: '#716654', fontSize: 11, lineHeight: 18 },
   replaceNote: { color: '#8A483D', fontSize: 11, lineHeight: 19, marginTop: 4 },
   dangerButton: { backgroundColor: '#873F36' },

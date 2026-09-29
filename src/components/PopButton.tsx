@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
-import { C, Icon, useReducedMotion } from '../components';
+import { BRUSH, C, Icon, useReducedMotion } from '../components';
 import { WashiArt } from './Washi';
 import { POP_BUTTON_IMAGES, type PopButtonId } from '../data/popButtonImages';
 
@@ -86,6 +86,6 @@ const S = StyleSheet.create({
   badgeText: { color: '#FFF9EF', fontSize: 11, fontWeight: '800' },
   labelTab: { marginTop: 6, minWidth: 54, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 7, overflow: 'hidden', alignItems: 'center', backgroundColor: '#FBF4E4', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: '#B98D67' },
   labelTabSelected: { borderColor: C.red },
-  label: { color: C.ink, fontFamily: 'ShipporiBold', fontSize: 12.5, letterSpacing: .4 },
+  label: { color: C.ink, fontFamily: BRUSH, fontSize: 12.5, letterSpacing: .4 },
   labelSelected: { color: C.red },
 });

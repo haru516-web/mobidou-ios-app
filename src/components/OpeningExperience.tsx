@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Easing, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { C, SERIF } from '../components';
+import { BRUSH, C, SERIF } from '../components';
 
 const OPENING_WORDMARK = require('../../assets/mobidou-wordmark-brush.webp');
 const OPENING_EMBLEM = require('../../assets/mobidou-opening-emblem.webp');
@@ -169,10 +169,10 @@ const S = StyleSheet.create({
   openingCenterWordmark: { width: 190, height: 58, marginBottom: 8 },
   openingEmblem: { width: 220, height: 220, opacity: .96 },
   openingCopy: { alignItems: 'center', paddingHorizontal: 12, marginBottom: 13 },
-  openingTagline: { fontFamily: SERIF, fontSize: 25, letterSpacing: 3, color: C.ink, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
+  openingTagline: { fontFamily: BRUSH, fontSize: 25, letterSpacing: 3, color: C.ink, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
   openingSubline: { fontSize: 12, letterSpacing: 1.5, color: '#5E4636', marginTop: 9, textShadowColor: '#FFF9EFE6', textShadowRadius: 6 },
   openingStage: { fontFamily: SERIF, fontSize: 12, letterSpacing: 2.5, color: '#765E4B', marginTop: 13 },
   openingError: { marginBottom: 10, textAlign: 'center' },
-  openingSwipeHint: { fontFamily: 'ShipporiBold', fontSize: 16, color: '#FFF9EF', letterSpacing: 1.2, marginTop: 4, marginBottom: 4, textShadowColor: '#3A2D27AA', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  openingSwipeHint: { fontFamily: BRUSH, fontSize: 16, color: '#FFF9EF', letterSpacing: 1.2, marginTop: 4, marginBottom: 4, textShadowColor: '#3A2D27AA', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   errorText: { color: '#813D31', flexShrink: 1, fontSize: 12, lineHeight: 19 },
 });

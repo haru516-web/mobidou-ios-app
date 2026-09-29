@@ -9,6 +9,7 @@ import { STAMP_IMAGES, type Shrine } from './data/shrines';
 import { WashiPressable as Pressable } from './components/Washi';
 export const C = { paper: '#F8F4EB', ink: '#322F29', red: '#A54E42', muted: '#8A8174', line: '#E3DACE', pale: '#EFE8DD', gold: '#AF9368' };
 export const SERIF = 'Shippori';
+export const BRUSH = 'OmikujiBrush';
 export function Icon({ name, size = 21, color = C.ink }: { name: React.ComponentProps<typeof Ionicons>['name']; size?: number; color?: string }) { return <Ionicons name={name} size={size} color={color} />; }
 export function Torii({ size = 30, color = C.red }: { size?: number; color?: string }) {
   return <Svg width={size} height={size} viewBox="0 0 40 40"><Path d="M3 7 Q20 12 37 7 M6 13 H34 M8 21 H32 M12 13 L10 36 M28 13 L30 36 M20 14 V20" stroke={color} strokeWidth="3.5" strokeLinecap="round" fill="none" /></Svg>;
@@ -31,7 +32,7 @@ export function Companion({ pet, haptics, onBond, reactionTrigger, onStageLayout
   return <PullableCompanion pet={pet} haptics={haptics} onBond={onBond} reactionTrigger={reactionTrigger} onStageLayout={onStageLayout} />;
 }
 const S = StyleSheet.create({
-  button: { minHeight: 50, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 16, backgroundColor: C.red, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center' }, secondary: { backgroundColor: 'transparent', borderColor: '#CBA79A', borderWidth: 1 }, buttonText: { color: '#FFF9EF', fontWeight: '600', fontSize: 14, letterSpacing: 1 },
-  section: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 17, marginTop: 26 }, sectionTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink, letterSpacing: 1 }, eyebrow: { color: C.muted, fontSize: 11, letterSpacing: 1.5, marginTop: 5 }, link: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 3 }, linkText: { color: C.red, fontSize: 11 },
+  button: { minHeight: 50, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 16, backgroundColor: C.red, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center' }, secondary: { backgroundColor: 'transparent', borderColor: '#CBA79A', borderWidth: 1 }, buttonText: { color: '#FFF9EF', fontFamily: BRUSH, fontSize: 14, letterSpacing: 1 },
+  section: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 17, marginTop: 26 }, sectionTitle: { fontFamily: BRUSH, fontSize: 23, color: C.ink, letterSpacing: 1 }, eyebrow: { color: C.muted, fontSize: 11, letterSpacing: 1.5, marginTop: 5 }, link: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 3 }, linkText: { color: C.red, fontSize: 11 },
   stamp: { width: '100%', aspectRatio: 2 / 3, backgroundColor: '#F5EFDF', borderRadius: 5, overflow: 'hidden' }, lock: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 7 }, lockText: { fontSize: 11, color: '#6B655B', letterSpacing: 1 },
 });
