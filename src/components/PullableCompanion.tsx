@@ -10,7 +10,9 @@ import { PULL_ASSETS, type CoreMobbyId, type MobbyPullAsset, type PullFrame } fr
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 import { MOBIBOU_ACTION_FRAMES } from '../data/mobibouActionFrames';
 import { PRAYER_ATLASES, PRAYER_ACTION_ORDER, PRAYER_FRAME_COUNT } from '../data/prayerAtlasesV2';
-import { MobbyPullMesh, type MobbyPullMeshHandle } from './MobbyPullMesh';
+import { MobbyPullMesh, SUPPORTS_PULL_MESH, type MobbyPullMeshHandle } from './MobbyPullMesh';
+import { PULL_PART_ANCHORS } from '../data/pullPartAnchors';
+import { applyPullRig, createPullRig, resetPullRig, rigTransform, type RigSpec } from './pullRig';
 
 function MaskedPullBodyImage({ source, mask, size }: { source: ImageSourcePropType; mask: ImageSourcePropType; size: number }) {
   const maskId = `mobby-pull-alpha-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -187,6 +189,7 @@ export function PullableCompanion({
   const [eyeIndex, setEyeIndex] = useState(-1);
   const [mouthIndex, setMouthIndex] = useState(-1);
   const [prayerFrame, setPrayerFrame] = useState<number | null>(null);
+  const [meshFailed, setMeshFailed] = useState(false);
 
   const float = useRef(new Animated.Value(0)).current;
   const bounce = useRef(new Animated.Value(0)).current;
@@ -215,7 +218,16 @@ export function PullableCompanion({
   const sectorRef = useRef(0);
   const strongRef = useRef(false);
   const meshRef = useRef<MobbyPullMeshHandle>(null);
+  const rig = useMemo(createPullRig, []);
+  const rigSpecRef = useRef<RigSpec | null>(null);
   const prayerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleMeshError = useCallback(() => setMeshFailed(true), []);
+  const handleMeshFrame = useCallback(() => {
+    const spec = rigSpecRef.current;
+    const mesh = meshRef.current;
+    if (spec && mesh) applyPullRig(rig, mesh.sample, spec);
+  }, [rig]);
 
   const clearReactionTimers = useCallback(() => {
     reactionTimersRef.current.forEach(clearTimeout);
@@ -573,7 +585,10 @@ export function PullableCompanion({
 
   const isPullReaction = Boolean(reactionFrames && reactionFrame !== null);
   const isPrayer = prayerFrame !== null;
-  const meshVisible = Platform.OS === 'web' && Boolean(pullAsset) && (status === 'pulling' || status === 'released');
+  const meshVisible = SUPPORTS_PULL_MESH && !meshFailed && Boolean(pullAsset) && (status === 'pulling' || status === 'released');
+  useEffect(() => {
+    if (!meshVisible) resetPullRig(rig);
+  }, [meshVisible, rig]);
   const showFixedAccessoryParts = status === 'pulling'
     || status === 'released'
     || (status === 'reacting' && specialReaction && reactionFrame === null && !isPrayer);
@@ -582,6 +597,13 @@ export function PullableCompanion({
   const activeEye = pullAsset && (eyeIndex >= 0 ? pullAsset.eyes[eyeIndex] ?? defaultEye : defaultEye);
   const activeMouth = pullAsset && mouthIndex >= 0 ? pullAsset.mouths[mouthIndex] : null;
   const eyeFrame = pullAsset && (eyeIndex >= 0 ? pullAsset.eyeFrame : pullAsset.defaultEyeFrame ?? pullAsset.eyeFrame);
+  const spriteScale = pullAsset ? 210 / pullAsset.sourceSize : 1;
+  rigSpecRef.current = pullAsset && eyeFrame ? {
+    eye: { x: (eyeFrame.x + eyeFrame.width / 2) * spriteScale, y: (eyeFrame.y + eyeFrame.height / 2) * spriteScale },
+    mouth: { x: (pullAsset.mouthFrame.x + pullAsset.mouthFrame.width / 2) * spriteScale, y: (pullAsset.mouthFrame.y + pullAsset.mouthFrame.height / 2) * spriteScale },
+    parts: PULL_PART_ANCHORS[pet.id],
+    size: 210,
+  } : null;
   const pullRotationDeg = pullRotation.interpolate({ inputRange: [-0.12, 0, 0.12], outputRange: ['-7deg', '0deg', '7deg'] });
   const bounceLift = bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -13] });
   const totalTranslateY = Animated.add(float, bounceLift);
@@ -621,7 +643,7 @@ export function PullableCompanion({
               ? <MaskedPullBodyImage source={displayBody} mask={pet.image} size={210} />
               : <Image pointerEvents="none" source={displayBody} style={styles.pet} contentFit="contain" transition={0} />) : null}
           </Animated.View>
-          {pullAsset ? <MobbyPullMesh ref={meshRef} source={pullAsset.body} mask={pet.image} size={210} visible={meshVisible} /> : null}
+          {pullAsset ? <MobbyPullMesh ref={meshRef} source={pullAsset.body} mask={pet.image} size={210} visible={meshVisible} onFrame={handleMeshFrame} onError={handleMeshError} /> : null}
           {prayerSequence ? <Animated.View pointerEvents="none" style={[styles.prayerLayer, { opacity: isPrayer ? 1 : 0, overflow: 'hidden', transform: [{ translateY: float }] }]}>
             {isMobibouPrayer ? MOBIBOU_ACTION_FRAMES.map((source, index) => {
               const [left, top, width, height] = MOBIBOU_PRAYER_FRAME_LAYOUTS[index];
@@ -648,16 +670,21 @@ export function PullableCompanion({
           </Animated.View> : null}
           {pullAsset?.fixedAccessoryParts ? (
             <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.fixedParts, { opacity: showFixedAccessoryParts ? 1 : 0 }]}>
-              <Image source={pullAsset.fixedAccessoryParts.lens} contentFit="contain" style={styles.overlayImage} />
-              <Image source={pullAsset.fixedAccessoryParts.cross} contentFit="contain" style={styles.overlayImage} />
-              <Image source={pullAsset.fixedAccessoryParts.buttonLeft} contentFit="contain" style={styles.overlayImage} />
-              <Image source={pullAsset.fixedAccessoryParts.buttonRight} contentFit="contain" style={styles.overlayImage} />
+              {(['lens', 'cross', 'buttonLeft', 'buttonRight'] as const).map(part => (
+                <Animated.View key={part} style={[StyleSheet.absoluteFillObject, { transform: rigTransform(rig[part]) }]}>
+                  <Image source={pullAsset.fixedAccessoryParts![part]} contentFit="contain" style={styles.overlayImage} />
+                </Animated.View>
+              ))}
             </View>
           ) : null}
           {!isPullReaction && pullAsset && activeEye && eyeFrame ? (
             <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.faceLayer, { opacity: status === 'idle' || isPrayer ? 0 : 1 }]}>
-              <Image source={activeEye} contentFit={eyeIndex >= 0 ? pullAsset.eyeResizeMode ?? 'contain' : 'contain'} style={pullFaceFrameStyle(eyeFrame, pullAsset, 210)} />
-              {activeMouth ? <Image source={activeMouth} contentFit="contain" style={pullFaceFrameStyle(pullAsset.mouthFrame, pullAsset, 210)} /> : null}
+              <Animated.View style={[pullFaceFrameStyle(eyeFrame, pullAsset, 210), { transform: rigTransform(rig.eye) }]}>
+                <Image source={activeEye} contentFit={eyeIndex >= 0 ? pullAsset.eyeResizeMode ?? 'contain' : 'contain'} style={StyleSheet.absoluteFill} />
+              </Animated.View>
+              {activeMouth ? <Animated.View style={[pullFaceFrameStyle(pullAsset.mouthFrame, pullAsset, 210), { transform: rigTransform(rig.mouth) }]}>
+                <Image source={activeMouth} contentFit="contain" style={StyleSheet.absoluteFill} />
+              </Animated.View> : null}
             </View>
           ) : null}
           {reactionFrames ? (
