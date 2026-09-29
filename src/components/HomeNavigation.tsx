@@ -23,6 +23,7 @@ const CUSTOM_WIDGET_PREVIEW_SCALE = 0.42;
 const NAV_BACKGROUND = require('../../assets/ui-washi/home/nav-bar.webp');
 const NAV_BOUNDS = { x0: 0, x1: .999, y0: .322, y1: .997 };
 const NAV_TAB_ACTIVE = require('../../assets/ui-washi/home/nav-tab-active.webp');
+const NAV_UNDERLINE = require('../../assets/ui-washi/common/underline-brush.webp');
 export type PrimaryTab = 'home' | 'book' | 'walk' | 'collection';
 
 const PRIMARY_NAV_ITEMS = [
@@ -46,15 +47,41 @@ export function HomeBottomNavigation({ tab, onNavigate, disabled = false }: Home
     <View style={[S.primaryNavFrame, CONTINUOUS_CORNER]}>
       <CroppedArt source={NAV_BACKGROUND} bounds={NAV_BOUNDS} />
       <View style={S.primaryNav} accessibilityRole="tablist">
-        {PRIMARY_NAV_ITEMS.map(item => <Pressable key={item.id} artwork={false} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected: tab === item.id }} onPress={() => onNavigate(item.id)} style={S.navItem}>
-          <View style={S.navIconWrap}>
-            {tab === item.id && <Image accessible={false} source={NAV_TAB_ACTIVE} contentFit="contain" pointerEvents="none" style={S.navInk} />}
-            <Icon name={item.icon} size={22} color={tab === item.id ? '#FFF9EF' : '#6F675B'} />
-          </View>
-        </Pressable>)}
+        {PRIMARY_NAV_ITEMS.map(item => <NavTab key={item.id} item={item} selected={tab === item.id} onPress={() => onNavigate(item.id)} />)}
       </View>
     </View>
   </View>;
+}
+
+/**
+ * One tab. The chosen tab is stamped: a vermilion ink seal blooms behind its
+ * icon, the icon lifts a little, and the name is underlined with a brush stroke.
+ */
+function NavTab({ item, selected, onPress }: { item: (typeof PRIMARY_NAV_ITEMS)[number]; selected: boolean; onPress: () => void }) {
+  const reduced = useReducedMotion();
+  const progress = useRef(new Animated.Value(selected ? 1 : 0)).current;
+  const useNativeDriver = Platform.OS !== 'web';
+  useEffect(() => {
+    if (reduced) { progress.setValue(selected ? 1 : 0); return undefined; }
+    const animation = selected
+      ? Animated.spring(progress, { toValue: 1, damping: 9, stiffness: 190, mass: .7, useNativeDriver })
+      : Animated.timing(progress, { toValue: 0, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver });
+    animation.start();
+    return () => animation.stop();
+  }, [progress, reduced, selected, useNativeDriver]);
+  const lift = progress.interpolate({ inputRange: [0, 1], outputRange: [0, -4] });
+  const sealScale = progress.interpolate({ inputRange: [0, 1], outputRange: [.5, 1] });
+  const sealTurn = progress.interpolate({ inputRange: [0, 1], outputRange: ['-24deg', '-6deg'] });
+  return <Pressable artwork={false} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected }} onPress={onPress} style={S.navItem}>
+    <Animated.View style={[S.navIconWrap, { transform: [{ translateY: lift }] }]}>
+      <Animated.Image accessible={false} source={NAV_TAB_ACTIVE} resizeMode="contain" style={[S.navInk, { opacity: progress, transform: [{ scale: sealScale }, { rotate: sealTurn }] }]} />
+      <Icon name={item.icon} size={22} color={selected ? '#FFF9EF' : '#6F675B'} />
+    </Animated.View>
+    <View style={S.navLabelWrap}>
+      <Text numberOfLines={1} style={[S.navLabel, selected && S.navLabelSelected]}>{item.title}</Text>
+      <Animated.Image accessible={false} source={NAV_UNDERLINE} resizeMode="stretch" style={[S.navUnderline, { opacity: progress }]} />
+    </View>
+  </Pressable>;
 }
 
 type PopupAnimation = {
@@ -271,9 +298,13 @@ const S = StyleSheet.create({
   navShell: { position: 'relative', zIndex: 40, marginHorizontal: 12, marginBottom: 8 },
   primaryNavFrame: { paddingTop: 12, paddingBottom: 5, overflow: 'hidden' },
   primaryNav: { flexDirection: 'row' },
-  navItem: { flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
-  navIconWrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
-  navInk: { position: 'absolute', width: 46, height: 46 },
+  navItem: { flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
+  navIconWrap: { width: 42, height: 40, alignItems: 'center', justifyContent: 'center' },
+  navInk: { position: 'absolute', width: 42, height: 42 },
+  navLabelWrap: { alignItems: 'center', marginTop: 1 },
+  navLabel: { fontFamily: BRUSH, fontSize: 11, letterSpacing: .4, color: '#6F675B' },
+  navLabelSelected: { color: C.red },
+  navUnderline: { width: 34, height: 6, marginTop: -1 },
   popupRoot: { position: 'absolute', left: 0, right: 0, top: 86, bottom: 77, zIndex: 30, alignItems: 'center' },
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },
   mobyRoot: { justifyContent: 'flex-start', zIndex: 90 },

@@ -8,6 +8,7 @@ import rawWalkMetrics from '../data/pilgrimageSpriteMetrics.json';
 import { C, Icon } from '../components';
 import type { PopButtonId } from '../data/popButtonImages';
 import { PopButton } from './PopButton';
+import { layoutMenuSlots } from './mobbyMenuLayout';
 
 // v6: positions are remembered per screen (spotKey); the old single spot is dropped.
 const STORAGE_KEY = 'mobidou.floating-mobby-position.v6';
@@ -16,7 +17,6 @@ const EDGE_GUTTER = 8;
 const TOP_CLEARANCE = 64;
 const MENU_RADIUS = 134;
 const MENU_ITEM_WIDTH = 82;
-const MENU_ITEM_SPACING = 104;
 const MENU_ITEM_HEIGHT = 92;
 const MENU_DISC_CENTER_Y = 32;
 const WALK_DISPLAY_HEIGHT = MOBBY_SIZE - 6;
@@ -297,19 +297,12 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
   }, []);
 
   // The menu fans out around Mobby toward the middle of the screen, so it
-  // opens into free space wherever Mobby has been dragged. Each button pops
+  // opens into free space wherever Mobby has been dragged, and the buttons are
+  // kept from overlapping each other, Mobby or the tab bar. Each button pops
   // out from Mobby with a small stagger, then floats in place.
   const centerX = position.x + MOBBY_SIZE / 2;
   const centerY = position.y + MOBBY_SIZE / 2;
-  const towardMiddle = Math.atan2(layout.height / 2 - centerY, layout.width / 2 - centerX);
-  // Neighbouring buttons are ~100px apart so a label never sits under another button.
-  const spread = Math.min(Math.PI * .9, (MENU_ITEM_SPACING / MENU_RADIUS) * Math.max(0, items.length - 1));
-  const menuSlots = items.map((_, index) => {
-    const angle = towardMiddle + (items.length <= 1 ? 0 : (index / (items.length - 1) - .5) * spread);
-    const left = clamp(centerX + Math.cos(angle) * MENU_RADIUS - MENU_ITEM_WIDTH / 2, 4, Math.max(4, layout.width - MENU_ITEM_WIDTH - 4));
-    const top = clamp(centerY + Math.sin(angle) * MENU_RADIUS - MENU_DISC_CENTER_Y, 4, Math.max(4, layout.height - bottomInset - MENU_ITEM_HEIGHT));
-    return { left, top };
-  });
+  const menuSlots = layoutMenuSlots({ mobby: { x: position.x, y: position.y, size: MOBBY_SIZE }, screen: layout, bottomInset, count: items.length, itemWidth: MENU_ITEM_WIDTH, itemHeight: MENU_ITEM_HEIGHT, radius: MENU_RADIUS, topClearance: TOP_CLEARANCE - 4 });
   const petVisual = walking
     ? walkSource
       ? <WalkFrame source={walkSource} petId={petId} frame={walkFrame} />
