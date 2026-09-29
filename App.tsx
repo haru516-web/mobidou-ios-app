@@ -41,7 +41,7 @@ import { CollectionBackdrop, getHomeBackgroundMetrics, HomeAnchoredBackground } 
 
 type Tab = PrimaryTab;
 type HomePopup = 'custom' | 'moby' | null;
-type FirstRunStage = 'route' | 'character' | 'homeOmikuji' | 'drawOmikuji' | null;
+type FirstRunStage = 'route' | 'character' | 'homeCompanion' | 'floatingMenu' | 'floatingDrag' | 'homeOmikuji' | 'drawOmikuji' | null;
 const FIRST_RUN_ROUTE_ID = 'sanctuary';
 // 御朱印帳 = the current pilgrimage; コレクション = everything collected so far.
 // Each tab is one integrated page; pop buttons jump to a section instead of
@@ -207,6 +207,23 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Like a UITabBarController, each tab keeps the sub-screen it was left on.
   const move = (value: Tab) => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); scrollY.setValue(0); setTab(value); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setMobbyMenuOpen(false); setHomePopup(kind); setTab('home'); scrollY.setValue(0); };
+  const handleTutorialCompanionBond = () => {
+    journey.bond();
+    if (firstRunStage === 'homeCompanion') {
+      setTutorialRect(null);
+      setFirstRunStage('floatingMenu');
+    }
+  };
+  const handleMobbyOpenChange = (open: boolean) => {
+    setMobbyMenuOpen(open);
+    if (firstRunStage === 'floatingMenu' && open) {
+      setTutorialRect(null);
+      setFirstRunStage('floatingDrag');
+    } else if (firstRunStage === 'floatingDrag' && !open) {
+      setTutorialRect(null);
+      setFirstRunStage('homeOmikuji');
+    }
+  };
   const continueIntoApp = (firstRun: boolean) => {
     if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current);
     move('home');
@@ -507,7 +524,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           ? <View style={S.homeTutorialIntro}><Text style={S.chapter}>つぎは、おみくじを引こう。</Text></View>
           : <>
             <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? undefined : { transform: [{ translateY: homeCharacterShiftY }] }}>
-              <Companion pet={pet} haptics={data.haptics} onBond={journey.bond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+              <TutorialTarget active={firstRunStage === 'homeCompanion'} onRectChange={setTutorialRect}>
+                <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+              </TutorialTarget>
             </View>
           </>}
         <View style={S.homeCardGroup} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCardGroupLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>
@@ -574,11 +593,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
-    {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') setFirstRunStage('homeOmikuji'); }} onClose={() => setHomePopup(null)} />}
+    {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') { setTutorialRect(null); setFirstRunStage('homeCompanion'); } }} onClose={() => setHomePopup(null)} />}
     <View onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
       <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} />
     </View>
-    {firstRunStage === null && !homePopup && <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} items={mobbyMenu} badge={unreadNotices + giftsWaiting} open={mobbyMenuOpen} onOpenChange={setMobbyMenuOpen} bottomInset={navHeight} spotKey={mobbySpotKey} spot={mobbySpot} resetPositionOnMount={onboardingPreview} />}
+    {/* Keep the floating Mobby mounted through the fortune-card step so closing its menu cannot cancel an active drag. */}
+    {(firstRunStage === null || firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag' || firstRunStage === 'homeOmikuji') && !homePopup && <>
+      {(firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag') && <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <TutorialTarget key={firstRunStage} active onRectChange={setTutorialRect} style={{ position: 'absolute', right: 8, top: mobbySpot.offset, width: 88, height: 88 }}><View style={StyleSheet.absoluteFill} /></TutorialTarget>
+      </View>}
+      <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} items={mobbyMenu} badge={unreadNotices + giftsWaiting} open={mobbyMenuOpen} onOpenChange={handleMobbyOpenChange} bottomInset={navHeight} spotKey={mobbySpotKey} spot={mobbySpot} resetPositionOnMount={onboardingPreview} />
+    </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={gifts} receivedIds={receivedGiftIds} demo={data.demo} onReceive={receiveGift} onClose={() => setSocialSheet(null)} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} onClose={() => setSocialSheet(null)} />
@@ -586,7 +611,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       <Text style={S.indexLead}>{activeRoute?.name}</Text>
       <ShrineGrid kind="goshuin" shrines={activeShrines} ownedIds={collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} />
     </Sheet>
-    {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="5 / 6" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
+    {firstRunStage === 'homeCompanion' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="5 / 9" title="ホームのモビーとふれあおう" detail="ほっぺを引っぱると伸びるよ。タップで二礼二拍手一礼。" />}
+    {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="6 / 9" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
+    {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="7 / 9" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
+    {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="8 / 9" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
     <Modal transparent visible={omikujiModal} animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => { if (!isFirstRunOmikuji) closeOmikuji(); }}>
       <SafeAreaView style={S.omikujiModal}>
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="おみくじを閉じる" disabled={isFirstRunOmikuji} onPress={closeOmikuji} style={S.omikujiBackdrop} />
@@ -598,7 +626,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
             {firstRunOmikujiComplete && <Button title="ホームへ進む" onPress={closeOmikuji} style={{ width: '90%', maxWidth: 330, alignSelf: 'center', marginTop: 8 }} />}
           </View>
         </View></FitToHeight>
-        {firstRunStage === 'drawOmikuji' && !omikujiDrawn && !omikujiAnimating && <TutorialSpotlightOverlay targetRect={tutorialRect} step="6 / 6" title="今日のおみくじを引こう" detail="金色の枠の「今日のおみくじを引く」をタップ" />}
+        {firstRunStage === 'drawOmikuji' && !omikujiDrawn && !omikujiAnimating && <TutorialSpotlightOverlay targetRect={tutorialRect} step="9 / 9" title="今日のおみくじを引こう" detail="金色の枠の「今日のおみくじを引く」をタップ" />}
       </SafeAreaView>
     </Modal>
 

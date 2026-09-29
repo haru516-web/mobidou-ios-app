@@ -127,7 +127,7 @@ export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet, gu
         : startButton(preview)}
       <Text style={[S.small, { textAlign: 'center' }]}>{guidedRouteId ? 'ルートはあとから選び直せます。' : '出発後に歩いた歩数で進みます。途中で旅を変えても記録は残ります。'}</Text>
     </View>}
-    {guidedRouteId && guidedRoutePresented && <TutorialSpotlightOverlay targetRect={tutorialRect} step={preview ? '2 / 6' : '1 / 6'} title={preview ? 'この巡礼に出発しよう' : '最初のルートを選ぼう'} detail={preview ? '「この巡礼に出発する」をタップ' : '「木漏れ日の奥宮へ」のマップカードをタップ'} />}
+    {guidedRouteId && guidedRoutePresented && <TutorialSpotlightOverlay targetRect={tutorialRect} step={preview ? '2 / 9' : '1 / 9'} title={preview ? 'この巡礼に出発しよう' : '最初のルートを選ぼう'} detail={preview ? '「この巡礼に出発する」をタップ' : '「木漏れ日の奥宮へ」のマップカードをタップ'} />}
   </View>;
 }
 

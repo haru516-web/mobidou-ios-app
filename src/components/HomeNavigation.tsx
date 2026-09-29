@@ -258,7 +258,7 @@ export function MobyPickerPopup({ selectedPet, onConfirm, onClose, guided = fals
         </TutorialTarget>
       </View>
     </Animated.View>
-    {guided && <TutorialSpotlightOverlay targetRect={tutorialRect} step={guideStage === 'choose' ? '3 / 6' : '4 / 6'} title={guideStage === 'choose' ? '相棒にしたいモビーを選ぼう' : '選んだモビーを決定しよう'} detail={guideStage === 'choose' ? '好きな子のカードをタップ。左右にスワイプできます' : '画面右下の「決定」ボタンをタップ'} />}
+    {guided && <TutorialSpotlightOverlay targetRect={tutorialRect} step={guideStage === 'choose' ? '3 / 9' : '4 / 9'} title={guideStage === 'choose' ? '相棒にしたいモビーを選ぼう' : '選んだモビーを決定しよう'} detail={guideStage === 'choose' ? '好きな子のカードをタップ。左右にスワイプできます' : '画面右下の「決定」ボタンをタップ'} />}
   </PopupRoot>;
 }
 
