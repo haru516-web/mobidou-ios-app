@@ -10,6 +10,7 @@ import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { GOSHUIN_BOOK_COVERS, getGoshuinBookCover } from '../data/goshuinBookCovers';
 import { WashiArt, WashiPressable } from './Washi';
 import { CollectionRoom } from './CollectionRoom';
+import { ScrollPopup } from './ScrollPopup';
 import type { PassKind, SpecialCollection } from '../services/specialRewards';
 import { PagedShrineGrid } from './GoshuinBook';
 
@@ -139,7 +140,7 @@ export type CollectionPage = 'room' | 'goshuin' | 'miniatures' | 'passes';
  * `onSectionLayout` reports where each section starts so the pop buttons can
  * jump to it.
  */
-export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, activeRoute, coverOwned = false, selectedCover = 'normal', onRedeemCoverChange, onSelectCover, zoom, onZoomChange, page, onSelectGoshuin }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; activeRoute?: Pilgrimage; coverOwned?: boolean; selectedCover?: 'normal' | 'route'; onRedeemCoverChange?: (routeId: string) => void; onSelectCover?: (routeId: string, design: 'normal' | 'route') => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void }) {
+export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, activeRoute, coverOwned = false, selectedCover = 'normal', onRedeemCoverChange, onSelectCover, zoom, onZoomChange, page, onSelectGoshuin, onClosePage }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; activeRoute?: Pilgrimage; coverOwned?: boolean; selectedCover?: 'normal' | 'route'; onRedeemCoverChange?: (routeId: string) => void; onSelectCover?: (routeId: string, design: 'normal' | 'route') => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void; onClosePage: () => void }) {
   const { width } = useWindowDimensions();
   const viewportWidth = Math.min(480, Math.max(1, width));
   // Nothing scrolls vertically: the page fills the space under the pop buttons.
@@ -162,7 +163,6 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
   const roomLabelHeight = roomLabelFontSize + 3;
   const roomLabelTop = Math.max(0, roomHeight * ROOM_LABEL_RAIL_CENTER_Y - roomLabelHeight / 2);
   const goshuinBottom = roomHeight * (zoom === 'close' ? GOSHUIN_CLOSE_BASE_BOTTOM : GOSHUIN_STANDARD_BASE_BOTTOM) - GOSHUIN_DROP_PX + (zoom === 'close' ? GOSHUIN_CLOSE_LIFT_PX : GOSHUIN_STANDARD_LIFT_PX);
-  const ticketHeight = Math.max(90, Math.min(228, areaHeight - 270));
   const rewarded = useMemo(() => new Set(rewardIds), [rewardIds]);
 
   const selectZoom = (next: CollectionZoom) => {
@@ -235,7 +235,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
 
   return (
     <View style={{ flex: 1 }} onLayout={({ nativeEvent }) => setAreaHeight(previous => Math.abs(previous - nativeEvent.layout.height) < 1 ? previous : nativeEvent.layout.height)}>
-      {page === 'room' && <View onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={[S.roomStage, { width: viewportWidth, height: roomHeight, marginHorizontal: -24 }]}>
+      {<View onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={[S.roomStage, { width: viewportWidth, height: roomHeight, marginHorizontal: -24 }]}>
         <ScrollView
           ref={displayScroll}
           horizontal
@@ -272,30 +272,34 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
           </View>
         </ScrollView>
       </View>}
-      {page === 'goshuin' && <PagedShrineGrid kind="goshuin" title="御朱印" shrines={showcase} ownedIds={[...rewarded]} onSelect={onSelectGoshuin} height={areaHeight} />}
-      {page === 'miniatures' && <PagedShrineGrid kind="miniature" title="ミニチュア" shrines={showcase} ownedIds={showcase.filter(shrine => (special.keychains[shrine.id] ?? 0) > 0).map(shrine => shrine.id)} onSelect={shrine => setDetail(shrine)} height={areaHeight} />}
-      {page === 'passes' && <View style={S.passPage}>
-      <View style={S.passWallet}>
-        <WashiArt />
-        <View style={S.passHeader}><View><Text style={S.passEyebrow}>旅の授与品</Text><Text style={S.passTitle}>集めたパス</Text></View><Icon name="ticket-outline" size={25} color="#9b443c" /></View>
-        <Text style={S.passIntro}>小さな一歩を、次の特別な出会いへ。</Text>
-        <View style={S.ticketGrid}>
-          <View style={S.ticketItem}>
-            <View style={[S.ticketImageFrame, { height: ticketHeight }]}><Image source={COVER_CHANGE_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の引換札。御朱印帳表紙替え引換券。巡礼の装いを新たに" /></View>
-            <Text style={S.ticketBalance}>所持 {special.passes.coverChange}枚</Text>
-            <WashiPressable accessibilityRole="button" accessibilityLabel={!activeRoute ? '巡礼を選んでから表紙を選ぶ' : coverNeedsTicket ? '御朱印帳表紙替え引換券を仮取得' : '御朱印帳の表紙を選ぶ'} accessibilityState={{ disabled: !activeRoute }} disabled={!activeRoute} artwork={false} onPress={handleCoverAction} style={S.ticketButton}><Text style={S.ticketButtonText}>{!activeRoute ? '巡礼を選ぶ' : coverNeedsTicket ? '表紙替え券を仮取得' : '表紙を選ぶ'}</Text></WashiPressable>
+      <ScrollPopup visible={page === 'goshuin'} title="御朱印" onClose={onClosePage}>
+        {paper => <PagedShrineGrid bare kind="goshuin" title="" shrines={showcase} ownedIds={[...rewarded]} onSelect={onSelectGoshuin} height={paper.height} />}
+      </ScrollPopup>
+      <ScrollPopup visible={page === 'miniatures'} title="ミニチュア" onClose={onClosePage}>
+        {paper => <PagedShrineGrid bare kind="miniature" title="" shrines={showcase} ownedIds={showcase.filter(shrine => (special.keychains[shrine.id] ?? 0) > 0).map(shrine => shrine.id)} onSelect={shrine => setDetail(shrine)} height={paper.height} />}
+      </ScrollPopup>
+      <ScrollPopup visible={page === 'passes'} title="集めたパス" subtitle="小さな一歩を、次の特別な出会いへ" onClose={onClosePage}>
+        {paper => {
+          const ticketHeight = Math.max(80, Math.min(200, paper.height - 190));
+          return <View style={S.passBody}>
+          <View style={S.ticketGrid}>
+            <View style={S.ticketItem}>
+              <View style={[S.ticketImageFrame, { height: ticketHeight }]}><Image source={COVER_CHANGE_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の引換札。御朱印帳表紙替え引換券。巡礼の装いを新たに" /></View>
+              <Text style={S.ticketBalance}>所持 {special.passes.coverChange}枚</Text>
+              <WashiPressable accessibilityRole="button" accessibilityLabel={!activeRoute ? '巡礼を選んでから表紙を選ぶ' : coverNeedsTicket ? '御朱印帳表紙替え引換券を仮取得' : '御朱印帳の表紙を選ぶ'} accessibilityState={{ disabled: !activeRoute }} disabled={!activeRoute} artwork={false} onPress={handleCoverAction} style={S.ticketButton}><Text style={S.ticketButtonText}>{!activeRoute ? '巡礼を選ぶ' : coverNeedsTicket ? '表紙替え券を仮取得' : '表紙を選ぶ'}</Text></WashiPressable>
+            </View>
+            <View style={S.ticketItem}>
+              <View style={[S.ticketImageFrame, { height: ticketHeight }]}><Image source={KEYCHAIN_DROP_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の授与札。ミニチュアキーホルダー引換券。ご縁を手元に" /></View>
+              <Text style={S.ticketBalance}>所持 {special.passes.keychainDrop}枚</Text>
+              <WashiPressable accessibilityRole="button" accessibilityLabel="ミニチュアキーホルダー引換券を仮取得" onPress={() => buy('keychainDrop', 'ミニチュアキーホルダー引換券')} artwork={false} style={S.ticketButton}><Text style={S.ticketButtonText}>1枚を仮取得</Text></WashiPressable>
+            </View>
           </View>
-          <View style={S.ticketItem}>
-            <View style={[S.ticketImageFrame, { height: ticketHeight }]}><Image source={KEYCHAIN_DROP_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の授与札。ミニチュアキーホルダー引換券。ご縁を手元に" /></View>
-            <Text style={S.ticketBalance}>所持 {special.passes.keychainDrop}枚</Text>
-            <WashiPressable accessibilityRole="button" accessibilityLabel="ミニチュアキーホルダー引換券を仮取得" onPress={() => buy('keychainDrop', 'ミニチュアキーホルダー引換券')} artwork={false} style={S.ticketButton}><Text style={S.ticketButtonText}>1枚を仮取得</Text></WashiPressable>
-          </View>
-        </View>
-        {!!purchaseNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{purchaseNotice}</Text>}
-        {!!coverNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{coverNotice}</Text>}
-        <Text style={S.passNote}>仮取得はテスト用です。決済は発生しません</Text>
-      </View>
-      </View>}
+          {!!purchaseNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{purchaseNotice}</Text>}
+          {!!coverNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{coverNotice}</Text>}
+          <Text style={S.passNote}>仮取得はテスト用です。決済は発生しません</Text>
+          </View>;
+        }}
+      </ScrollPopup>
 
       <Modal visible={coverPickerOpen} transparent animationType="fade" onRequestClose={() => setCoverPickerOpen(false)}>
         <View style={S.backdrop}>
@@ -357,6 +361,7 @@ const S = StyleSheet.create({
   sectionTitle: { fontFamily: BRUSH, fontSize: 21, color: '#3C3026', letterSpacing: 1 },
   sectionNote: { color: '#786A58', fontSize: 13 },
   ticketItem: { flex: 1, minWidth: 0, alignItems: 'center' },
+  passBody: { flex: 1, justifyContent: 'center' },
   ticketImageFrame: { width: '100%', position: 'relative' }, passPage: { flex: 1, justifyContent: 'center' },
   ticketImage: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
   ticketBalance: { color: '#584739', fontFamily: SERIF, fontSize: 12, textAlign: 'center', marginTop: 3, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1, borderColor: '#d5c2a5', borderRadius: 12, backgroundColor: '#fff8e9de', overflow: 'hidden' },

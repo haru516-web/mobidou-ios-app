@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { BRUSH, C, Icon } from '../components';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
@@ -7,44 +7,18 @@ import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import type { Pilgrimage } from '../data/pilgrimages';
 import { getGoshuinBookCover } from '../data/goshuinBookCovers';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
+import { ScrollPopup } from './ScrollPopup';
 
 export type ShrineGridKind = 'goshuin' | 'miniature';
-
-const INDEX_POPUP = require('../../assets/ui-washi/goshuin/index-popup.webp');
-const UNDERLINE_BRUSH = require('../../assets/ui-washi/common/underline-brush.webp');
-// The scroll art keeps transparent margins; only this part of the picture is the scroll itself.
-const SCROLL_LEFT = 0.165;
-const SCROLL_WIDTH = 0.669;
-const SCROLL_ASPECT = (0.669 * 1024) / (0.973 * 1400);
 
 /**
  * The book's table of contents, opened as a hanging scroll over the page
  * instead of a plain sheet.
  */
 export function BookIndexPopup({ visible, title, subtitle, shrines, ownedIds, onSelect, onClose }: { visible: boolean; title: string; subtitle?: string; shrines: readonly Shrine[]; ownedIds: readonly string[]; onSelect: (shrine: Shrine, index: number) => void; onClose: () => void }) {
-  const { width, height } = useWindowDimensions();
-  const scrollWidth = Math.min(width - 24, (height - 96) * SCROLL_ASPECT, 380);
-  const scrollHeight = scrollWidth / SCROLL_ASPECT;
-  const artWidth = scrollWidth / SCROLL_WIDTH;
-  const artHeight = artWidth * 1400 / 1024;
-  const paperHeight = scrollHeight * .745;
-  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <View style={S.scrim}>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="目次を閉じる" onPress={onClose} style={StyleSheet.absoluteFill} />
-      <View accessibilityViewIsModal style={{ width: scrollWidth, height: scrollHeight, overflow: 'hidden' }}>
-        <Image accessible={false} source={INDEX_POPUP} contentFit="fill" pointerEvents="none" style={{ position: 'absolute', left: -SCROLL_LEFT * artWidth, top: 0, width: artWidth, height: artHeight }} />
-        <View style={[S.scrollContent, { left: scrollWidth * .12, right: scrollWidth * .12, top: scrollHeight * .165, height: paperHeight }]}>
-          <Text accessibilityRole="header" style={S.scrollTitle}>{title}</Text>
-          {!!subtitle && <Text numberOfLines={1} style={S.scrollSubtitle}>{subtitle}</Text>}
-          <PagedShrineGrid bare kind="goshuin" title="" shrines={shrines} ownedIds={ownedIds} onSelect={onSelect} height={paperHeight - 96} />
-          <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={S.scrollClose}>
-            <Text style={S.scrollCloseText}>とじる</Text>
-            <Image accessible={false} source={UNDERLINE_BRUSH} contentFit="fill" style={S.scrollCloseLine} />
-          </Pressable>
-        </View>
-      </View>
-    </View>
-  </Modal>;
+  return <ScrollPopup visible={visible} title={title} subtitle={subtitle} onClose={onClose}>
+    {paper => <PagedShrineGrid bare kind="goshuin" title="" shrines={shrines} ownedIds={ownedIds} onSelect={onSelect} height={paper.height} />}
+  </ScrollPopup>;
 }
 
 export function GoshuinBookCover({ route, onOpen }: { route: Pilgrimage; onOpen: () => void }) {
@@ -84,6 +58,8 @@ export function ShrineGrid({ kind, shrines, ownedIds, onSelect, showCount = true
 const PAGED_COLUMNS = 4;
 const PAGED_GAP = 9;
 const PAGED_NAME_HEIGHT = 22;
+const PAGED_HEAD_HEIGHT = 30;
+const PAGED_PAGER_HEIGHT = 52;
 
 /**
  * The same grid as ShrineGrid, but split into pages instead of scrolling: it
@@ -95,9 +71,12 @@ export function PagedShrineGrid({ kind, title, shrines, ownedIds, onSelect, heig
   const noun = kind === 'goshuin' ? '御朱印' : 'ミニチュア';
   const [grid, setGrid] = useState({ width: 0, height: 0 });
   const [page, setPage] = useState(0);
-  const tileWidth = grid.width > 0 ? (grid.width - PAGED_GAP * (PAGED_COLUMNS - 1)) / PAGED_COLUMNS : 0;
+  // Rounded down: a tile row that fills the width exactly can wrap its last tile on a rounding error.
+  const tileWidth = grid.width > 0 ? Math.floor((grid.width - PAGED_GAP * (PAGED_COLUMNS - 1)) / PAGED_COLUMNS) - 1 : 0;
   const rowHeight = tileWidth / .82 + PAGED_NAME_HEIGHT + PAGED_GAP;
-  const rows = tileWidth > 0 && grid.height > 0 ? Math.max(1, Math.floor((grid.height + PAGED_GAP) / rowHeight)) : 1;
+  // Inside a popup the card is only as tall as `height`, and the count line and pager take their share of it.
+  const gridHeight = bare && height > 0 ? height - PAGED_HEAD_HEIGHT - PAGED_PAGER_HEIGHT : grid.height;
+  const rows = tileWidth > 0 && gridHeight > 0 ? Math.max(1, Math.floor((gridHeight + PAGED_GAP) / rowHeight)) : 1;
   const perPage = rows * PAGED_COLUMNS;
   const pageCount = Math.max(1, Math.ceil(shrines.length / perPage));
   const current = Math.min(page, pageCount - 1);
@@ -134,13 +113,6 @@ const S = StyleSheet.create({
   coverStage: { minHeight: 500, alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
   cover: { width: '68%', maxWidth: 288, aspectRatio: 2 / 3, overflow: 'visible', backgroundColor: 'transparent' },
   coverImage: { ...StyleSheet.absoluteFillObject },
-  scrim: { flex: 1, backgroundColor: '#241B14B3', alignItems: 'center', justifyContent: 'center' },
-  scrollContent: { position: 'absolute', alignItems: 'stretch' },
-  scrollTitle: { fontFamily: BRUSH, fontSize: 24, color: C.ink, textAlign: 'center', letterSpacing: 4 },
-  scrollSubtitle: { fontFamily: BRUSH, fontSize: 13, color: C.muted, textAlign: 'center', marginTop: 2, marginBottom: 8 },
-  scrollClose: { alignSelf: 'center', alignItems: 'center', minHeight: 44, minWidth: 88, justifyContent: 'center', marginTop: 4 },
-  scrollCloseText: { fontFamily: BRUSH, fontSize: 15, color: C.red, letterSpacing: 2 },
-  scrollCloseLine: { width: 72, height: 8, marginTop: -1 },
   cardBare: { backgroundColor: 'transparent', borderWidth: 0, padding: 0, borderRadius: 0 },
   card: { borderRadius: 20, backgroundColor: '#FFF9EF', padding: 14, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
   count: { color: C.muted, fontSize: 13, marginBottom: 12, textAlign: 'right' },
