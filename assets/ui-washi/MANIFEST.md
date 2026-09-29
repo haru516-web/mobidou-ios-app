@@ -34,8 +34,10 @@
 | `assets/ui-washi/home/plate-portrait-omikuji.webp` | 640×1000 | WEBP |
 | `assets/ui-washi/home/plate-steps-wide.webp` | 1600×640 | WEBP |
 | `assets/ui-washi/home/plate-steps.webp` | 1024×512 | WEBP |
+| `assets/ui-washi/settings/settings-bg.webp` | 1170×2532 | WEBP |
 | `assets/ui-washi/walk/enso-stroke.webp` | 1024×1024 | WEBP |
 | `assets/ui-washi/walk/enso-track.webp` | 1024×1024 | WEBP |
+| `assets/ui-washi/walk/map-popup.webp` | 1024×1400 | WEBP |
 
 ## ポップボタン
 
