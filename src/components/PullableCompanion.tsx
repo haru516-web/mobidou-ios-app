@@ -32,28 +32,9 @@ function MaskedPullBodyImage({ source, mask, size }: { source: ImageSourcePropTy
   );
 }
 
-type FrameLayout = readonly [left: number, top: number, width: number, height: number];
-const MOBIBOU_REI_FRAME_LAYOUTS: readonly FrameLayout[] = [
-  [16.06, -72.47, 178.54, 347.34],
-  [16.39, -72.47, 176.56, 347.34],
-  [16.39, -72.47, 176.56, 347.34],
-  [16.72, -72.47, 177.22, 347.34],
-  [15.07, -72.47, 177.22, 347.34],
-  [16.06, -72.47, 176.56, 347.34],
-  [17.05, -72.47, 176.56, 347.34],
-  [16.06, -72.47, 178.54, 347.34],
-];
-const MOBIBOU_HAKUSHU_FRAME_LAYOUTS: readonly FrameLayout[] = [
-  [15.65, -72.23, 179.36, 346.42],
-  [16.65, -72.23, 177.37, 346.42],
-  [16.65, -72.23, 177.37, 346.42],
-  [16.32, -72.23, 178.03, 346.42],
-  [16.32, -72.23, 178.03, 346.42],
-  [16.65, -72.23, 177.37, 346.42],
-  [16.65, -72.23, 177.37, 346.42],
-  [15.65, -72.23, 179.36, 346.42],
-];
-const MOBIBOU_PRAYER_FRAME_LAYOUTS = MOBIBOU_PRAYER_ORDER.flatMap(action => (action === 'rei' ? MOBIBOU_REI_FRAME_LAYOUTS : MOBIBOU_HAKUSHU_FRAME_LAYOUTS));
+// The rebuilt prayer frames share one 300x724 window with the feet pinned to the
+// same pixel, so a single placement (matched to the idle pet's size and feet) fits all.
+const MOBIBOU_PRAYER_FRAME_LAYOUT = [32.6, -73.2, 144.4, 348.4] as const;
 const MOBIBOU_PRAYER_TIMELINE = buildPrayerTimeline(MOBIBOU_PRAYER_ORDER);
 const ATLAS_PRAYER_TIMELINE = buildPrayerTimeline(PRAYER_ACTION_ORDER);
 
@@ -649,7 +630,7 @@ export function PullableCompanion({
           {pullAsset ? <MobbyPullMesh ref={meshRef} source={pullAsset.body} mask={pet.image} glSource={mobbyId ? PULL_GL_TEXTURES[mobbyId] : undefined} size={210} visible={meshVisible} onFrame={handleMeshFrame} onError={handleMeshError} /> : null}
           {prayerSequence ? <Animated.View pointerEvents="none" style={[styles.prayerLayer, { opacity: isPrayer ? 1 : 0, overflow: 'hidden', transform: [{ translateY: float }] }]}>
             {isMobibouPrayer ? MOBIBOU_ACTION_FRAMES.map((source, index) => {
-              const [left, top, width, height] = MOBIBOU_PRAYER_FRAME_LAYOUTS[index];
+              const [left, top, width, height] = MOBIBOU_PRAYER_FRAME_LAYOUT;
               return (
                 <Image
                   key={`prayer-${pet.id}-${index}`}

@@ -25,7 +25,7 @@ const hakushu = [
 ] as const satisfies readonly ImageSourcePropType[];
 
 export const MOBIBOU_ACTION_ASSETS = [...rei, ...hakushu] as const;
-/** Bow, bow, clap, clap, bow: each strip is played once per entry. */
-export const MOBIBOU_PRAYER_ORDER: readonly PrayerAction[] = ['rei', 'rei', 'hakushu', 'hakushu', 'rei'];
+/** Bow, bow, clap-clap, bow: the hakushu strip holds both claps, so it plays once. */
+export const MOBIBOU_PRAYER_ORDER: readonly PrayerAction[] = ['rei', 'rei', 'hakushu', 'rei'];
 export const MOBIBOU_ACTION_STRIPS = { rei, hakushu } as const;
 export const MOBIBOU_ACTION_FRAMES: readonly ImageSourcePropType[] = MOBIBOU_PRAYER_ORDER.flatMap(action => MOBIBOU_ACTION_STRIPS[action]);

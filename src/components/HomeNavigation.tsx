@@ -8,6 +8,7 @@ import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { CUSTOM_HOME_WIDGET_IDS, setHomeWidgetSlot, type CustomHomeWidgetId, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
+import { CroppedArt } from './CroppedArt';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork } from './HomeWidgetArtwork';
 import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
@@ -19,7 +20,9 @@ const FIXED_POPUP_ROOT = Platform.OS === 'web' ? ({ position: 'fixed' } as any) 
 const FULL_POPUP_BOUNDS = { top: 0, bottom: 0 };
 const HOME_WIDGET_CARD_HEIGHT = 244;
 const CUSTOM_WIDGET_PREVIEW_SCALE = 0.42;
-const NAV_BACKGROUND = require('../../assets/home-bottom-nav-washi-v1.webp');
+const NAV_BACKGROUND = require('../../assets/ui-washi/home/nav-bar.webp');
+const NAV_BOUNDS = { x0: 0, x1: .999, y0: .322, y1: .997 };
+const NAV_TAB_ACTIVE = require('../../assets/ui-washi/home/nav-tab-active.webp');
 export type PrimaryTab = 'home' | 'book' | 'walk' | 'collection';
 
 const PRIMARY_NAV_ITEMS = [
@@ -41,11 +44,13 @@ type HomeBottomNavigationProps = {
 export function HomeBottomNavigation({ tab, onNavigate, disabled = false }: HomeBottomNavigationProps) {
   return <View style={S.navShell} pointerEvents={disabled ? 'none' : 'auto'} accessibilityElementsHidden={disabled} aria-hidden={disabled ? true : undefined} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
     <View style={[S.primaryNavFrame, CONTINUOUS_CORNER]}>
-      <Image source={NAV_BACKGROUND} contentFit="cover" style={S.navBackground} pointerEvents="none" />
+      <CroppedArt source={NAV_BACKGROUND} bounds={NAV_BOUNDS} />
       <View style={S.primaryNav} accessibilityRole="tablist">
         {PRIMARY_NAV_ITEMS.map(item => <Pressable key={item.id} artwork={false} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected: tab === item.id }} onPress={() => onNavigate(item.id)} style={S.navItem}>
-          <Icon name={item.icon} size={22} color={tab === item.id ? C.red : '#81796D'} />
-          <View style={[S.navIndicator, { opacity: tab === item.id ? 1 : 0 }]} />
+          <View style={S.navIconWrap}>
+            {tab === item.id && <Image accessible={false} source={NAV_TAB_ACTIVE} contentFit="contain" pointerEvents="none" style={S.navInk} />}
+            <Icon name={item.icon} size={22} color={tab === item.id ? '#FFF9EF' : '#6F675B'} />
+          </View>
         </Pressable>)}
       </View>
     </View>
@@ -264,11 +269,11 @@ export function MobyPickerPopup({ selectedPet, onConfirm, onClose, guided = fals
 
 const S = StyleSheet.create({
   navShell: { position: 'relative', zIndex: 40, marginHorizontal: 12, marginBottom: 8 },
-  primaryNavFrame: { backgroundColor: '#FCF9F1', borderWidth: 1, borderColor: '#A87552', borderRadius: 24, paddingTop: 10, paddingBottom: 3, overflow: 'hidden' },
-  navBackground: { ...StyleSheet.absoluteFillObject, opacity: .88 },
+  primaryNavFrame: { paddingTop: 12, paddingBottom: 5, overflow: 'hidden' },
   primaryNav: { flexDirection: 'row' },
-  navItem: { flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 2 },
-  navIndicator: { width: 17, height: 3, backgroundColor: C.red, borderRadius: 4, marginTop: 1 },
+  navItem: { flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
+  navIconWrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
+  navInk: { position: 'absolute', width: 46, height: 46 },
   popupRoot: { position: 'absolute', left: 0, right: 0, top: 86, bottom: 77, zIndex: 30, alignItems: 'center' },
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },
   mobyRoot: { justifyContent: 'flex-start', zIndex: 90 },

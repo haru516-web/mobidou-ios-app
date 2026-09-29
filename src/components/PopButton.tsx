@@ -3,8 +3,13 @@ import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View, type Sty
 import { Image } from 'expo-image';
 import { BRUSH, C, Icon, useReducedMotion } from '../components';
 import { WashiArt } from './Washi';
+import { CroppedArt } from './CroppedArt';
 import { POP_BUTTON_IMAGES, type PopButtonId } from '../data/popButtonImages';
 
+const PLAQUE = require('../../assets/ui-washi/collection/tab-plaque.webp');
+const PLAQUE_ACTIVE = require('../../assets/ui-washi/collection/tab-plaque-active.webp');
+const PLAQUE_BOUNDS = { x0: .031, x1: .967, y0: .224, y1: .771 };
+const PLAQUE_ACTIVE_BOUNDS = { x0: .031, x1: .969, y0: .208, y1: .776 };
 const FLOAT_DISTANCE = 3;
 const FLOAT_HALF_PERIOD = 1500;
 
@@ -71,7 +76,7 @@ export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phas
       {badge > 0 && <View style={S.badge}><Text style={S.badgeText}>{badge > 99 ? '99+' : badge}</Text></View>}
     </Animated.View>
     <View style={[S.labelTab, selected && S.labelTabSelected]}>
-      <WashiArt button />
+      <CroppedArt source={selected ? PLAQUE_ACTIVE : PLAQUE} bounds={selected ? PLAQUE_ACTIVE_BOUNDS : PLAQUE_BOUNDS} />
       <Text numberOfLines={1} style={[S.label, selected && S.labelSelected]}>{label}</Text>
     </View>
   </Pressable>;
@@ -84,8 +89,8 @@ const S = StyleSheet.create({
   sealInner: { position: 'absolute', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: '#C9A46A' },
   badge: { position: 'absolute', top: -4, right: -5, minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: C.red, borderWidth: 2, borderColor: '#FBF4E4' },
   badgeText: { color: '#FFF9EF', fontSize: 11, fontWeight: '800' },
-  labelTab: { marginTop: 6, minWidth: 54, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 7, overflow: 'hidden', alignItems: 'center', backgroundColor: '#FBF4E4', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: '#B98D67' },
-  labelTabSelected: { borderColor: C.red },
-  label: { color: C.ink, fontFamily: BRUSH, fontSize: 12.5, letterSpacing: .4 },
-  labelSelected: { color: C.red },
+  labelTab: { marginTop: 6, minWidth: 66, minHeight: 28, paddingHorizontal: 17, paddingVertical: 5, justifyContent: 'center', alignItems: 'center' },
+  labelTabSelected: {},
+  label: { color: '#3B2A1B', fontFamily: BRUSH, fontSize: 12.5, letterSpacing: .4 },
+  labelSelected: { color: '#3B2A1B' },
 });
