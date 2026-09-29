@@ -5,10 +5,11 @@ import { Image } from 'expo-image';
 import type { PetId } from '../petCatalog';
 import { PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import rawWalkMetrics from '../data/pilgrimageSpriteMetrics.json';
-import { C, Icon } from '../components';
+import { Icon } from '../components';
 import type { PopButtonId } from '../data/popButtonImages';
 import { PopButton } from './PopButton';
 import { layoutMenuSlots } from './mobbyMenuLayout';
+import { UI_ART } from '../data/uiArt';
 
 // v6: positions are remembered per screen (spotKey); the old single spot is dropped.
 const STORAGE_KEY = 'mobidou.floating-mobby-position.v6';
@@ -320,9 +321,9 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
       onAccessibilityTap={toggle}
       style={[styles.anchor, { left: position.x, top: position.y }, Platform.OS === 'web' && styles.webDrag]}
     >
-      <View pointerEvents="none" style={styles.shadow} />
+      <Image pointerEvents="none" accessible={false} source={UI_ART.shadowBlot.source} contentFit="fill" style={styles.shadow} />
       {petVisual}
-      {badge > 0 && !open && <View pointerEvents="none" style={styles.badge}><Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text></View>}
+      {badge > 0 && !open && <View pointerEvents="none" style={styles.badge}><Image accessible={false} source={UI_ART.badgeCount.source} contentFit="fill" style={StyleSheet.absoluteFill} /><Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text></View>}
     </View> : null}
     {initializedRef.current && menuMounted ? items.map((item, index) => {
       const slot = menuSlots[index];
@@ -350,8 +351,8 @@ const styles = StyleSheet.create({
   scrim: { backgroundColor: '#2A1D1459' },
   anchor: { position: 'absolute', width: MOBBY_SIZE, height: MOBBY_SIZE, alignItems: 'center', justifyContent: 'center' },
   image: { width: 82, height: 82 },
-  shadow: { position: 'absolute', bottom: 4, width: 49, height: 8, borderRadius: 20, backgroundColor: '#4A3B3025' },
-  badge: { position: 'absolute', top: 4, right: 6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: C.red, borderWidth: 2, borderColor: '#FFF9EF' },
+  shadow: { position: 'absolute', bottom: 2, width: 66, height: 17 },
+  badge: { position: 'absolute', top: 3, right: 5, minWidth: 24, height: 24, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   badgeText: { color: '#FFF9EF', fontSize: 11, fontWeight: '800' },
   webDrag: { cursor: 'grab', touchAction: 'none', userSelect: 'none' } as any,
   walkFallback: { width: MOBBY_SIZE, height: MOBBY_SIZE, alignItems: 'center', justifyContent: 'center' },

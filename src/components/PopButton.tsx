@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { BRUSH, C, Icon, useReducedMotion } from '../components';
 import { WashiArt } from './Washi';
 import { CroppedArt } from './CroppedArt';
+import { UI_ART } from '../data/uiArt';
 import { POP_BUTTON_IMAGES, type PopButtonId } from '../data/popButtonImages';
 
 const PLAQUE = require('../../assets/ui-washi/collection/tab-plaque.webp');
@@ -69,11 +70,11 @@ export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phas
       {artwork
         ? <Image source={artwork} contentFit="contain" style={{ width: size, height: size }} />
         : <View style={[S.seal, { width: size, height: size, borderRadius: size / 2, borderWidth: ring }, selected && S.sealSelected]}>
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: size / 2, overflow: 'hidden' }]}><WashiArt /></View>
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: size / 2, overflow: 'hidden' }]}><WashiArt legacy /></View>
           <View pointerEvents="none" style={[S.sealInner, { top: ring + 2, left: ring + 2, right: ring + 2, bottom: ring + 2, borderRadius: size / 2 }]} />
           <Icon name={icon} size={Math.round(size * .44)} color={C.red} />
         </View>}
-      {badge > 0 && <View style={S.badge}><Text style={S.badgeText}>{badge > 99 ? '99+' : badge}</Text></View>}
+      {badge > 0 && <View style={S.badge}><Image accessible={false} source={UI_ART.badgeCount.source} contentFit="fill" style={StyleSheet.absoluteFill} /><Text style={S.badgeText}>{badge > 99 ? '99+' : badge}</Text></View>}
     </Animated.View>
     <View style={[S.labelTab, selected && S.labelTabSelected]}>
       <CroppedArt source={selected ? PLAQUE_ACTIVE : PLAQUE} bounds={selected ? PLAQUE_ACTIVE_BOUNDS : PLAQUE_BOUNDS} />
@@ -87,7 +88,7 @@ const S = StyleSheet.create({
   seal: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#FBF4E4', borderColor: C.red, overflow: 'hidden' },
   sealSelected: { backgroundColor: '#F6E3CF' },
   sealInner: { position: 'absolute', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: '#C9A46A' },
-  badge: { position: 'absolute', top: -4, right: -5, minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: C.red, borderWidth: 2, borderColor: '#FBF4E4' },
+  badge: { position: 'absolute', top: -5, right: -6, minWidth: 24, height: 24, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
   badgeText: { color: '#FFF9EF', fontSize: 11, fontWeight: '800' },
   labelTab: { marginTop: 6, minWidth: 66, minHeight: 28, paddingHorizontal: 17, paddingVertical: 5, justifyContent: 'center', alignItems: 'center' },
   labelTabSelected: {},

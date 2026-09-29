@@ -94,7 +94,7 @@ export function AccountCenter({
 
   if (page === 'welcome') {
     return <PagedBody style={S.content} gap={12}>
-      <View style={S.welcomeArt}><WashiArt /><View style={S.welcomeIcon}><Icon name="footsteps-outline" size={26} color={C.red} /></View></View>
+      <View style={S.welcomeArt}><WashiArt legacy /><View style={S.welcomeIcon}><Icon name="footsteps-outline" size={26} color={C.red} /></View></View>
       <Text style={S.kicker}>MOBIDOU · はじめの一歩</Text>
       <Text style={S.title}>旅の始め方を{'\n'}選んでください</Text>
       <Text style={S.body}>アカウントなしでも、この端末ですぐに始められます。あとから設定でデータを引き継いだり、アカウントを確認できます。</Text>
@@ -202,11 +202,11 @@ const S = StyleSheet.create({
   primary: { marginTop: 8 },
   secondaryButton: { marginTop: 2 },
   footnote: { color: '#958A79', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 6 },
-  statusCard: { borderRadius: 17, backgroundColor: '#FFFCF5', borderWidth: 1, borderColor: C.line, padding: 19, alignItems: 'center', gap: 9, overflow: 'hidden' },
+  statusCard: { padding: 19, alignItems: 'center', gap: 9, overflow: 'hidden' },
   statusIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#F3E8DC', alignItems: 'center', justifyContent: 'center' },
   successIcon: { backgroundColor: '#E8F0E8' },
   statusTitle: { fontFamily: BRUSH, color: C.ink, fontSize: 19, textAlign: 'center' },
-  transferSection: { padding: 15, borderRadius: 15, borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFCF5', gap: 9 },
+  transferSection: { padding: 15, gap: 9 },
   small: { color: C.muted, fontSize: 11, lineHeight: 19 },
   summaryLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 3 },
   summaryText: { flex: 1, color: '#716654', fontSize: 11, lineHeight: 18 },

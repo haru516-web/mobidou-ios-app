@@ -8,14 +8,14 @@ export const BACKGROUND_SEASONS = [
 ] as const satisfies ReadonlyArray<{ id: BackgroundSeason; label: string; color: string }>;
 
 export const BACKGROUND_OPTIONS = [
-  { id: 'spring-dawn', season: 'spring', label: '花明かり', note: '桜霞の朝', image: require('../../assets/backgrounds/spring-dawn.webp') },
-  { id: 'spring-rain', season: 'spring', label: '雨花の道', note: '紫陽花しずく', image: require('../../assets/backgrounds/spring-rain.webp') },
-  { id: 'summer-green', season: 'summer', label: '青葉の径', note: '木漏れ日と蛍', image: require('../../assets/backgrounds/summer-green.webp') },
-  { id: 'summer-evening', season: 'summer', label: '宵あかり', note: '夕暮れの灯', image: require('../../assets/backgrounds/summer-evening.webp') },
-  { id: 'autumn-maple', season: 'autumn', label: '紅葉の峰', note: '落ち葉の小径', image: require('../../assets/backgrounds/autumn-maple.webp') },
-  { id: 'autumn-mist', season: 'autumn', label: '秋霧の湖', note: 'すすきと朝霧', image: require('../../assets/backgrounds/autumn-mist.webp') },
-  { id: 'winter-snow', season: 'winter', label: '雪明かり', note: '雪道の足あと', image: require('../../assets/backgrounds/winter-snow.webp') },
-  { id: 'winter-clear', season: 'winter', label: '冬晴れ', note: '南天の赤い実', image: require('../../assets/backgrounds/winter-clear.webp') },
+  { id: 'spring-dawn', season: 'spring', label: '花明かり', note: '桜霞の朝', image: require('../../assets/ui-round3/backgrounds/spring-dawn.webp') },
+  { id: 'spring-rain', season: 'spring', label: '雨花の道', note: '紫陽花しずく', image: require('../../assets/ui-round3/backgrounds/spring-rain.webp') },
+  { id: 'summer-green', season: 'summer', label: '青葉の径', note: '木漏れ日と蛍', image: require('../../assets/ui-round3/backgrounds/summer-green.webp') },
+  { id: 'summer-evening', season: 'summer', label: '宵あかり', note: '夕暮れの灯', image: require('../../assets/ui-round3/backgrounds/summer-evening.webp') },
+  { id: 'autumn-maple', season: 'autumn', label: '紅葉の峰', note: '落ち葉の小径', image: require('../../assets/ui-round3/backgrounds/autumn-maple.webp') },
+  { id: 'autumn-mist', season: 'autumn', label: '秋霧の湖', note: 'すすきと朝霧', image: require('../../assets/ui-round3/backgrounds/autumn-mist.webp') },
+  { id: 'winter-snow', season: 'winter', label: '雪明かり', note: '雪道の足あと', image: require('../../assets/ui-round3/backgrounds/winter-snow.webp') },
+  { id: 'winter-clear', season: 'winter', label: '冬晴れ', note: '南天の赤い実', image: require('../../assets/ui-round3/backgrounds/winter-clear.webp') },
 ] as const satisfies ReadonlyArray<{ id: string; season: BackgroundSeason; label: string; note: string; image: number }>;
 
 export type BackgroundId = typeof BACKGROUND_OPTIONS[number]['id'];

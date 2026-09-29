@@ -4,7 +4,7 @@ import { ImageBackground } from 'expo-image';
 import { categoriesForFortune, type OmikujiFortune } from '../data/omikuji';
 import { BRUSH } from '../components';
 
-const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.webp');
+const OMIKUJI_RESULT_BACKGROUND = require('../../assets/ui-round3/omikuji/omikuji-result-paper-v2.webp');
 
 export function OmikujiResultCard({ fortune }: { fortune: OmikujiFortune }) {
   return <ImageBackground source={OMIKUJI_RESULT_BACKGROUND} contentFit="cover" imageStyle={S.paperImage} accessibilityLabel={`今日のおみくじは${fortune.rank}`} style={S.paper}>

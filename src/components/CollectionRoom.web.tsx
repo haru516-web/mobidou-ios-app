@@ -4,12 +4,12 @@ import { Asset } from 'expo-asset';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { ClampToEdgeWrapping, RepeatWrapping, SRGBColorSpace, TextureLoader } from 'three';
 
-const WOOD_PILLAR = require('../../assets/collection/collection-wood-pillar-bold-v1.webp');
-const WOOD_BEAM = require('../../assets/collection/collection-wood-beam-bold-v1.webp');
-const WOOD_BASE = require('../../assets/collection/collection-wood-base-bold-v1.webp');
-const CABINET_BACKDROP = require('../../assets/collection/collection-cabinet-fusuma-full-v1.webp');
-const WALL_HOOK = require('../../assets/collection/collection-wall-hook-v2.webp');
-const GOSHUIN_STAND = require('../../assets/collection/collection-goshuin-stand-v1.webp');
+const WOOD_PILLAR = require('../../assets/ui-round3/collection/collection-wood-pillar-bold-v1.webp');
+const WOOD_BEAM = require('../../assets/ui-round3/collection/collection-wood-beam-bold-v1.webp');
+const WOOD_BASE = require('../../assets/ui-round3/collection/collection-wood-base-bold-v1.webp');
+const CABINET_BACKDROP = require('../../assets/ui-round3/collection/collection-cabinet-fusuma-full-v1.webp');
+const WALL_HOOK = require('../../assets/ui-round3/collection/collection-wall-hook-v2.webp');
+const GOSHUIN_STAND = require('../../assets/ui-round3/collection/collection-goshuin-stand-v1.webp');
 
 type CollectionZoom = 'standard' | 'close';
 type CollectionRoomProps = {

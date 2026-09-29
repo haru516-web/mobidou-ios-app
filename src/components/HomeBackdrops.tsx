@@ -2,7 +2,7 @@ import React from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 
-const COLLECTION_BACKDROP = require('../../assets/collection/collection-room-home-harmony-v1.webp');
+const COLLECTION_BACKDROP = require('../../assets/ui-round3/collection/collection-room-home-harmony-v1.webp');
 const HOME_SCENE_BACKGROUND = require('../../assets/backgrounds/mobidou-home-cushion-background-extended-v2.webp');
 const HOME_BACKGROUND_SOURCE_HEIGHT = 2880;
 const HOME_BACKGROUND_FLOOR_SOURCE_Y = 862;

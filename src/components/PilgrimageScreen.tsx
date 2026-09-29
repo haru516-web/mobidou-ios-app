@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path, Image as SvgImage } from 'react-native-svg';
+import { UI_ART } from '../data/uiArt';
 import { PILGRIMAGES, type Pilgrimage } from '../data/pilgrimages';
 import { PILGRIMAGE_IMAGES } from '../data/pilgrimageImages';
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
@@ -74,7 +75,7 @@ export function RouteMap({ route, count, progress, pet, onStop, showSpeech = fal
       <View style={S.mapHeader}><Text style={S.mapTitle}>巡礼絵図</Text><Text style={S.mapSubtitle}>{legend}</Text></View>
       <Svg width="100%" height={height} viewBox={`0 0 310 ${height}`} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
         {points.slice(0, Math.max(1, Math.min(points.length, count + 1))).map((p, i, visible) => i < visible.length - 1 ? <Path key={`done-${i}`} d={`M ${p.x} ${p.y} Q ${visible[i + 1].x} ${visible[i + 1].y} ${visible[i + 1].x} ${visible[i + 1].y}`} fill="none" stroke={route.color} strokeWidth={5} opacity={.72} /> : null)}
-        {points.map((p, i) => <Circle key={`node-${i}`} cx={p.x} cy={p.y} r={13} fill={i < count ? route.color : '#FFF9EB'} stroke={route.color} strokeWidth={2} />)}
+        {points.map((p, i) => <SvgImage key={`node-${i}`} href={(i < count ? UI_ART.routeNodeDone : UI_ART.routeNodeTodo).source} x={p.x - 15} y={p.y - 15} width={30} height={30} preserveAspectRatio="xMidYMid meet" />)}
       </Svg>
       {pet && <View pointerEvents="none" accessibilityLabel={`${pet.name}の現在地。${position.steps.toLocaleString()}歩`} style={[S.mapPet, { left: `${Math.max(2, Math.min(88, currentX / 310 * 100 - 5.5))}%`, top: Math.max(8, Math.min(height - 52, currentY - 38)) }]}><Image source={pet.image} contentFit="contain" style={S.mapPetImage} /></View>}
       {stops.map((s, i) => <Pressable key={`${s.id}-${i}`} accessibilityRole="button" accessibilityLabel={`${i + 1}番 ${s.name} ${i < count ? '参拝済み' : i === count ? '次の目的地' : 'これから'}`} onPress={() => onStop?.(s, i)} style={{ position: 'absolute', top: Math.max(i === 0 ? 60 : 21, points[i].y - 21), left: `${Math.max(18, Math.min(82, points[i].x / 310 * 100))}%`, width: 128, marginLeft: -64, minHeight: 40, padding: 8, borderRadius: 6, alignItems: 'center', backgroundColor: '#FFF9EBEA', borderWidth: i === count ? 2 : 0, borderColor: route.color }}><Text style={{ color: route.color, fontSize: 11, fontFamily: BRUSH, textAlign: 'center' }}>{i < count ? '✓' : `${i + 1}`} {s.name}</Text>{i === count && <Text style={{ fontSize: 11, color: C.red }}>現在の目的地</Text>}</Pressable>)}

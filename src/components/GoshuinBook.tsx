@@ -8,6 +8,7 @@ import type { Pilgrimage } from '../data/pilgrimages';
 import { getGoshuinBookCover } from '../data/goshuinBookCovers';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { ScrollPopup } from './ScrollPopup';
+import { SlicedArt } from './SlicedArt';
 
 export type ShrineGridKind = 'goshuin' | 'miniature';
 
@@ -45,7 +46,7 @@ export function ShrineGrid({ kind, shrines, ownedIds, onSelect, showCount = true
         const acquired = owned.has(shrine.id);
         const source = kind === 'goshuin' ? STAMP_IMAGES[shrine.id] : COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
         return <Pressable artwork={false} key={`${shrine.id}-${index}`} accessibilityRole="button" accessibilityLabel={`${shrine.name}の${noun}、${acquired ? '取得済み' : '未取得'}`} onPress={() => onSelect(shrine, index)} style={S.cell}>
-          <View style={[S.tile, !acquired && S.tileUnacquired]}>
+          <View style={[S.tile, !acquired && S.tileUnacquired]}><SlicedArt name={acquired ? 'tileFrame' : 'tileFrameEmpty'} corner={9} />
             {source ? <Image source={source} contentFit="contain" style={[S.image, !acquired && S.imageUnacquired]} /> : null}
           </View>
           <Text numberOfLines={1} style={[S.name, !acquired && S.nameUnacquired]}>{acquired ? shrine.name : '未取得'}</Text>
@@ -93,7 +94,7 @@ export function PagedShrineGrid({ kind, title, shrines, ownedIds, onSelect, heig
           const acquired = owned.has(shrine.id);
           const source = kind === 'goshuin' ? STAMP_IMAGES[shrine.id] : COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
           return <Pressable artwork={false} key={shrine.id + '-' + index} accessibilityRole="button" accessibilityLabel={shrine.name + 'の' + noun + '、' + (acquired ? '取得済み' : '未取得')} onPress={() => onSelect(shrine, index)} style={{ width: tileWidth }}>
-            <View style={[S.tile, !acquired && S.tileUnacquired, { height: tileWidth / .82 }]}>
+            <View style={[S.tile, !acquired && S.tileUnacquired, { height: tileWidth / .82 }]}><SlicedArt name={acquired ? 'tileFrame' : 'tileFrameEmpty'} corner={9} />
               {source ? <Image source={source} contentFit="contain" style={[S.image, !acquired && S.imageUnacquired]} /> : null}
             </View>
             <Text numberOfLines={1} style={[S.pagedName, !acquired && S.nameUnacquired]}>{acquired ? shrine.name : '未取得'}</Text>
@@ -102,9 +103,9 @@ export function PagedShrineGrid({ kind, title, shrines, ownedIds, onSelect, heig
       </View>
     </View>
     <View style={S.pagedPager}>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="前のページ" accessibilityState={{ disabled: current === 0 }} disabled={current === 0} onPress={() => setPage(current - 1)} style={[S.pagedArrow, current === 0 && { opacity: .35 }]}><Icon name="chevron-back" size={18} /></Pressable>
+      <Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="前のページ" accessibilityState={{ disabled: current === 0 }} disabled={current === 0} onPress={() => setPage(current - 1)} style={[S.pagedArrow, current === 0 && { opacity: .35 }]}><Icon name="chevron-back" size={18} /></Pressable>
       <Text style={S.pagedCounter}>{current + 1} / {pageCount}</Text>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="次のページ" accessibilityState={{ disabled: current >= pageCount - 1 }} disabled={current >= pageCount - 1} onPress={() => setPage(current + 1)} style={[S.pagedArrow, current >= pageCount - 1 && { opacity: .35 }]}><Icon name="chevron-forward" size={18} /></Pressable>
+      <Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="次のページ" accessibilityState={{ disabled: current >= pageCount - 1 }} disabled={current >= pageCount - 1} onPress={() => setPage(current + 1)} style={[S.pagedArrow, current >= pageCount - 1 && { opacity: .35 }]}><Icon name="chevron-forward" size={18} /></Pressable>
     </View>
   </View>;
 }
@@ -114,12 +115,12 @@ const S = StyleSheet.create({
   cover: { width: '68%', maxWidth: 288, aspectRatio: 2 / 3, overflow: 'visible', backgroundColor: 'transparent' },
   coverImage: { ...StyleSheet.absoluteFillObject },
   cardBare: { backgroundColor: 'transparent', borderWidth: 0, padding: 0, borderRadius: 0 },
-  card: { borderRadius: 20, backgroundColor: '#FFF9EF', padding: 14, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
+  card: { padding: 14, overflow: 'hidden' },
   count: { color: C.muted, fontSize: 13, marginBottom: 12, textAlign: 'right' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: '3.5%', rowGap: 12 },
   cell: { width: '31%' },
-  tile: { width: '100%', aspectRatio: .82, borderRadius: 10, borderWidth: 1, borderColor: '#DED0BD', backgroundColor: '#FFFDF7', padding: 5, overflow: 'hidden' },
-  tileUnacquired: { backgroundColor: '#EEE7DC', borderStyle: 'dashed' },
+  tile: { width: '100%', aspectRatio: .82, padding: 8, overflow: 'hidden' },
+  tileUnacquired: {},
   image: { width: '100%', height: '100%' },
   imageUnacquired: { opacity: .22 },
   name: { color: C.ink, fontFamily: BRUSH, fontSize: 12, marginTop: 5, textAlign: 'center' },

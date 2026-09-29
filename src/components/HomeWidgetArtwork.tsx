@@ -8,6 +8,8 @@ import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_W
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
 import { OmikujiResultContent } from './OmikujiResultCard';
 import { CroppedArt } from './CroppedArt';
+import { SlicedArt } from './SlicedArt';
+import { UI_ART } from '../data/uiArt';
 
 // Hand-torn washi plates the home cards sit on (bounds are the paper's share of each picture).
 const PLATE_STEPS = require('../../assets/ui-washi/home/plate-steps-wide.webp');
@@ -17,7 +19,7 @@ const PLATE_GOSHUIN_BOUNDS = { x0: .022, x1: .973, y0: .012, y1: .985 };
 const PLATE_OMIKUJI = require('../../assets/ui-washi/home/plate-portrait-omikuji.webp');
 const PLATE_OMIKUJI_BOUNDS = { x0: .02, x1: .975, y0: .013, y1: .986 };
 
-const OMIKUJI_DRAW_CYLINDER = require('../../assets/omikuji/omikuji-draw-cylinder-v1.webp');
+const OMIKUJI_DRAW_CYLINDER = require('../../assets/ui-round3/omikuji/omikuji-draw-cylinder-v1.webp');
 
 function CardBackground({ source, shade = '#FFF9EFA8' }: { source: ImageSourcePropType; shade?: string }) {
   return <>
@@ -113,9 +115,9 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
     <CroppedArt source={PLATE_STEPS} bounds={PLATE_STEPS_BOUNDS} />
     {horizontal ? <View style={S.stepsHorizontalContent}>
       <View style={S.stepsTrack}>
-        <View style={S.stepsLine} />
-        <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]} />
-        <View style={[S.stepsPoint, { left: `${ratio * 100}%` }]} />
+        <View style={S.stepsLine}><SlicedArt name="progressTrack" /></View>
+        <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]}><SlicedArt name="progressFill" /></View>
+        <Image accessible={false} source={UI_ART.progressPoint.source} contentFit="contain" style={[S.stepsPoint, { left: `${ratio * 100}%` }]} />
         <Text style={S.stepsPreviousLabel}>前回地点 {previousPointSteps.toLocaleString('ja-JP')}歩</Text>
         {nextPointSteps !== null && <Text style={S.stepsNextLabel}>次まで あと{nextPointSteps.toLocaleString('ja-JP')}歩</Text>}
         <View style={[S.stepsSpriteAnchor, { left: `${spriteRatio * 100}%` }]}>
@@ -129,9 +131,9 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
         <View style={S.stepsValueRow}><Text style={S.stepsValue}>{steps.toLocaleString('ja-JP')}</Text><Text style={S.stepsUnit}>歩</Text></View>
       </View>
       <View style={S.stepsRail}>
-        <View style={S.stepsLine} />
-        <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]} />
-        <View style={[S.stepsPoint, { left: `${ratio * 100}%` }]} />
+        <View style={S.stepsLine}><SlicedArt name="progressTrack" /></View>
+        <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]}><SlicedArt name="progressFill" /></View>
+        <Image accessible={false} source={UI_ART.progressPoint.source} contentFit="contain" style={[S.stepsPoint, { left: `${ratio * 100}%` }]} />
         <View style={[S.stepsSpriteAnchor, { left: `${spriteRatio * 100}%` }]}>
           {walkSource ? <WalkSprite source={walkSource} frame={frame} /> : <NeutralWalkingSprite source={petImage} />}
         </View>
@@ -176,8 +178,8 @@ const S = StyleSheet.create({
   stepsValue: { color: '#3A3127', fontSize: 32, fontWeight: '300', letterSpacing: .5 },
   stepsUnit: { color: '#766452', fontFamily: BRUSH, fontSize: 13 },
   stepsRail: { position: 'relative', width: '86%', height: 112 },
-  stepsLine: { position: 'absolute', left: 0, right: 0, top: 28, height: 4, borderRadius: 3, backgroundColor: '#D7C8B6' },
-  stepsLineFill: { position: 'absolute', left: 0, top: 28, height: 4, borderRadius: 3, backgroundColor: '#A54E42' },
-  stepsPoint: { position: 'absolute', top: 21, width: 18, height: 18, marginLeft: -9, borderRadius: 9, borderWidth: 3, borderColor: '#A54E42', backgroundColor: '#FFF9EF', zIndex: 2 },
+  stepsLine: { position: 'absolute', left: 0, right: 0, top: 24, height: 12 },
+  stepsLineFill: { position: 'absolute', left: 0, top: 24, height: 12 },
+  stepsPoint: { position: 'absolute', top: 17, width: 26, height: 26, marginLeft: -13, zIndex: 2 },
   stepsSpriteAnchor: { position: 'absolute', top: -7, width: 42, height: 84, marginLeft: -21, alignItems: 'center', justifyContent: 'flex-end', zIndex: 3 },
 });

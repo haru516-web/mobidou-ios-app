@@ -105,7 +105,7 @@ function usePopupAnimation(reduced: boolean): [PopupAnimation, (onDone?: () => v
 }
 
 function PopupClose({ onPress }: { onPress: () => void }) {
-  return <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onPress} style={S.popupClose}><Text style={S.popupCloseText}>×</Text></Pressable>;
+  return <Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onPress} style={S.popupClose}><Text style={S.popupCloseText}>×</Text></Pressable>;
 }
 
 function PopupRoot({ children, style, modalLabel }: { children: React.ReactNode; style?: object; modalLabel?: string }) {
@@ -247,7 +247,7 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
             </Animated.View>;
           })}
       </View>}
-      <View style={S.popupFooter}><Pressable artwork={false} accessibilityRole="button" accessibilityLabel="完了" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>完了</Text></Pressable></View>
+      <View style={S.popupFooter}><Pressable plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel="完了" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>完了</Text></Pressable></View>
     </Animated.View>
   </PopupRoot>;
 }
@@ -284,9 +284,9 @@ export function MobyPickerPopup({ selectedPet, onConfirm, onClose, guided = fals
         </ScrollView>
       </TutorialTarget>
       <View style={S.popupFooter}>
-        {!guided && <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>閉じる</Text></Pressable>}
+        {!guided && <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>閉じる</Text></Pressable>}
         <TutorialTarget active={guided && guideStage === 'confirm'} onRectChange={setTutorialRect} style={guided && S.guidedMobyConfirmTarget}>
-          <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="決定" onPress={() => closeAnimation(() => onConfirm(draftPet))} style={[S.popupFooterButton, S.popupFooterPrimary, guided && S.guidedMobyConfirmButton]}><Text style={S.popupFooterPrimaryText}>決定</Text></Pressable>
+          <Pressable plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel="決定" onPress={() => closeAnimation(() => onConfirm(draftPet))} style={[S.popupFooterButton, S.popupFooterPrimary, guided && S.guidedMobyConfirmButton]}><Text style={S.popupFooterPrimaryText}>決定</Text></Pressable>
         </TutorialTarget>
       </View>
     </Animated.View>
@@ -309,7 +309,7 @@ const S = StyleSheet.create({
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },
   mobyRoot: { justifyContent: 'flex-start', zIndex: 90 },
   popupScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241A10' },
-  popupCard: { width: '94%', maxWidth: 440, borderRadius: 22, borderWidth: 1, borderColor: '#D5BDA8', backgroundColor: '#FFF9EF', overflow: 'hidden', shadowColor: '#5D4634', shadowOffset: { width: 0, height: 8 }, shadowOpacity: .22, shadowRadius: 17, elevation: 8 },
+  popupCard: { width: '94%', maxWidth: 440, overflow: 'hidden' },
   customCard: { position: 'absolute', height: 310, top: 92, padding: 16, overflow: 'visible' },
   mobyCard: { position: 'absolute', height: 252, bottom: 86, padding: 16 },
   guidedMobyCard: { height: 320 },

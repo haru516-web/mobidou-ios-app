@@ -9,8 +9,8 @@ import { PagedBody } from './PagedBody';
 import { answerFriendRequest, fetchFriendRequests, fetchFriends, getMyFriendCode, sendFriendRequest, SOCIAL_ONLINE, type Friend, type FriendRequest, type Gift, type GiftItem } from '../services/social';
 
 const TICKET_IMAGES: Record<GiftItem['kind'], number> = {
-  coverChange: require('../../assets/tickets/ticket-cover-change-v2.webp'),
-  keychainDrop: require('../../assets/tickets/ticket-keychain-drop-v2.webp'),
+  coverChange: require('../../assets/ui-round3/tickets/ticket-cover-change-v2.webp'),
+  keychainDrop: require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp'),
 };
 const TICKET_NAMES: Record<GiftItem['kind'], string> = {
   coverChange: '御朱印帳表紙替え引換券',
@@ -23,7 +23,7 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
     <SafeAreaView style={S.sheet}>
       <View style={S.sheetHeader}>
         <Text accessibilityRole="header" style={S.sheetTitle}>{title}</Text>
-        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={S.close}><Icon name="close" size={21} /></Pressable>
+        <Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={S.close}><Icon name="close" size={21} /></Pressable>
       </View>
       <PagedBody style={S.sheetBody}>{children}</PagedBody>
     </SafeAreaView>
@@ -72,7 +72,7 @@ function NoticeRow({ notice, unread, onAction }: { notice: AppNotice; unread: bo
       <View style={S.noticeTitleRow}>{unread && <View style={S.unreadDot} />}<Text style={S.noticeTitle}>{notice.title}</Text></View>
       {!!notice.body && <Text style={S.noticeBody}>{notice.body}</Text>}
       {!!notice.date && <Text style={S.noticeDate}>{notice.date}</Text>}
-      {!!notice.actionLabel && !!onAction && <Pressable artwork={false} accessibilityRole="button" onPress={onAction} style={S.inlineAction}><Text style={S.inlineActionText}>{notice.actionLabel}</Text><Icon name="chevron-forward" size={14} color={C.red} /></Pressable>}
+      {!!notice.actionLabel && !!onAction && <Pressable plate="secondary" artwork={false} accessibilityRole="button" onPress={onAction} style={S.inlineAction}><Text style={S.inlineActionText}>{notice.actionLabel}</Text><Icon name="chevron-forward" size={14} color={C.red} /></Pressable>}
     </View>
   </View>;
 }
@@ -107,7 +107,7 @@ function GiftCard({ gift, received, onReceive }: { gift: Gift; received: boolean
       <Text style={S.giftMeta}>{gift.from} · {gift.sentAt}{gift.expiresAt ? ` · ${gift.expiresAt}まで` : ''}</Text>
       {received
         ? <Text style={S.giftReceived}>受け取り済み</Text>
-        : <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${gift.title}を受け取る`} onPress={onReceive} style={S.primarySmall}><Text style={S.primarySmallText}>受け取る</Text></Pressable>}
+        : <Pressable plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel={`${gift.title}を受け取る`} onPress={onReceive} style={S.primarySmall}><Text style={S.primarySmallText}>受け取る</Text></Pressable>}
     </View>
   </View>;
 }
@@ -175,15 +175,15 @@ export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean
     <View style={[S.card, S.addRow]}>
       <WashiArt />
       <TextInput value={input} onChangeText={value => setInput(value.toUpperCase())} placeholder="MOBI-XXXX-XXXX" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="フレンドコード" style={S.codeInput} />
-      <Pressable artwork={false} accessibilityRole="button" disabled={!input.trim()} onPress={() => void submit()} style={[S.primarySmall, !input.trim() && S.disabled]}><Text style={S.primarySmallText}>申請</Text></Pressable>
+      <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={!input.trim()} onPress={() => void submit()} style={[S.primarySmall, !input.trim() && S.disabled]}><Text style={S.primarySmallText}>申請</Text></Pressable>
     </View></View>
 
     {titled('requests', '届いた申請', requests.length ? `${requests.length}件` : undefined, requests.map(request => <View key={request.id} style={[S.card, S.personRow]}>
       <WashiArt />
       <PetAvatar petId={request.petId} />
       <View style={{ flex: 1 }}><Text style={S.personName}>{request.name}</Text><Text style={S.personMeta}>{request.sentAt}に申請</Text></View>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${request.name}さんの申請を承認`} onPress={() => void answer(request, true)} style={S.primarySmall}><Text style={S.primarySmallText}>承認</Text></Pressable>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${request.name}さんの申請を見送る`} onPress={() => void answer(request, false)} style={S.secondarySmall}><Text style={S.secondarySmallText}>見送る</Text></Pressable>
+      <Pressable plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel={`${request.name}さんの申請を承認`} onPress={() => void answer(request, true)} style={S.primarySmall}><Text style={S.primarySmallText}>承認</Text></Pressable>
+      <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel={`${request.name}さんの申請を見送る`} onPress={() => void answer(request, false)} style={S.secondarySmall}><Text style={S.secondarySmallText}>見送る</Text></Pressable>
     </View>), <Empty icon="mail-outline" text="届いている申請はありません" />)}
 
     {titled('friends', 'フレンド', friends.length ? `${friends.length}人` : undefined, friends.map(friend => <View key={friend.id} style={[S.card, S.personRow]}>
@@ -207,7 +207,7 @@ const S = StyleSheet.create({
   sectionTitleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 14, marginBottom: 2 },
   sectionTitle: { fontFamily: BRUSH, fontSize: 17, color: C.ink },
   sectionNote: { fontSize: 13, color: C.muted },
-  card: { overflow: 'hidden', borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFCF5', padding: 14 },
+  card: { overflow: 'hidden', padding: 14 },
   cardMuted: { opacity: .6 },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 22, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: '#D9C9B3' },
   emptyText: { color: C.muted, fontSize: 13, textAlign: 'center', paddingHorizontal: 16 },

@@ -5,11 +5,11 @@ import type { OmikujiFortune } from '../data/omikuji';
 import { OMIKUJI_ATLASES } from '../data/omikujiAtlases';
 import type { PetCharacter } from '../petCatalog';
 import { BRUSH } from '../components';
-import { WashiPressable as Pressable } from './Washi';
+import { PillText, WashiPressable as Pressable } from './Washi';
 import { OmikujiResultCard } from './OmikujiResultCard';
 import { TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
-const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.webp');
+const OMIKUJI_RESULT_BACKGROUND = require('../../assets/ui-round3/omikuji/omikuji-result-paper-v2.webp');
 // Frames 0–4 keep the paper inside the tube; repeat them three times before frames 5–7 reveal it.
 const DRAW_FRAME_SEQUENCE = [0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -114,12 +114,12 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
   const rankScale = effectProgress.interpolate({ inputRange: [0, 0.42, 0.62, 1], outputRange: [0.74, 1.12, 1, 1] });
   const shineOpacity = effectProgress.interpolate({ inputRange: [0, 0.08, 0.38, 0.62, 1], outputRange: [0, 0, 0.8, 0, 0] });
   const shineX = effectProgress.interpolate({ inputRange: [0, 1], outputRange: [-390, 390] });
-  const drawButton = <Pressable accessibilityRole="button" accessibilityLabel="今日のおみくじを引く" onPress={start} style={[S.drawButton, guidedDraw && S.guidedDrawButton]}><Text style={S.drawButtonText}>今日のおみくじを引く</Text></Pressable>;
+  const drawButton = <Pressable plate="primary" accessibilityRole="button" accessibilityLabel="今日のおみくじを引く" onPress={start} style={[S.drawButton, guidedDraw && S.guidedDrawButton]}><Text style={S.drawButtonText}>今日のおみくじを引く</Text></Pressable>;
 
   return <View style={S.wrap}>
     {pulling && <View style={S.stage}>
       <View style={S.spriteViewport}><Image source={atlas} contentFit="fill" style={[S.characterAtlas, { left: -210 * (frame ?? 0) }]} /></View>
-      <Text style={S.petLine}>{pet.name}が、心をこめて引いています…</Text>
+      <PillText textStyle={S.petLine}>{pet.name}が、心をこめて引いています…</PillText>
     </View>}
     {revealing && <View accessible accessibilityLabel="おみくじの紙を引き寄せ、運勢をひらいています" style={S.revealStage}>
       <Animated.View pointerEvents="none" style={[S.revealGlow, { backgroundColor: effect.glow, opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
@@ -150,7 +150,7 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
         <Text style={S.fortuneHeading}>今日の運勢</Text>
         <Image source={pet.image} contentFit="contain" accessibilityLabel={pet.name} style={S.petImage} />
       </View>
-      <Text style={S.prompt}>今日の一枚を引いて、運勢をたしかめましょう。</Text>
+      <PillText textStyle={S.prompt}>今日の一枚を引いて、運勢をたしかめましょう。</PillText>
       {guidedDraw
         ? <TutorialTarget onRectChange={onGuidedTargetRectChange ?? (() => {})} style={S.guidedDrawTarget}>{drawButton}</TutorialTarget>
         : drawButton}
@@ -158,8 +158,8 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
 
     {drawn && !pulling && !revealing && <>
       <OmikujiResultCard fortune={fortune} />
-      <Pressable accessibilityRole="button" accessibilityLabel="おみくじの演出をもう一度見る" onPress={start} style={S.replayButton}><Text style={[S.replayButtonText, S.resultTextEmphasis]}>演出をもう一度見る</Text></Pressable>
-      {__DEV__ && <Pressable accessibilityRole="button" accessibilityLabel="おみくじを引く前の状態に戻す" onPress={onReset} style={S.replayButton}><Text style={S.replayButtonText}>引く前の状態に戻す（開発用）</Text></Pressable>}
+      <Pressable plate="secondary" accessibilityRole="button" accessibilityLabel="おみくじの演出をもう一度見る" onPress={start} style={S.replayButton}><Text style={[S.replayButtonText, S.resultTextEmphasis]}>演出をもう一度見る</Text></Pressable>
+      {__DEV__ && <Pressable plate="secondary" accessibilityRole="button" accessibilityLabel="おみくじを引く前の状態に戻す" onPress={onReset} style={S.replayButton}><Text style={S.replayButtonText}>引く前の状態に戻す（開発用）</Text></Pressable>}
     </>}
   </View>;
 }

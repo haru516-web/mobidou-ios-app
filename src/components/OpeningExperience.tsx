@@ -2,27 +2,30 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Easing, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import { PillText } from './Washi';
+import { CroppedArt } from './CroppedArt';
+import { UI_ART } from '../data/uiArt';
 import { BRUSH, C, SERIF } from '../components';
 
 const OPENING_WORDMARK = require('../../assets/mobidou-wordmark-brush.webp');
 const OPENING_EMBLEM = require('../../assets/mobidou-opening-emblem.webp');
 const OPENING_TIMELINE = [
-  { id: '0500-pre-dawn', time: '05:00', label: '明け方', image: require('../../assets/backgrounds/opening-cycle/01-0500-pre-dawn.webp') },
-  { id: '0600-sunrise', time: '06:00', label: '朝焼け', image: require('../../assets/backgrounds/opening-cycle/02-0600-sunrise.webp') },
-  { id: '0700-morning', time: '07:00', label: '朝', image: require('../../assets/backgrounds/opening-cycle/03-0700-morning.webp') },
-  { id: '0830-morning', time: '08:30', label: '朝', image: require('../../assets/backgrounds/opening-cycle/04-0830-morning.webp') },
-  { id: '1000-late-morning', time: '10:00', label: '午前', image: require('../../assets/backgrounds/opening-cycle/05-1000-late-morning.webp') },
-  { id: '1130-before-noon', time: '11:30', label: '昼前', image: require('../../assets/backgrounds/opening-cycle/06-1130-before-noon.webp') },
-  { id: '1300-noon', time: '13:00', label: '正午', image: require('../../assets/backgrounds/opening-cycle/07-1300-noon.webp') },
-  { id: '1430-afternoon', time: '14:30', label: '午後', image: require('../../assets/backgrounds/opening-cycle/08-1430-afternoon.webp') },
-  { id: '1600-late-afternoon', time: '16:00', label: '昼下がり', image: require('../../assets/backgrounds/opening-cycle/09-1600-late-afternoon.webp') },
-  { id: '1730-golden-hour', time: '17:30', label: '黄金時間', image: require('../../assets/backgrounds/opening-cycle/10-1730-golden-hour.webp') },
-  { id: '1830-sunset', time: '18:30', label: '夕陽', image: require('../../assets/backgrounds/opening-cycle/11-1830-sunset.webp') },
-  { id: '1930-blue-hour', time: '19:30', label: '宵', image: require('../../assets/backgrounds/opening-cycle/12-1930-blue-hour.webp') },
-  { id: '2100-night', time: '21:00', label: '夜', image: require('../../assets/backgrounds/opening-cycle/13-2100-night.webp') },
-  { id: '2300-late-night', time: '23:00', label: '月夜', image: require('../../assets/backgrounds/opening-cycle/14-2300-late-night.webp') },
-  { id: '0200-midnight', time: '02:00', label: '深夜', image: require('../../assets/backgrounds/opening-cycle/15-0200-midnight.webp') },
-  { id: '0430-before-dawn', time: '04:30', label: '夜明け前', image: require('../../assets/backgrounds/opening-cycle/16-0430-before-dawn.webp') },
+  { id: '0500-pre-dawn', time: '05:00', label: '明け方', image: require('../../assets/ui-round3/backgrounds/opening-cycle/01-0500-pre-dawn.webp') },
+  { id: '0600-sunrise', time: '06:00', label: '朝焼け', image: require('../../assets/ui-round3/backgrounds/opening-cycle/02-0600-sunrise.webp') },
+  { id: '0700-morning', time: '07:00', label: '朝', image: require('../../assets/ui-round3/backgrounds/opening-cycle/03-0700-morning.webp') },
+  { id: '0830-morning', time: '08:30', label: '朝', image: require('../../assets/ui-round3/backgrounds/opening-cycle/04-0830-morning.webp') },
+  { id: '1000-late-morning', time: '10:00', label: '午前', image: require('../../assets/ui-round3/backgrounds/opening-cycle/05-1000-late-morning.webp') },
+  { id: '1130-before-noon', time: '11:30', label: '昼前', image: require('../../assets/ui-round3/backgrounds/opening-cycle/06-1130-before-noon.webp') },
+  { id: '1300-noon', time: '13:00', label: '正午', image: require('../../assets/ui-round3/backgrounds/opening-cycle/07-1300-noon.webp') },
+  { id: '1430-afternoon', time: '14:30', label: '午後', image: require('../../assets/ui-round3/backgrounds/opening-cycle/08-1430-afternoon.webp') },
+  { id: '1600-late-afternoon', time: '16:00', label: '昼下がり', image: require('../../assets/ui-round3/backgrounds/opening-cycle/09-1600-late-afternoon.webp') },
+  { id: '1730-golden-hour', time: '17:30', label: '黄金時間', image: require('../../assets/ui-round3/backgrounds/opening-cycle/10-1730-golden-hour.webp') },
+  { id: '1830-sunset', time: '18:30', label: '夕陽', image: require('../../assets/ui-round3/backgrounds/opening-cycle/11-1830-sunset.webp') },
+  { id: '1930-blue-hour', time: '19:30', label: '宵', image: require('../../assets/ui-round3/backgrounds/opening-cycle/12-1930-blue-hour.webp') },
+  { id: '2100-night', time: '21:00', label: '夜', image: require('../../assets/ui-round3/backgrounds/opening-cycle/13-2100-night.webp') },
+  { id: '2300-late-night', time: '23:00', label: '月夜', image: require('../../assets/ui-round3/backgrounds/opening-cycle/14-2300-late-night.webp') },
+  { id: '0200-midnight', time: '02:00', label: '深夜', image: require('../../assets/ui-round3/backgrounds/opening-cycle/15-0200-midnight.webp') },
+  { id: '0430-before-dawn', time: '04:30', label: '夜明け前', image: require('../../assets/ui-round3/backgrounds/opening-cycle/16-0430-before-dawn.webp') },
 ] as const;
 
 function OpeningScene({ scene, width, frameIndex, progress }: { scene: (typeof OPENING_TIMELINE)[number]; width: number; frameIndex: number; progress: Animated.Value }) {
@@ -149,14 +152,37 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
         <Image source={OPENING_EMBLEM} contentFit="contain" style={S.openingEmblem} />
       </View>
       <View style={S.openingCopy}>
-        <Text style={S.openingTagline}>歩くたび、小さな旅。</Text>
-        <Text style={S.openingSubline}>モビーと歩いて、もびの世界へ。</Text>
-        <Text style={S.openingStage}>{OPENING_TIMELINE[index].time}  {OPENING_TIMELINE[index].label}</Text>
+        <View style={S.openingPlate}>
+          <OpeningArt name="openingCopyPlate" />
+          <Text style={S.openingTagline}>歩くたび、小さな旅。</Text>
+          <Text style={S.openingSubline}>モビーと歩いて、もびの世界へ。</Text>
+        </View>
+        <PillText textStyle={S.openingStage}>{OPENING_TIMELINE[index].time}  {OPENING_TIMELINE[index].label}</PillText>
      </View>
      {!!error && <Text style={[S.errorText, S.openingError]}>{error}</Text>}
-      <Text style={S.openingSwipeHint}>画面をタップ、またはスライドしてね</Text>
+      <SwipeCue />
+      <View style={S.openingHintPlate}>
+        <OpeningArt name="openingHintPlate" />
+        <Text style={S.openingSwipeHint}>画面をタップ、またはスライドしてね</Text>
+      </View>
     </View>
   </SafeAreaView>;
+}
+
+function OpeningArt({ name }: { name: 'openingCopyPlate' | 'openingHintPlate' }) {
+  const art = UI_ART[name];
+  return <CroppedArt source={art.source} bounds={{ x0: art.box.x0 / art.width, x1: art.box.x1 / art.width, y0: art.box.y0 / art.height, y1: art.box.y1 / art.height }} />;
+}
+
+// A brush chevron that rises and fades, inviting a swipe up.
+function SwipeCue() {
+  const rise = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(rise, { toValue: 1, duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }));
+    loop.start();
+    return () => loop.stop();
+  }, [rise]);
+  return <Animated.Image accessible={false} source={UI_ART.openingSwipeCue.source} resizeMode="contain" style={[S.swipeCue, { tintColor: '#FFF9EF', opacity: rise.interpolate({ inputRange: [0, .2, 1], outputRange: [0, 1, 0] }), transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [10, -10] }) }] }]} />;
 }
 
 const S = StyleSheet.create({
@@ -169,10 +195,13 @@ const S = StyleSheet.create({
   openingCenterWordmark: { width: 190, height: 58, marginBottom: 8 },
   openingEmblem: { width: 220, height: 220, opacity: .96 },
   openingCopy: { alignItems: 'center', paddingHorizontal: 12, marginBottom: 13 },
-  openingTagline: { fontFamily: BRUSH, fontSize: 25, letterSpacing: 3, color: C.ink, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
-  openingSubline: { fontSize: 12, letterSpacing: 1.5, color: '#5E4636', marginTop: 9, textShadowColor: '#FFF9EFE6', textShadowRadius: 6 },
-  openingStage: { fontFamily: SERIF, fontSize: 12, letterSpacing: 2.5, color: '#765E4B', marginTop: 13 },
+  openingPlate: { width: 330, minHeight: 112, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 16 },
+  openingTagline: { fontFamily: BRUSH, fontSize: 22, letterSpacing: 2, color: C.ink, textAlign: 'center' },
+  openingSubline: { fontSize: 12, letterSpacing: 1.2, color: '#5E4636', marginTop: 8, textAlign: 'center' },
+  openingStage: { fontFamily: SERIF, fontSize: 12, letterSpacing: 2.5, color: '#5E4a3b', marginTop: 10, textAlign: 'center' },
   openingError: { marginBottom: 10, textAlign: 'center' },
-  openingSwipeHint: { fontFamily: BRUSH, fontSize: 16, color: '#FFF9EF', letterSpacing: 1.2, marginTop: 4, marginBottom: 4, textShadowColor: '#3A2D27AA', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  openingHintPlate: { width: 300, height: 52, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  openingSwipeHint: { fontFamily: BRUSH, fontSize: 15, color: '#FFF9EF', letterSpacing: 1.2 },
+  swipeCue: { width: 40, height: 40, marginBottom: 2 },
   errorText: { color: '#813D31', flexShrink: 1, fontSize: 12, lineHeight: 19 },
 });
