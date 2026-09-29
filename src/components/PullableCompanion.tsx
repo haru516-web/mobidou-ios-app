@@ -14,6 +14,7 @@ import { PRAYER_ATLASES, PRAYER_ACTION_ORDER } from '../data/prayerAtlasesV2';
 import { MobbyPullMesh, SUPPORTS_PULL_MESH, type MobbyPullMeshHandle } from './MobbyPullMesh';
 import { PULL_PART_ANCHORS } from '../data/pullPartAnchors';
 import { PULL_GL_TEXTURES } from '../data/pullGlTextures';
+import { CroppedArt } from './CroppedArt';
 import { applyPullRig, createPullRig, resetPullRig, rigTransform, type RigSpec } from './pullRig';
 
 function MaskedPullBodyImage({ source, mask, size }: { source: ImageSourcePropType; mask: ImageSourcePropType; size: number }) {
@@ -48,6 +49,9 @@ const C = {
   gold: '#AF9368',
   bubble: '#FFFCF5',
 };
+
+const BUBBLE_ART = require('../../assets/ui-washi/home/bubble-wide-left.webp');
+const BUBBLE_BOUNDS = { x0: .011, x1: .988, y0: .026, y1: .966 };
 
 const CORE_IDS = new Set<string>(Object.keys(PULL_ASSETS));
 
@@ -604,8 +608,8 @@ export function PullableCompanion({
   return (
     <View style={styles.companion}>
       <View style={styles.bubble}>
+        <CroppedArt source={BUBBLE_ART} bounds={BUBBLE_BOUNDS} />
         <Text accessibilityLiveRegion="polite" style={styles.bubbleText}>{line}</Text>
-        <View style={styles.bubbleTail} />
       </View>
       <View style={styles.stage} onLayout={onStageLayout ? ({ nativeEvent }) => onStageLayout({ y: nativeEvent.layout.y, height: nativeEvent.layout.height }) : undefined}>
         <Animated.View style={[styles.characterMotion, { transform: [{ translateX: specialTranslateX }, { translateY: specialTranslateY }, { scale: specialScale }] }]}>
@@ -695,9 +699,9 @@ export function PullableCompanion({
 
 const styles = StyleSheet.create({
   companion: { alignItems: 'center', paddingTop: 12, marginHorizontal: -24, overflow: 'hidden', paddingBottom: 18 },
-  bubble: { borderWidth: 1, borderColor: C.line, backgroundColor: C.bubble, borderRadius: 17, paddingHorizontal: 18, paddingVertical: 11, zIndex: 2, maxWidth: '88%' },
+  // A hand-torn washi bubble; the tail is part of the picture, so text sits above its bottom fifth.
+  bubble: { width: 300, maxWidth: '92%', minHeight: 76, paddingHorizontal: 30, paddingTop: 9, paddingBottom: 23, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   bubbleText: { fontFamily: 'Shippori', fontSize: 13, color: '#5D554A', textAlign: 'center' },
-  bubbleTail: { position: 'absolute', width: 10, height: 10, backgroundColor: C.bubble, borderBottomWidth: 1, borderRightWidth: 1, borderColor: C.line, transform: [{ rotate: '45deg' }], bottom: -6, alignSelf: 'center' },
   stage: { width: 270, height: 218, justifyContent: 'center', alignItems: 'center', marginTop: 7 },
   characterMotion: { width: 210, height: 210, alignItems: 'center', justifyContent: 'center' },
   characterSlot: { width: 210, height: 210, alignItems: 'center', justifyContent: 'center' },

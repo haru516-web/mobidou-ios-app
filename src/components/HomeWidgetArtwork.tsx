@@ -7,9 +7,16 @@ import type { OmikujiFortune } from '../data/omikuji';
 import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_FRAME_WIDTH, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
 import { OmikujiResultContent } from './OmikujiResultCard';
+import { CroppedArt } from './CroppedArt';
 
-const OMIKUJI_RESULT_BACKGROUND = require('../../assets/omikuji/omikuji-result-paper-v2.webp');
-const OMIKUJI_HOME_UNDRAWN_BACKGROUND = require('../../assets/omikuji/omikuji-home-undrawn-bg-v1.webp');
+// Hand-torn washi plates the home cards sit on (bounds are the paper's share of each picture).
+const PLATE_STEPS = require('../../assets/ui-washi/home/plate-steps-wide.webp');
+const PLATE_STEPS_BOUNDS = { x0: .008, x1: .991, y0: .031, y1: .967 };
+const PLATE_GOSHUIN = require('../../assets/ui-washi/home/plate-portrait-goshuin.webp');
+const PLATE_GOSHUIN_BOUNDS = { x0: .022, x1: .973, y0: .012, y1: .985 };
+const PLATE_OMIKUJI = require('../../assets/ui-washi/home/plate-portrait-omikuji.webp');
+const PLATE_OMIKUJI_BOUNDS = { x0: .02, x1: .975, y0: .013, y1: .986 };
+
 const OMIKUJI_DRAW_CYLINDER = require('../../assets/omikuji/omikuji-draw-cylinder-v1.webp');
 
 function CardBackground({ source, shade = '#FFF9EFA8' }: { source: ImageSourcePropType; shade?: string }) {
@@ -21,13 +28,14 @@ function CardBackground({ source, shade = '#FFF9EFA8' }: { source: ImageSourcePr
 
 export function HomeGoshuinArtwork({ source }: { source: ImageSourcePropType; background?: ImageSourcePropType }) {
   return <View pointerEvents="none" style={S.artworkStage}>
-    <Image accessible={false} source={source} contentFit="contain" style={S.goshuinOnly} />
+    <CroppedArt source={PLATE_GOSHUIN} bounds={PLATE_GOSHUIN_BOUNDS} />
+    <View style={S.goshuinOnPlate}><Image accessible={false} source={source} contentFit="contain" style={S.goshuinStamp} /></View>
   </View>;
 }
 
 export function HomeOmikujiArtwork({ fortune }: { fortune: OmikujiFortune | null; petName: string }) {
   return <View pointerEvents="none" style={S.omikujiStage}>
-    <Image accessible={false} source={fortune ? OMIKUJI_RESULT_BACKGROUND : OMIKUJI_HOME_UNDRAWN_BACKGROUND} contentFit="cover" style={[S.omikujiBackground, fortune && S.omikujiResultBackground]} />
+    <CroppedArt source={PLATE_OMIKUJI} bounds={PLATE_OMIKUJI_BOUNDS} />
     {fortune
       ? <View style={S.omikujiResultContentViewport}><View style={S.omikujiResultContentScale}><OmikujiResultContent fortune={fortune} /></View></View>
       : <View style={S.omikujiContent}>
@@ -102,7 +110,7 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
   }, [walkSource]);
 
   return <View pointerEvents="none" style={[S.stepsStage, horizontal && S.stepsStageHorizontal]}>
-    <CardBackground source={background} />
+    <CroppedArt source={PLATE_STEPS} bounds={PLATE_STEPS_BOUNDS} />
     {horizontal ? <View style={S.stepsHorizontalContent}>
       <View style={S.stepsTrack}>
         <View style={S.stepsLine} />
@@ -134,10 +142,9 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
 
 const S = StyleSheet.create({
   artworkStage: { flex: 1, width: '100%', position: 'relative' },
-  goshuinOnly: { width: '88%', height: '100%', alignSelf: 'center', borderRadius: 17 },
-  omikujiStage: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', backgroundColor: '#FFF9EA' },
-  omikujiBackground: { ...StyleSheet.absoluteFillObject },
-  omikujiResultBackground: { opacity: 0.58 },
+  goshuinOnPlate: { flex: 1, paddingHorizontal: '13%', paddingVertical: '9%' },
+  goshuinStamp: { width: '100%', height: '100%' },
+  omikujiStage: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', paddingHorizontal: '5%', paddingVertical: '3%' },
   omikujiResultContentViewport: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   omikujiResultContentScale: { width: '189%', transform: [{ scale: 0.53 }] },
   omikujiContent: { flex: 1, minHeight: 0, alignItems: 'center', paddingHorizontal: 7, paddingTop: 7, paddingBottom: 10 },
@@ -152,15 +159,15 @@ const S = StyleSheet.create({
   stepsStage: { flex: 1, width: '100%', position: 'relative', overflow: 'hidden' },
   stepsStageHorizontal: { minHeight: 126 },
   stepsHorizontalContent: { flex: 1, position: 'relative', zIndex: 1 },
-  stepsTrack: { position: 'absolute', left: 18, right: 18, top: 54, height: 62 },
+  stepsTrack: { position: 'absolute', left: 22, right: 22, top: 58, height: 62 },
   stepsPreviousLabel: { position: 'absolute', left: 0, top: -6, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 10 },
   stepsPreviousValue: { position: 'absolute', left: 0, top: 38, color: '#766452', fontSize: 10 },
   stepsNextLabel: { position: 'absolute', right: 0, top: -6, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 10, textAlign: 'right' },
   stepsNextValue: { position: 'absolute', right: 0, top: 38, color: '#766452', fontSize: 10, textAlign: 'right' },
-  stepsCurrent: { position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center' },
+  stepsCurrent: { position: 'absolute', left: 0, right: 0, top: 10, alignItems: 'center' },
   stepsCurrentLabel: { color: '#766452', fontFamily: 'ShipporiBold', fontSize: 10, letterSpacing: .8 },
   stepsCurrentValue: { color: '#3A3127', fontSize: 23, fontWeight: '300', letterSpacing: .5, marginTop: 1 },
-  stepsTotal: { position: 'absolute', left: 0, right: 0, top: 104, flexDirection: 'row', justifyContent: 'center', alignItems: 'baseline', gap: 8 },
+  stepsTotal: { position: 'absolute', left: 0, right: 0, top: 106, flexDirection: 'row', justifyContent: 'center', alignItems: 'baseline', gap: 8 },
   stepsTotalLabel: { color: '#766452', fontFamily: 'ShipporiBold', fontSize: 10, letterSpacing: .6 },
   stepsTotalValue: { color: '#3A3127', fontSize: 15, fontWeight: '300', letterSpacing: .4, marginTop: 1 },
   stepsContent: { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 15, zIndex: 1 },
