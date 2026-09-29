@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { PILGRIMAGES, type Pilgrimage } from '../data/pilgrimages';
@@ -10,6 +10,7 @@ import { SHRINES, type Shrine } from '../data/shrines';
 import { creditedSteps, expandPointTargets, type Progress } from '../services/progress';
 import type { PetCharacter } from '../petCatalog';
 import { Button, C, SERIF, Icon } from '../components';
+import { PagedBody } from './PagedBody';
 import { PaperCard, WashiPressable as Pressable } from './Washi';
 import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
@@ -88,40 +89,44 @@ export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet, gu
   const [preview, setPreview] = useState<Pilgrimage | null>(null);
   const [tutorialRect, setTutorialRect] = useState<TutorialRect | null>(null);
   const reportTutorialRect = setTutorialRect;
+  const startButton = (route: Pilgrimage) => <Button title={guidedRouteId ? 'この巡礼に出発する' : activeId === route.id ? 'この旅をつづける' : records[route.id] ? 'この旅を再開する' : 'この巡礼に出発する'} onPress={() => onSelect(route.id)} style={guidedRouteId ? S.guidedRouteButton : undefined} />;
+  const routeCard = (route: Pilgrimage, i: number) => {
+    const guidedTarget = route.id === guidedRouteId;
+    const card = <Pressable key={route.id} disabled={!!guidedRouteId && !guidedTarget} accessibilityRole="button" accessibilityLabel={`${route.name} ${route.type}の詳細${guidedRouteId && !guidedTarget ? '。今回は選択できません' : ''}`} accessibilityState={{ disabled: !!guidedRouteId && !guidedTarget }} onPress={() => { if (guidedTarget) setTutorialRect(null); setPreview(route); }} style={[S.card, S.gridCard, guidedTarget && S.guidedMapCard]}>
+      <Image source={PILGRIMAGE_IMAGES[route.id]} style={S.gridCardImage} contentFit="cover" />
+      <View style={S.gridCardCopy}><Text numberOfLines={1} style={[S.kicker, { color: route.color }]}>{String(i + 1).padStart(2, '0')} / {route.type}{!guidedRouteId && (activeId === route.id ? ' · 巡礼中' : records[route.id]?.completedAt ? ' · 結願' : '')}</Text><Text numberOfLines={2} style={S.gridCardTitle}>{route.name}</Text><View style={S.meta}><Text style={S.small}>{route.ids.length}{route.type === '七願掛け' ? '巡' : 'か所'} · {route.targets[0].toLocaleString()}歩〜</Text><Icon name="arrow-forward" size={16} color={route.color} /></View></View>
+    </Pressable>;
+    return guidedTarget
+      ? <TutorialTarget key={route.id} active={guidedRoutePresented} onRectChange={reportTutorialRect} style={S.gridCardSlot}>{card}</TutorialTarget>
+      : <View key={route.id} style={S.gridCardSlot}>{card}</View>;
+  };
+  const rows: Pilgrimage[][] = [];
+  for (let i = 0; i < PILGRIMAGES.length; i += 2) rows.push(PILGRIMAGES.slice(i, i + 2));
   return <View style={{ flex: 1, backgroundColor: C.paper }}>
     <View style={S.header}><View><Text style={S.kicker}>もびの世界を歩く</Text><Text style={S.title}>{preview ? preview.name : 'どの旅へ、出かけよう。'}</Text></View>{(preview || activeId) && !guidedRouteId && <Pressable accessibilityRole="button" accessibilityLabel={preview ? 'コース一覧に戻る' : '巡礼選択を閉じる'} onPress={() => preview ? setPreview(null) : onClose()} style={S.close}><Icon name={preview ? 'arrow-back' : 'close'} /></Pressable>}</View>
-    <ScrollView contentContainerStyle={{ padding: 22, paddingTop: 0, paddingBottom: 40 }}>
+    <PagedBody style={{ flex: 1, paddingHorizontal: 22 }} gap={12}>
       {preview ? guidedRouteId ? <>
-        <Image source={PILGRIMAGE_IMAGES[preview.id]} accessibilityLabel={preview.subtitle} style={[S.hero, { height: 190 }]} contentFit="cover" />
-        <Text style={[S.kicker, { color: preview.color, marginTop: 20 }]}>{preview.type} · {preview.ids.length}か所</Text>
+        <View key="guided-hero"><Image source={PILGRIMAGE_IMAGES[preview.id]} accessibilityLabel={preview.subtitle} style={[S.hero, { height: 170 }]} contentFit="cover" />
+        <Text style={[S.kicker, { color: preview.color, marginTop: 16 }]}>{preview.type} · {preview.ids.length}か所</Text>
         <Text style={[S.headline, { marginVertical: 9 }]}>最初の旅は、このコースから。</Text>
-        <Text style={S.body}>歩くと巡礼が進み、順番に御朱印を集められます。</Text>
-        <TutorialTarget active={!!guidedRouteId && guidedRoutePresented} onRectChange={reportTutorialRect} style={S.guidedRouteTarget}>
-          <Button title="この巡礼に出発する" onPress={() => onSelect(preview.id)} style={S.guidedRouteButton} />
-        </TutorialTarget>
-        <Text style={[S.small, { textAlign: 'center' }]}>ルートはあとから選び直せます。</Text>
+        <Text style={S.body}>歩くと巡礼が進み、順番に御朱印を集められます。</Text></View>
       </> : <>
-        <Image source={PILGRIMAGE_IMAGES[preview.id]} accessibilityLabel={preview.subtitle} style={S.hero} contentFit="cover" />
-        <Text style={[S.kicker, { marginTop: 20 }]}>{preview.type} · {preview.ids.length}{preview.type === '七願掛け' ? '巡' : 'か所'}</Text><Text style={S.headline}>{preview.subtitle}</Text><Text style={S.body}>{preview.description}</Text>
-        <PaperCard><Text style={S.label}>この旅の結願</Text><Text style={S.body}>{preview.completion}</Text><Text style={S.label}>旅の証</Text><Text style={S.body}>{preview.gift}・称号「{preview.title}」</Text><Text style={S.small}>一日の参拝目安：{preview.targets.map(n => n.toLocaleString()).join(' / ')}歩{preview.type === '七願掛け' ? ' · 1日1巡' : ''}</Text></PaperCard>
-        <RouteMap route={preview} count={records[preview.id]?.rewards.length ?? 0} progress={records[preview.id]} pet={pet} />
-        <Button title={activeId === preview.id ? 'この旅をつづける' : records[preview.id] ? 'この旅を再開する' : 'この巡礼に出発する'} onPress={() => onSelect(preview.id)} style={{ marginTop: 18 }} />
-        <Text style={S.small}>出発後に歩いた歩数で進みます。途中で旅を変えても記録は残ります。</Text>
+        <View key="hero"><Image source={PILGRIMAGE_IMAGES[preview.id]} accessibilityLabel={preview.subtitle} style={[S.hero, { height: 190 }]} contentFit="cover" />
+        <Text style={[S.kicker, { marginTop: 14 }]}>{preview.type} · {preview.ids.length}{preview.type === '七願掛け' ? '巡' : 'か所'}</Text><Text style={[S.headline, { marginVertical: 8 }]}>{preview.subtitle}</Text><Text style={S.body}>{preview.description}</Text></View>
+        <PaperCard key="card"><Text style={S.label}>この旅の結願</Text><Text style={S.body}>{preview.completion}</Text><Text style={S.label}>旅の証</Text><Text style={S.body}>{preview.gift}・称号「{preview.title}」</Text><Text style={S.small}>一日の参拝目安：{preview.targets.map(n => n.toLocaleString()).join(' / ')}歩{preview.type === '七願掛け' ? ' · 1日1巡' : ''}</Text></PaperCard>
+        <RouteMap key="map" route={preview} count={records[preview.id]?.rewards.length ?? 0} progress={records[preview.id]} pet={pet} />
       </> : <>
-        <Text style={[S.body, { marginBottom: 20 }]}>{guidedRouteId ? 'さまざまな巡礼マップがあります。最初は「木漏れ日の奥宮へ」から始めましょう。' : '森の奥へ。雲の上へ。それとも、いつもの社へ。\n今の気持ちに合う巡礼を選んでください。'}</Text>
-        {PILGRIMAGES.map((route, i) => {
-          const guidedTarget = route.id === guidedRouteId;
-          const card = <Pressable key={route.id} disabled={!!guidedRouteId && !guidedTarget} accessibilityRole="button" accessibilityLabel={`${route.name} ${route.type}の詳細${guidedRouteId && !guidedTarget ? '。今回は選択できません' : ''}`} accessibilityState={{ disabled: !!guidedRouteId && !guidedTarget }} onPress={() => { if (guidedTarget) setTutorialRect(null); setPreview(route); }} style={[S.card, guidedTarget && S.guidedMapCard]}>
-            <Image source={PILGRIMAGE_IMAGES[route.id]} style={S.cardImage} contentFit="cover" />
-            <View style={S.cardCopy}><Text style={[S.kicker, { color: route.color }]}>{String(i + 1).padStart(2, '0')} / {route.type}{!guidedRouteId && (activeId === route.id ? ' · 巡礼中' : records[route.id]?.completedAt ? ' · 結願' : '')}</Text><Text style={S.cardTitle}>{route.name}</Text><Text style={S.body}>{route.subtitle}</Text><View style={S.meta}><Text style={S.small}>{route.ids.length}{route.type === '七願掛け' ? '巡' : 'か所'} · {route.targets[0].toLocaleString()}歩から</Text><Icon name="arrow-forward" size={18} color={route.color} /></View></View>
-          </Pressable>;
-          return guidedTarget
-            ? <TutorialTarget key={route.id} active={guidedRoutePresented} onRectChange={reportTutorialRect} style={S.guidedMapCardTarget}>{card}</TutorialTarget>
-            : card;
-        })}
-        <Text style={S.small}>登場する寺社や景色は、もびの世界の創作です。</Text>
+        <Text key="lead" style={S.body}>{guidedRouteId ? 'さまざまな巡礼マップがあります。最初は「木漏れ日の奥宮へ」から始めましょう。' : '森の奥へ。雲の上へ。それとも、いつもの社へ。\n今の気持ちに合う巡礼を選んでください。'}</Text>
+        {rows.map((row, rowIndex) => <View key={`row-${rowIndex}`} style={S.gridRow}>{row.map((route, column) => routeCard(route, rowIndex * 2 + column))}</View>)}
+        <Text key="note" style={S.small}>登場する寺社や景色は、もびの世界の創作です。</Text>
       </>}
-    </ScrollView>
+    </PagedBody>
+    {preview && <View style={S.footer}>
+      {guidedRouteId
+        ? <TutorialTarget active={guidedRoutePresented} onRectChange={reportTutorialRect} style={S.guidedRouteTarget}>{startButton(preview)}</TutorialTarget>
+        : startButton(preview)}
+      <Text style={[S.small, { textAlign: 'center' }]}>{guidedRouteId ? 'ルートはあとから選び直せます。' : '出発後に歩いた歩数で進みます。途中で旅を変えても記録は残ります。'}</Text>
+    </View>}
     {guidedRouteId && guidedRoutePresented && <TutorialSpotlightOverlay targetRect={tutorialRect} step={preview ? '2 / 6' : '1 / 6'} title={preview ? 'この巡礼に出発しよう' : '最初のルートを選ぼう'} detail={preview ? '「この巡礼に出発する」をタップ' : '「木漏れ日の奥宮へ」のマップカードをタップ'} />}
   </View>;
 }
@@ -133,5 +138,6 @@ export function CompletionPage({ route, progress, onChooseNext }: { route: Pilgr
 const S = StyleSheet.create({
   guidedRouteTarget: { alignSelf: 'stretch', marginTop: 15, padding: 5 }, guidedRouteButton: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .48, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 9 },
   guidedMapCardTarget: { alignSelf: 'stretch' }, guidedMapCard: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .42, shadowRadius: 11, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
-  header: { padding: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, kicker: { fontSize: 11, letterSpacing: 1.6, color: C.muted }, title: { fontFamily: SERIF, color: C.ink, fontSize: 23, marginTop: 8 }, close: { padding: 10, minWidth: 44, minHeight: 44 }, hero: { width: '100%', height: 235, borderRadius: 12 }, headline: { fontFamily: SERIF, fontSize: 23, color: C.ink, marginVertical: 14 }, body: { fontSize: 13, lineHeight: 24, color: '#655B4D' }, label: { fontFamily: SERIF, fontSize: 15, color: C.ink, marginVertical: 8 }, small: { fontSize: 12, lineHeight: 20, color: '#857560', marginTop: 5 }, card: { marginBottom: 23, borderRadius: 12, backgroundColor: '#F6EEDC', borderWidth: 1, borderColor: '#DECFB7' }, cardImage: { width: '100%', height: 175 }, cardCopy: { padding: 17 }, cardTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink, marginTop: 9, marginBottom: 4 }, meta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }, mapFrame: { position: 'relative', width: '100%' }, map: { overflow: 'hidden', borderRadius: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, backgroundColor: '#F2E7CF', width: '100%' }, mapHeader: { position: 'absolute', left: 16, top: 13, zIndex: 3 }, mapTitle: { fontFamily: SERIF, fontSize: 16, color: '#4C5D4B' }, mapSubtitle: { marginTop: 3, fontSize: 11, color: '#776B58' }, mapPet: { position: 'absolute', width: 44, height: 44, zIndex: 4, alignItems: 'center', justifyContent: 'center' }, mapPetImage: { width: 39, height: 39 }, mapPeek: { position: 'absolute', top: -120, left: '50%', marginLeft: -95, width: 190, height: 200, zIndex: 5 }, mapPeekImage: { width: '100%', height: '100%' }, mapStatus: { position: 'absolute', right: 16, bottom: 25, fontSize: 11, color: '#5F594F', textShadowColor: '#FFF8E3', textShadowRadius: 3 }, mapFootnote: { position: 'absolute', bottom: 7, alignSelf: 'center', fontSize: 11, color: '#71634C' },
+  gridRow: { flexDirection: 'row', gap: 12 }, gridCardSlot: { flex: 1, minWidth: 0 }, gridCard: { marginBottom: 0, overflow: 'hidden' }, gridCardImage: { width: '100%', height: 96 }, gridCardCopy: { padding: 11, gap: 3 }, gridCardTitle: { fontFamily: SERIF, fontSize: 16, lineHeight: 22, color: C.ink, minHeight: 44 }, footer: { paddingHorizontal: 22, paddingTop: 6, paddingBottom: 16, gap: 4 },
+  header: { padding: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, kicker: { fontSize: 11, letterSpacing: 1.6, color: C.muted }, title: { fontFamily: SERIF, color: C.ink, fontSize: 23, marginTop: 8 }, close: { padding: 10, minWidth: 44, minHeight: 44 }, hero: { width: '100%', height: 235, borderRadius: 12 }, headline: { fontFamily: SERIF, fontSize: 23, color: C.ink, marginVertical: 14 }, body: { fontSize: 13, lineHeight: 24, color: '#655B4D' }, label: { fontFamily: SERIF, fontSize: 15, color: C.ink, marginVertical: 8 }, small: { fontSize: 12, lineHeight: 20, color: '#857560', marginTop: 5 }, card: { marginBottom: 23, borderRadius: 12, backgroundColor: '#F6EEDC', borderWidth: 1, borderColor: '#DECFB7' }, cardImage: { width: '100%', height: 175 }, cardCopy: { padding: 17 }, cardTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink, marginTop: 9, marginBottom: 4 }, meta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }, mapFrame: { position: 'relative', width: '100%' }, map: { overflow: 'hidden', borderRadius: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, backgroundColor: '#F2E7CF', width: '100%' }, mapHeader: { position: 'absolute', left: 12, top: 10, zIndex: 3, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#FBF4E4F2', borderWidth: 1, borderColor: '#C7A98A' }, mapTitle: { fontFamily: SERIF, fontSize: 16, color: '#4C5D4B' }, mapSubtitle: { marginTop: 3, fontSize: 11, color: '#776B58' }, mapPet: { position: 'absolute', width: 44, height: 44, zIndex: 4, alignItems: 'center', justifyContent: 'center' }, mapPetImage: { width: 39, height: 39 }, mapPeek: { position: 'absolute', top: -120, left: '50%', marginLeft: -95, width: 190, height: 200, zIndex: 5 }, mapPeekImage: { width: '100%', height: '100%' }, mapStatus: { position: 'absolute', right: 12, bottom: 32, fontSize: 11, color: '#4E4034', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7, overflow: 'hidden', backgroundColor: '#FBF4E4F2' }, mapFootnote: { position: 'absolute', bottom: 8, alignSelf: 'center', fontSize: 11, color: '#5E5240', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7, overflow: 'hidden', backgroundColor: '#FBF4E4F2' },
 });

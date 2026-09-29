@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { C, Icon, SERIF } from '../components';
 import { getPetCharacter, type PetCharacter } from '../petCatalog';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
+import { PagedBody } from './PagedBody';
 import { answerFriendRequest, fetchFriendRequests, fetchFriends, getMyFriendCode, sendFriendRequest, SOCIAL_ONLINE, type Friend, type FriendRequest, type Gift, type GiftItem } from '../services/social';
 
 const TICKET_IMAGES: Record<GiftItem['kind'], number> = {
@@ -24,13 +25,19 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
         <Text accessibilityRole="header" style={S.sheetTitle}>{title}</Text>
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={S.close}><Icon name="close" size={21} /></Pressable>
       </View>
-      <ScrollView contentContainerStyle={S.sheetBody} showsVerticalScrollIndicator={false}>{children}</ScrollView>
+      <PagedBody style={S.sheetBody}>{children}</PagedBody>
     </SafeAreaView>
   </Modal>;
 }
 
 function SectionTitle({ title, note }: { title: string; note?: string }) {
   return <View style={S.sectionTitleRow}><Text style={S.sectionTitle}>{title}</Text>{!!note && <Text style={S.sectionNote}>{note}</Text>}</View>;
+}
+
+/** A section title kept on the same page as the first thing under it. */
+function titled(key: string, title: string, note: string | undefined, items: React.ReactElement[], empty: React.ReactElement): React.ReactElement[] {
+  const list = items.length ? items : [empty];
+  return list.map((item, index) => index === 0 ? <View key={`${key}-head`}><SectionTitle title={title} note={note} />{item}</View> : item);
 }
 
 function Empty({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name']; text: string }) {
@@ -76,10 +83,9 @@ export function NotificationsSheet({ visible, notices, readIds, onClose }: { vis
   const events = notices.filter(notice => notice.kind === 'event');
   const act = (notice: AppNotice) => { onClose(); notice.onAction?.(); };
   return <Sheet visible={visible} title="通知" onClose={onClose}>
-    {todo.length > 0 && <><SectionTitle title="やること" />{todo.map(notice => <NoticeRow key={notice.id} notice={notice} unread={countsAsUnread(notice, readIds)} onAction={() => act(notice)} />)}</>}
-    {status.length > 0 && <><SectionTitle title="いまの旅" />{status.map(notice => <NoticeRow key={notice.id} notice={notice} unread={false} onAction={() => act(notice)} />)}</>}
-    <SectionTitle title="できごと" note={events.length ? `${events.length}件` : undefined} />
-    {events.length ? events.map(notice => <NoticeRow key={notice.id} notice={notice} unread={countsAsUnread(notice, readIds)} onAction={() => act(notice)} />) : <Empty icon="notifications-outline" text="御朱印を授かると、ここにお知らせが届きます" />}
+    {todo.length > 0 && titled('todo', 'やること', undefined, todo.map(notice => <NoticeRow key={notice.id} notice={notice} unread={countsAsUnread(notice, readIds)} onAction={() => act(notice)} />), <View />)}
+    {status.length > 0 && titled('status', 'いまの旅', undefined, status.map(notice => <NoticeRow key={notice.id} notice={notice} unread={false} onAction={() => act(notice)} />), <View />)}
+    {titled('events', 'できごと', events.length ? `${events.length}件` : undefined, events.map(notice => <NoticeRow key={notice.id} notice={notice} unread={countsAsUnread(notice, readIds)} onAction={() => act(notice)} />), <Empty icon="notifications-outline" text="御朱印を授かると、ここにお知らせが届きます" />)}
   </Sheet>;
 }
 
@@ -111,9 +117,8 @@ export function PresentBoxSheet({ visible, gifts, receivedIds, demo, onReceive, 
   const received = gifts.filter(gift => receivedIds.has(gift.id));
   return <Sheet visible={visible} title="プレゼントボックス" onClose={onClose}>
     {!SOCIAL_ONLINE && <OfflineBanner text={demo ? 'プレゼントの配信は準備中です。体験モードではサンプルを受け取れます。' : 'プレゼントの配信は準備中です。配信が始まると、ここに届きます。'} />}
-    <SectionTitle title="受け取れるプレゼント" note={waiting.length ? `${waiting.length}件` : undefined} />
-    {waiting.length ? waiting.map(gift => <GiftCard key={gift.id} gift={gift} received={false} onReceive={() => onReceive(gift)} />) : <Empty icon="gift-outline" text="いま受け取れるプレゼントはありません" />}
-    {received.length > 0 && <><SectionTitle title="受け取り済み" />{received.map(gift => <GiftCard key={gift.id} gift={gift} received />)}</>}
+    {titled('waiting', '受け取れるプレゼント', waiting.length ? `${waiting.length}件` : undefined, waiting.map(gift => <GiftCard key={gift.id} gift={gift} received={false} onReceive={() => onReceive(gift)} />), <Empty icon="gift-outline" text="いま受け取れるプレゼントはありません" />)}
+    {received.length > 0 && titled('received', '受け取り済み', undefined, received.map(gift => <GiftCard key={gift.id} gift={gift} received />), <View />)}
   </Sheet>;
 }
 
@@ -166,24 +171,22 @@ export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean
       <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="フレンドコードを共有" disabled={!code} onPress={() => void Share.share({ message: `もび道でいっしょに歩こう！ フレンドコード：${code}` }).catch(() => undefined)} style={S.iconButton}><Icon name="share-outline" size={20} color={C.red} /></Pressable>
     </View>
 
-    <SectionTitle title="フレンドを追加" />
+    <View key="add"><SectionTitle title="フレンドを追加" />
     <View style={[S.card, S.addRow]}>
       <WashiArt />
       <TextInput value={input} onChangeText={value => setInput(value.toUpperCase())} placeholder="MOBI-XXXX-XXXX" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="フレンドコード" style={S.codeInput} />
       <Pressable artwork={false} accessibilityRole="button" disabled={!input.trim()} onPress={() => void submit()} style={[S.primarySmall, !input.trim() && S.disabled]}><Text style={S.primarySmallText}>申請</Text></Pressable>
-    </View>
+    </View></View>
 
-    <SectionTitle title="届いた申請" note={requests.length ? `${requests.length}件` : undefined} />
-    {requests.length ? requests.map(request => <View key={request.id} style={[S.card, S.personRow]}>
+    {titled('requests', '届いた申請', requests.length ? `${requests.length}件` : undefined, requests.map(request => <View key={request.id} style={[S.card, S.personRow]}>
       <WashiArt />
       <PetAvatar petId={request.petId} />
       <View style={{ flex: 1 }}><Text style={S.personName}>{request.name}</Text><Text style={S.personMeta}>{request.sentAt}に申請</Text></View>
       <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${request.name}さんの申請を承認`} onPress={() => void answer(request, true)} style={S.primarySmall}><Text style={S.primarySmallText}>承認</Text></Pressable>
       <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${request.name}さんの申請を見送る`} onPress={() => void answer(request, false)} style={S.secondarySmall}><Text style={S.secondarySmallText}>見送る</Text></Pressable>
-    </View>) : <Empty icon="mail-outline" text="届いている申請はありません" />}
+    </View>), <Empty icon="mail-outline" text="届いている申請はありません" />)}
 
-    <SectionTitle title="フレンド" note={friends.length ? `${friends.length}人` : undefined} />
-    {friends.length ? friends.map(friend => <View key={friend.id} style={[S.card, S.personRow]}>
+    {titled('friends', 'フレンド', friends.length ? `${friends.length}人` : undefined, friends.map(friend => <View key={friend.id} style={[S.card, S.personRow]}>
       <WashiArt />
       <PetAvatar petId={friend.petId} />
       <View style={{ flex: 1 }}>
@@ -191,7 +194,7 @@ export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean
         <Text style={S.personMeta}>{friend.routeName} · 御朱印 {friend.goshuinCount}</Text>
         <Text style={S.personMeta}>最終 {friend.lastActive}</Text>
       </View>
-    </View>) : <Empty icon="people-outline" text="フレンドコードを交換して、いっしょに歩こう" />}
+    </View>), <Empty icon="people-outline" text="フレンドコードを交換して、いっしょに歩こう" />)}
   </Sheet>;
 }
 
@@ -200,7 +203,7 @@ const S = StyleSheet.create({
   sheetHeader: { paddingHorizontal: 22, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: C.line },
   sheetTitle: { fontFamily: SERIF, fontSize: 23, color: C.ink },
   close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' },
-  sheetBody: { padding: 20, paddingBottom: 48, gap: 10 },
+  sheetBody: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 14, marginBottom: 2 },
   sectionTitle: { fontFamily: 'ShipporiBold', fontSize: 17, color: C.ink },
   sectionNote: { fontSize: 13, color: C.muted },

@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { TutorialTapHint } from './TutorialTapHint';
+import { PagedMeasureContext } from './PagedMeasure';
 
 export type TutorialRect = { x: number; y: number; width: number; height: number };
 
-export function TutorialTarget({ children, onRectChange, active = true, style }: { children: React.ReactNode; onRectChange: (rect: TutorialRect | null) => void; active?: boolean; style?: StyleProp<ViewStyle> }) {
+export function TutorialTarget({ children, onRectChange, active: activeProp = true, style }: { children: React.ReactNode; onRectChange: (rect: TutorialRect | null) => void; active?: boolean; style?: StyleProp<ViewStyle> }) {
   const ref = useRef<View>(null);
+  const active = activeProp && !useContext(PagedMeasureContext);
   const activeRef = useRef(active);
   activeRef.current = active;
   const measure = useCallback(() => {

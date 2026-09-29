@@ -10,8 +10,8 @@ import type { ImageSourcePropType } from 'react-native';
  */
 export const POP_BUTTON_IDS = [
   'bookIndex', 'routeChange',
-  'walkRefresh', 'walkMap',
-  'collectionGoshuin', 'collectionMiniature', 'collectionPasses',
+  'walkMap',
+  'collectionRoom', 'collectionGoshuin', 'collectionMiniature', 'collectionPasses',
   'mobbyCharacter', 'mobbyNotifications', 'mobbyPresents', 'mobbyFriends',
 ] as const;
 
@@ -20,8 +20,8 @@ export type PopButtonId = (typeof POP_BUTTON_IDS)[number];
 export const POP_BUTTON_IMAGES: Record<PopButtonId, ImageSourcePropType | null> = {
   bookIndex: null,
   routeChange: null,
-  walkRefresh: null,
   walkMap: null,
+  collectionRoom: null,
   collectionGoshuin: null,
   collectionMiniature: null,
   collectionPasses: null,

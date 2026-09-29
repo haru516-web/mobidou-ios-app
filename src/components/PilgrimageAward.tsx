@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, ScrollView, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import type { PetCharacter } from '../petCatalog';
@@ -9,6 +9,7 @@ import { PRAYER_ACTION_ORDER, PRAYER_ATLASES } from '../data/prayerAtlasesV2';
 import rawMetrics from '../data/pilgrimageSpriteMetrics.json';
 import { Button, C, SERIF, Stamp, useReducedMotion } from '../components';
 import { WashiArt } from './Washi';
+import { FitToHeight } from './PagedBody';
 import { KEYCHAIN_DROP_RATE, type SpecialCollection } from '../services/specialRewards';
 
 const PHASES = [
@@ -165,7 +166,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     { id: 'rei', source: prayer?.rei, frame: prayerFrame % 8, visible: !walking && action === 'rei' },
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];
-  return <ScrollView style={S.page} contentContainerStyle={S.content}>
+  return <View style={S.page}><FitToHeight><View style={S.content}>
     <Text style={S.eyebrow}>{demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>
     <Text accessibilityRole="header" style={S.title}>{showAward ? complete ? '巡礼、結願。' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>
     <View style={[S.stage, { height: width * 2 / 3 }]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
@@ -223,10 +224,10 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
       {complete && <View style={S.completion}><WashiArt /><Text style={S.completionTitle}>{route!.gift}</Text><Text style={S.completionText}>「{route!.title}」</Text><Text style={S.completionText}>旅の証を、御朱印帳に綴りました。</Text></View>}
       <Button title={keychainDecisionRequired ? 'パスの使い道を選んでください' : revealDone ? '御朱印帳にしまう' : 'ご縁を結んでいます…'} disabled={!revealDone || keychainDecisionRequired || decisionBusy} onPress={onClose} style={{ width: '100%', maxWidth: 350 }} />
     </>}
-  </ScrollView>;
+  </View></FitToHeight></View>;
 }
 const S = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#302D25' }, content: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 40, gap: 15 },
+  page: { flex: 1, backgroundColor: '#302D25' }, content: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 24, gap: 15 },
   eyebrow: { color: '#D5BD98', fontSize: 11, letterSpacing: 2 }, title: { color: '#FFF8E9', fontFamily: SERIF, fontSize: 23, textAlign: 'center', minHeight: 32 }, stage: { width: '100%', maxWidth: 520, overflow: 'hidden', borderRadius: 14, backgroundColor: '#D9CAB2' },
   phaseTrack: { flexDirection: 'row', gap: 9, padding: 7 }, phaseDot: { height: 4, width: 18, borderRadius: 2 }, skip: { backgroundColor: '#FFF5E8', maxWidth: 350, minHeight: 44 }, rewardScene: { width: '100%', maxWidth: 350, minHeight: 292, alignItems: 'center', justifyContent: 'center', position: 'relative' }, rewardHalo: { position: 'absolute', width: 254, height: 254, borderRadius: 127, borderWidth: 1.5, borderColor: '#D8B98A', backgroundColor: '#D8B98A18' }, particle: { position: 'absolute', left: '50%', top: '50%', width: 30, height: 30, marginLeft: -15, marginTop: -15, textAlign: 'center', fontWeight: '700' }, reward: { width: 204, alignItems: 'center', padding: 13, borderRadius: 10, backgroundColor: '#FFF8E9', overflow: 'hidden', zIndex: 2, shadowColor: '#17130F', shadowOffset: { width: 0, height: 8 }, shadowOpacity: .22, shadowRadius: 16, elevation: 8 }, stampFrame: { width: 180, height: 232, alignItems: 'center', justifyContent: 'center' }, inkRing: { position: 'absolute', alignSelf: 'center', top: 31, width: 170, height: 170, borderRadius: 85, borderWidth: 2, borderColor: C.red }, seal: { position: 'absolute', right: 4, bottom: 9, borderWidth: 3, borderColor: C.red, padding: 6, transform: [{ rotate: '-10deg' }], backgroundColor: '#FFF6E8DD' }, sealText: { color: C.red, fontFamily: SERIF, fontSize: 19 }, copyGroup: { alignItems: 'center', gap: 2 }, name: { color: '#FFF5E2', fontFamily: SERIF, fontSize: 21, textAlign: 'center' }, theme: { color: '#E6D8C5', fontSize: 12, lineHeight: 22, textAlign: 'center' }, guaranteeBadge: { borderWidth: 1, borderColor: '#C69B72', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 5, backgroundColor: '#5C493B', marginTop: 2 }, guaranteeText: { color: '#F6D9A3', fontFamily: SERIF, fontSize: 11, letterSpacing: 1 }, completion: { padding: 18, borderRadius: 12, backgroundColor: '#FAF1DF', alignItems: 'center', overflow: 'hidden', width: '100%', maxWidth: 350, gap: 8 }, completionTitle: { fontFamily: SERIF, fontSize: 20, color: C.red }, completionText: { fontSize: 12, color: C.ink },
   specialCard: { width: '100%', maxWidth: 350, borderRadius: 14, backgroundColor: '#FFF7E7', padding: 15, overflow: 'hidden' }, specialEyebrow: { color: '#9a6851', fontSize: 11, letterSpacing: 1.2 }, specialTitle: { color: C.ink, fontFamily: SERIF, fontSize: 17, marginTop: 3, marginBottom: 9 }, specialRows: { gap: 7 }, specialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, specialLabel: { color: '#6b5d4b', fontSize: 12, flex: 1 }, specialStatus: { color: '#918576', fontSize: 12 }, specialWon: { color: '#a24c3e', fontFamily: SERIF }, specialWaiting: { color: '#806f5b', fontSize: 12, lineHeight: 17, textAlign: 'center', paddingVertical: 5 }, specialInstruction: { color: '#806f5b', fontSize: 12, lineHeight: 15, marginTop: 7, textAlign: 'center' }, passOwned: { color: '#776957', fontSize: 11, lineHeight: 15, marginTop: 11, textAlign: 'center' }, exchangeActions: { gap: 7, marginTop: 10 }, specialButton: { minHeight: 42 }, noPass: { color: '#806f5b', fontSize: 11, lineHeight: 16, marginTop: 10, textAlign: 'center' }, purchaseActions: { gap: 6, marginTop: 8 }, purchaseButton: { minHeight: 40 }, fakePurchase: { color: '#998a76', fontSize: 11, textAlign: 'center', marginTop: 7 },

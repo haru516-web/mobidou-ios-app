@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { PagedBody } from './PagedBody';
 import { Button, C, Icon, SERIF, Section } from '../components';
 import { getPilgrimage } from '../data/pilgrimages';
 import { getPetCharacter, type PetId } from '../petCatalog';
@@ -92,7 +93,7 @@ export function AccountCenter({
   };
 
   if (page === 'welcome') {
-    return <ScrollView contentContainerStyle={S.content}>
+    return <PagedBody style={S.content} gap={12}>
       <View style={S.welcomeArt}><WashiArt /><View style={S.welcomeIcon}><Icon name="footsteps-outline" size={26} color={C.red} /></View></View>
       <Text style={S.kicker}>MOBIDOU · はじめの一歩</Text>
       <Text style={S.title}>旅の始め方を{'\n'}選んでください</Text>
@@ -101,11 +102,11 @@ export function AccountCenter({
       <Button title="データを引き継ぐ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
       <Button title="ログイン" icon="person-circle-outline" secondary onPress={() => onNavigate('login')} style={S.secondaryButton} />
       <Text style={S.footnote}>ログイン機能は認証サービスの接続後に利用できます。</Text>
-    </ScrollView>;
+    </PagedBody>;
   }
 
   if (page === 'login') {
-    return <ScrollView contentContainerStyle={S.content}>
+    return <PagedBody style={S.content} gap={12}>
       <View style={S.statusCard}>
         <WashiArt />
         <View style={S.statusIcon}><Icon name="lock-closed-outline" size={22} color={C.red} /></View>
@@ -116,11 +117,11 @@ export function AccountCenter({
       <Text style={S.body}>別の端末へ記録を移す場合は、引き継ぎコードを作成して、その端末で読み込んでください。</Text>
       <Button title="データ引き継ぎへ" icon="swap-horizontal-outline" onPress={() => onNavigate('transfer')} style={S.primary} />
       <Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} />
-    </ScrollView>;
+    </PagedBody>;
   }
 
   if (page === 'transfer') {
-    return <ScrollView contentContainerStyle={S.content} keyboardShouldPersistTaps="handled">
+    return <PagedBody style={S.content} gap={12}>
       {imported ? <>
         <View style={S.statusCard}>
           <WashiArt />
@@ -130,8 +131,8 @@ export function AccountCenter({
         </View>
         <Button title={isFirstLaunch ? '旅をはじめる' : 'アカウント画面へ戻る'} icon="arrow-forward" onPress={onFinishImport} style={S.primary} />
       </> : <>
-        <Text style={S.body}>元の端末で作ったコードを新しい端末に貼り付けると、記録を移せます。引き継ぎを実行すると、この端末の記録はコードの内容に置き換わります。</Text>
-        <View style={S.transferSection}>
+        <Text key="lead" style={S.body}>元の端末で作ったコードを新しい端末に貼り付けると、記録を移せます。引き継ぎを実行すると、この端末の記録はコードの内容に置き換わります。</Text>
+        <View key="export" style={S.transferSection}>
           <Section title="この端末の記録を書き出す" />
           <Text style={S.small}>コードを作成し、すべて選択してコピーします。安全な方法で新しい端末へ渡してください。</Text>
           <View style={S.summaryLine}><Icon name="phone-portrait-outline" size={17} color={C.gold} /><Text style={S.summaryText}>{getPetCharacter(localSummary.petId).name} · 御朱印 {localSummary.rewardCount} 枚 · 累計 {localSummary.totalSteps.toLocaleString('ja-JP')} 歩</Text></View>
@@ -139,7 +140,7 @@ export function AccountCenter({
           {!!exportCode && <TextInput accessibilityLabel="引き継ぎコード。長押ししてすべて選択しコピー" value={exportCode} editable={false} multiline selectTextOnFocus textAlignVertical="top" style={S.codeOutput} />}
         </View>
 
-        <View style={S.transferSection}>
+        <View key="import" style={S.transferSection}>
           <Section title="別の端末の記録を読み込む" />
           <TextInput
             accessibilityLabel="引き継ぎコードを貼り付け"
@@ -164,14 +165,13 @@ export function AccountCenter({
               : <Button title="引き継ぎを続ける" disabled={busy} onPress={() => setConfirmReplace(true)} style={S.primary} />}
           </View>}
         </View>
-        {!!error && <Text accessibilityRole="alert" style={S.error}>{error}</Text>}
-        <Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} />
-        <Text style={S.footnote}>引き継ぎコードには歩数・御朱印・設定などの記録が含まれます。ログイン情報や位置情報は含まれません。</Text>
+        {!!error && <Text key="error" accessibilityRole="alert" style={S.error}>{error}</Text>}
+        <View key="tail" style={{ gap: 6 }}><Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} /><Text style={S.footnote}>引き継ぎコードには歩数・御朱印・設定などの記録が含まれます。ログイン情報や位置情報は含まれません。</Text></View>
       </>}
-    </ScrollView>;
+    </PagedBody>;
   }
 
-  return <ScrollView contentContainerStyle={S.content}>
+  return <PagedBody style={S.content} gap={12}>
     <View style={S.statusCard}>
       <WashiArt />
       <View style={S.statusIcon}><Icon name="phone-portrait-outline" size={22} color={C.red} /></View>
@@ -189,11 +189,11 @@ export function AccountCenter({
     <Button title="データ引き継ぎ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
     <View style={S.petLine}><Icon name="paw-outline" size={18} color={C.gold} /><Text style={S.summaryText}>現在の相棒: {getPetCharacter(localSummary.petId).name}</Text></View>
     <Text style={S.footnote}>アカウントを連携すると、複数端末で記録を使えるようになります。連携機能は認証サービスの設定後に利用できます。</Text>
-  </ScrollView>;
+  </PagedBody>;
 }
 
 const S = StyleSheet.create({
-  content: { padding: 24, paddingBottom: 46, gap: 12 },
+  content: { flex: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 12 },
   welcomeArt: { height: 92, width: 92, borderRadius: 46, alignSelf: 'center', backgroundColor: '#F1E7D8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: 5 },
   welcomeIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FFF9EF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E4D3BD' },
   kicker: { color: C.gold, fontSize: 11, letterSpacing: 1.8, textAlign: 'center', marginTop: 8 },

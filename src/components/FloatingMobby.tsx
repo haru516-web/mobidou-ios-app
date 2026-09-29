@@ -9,14 +9,14 @@ import { C, Icon } from '../components';
 import type { PopButtonId } from '../data/popButtonImages';
 import { PopButton } from './PopButton';
 
-// v5: the default spot moved off the old menu button.
-const STORAGE_KEY = 'mobidou.floating-mobby-position.v5';
-const DEFAULT_Y_RATIO = 0.4;
+// v6: positions are remembered per screen (spotKey); the old single spot is dropped.
+const STORAGE_KEY = 'mobidou.floating-mobby-position.v6';
 const MOBBY_SIZE = 88;
 const EDGE_GUTTER = 8;
 const TOP_CLEARANCE = 64;
-const MENU_RADIUS = 104;
+const MENU_RADIUS = 134;
 const MENU_ITEM_WIDTH = 82;
+const MENU_ITEM_SPACING = 104;
 const MENU_ITEM_HEIGHT = 92;
 const MENU_DISC_CENTER_Y = 32;
 const WALK_DISPLAY_HEIGHT = MOBBY_SIZE - 6;
@@ -36,6 +36,9 @@ const walkMetrics = rawWalkMetrics as Record<string, WalkMetric>;
 
 type Point = { x: number; y: number };
 type LayoutSize = { width: number; height: number };
+
+/** Where Mobby rests on a screen until the person parks it somewhere else. */
+export type MobbySpot = { side: 'left' | 'right'; from: 'top' | 'bottom'; offset: number };
 
 export type MobbyMenuItem = {
   id: PopButtonId;
@@ -108,14 +111,15 @@ function WalkFrame({ source, petId, frame }: { source: ImageSourcePropType; petI
  * tap opens a small guide: what to do next, with shortcuts. Navigation itself
  * lives in the tab bar and segmented controls, so Mobby is never required.
  */
-export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOpenChange, bottomInset, resetPositionOnMount = false }: { image: ImageSourcePropType; name: string; petId: PetId; items: readonly MobbyMenuItem[]; badge?: number; open: boolean; onOpenChange: (open: boolean) => void; bottomInset: number; resetPositionOnMount?: boolean }) {
+export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOpenChange, bottomInset, spotKey, spot, resetPositionOnMount = false }: { image: ImageSourcePropType; name: string; petId: PetId; items: readonly MobbyMenuItem[]; badge?: number; open: boolean; onOpenChange: (open: boolean) => void; bottomInset: number; spotKey: string; spot: MobbySpot; resetPositionOnMount?: boolean }) {
   const [layout, setLayout] = useState<LayoutSize>({ width: 0, height: 0 });
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [hydrated, setHydrated] = useState(false);
   const [walking, setWalking] = useState(false);
   const [walkFrame, setWalkFrame] = useState(0);
   const [menuMounted, setMenuMounted] = useState(open);
-  const savedRatioRef = useRef<Point | null>(null);
+  const savedRatiosRef = useRef<Record<string, Point>>({});
+  const appliedKeyRef = useRef<string | null>(null);
   const initializedRef = useRef(false);
   const positionRef = useRef(position);
   const dragStartRef = useRef(position);
@@ -149,7 +153,7 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
 
   useEffect(() => {
     if (resetPositionOnMount) {
-      savedRatioRef.current = null;
+      savedRatiosRef.current = {};
       setHydrated(true);
       return undefined;
     }
@@ -157,9 +161,9 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
     void AsyncStorage.getItem(STORAGE_KEY).then(raw => {
       if (!active || !raw) return;
       try {
-        const stored = JSON.parse(raw) as { xRatio?: unknown; yRatio?: unknown };
-        if (typeof stored.xRatio === 'number' && typeof stored.yRatio === 'number') {
-          savedRatioRef.current = { x: clamp(stored.xRatio, 0, 1), y: clamp(stored.yRatio, 0, 1) };
+        const stored = JSON.parse(raw) as { spots?: Record<string, { xRatio?: unknown; yRatio?: unknown }> };
+        for (const [key, value] of Object.entries(stored.spots ?? {})) {
+          if (typeof value?.xRatio === 'number' && typeof value?.yRatio === 'number') savedRatiosRef.current[key] = { x: clamp(value.xRatio, 0, 1), y: clamp(value.yRatio, 0, 1) };
         }
       } catch {
         // Ignore malformed saved state and use the default position.
@@ -170,34 +174,43 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
     return () => { active = false; };
   }, [resetPositionOnMount]);
 
+  const restingPoint = useCallback((): Point => {
+    const saved = resetPositionOnMount ? undefined : savedRatiosRef.current[spotKey];
+    if (saved) return { x: saved.x * layout.width, y: saved.y * layout.height };
+    return {
+      x: spot.side === 'right' ? layout.width - MOBBY_SIZE - EDGE_GUTTER : EDGE_GUTTER,
+      y: spot.from === 'top' ? spot.offset : layout.height - bottomInset - MOBBY_SIZE - spot.offset,
+    };
+  }, [layout.width, layout.height, bottomInset, resetPositionOnMount, spot.from, spot.offset, spot.side, spotKey]);
+
+  // Go to this screen's resting spot (or where the person last parked Mobby
+  // on it), and follow the spot while the layout settles.
   useEffect(() => {
     if (!hydrated || !layout.width || !layout.height) return;
-    if (!initializedRef.current) {
-      const saved = resetPositionOnMount ? null : savedRatioRef.current;
-      // Default: the right edge at about 40% height. On ホーム that is beside
-      // the companion's stage rather than over the cards or the tab bar.
-      const initial = saved
-        ? { x: saved.x * layout.width, y: saved.y * layout.height }
-        : { x: layout.width - MOBBY_SIZE - EDGE_GUTTER, y: layout.height * DEFAULT_Y_RATIO };
-      const next = clampPosition(initial, layout, bottomInset);
-      initializedRef.current = true;
+    if (draggingRef.current) return;
+    const keyChanged = appliedKeyRef.current !== spotKey;
+    const parked = !!savedRatiosRef.current[spotKey] && !resetPositionOnMount;
+    if (!keyChanged && parked) {
+      const next = clampPosition(positionRef.current, layout, bottomInset);
       positionRef.current = next;
       setPosition(next);
       return;
     }
-    const next = clampPosition(positionRef.current, layout, bottomInset);
+    appliedKeyRef.current = spotKey;
+    initializedRef.current = true;
+    const next = clampPosition(restingPoint(), layout, bottomInset);
     positionRef.current = next;
     setPosition(next);
-  }, [hydrated, layout, resetPositionOnMount, bottomInset]);
+  }, [hydrated, layout, resetPositionOnMount, bottomInset, spotKey, restingPoint]);
 
   const persist = useCallback((point: Point) => {
     if (!layout.width || !layout.height) return;
-    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
-      version: 1,
-      xRatio: point.x / layout.width,
-      yRatio: point.y / layout.height,
-    })).catch(() => undefined);
-  }, [layout]);
+    savedRatiosRef.current[spotKey] = { x: point.x / layout.width, y: point.y / layout.height };
+    if (resetPositionOnMount) return;
+    const spots: Record<string, { xRatio: number; yRatio: number }> = {};
+    for (const [key, ratio] of Object.entries(savedRatiosRef.current)) spots[key] = { xRatio: ratio.x, yRatio: ratio.y };
+    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, spots })).catch(() => undefined);
+  }, [layout, spotKey, resetPositionOnMount]);
 
   const updatePosition = useCallback((dx: number, dy: number) => {
     const next = clampPosition({ x: dragStartRef.current.x + dx, y: dragStartRef.current.y + dy }, layout, bottomInset);
@@ -289,7 +302,8 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
   const centerX = position.x + MOBBY_SIZE / 2;
   const centerY = position.y + MOBBY_SIZE / 2;
   const towardMiddle = Math.atan2(layout.height / 2 - centerY, layout.width / 2 - centerX);
-  const spread = Math.min(Math.PI * .85, (Math.PI / 4.2) * Math.max(0, items.length - 1));
+  // Neighbouring buttons are ~100px apart so a label never sits under another button.
+  const spread = Math.min(Math.PI * .9, (MENU_ITEM_SPACING / MENU_RADIUS) * Math.max(0, items.length - 1));
   const menuSlots = items.map((_, index) => {
     const angle = towardMiddle + (items.length <= 1 ? 0 : (index / (items.length - 1) - .5) * spread);
     const left = clamp(centerX + Math.cos(angle) * MENU_RADIUS - MENU_ITEM_WIDTH / 2, 4, Math.max(4, layout.width - MENU_ITEM_WIDTH - 4));

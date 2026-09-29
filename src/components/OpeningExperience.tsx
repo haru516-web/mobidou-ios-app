@@ -106,8 +106,8 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
       gestureCommittedRef.current = false;
       return;
     }
-    const threshold = Math.max(48, width * .18);
-    if (Math.hypot(gesture.dx, gesture.dy) >= threshold) startAutoJourney();
+    // A tap starts the journey as well as a swipe.
+    startAutoJourney();
   }, [startAutoJourney, width]);
 
   const pan = useMemo(() => PanResponder.create({
@@ -134,7 +134,7 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
   }), [finishGesture, frameProgress, startAutoJourney, width]);
 
   return <SafeAreaView
-    accessibilityLabel="オープニング。画面を上下左右にスライドして開始"
+    accessibilityLabel="オープニング。画面をタップ、または上下左右にスライドして開始"
     accessibilityHint="どの方向にスライドしても、16枚の背景が時間の流れに沿って切り替わり、その後アプリを開始します"
     style={[S.opening, Platform.OS === 'web' ? ({ touchAction: 'none', userSelect: 'none' } as any) : null]}
     onLayout={event => setWidth(event.nativeEvent.layout.width)}
@@ -154,7 +154,7 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
         <Text style={S.openingStage}>{OPENING_TIMELINE[index].time}  {OPENING_TIMELINE[index].label}</Text>
      </View>
      {!!error && <Text style={[S.errorText, S.openingError]}>{error}</Text>}
-      <Text style={S.openingSwipeHint}>画面をスライドしてね</Text>
+      <Text style={S.openingSwipeHint}>画面をタップ、またはスライドしてね</Text>
     </View>
   </SafeAreaView>;
 }
@@ -169,10 +169,10 @@ const S = StyleSheet.create({
   openingCenterWordmark: { width: 190, height: 58, marginBottom: 8 },
   openingEmblem: { width: 220, height: 220, opacity: .96 },
   openingCopy: { alignItems: 'center', paddingHorizontal: 12, marginBottom: 13 },
-  openingTagline: { fontFamily: SERIF, fontSize: 25, letterSpacing: 3, color: C.ink },
-  openingSubline: { fontSize: 11, letterSpacing: 1.5, color: '#765E4B', marginTop: 9 },
+  openingTagline: { fontFamily: SERIF, fontSize: 25, letterSpacing: 3, color: C.ink, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
+  openingSubline: { fontSize: 12, letterSpacing: 1.5, color: '#5E4636', marginTop: 9, textShadowColor: '#FFF9EFE6', textShadowRadius: 6 },
   openingStage: { fontFamily: SERIF, fontSize: 12, letterSpacing: 2.5, color: '#765E4B', marginTop: 13 },
   openingError: { marginBottom: 10, textAlign: 'center' },
-  openingSwipeHint: { fontFamily: 'ShipporiBold', fontSize: 14, color: '#FFF9EF', letterSpacing: 1.2, marginTop: 4, marginBottom: 4, transform: [{ translateY: -24 }], textShadowColor: '#3A2D27AA', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  openingSwipeHint: { fontFamily: 'ShipporiBold', fontSize: 16, color: '#FFF9EF', letterSpacing: 1.2, marginTop: 4, marginBottom: 4, textShadowColor: '#3A2D27AA', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   errorText: { color: '#813D31', flexShrink: 1, fontSize: 12, lineHeight: 19 },
 });

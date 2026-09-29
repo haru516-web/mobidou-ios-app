@@ -109,9 +109,8 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
         <View style={S.stepsLine} />
         <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]} />
         <View style={[S.stepsPoint, { left: `${ratio * 100}%` }]} />
-        <Text style={S.stepsPreviousLabel}>前回地点</Text>
-        <Text style={S.stepsPreviousValue}>{previousPointSteps.toLocaleString('ja-JP')}歩</Text>
-        {nextPointSteps !== null && <><Text style={S.stepsNextLabel}>次回地点</Text><Text style={S.stepsNextValue}>{nextPointSteps.toLocaleString('ja-JP')}歩</Text></>}
+        <Text style={S.stepsPreviousLabel}>前回地点 {previousPointSteps.toLocaleString('ja-JP')}歩</Text>
+        {nextPointSteps !== null && <Text style={S.stepsNextLabel}>次まで あと{nextPointSteps.toLocaleString('ja-JP')}歩</Text>}
         <View style={[S.stepsSpriteAnchor, { left: `${spriteRatio * 100}%` }]}>
           {walkSource ? <WalkSprite source={walkSource} frame={frame} /> : <NeutralWalkingSprite source={petImage} />}
         </View>
@@ -154,15 +153,15 @@ const S = StyleSheet.create({
   stepsStage: { flex: 1, width: '100%', position: 'relative', overflow: 'hidden' },
   stepsStageHorizontal: { minHeight: 126 },
   stepsHorizontalContent: { flex: 1, position: 'relative', zIndex: 1 },
-  stepsTrack: { position: 'absolute', left: 18, right: 18, top: 42, height: 62 },
-  stepsPreviousLabel: { position: 'absolute', left: 0, top: 8, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 10 },
+  stepsTrack: { position: 'absolute', left: 18, right: 18, top: 54, height: 62 },
+  stepsPreviousLabel: { position: 'absolute', left: 0, top: -6, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 10 },
   stepsPreviousValue: { position: 'absolute', left: 0, top: 38, color: '#766452', fontSize: 10 },
-  stepsNextLabel: { position: 'absolute', right: 0, top: 8, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 10, textAlign: 'right' },
+  stepsNextLabel: { position: 'absolute', right: 0, top: -6, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 10, textAlign: 'right' },
   stepsNextValue: { position: 'absolute', right: 0, top: 38, color: '#766452', fontSize: 10, textAlign: 'right' },
-  stepsCurrent: { position: 'absolute', left: 0, right: 0, top: 2, alignItems: 'center' },
+  stepsCurrent: { position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center' },
   stepsCurrentLabel: { color: '#766452', fontFamily: 'ShipporiBold', fontSize: 10, letterSpacing: .8 },
   stepsCurrentValue: { color: '#3A3127', fontSize: 23, fontWeight: '300', letterSpacing: .5, marginTop: 1 },
-  stepsTotal: { position: 'absolute', left: 0, right: 0, top: 82, alignItems: 'center' },
+  stepsTotal: { position: 'absolute', left: 0, right: 0, top: 104, flexDirection: 'row', justifyContent: 'center', alignItems: 'baseline', gap: 8 },
   stepsTotalLabel: { color: '#766452', fontFamily: 'ShipporiBold', fontSize: 10, letterSpacing: .6 },
   stepsTotalValue: { color: '#3A3127', fontSize: 15, fontWeight: '300', letterSpacing: .4, marginTop: 1 },
   stepsContent: { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 15, zIndex: 1 },
