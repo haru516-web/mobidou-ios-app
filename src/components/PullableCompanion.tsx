@@ -12,6 +12,7 @@ import { MOBIBOU_ACTION_FRAMES } from '../data/mobibouActionFrames';
 import { PRAYER_ATLASES, PRAYER_ACTION_ORDER, PRAYER_FRAME_COUNT } from '../data/prayerAtlasesV2';
 import { MobbyPullMesh, SUPPORTS_PULL_MESH, type MobbyPullMeshHandle } from './MobbyPullMesh';
 import { PULL_PART_ANCHORS } from '../data/pullPartAnchors';
+import { PULL_GL_TEXTURES } from '../data/pullGlTextures';
 import { applyPullRig, createPullRig, resetPullRig, rigTransform, type RigSpec } from './pullRig';
 
 function MaskedPullBodyImage({ source, mask, size }: { source: ImageSourcePropType; mask: ImageSourcePropType; size: number }) {
@@ -643,7 +644,7 @@ export function PullableCompanion({
               ? <MaskedPullBodyImage source={displayBody} mask={pet.image} size={210} />
               : <Image pointerEvents="none" source={displayBody} style={styles.pet} contentFit="contain" transition={0} />) : null}
           </Animated.View>
-          {pullAsset ? <MobbyPullMesh ref={meshRef} source={pullAsset.body} mask={pet.image} size={210} visible={meshVisible} onFrame={handleMeshFrame} onError={handleMeshError} /> : null}
+          {pullAsset ? <MobbyPullMesh ref={meshRef} source={pullAsset.body} mask={pet.image} glSource={mobbyId ? PULL_GL_TEXTURES[mobbyId] : undefined} size={210} visible={meshVisible} onFrame={handleMeshFrame} onError={handleMeshError} /> : null}
           {prayerSequence ? <Animated.View pointerEvents="none" style={[styles.prayerLayer, { opacity: isPrayer ? 1 : 0, overflow: 'hidden', transform: [{ translateY: float }] }]}>
             {isMobibouPrayer ? MOBIBOU_ACTION_FRAMES.map((source, index) => {
               const [left, top, width, height] = MOBIBOU_PRAYER_FRAME_LAYOUTS[index];

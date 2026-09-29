@@ -25,10 +25,13 @@ const loadTexture: PullTextureLoader = async (gl: GL, source) => {
   return texture;
 };
 
-export const MobbyPullMesh = forwardRef<MobbyPullMeshHandle, MobbyPullMeshProps>(function MobbyPullMesh({ source, mask, size, visible, onFrame, onError }, ref) {
+export const MobbyPullMesh = forwardRef<MobbyPullMeshHandle, MobbyPullMeshProps>(function MobbyPullMesh({ source, mask, glSource, size, visible, onFrame, onError }, ref) {
   const meshRef = useRef<PullMeshController | null>(null);
-  const sourcesRef = useRef({ source, mask });
-  sourcesRef.current = { source, mask };
+  // On device the texture is the pre-masked PNG; without one, fall back to the WebP art.
+  const bodySource = glSource ?? source;
+  const maskSource = glSource ? undefined : mask;
+  const sourcesRef = useRef({ source: bodySource, mask: maskSource });
+  sourcesRef.current = { source: bodySource, mask: maskSource };
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
   const padding = Math.max(24, size * 0.4);
@@ -69,8 +72,8 @@ export const MobbyPullMesh = forwardRef<MobbyPullMeshHandle, MobbyPullMeshProps>
   }, [canvasSize, onError, padding, size]);
 
   useEffect(() => {
-    meshRef.current?.setSources(source, mask);
-  }, [source, mask]);
+    meshRef.current?.setSources(bodySource, maskSource);
+  }, [bodySource, maskSource]);
 
   return <GLView
     pointerEvents="none"

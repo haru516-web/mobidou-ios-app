@@ -15,6 +15,8 @@ export type MobbyPullMeshProps = {
   source: ImageSourcePropType;
   /** Full character art used as the alpha silhouette for the extracted pull body. */
   mask?: ImageSourcePropType;
+  /** Pre-masked PNG body for expo-gl, which can't decode WebP. Used instead of source/mask on device. */
+  glSource?: ImageSourcePropType;
   size: number;
   visible: boolean;
   /** Called after every drawn frame, so eyes and buttons can follow the body. */
