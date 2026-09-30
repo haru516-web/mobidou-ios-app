@@ -1,0 +1,1229 @@
+[
+  {
+    "size": "390x844",
+    "screen": "home-duplicates",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": false,
+    "screenshot": "docs/qa-smoke-screens/390x844-home-duplicates.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "home-card-edit",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-home-card-edit.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "map",
+    "status": "NG",
+    "reason": " console error",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-map.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      },
+      {
+        "type": "error",
+        "text": "Invalid DOM property `%s`. Did you mean `%s`? transform-origin transformOrigin"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "goshuin-book",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-goshuin-book.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "collection",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-collection.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      },
+      {
+        "type": "warning",
+        "text": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "omikuji",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": false,
+    "screenshot": "docs/qa-smoke-screens/390x844-omikuji.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "settings",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-settings.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "settings-privacy",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-settings-privacy.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "settings-about",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-settings-about.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "gacha-box",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": false,
+    "screenshot": "docs/qa-smoke-screens/390x844-gacha-box.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "gacha-lift",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": false,
+    "screenshot": "docs/qa-smoke-screens/390x844-gacha-lift.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "gacha-result",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-gacha-result.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "completion-award",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-completion-award.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "friends",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-friends.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "gacha-drag-result",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-gacha-drag-result.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "goshuin-pages",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-goshuin-pages.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "goshuin-index",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-goshuin-index.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "omikuji-result",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-omikuji-result.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "route-selection",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-route-selection.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "gacha-rope",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-gacha-rope.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "replay-award",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-replay-award.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "presents",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-presents.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "notifications",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-notifications.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "completion-animation",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-completion-animation.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "settings-account",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "screenshot": "docs/qa-smoke-screens/390x844-settings-account.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "opening",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": false,
+    "returnScreenshot": null,
+    "screenshot": "docs/qa-smoke-screens/390x844-opening.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "mobby-selection-locks",
+    "status": "NG",
+    "reason": "control clipped by container: [{\"controlTop\":740,\"controlBottom\":783,\"clipTop\":506,\"clipBottom\":758}]",
+    "reached": true,
+    "backChecked": true,
+    "returnScreenshot": null,
+    "screenshot": "docs/qa-smoke-screens/390x844-mobby-selection-locks.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "home-trial",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": false,
+    "returnScreenshot": null,
+    "screenshot": "docs/qa-smoke-screens/390x844-home-trial.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "route-event",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "returnScreenshot": null,
+    "screenshot": "docs/qa-smoke-screens/390x844-route-event.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  },
+  {
+    "size": "390x844",
+    "screen": "settings-controls",
+    "status": "OK",
+    "reason": "",
+    "reached": true,
+    "backChecked": true,
+    "returnScreenshot": null,
+    "screenshot": "docs/qa-smoke-screens/390x844-settings-controls.png",
+    "messages": [
+      {
+        "type": "warning",
+        "text": "\"shadow*\" style props are deprecated. Use \"boxShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+      },
+      {
+        "type": "warning",
+        "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+      },
+      {
+        "type": "warning",
+        "text": "Image: style.tintColor is deprecated. Please use props.tintColor."
+      },
+      {
+        "type": "warning",
+        "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+      }
+    ],
+    "geometry": {
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "horizontalOutside": [],
+      "verticalOutside": []
+    }
+  }
+]
