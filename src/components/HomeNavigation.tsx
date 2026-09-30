@@ -272,7 +272,7 @@ export function MobyPickerPopup({ selectedPet, isOwned, onGacha, freePulls = 0, 
   usePopupBackHandler(closePopup);
 
   return <PopupRoot style={[S.mobyRoot, FULL_POPUP_BOUNDS, FIXED_POPUP_ROOT]}>
-    <Animated.View style={[S.popupCard, S.mobyCard, guided && S.guidedMobyCard, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
+    <Animated.View style={[S.popupCard, S.mobyCard, guided && S.guidedMobyCard, !!onGacha && !guided && S.mobyCardWithGacha, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
       <WashiArt />
       <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>モビーを選ぶ</Text><Text style={S.popupSubtitle}>いっしょに歩く相棒を選択</Text></View>{!guided && !!onGacha && <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel={freePulls > 0 ? `ガチャでモビーに出会う。無料で引けるのは${freePulls}回` : 'ガチャでモビーに出会う'} onPress={() => closeAnimation(onGacha)} style={S.gachaPill}><Text style={S.gachaPillText}>ガチャ{freePulls > 0 ? ` · 無料${freePulls}` : ''}</Text></Pressable>}{!guided && <PopupClose onPress={closePopup} />}</View>
       <TutorialTarget active={guided && guideStage === 'choose'} onRectChange={setTutorialRect} style={[S.mobyScroll, guided && guideStage === 'choose' && S.guidedMobyTarget]}>
@@ -322,6 +322,8 @@ const S = StyleSheet.create({
   customCard: { position: 'absolute', height: 310, top: 92, padding: 16, overflow: 'visible' },
   mobyCard: { position: 'absolute', height: 252, bottom: 86, padding: 16 },
   guidedMobyCard: { height: 320 },
+  // The gacha button narrows the heading, so its subtitle wraps to a second line.
+  mobyCardWithGacha: { height: 280 },
   guidedMobyTarget: { borderWidth: 2, borderColor: '#D3A752', borderRadius: 17, padding: 5 },
   guidedMobyConfirmTarget: { padding: 5, borderRadius: 16 },
   guidedMobyConfirmButton: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .46, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 8 },

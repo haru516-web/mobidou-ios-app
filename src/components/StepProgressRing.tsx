@@ -44,7 +44,7 @@ export function StepProgressRing({ steps, goal, size = 248, compact = false }: S
           <Stop offset="1" stopColor="#FFF9EF" stopOpacity={0} />
         </RadialGradient>
         <Mask id={`reveal-${id}`} x="0" y="0" width={ART} height={ART} maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
-          <Circle cx={RING_CENTER.x} cy={RING_CENTER.y} r={RING_RADIUS} stroke="#FFFFFF" strokeWidth={REVEAL_BAND} fill="none" strokeDasharray={`${circumference * RING_SWEEP * drawn} ${circumference}`} rotation={-90} origin={`${RING_CENTER.x}, ${RING_CENTER.y}`} />
+          <Circle cx={RING_CENTER.x} cy={RING_CENTER.y} r={RING_RADIUS} stroke="#FFFFFF" strokeWidth={REVEAL_BAND} fill="none" strokeDasharray={`${circumference * RING_SWEEP * drawn} ${circumference}`} transform={`rotate(-90 ${RING_CENTER.x} ${RING_CENTER.y})`} />
         </Mask>
       </Defs>
       <Circle cx={RING_CENTER.x} cy={RING_CENTER.y} r={RING_RADIUS * 0.94} fill={`url(#glow-${id})`} />
