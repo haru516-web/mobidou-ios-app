@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getNextPilgrimageId, PILGRIMAGES } from '../src/data/pilgrimages.ts';
+import { EVENT_PILGRIMAGES, getNextPilgrimageId, PILGRIMAGES } from '../src/data/pilgrimages.ts';
 
 test('next pilgrimage prefers the next unfinished route', () => {
   assert.equal(getNextPilgrimageId('sanctuary', ['sanctuary', 'mountain']), 'circuit');
@@ -17,4 +17,9 @@ test('next pilgrimage keeps moving when every route is complete', () => {
 
 test('next pilgrimage ignores unknown active routes', () => {
   assert.equal(getNextPilgrimageId('archived-or-missing'), undefined);
+});
+
+test('every catalogue route is permanent until event routes are added', () => {
+  assert.ok(PILGRIMAGES.every(route => (route.kind ?? 'permanent') === 'permanent'));
+  assert.equal(EVENT_PILGRIMAGES.length, 0);
 });

@@ -2,18 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, startRoute, resumeRoute, type Progress } from './progress';
-import { getPilgrimage, PILGRIMAGES } from '../data/pilgrimages';
+import { getPilgrimage } from '../data/pilgrimages';
 import { connectSteps, readTodaySteps, type StepSource } from './steps';
 import { isPetId, type PetId } from '../petCatalog';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
-import { declineKeychainDrop, emptySpecialCollection, grantPass, normalizeSpecialCollection, purchasePass, redeemCoverChange as redeemCoverChangeState, redeemKeychainDrop, redeemPass, rollSpecialDrop, type PassKind, type SpecialCollection, type SpecialKind } from './specialRewards';
+import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
 import { localOmikujiDay } from '../data/omikuji';
 
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
 export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
-type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
+type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; keychainPlan: KeychainPlan; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
 export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
 export type BookDesignState = { bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns };
 
@@ -58,11 +58,21 @@ export function setActiveBookDesigns<T extends { demo: boolean; bookDesigns: Boo
 const initial = (): Saved => {
   const realBookDesigns = emptyBookDesigns();
   const trialBookDesigns = emptyBookDesigns();
-  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null, omikujiPetId: null };
+  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), keychainPlan: 'none', bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null, omikujiPetId: null };
 };
 
-function addDropsForNewRewards(collection: SpecialCollection, previous: Progress, next: Progress) {
-  return next.rewards.slice(previous.rewards.length).reduce((result, reward) => rollSpecialDrop(result, reward.id), collection);
+/** Reaching the end of a route for the first time unlocks its own book cover. */
+function unlockCoverOnFirstClear(saved: Saved, field: 'real' | 'trial', previous: Progress, next: Progress): Saved {
+  if (!next.routeId || !next.completedAt || previous.completedAt) return saved;
+  const designsField = field === 'real' ? 'realBookDesigns' : 'trialBookDesigns';
+  const designs = saved[designsField];
+  if (designs.owned[next.routeId]) return saved;
+  return setActiveBookDesignsFor(saved, designsField, { owned: { ...designs.owned, [next.routeId]: true }, selected: { ...designs.selected, [next.routeId]: 'route' } });
+}
+
+function setActiveBookDesignsFor(saved: Saved, field: 'realBookDesigns' | 'trialBookDesigns', designs: BookDesigns): Saved {
+  const isActive = (field === 'trialBookDesigns') === saved.demo;
+  return { ...saved, [field]: designs, ...(isActive ? { bookDesigns: designs } : {}) };
 }
 
 function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: number, date = new Date()): Saved {
@@ -71,8 +81,7 @@ function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: numbe
   // Periodic refreshes usually read the same count; skip the no-op so it
   // neither re-renders the app nor rewrites storage.
   if (JSON.stringify(next) === JSON.stringify(previous)) return saved;
-  const specialField = field === 'real' ? 'realSpecial' : 'trialSpecial';
-  return { ...saved, [field]: next, [specialField]: addDropsForNewRewards(saved[specialField], previous, next) };
+  return unlockCoverOnFirstClear({ ...saved, [field]: next }, field, previous, next);
 }
 
 export function normalizeSaved(value: unknown): Saved {
@@ -90,6 +99,7 @@ export function normalizeSaved(value: unknown): Saved {
     trial: normalizeProgress(p.trial),
     realSpecial: normalizeSpecialCollection(p.realSpecial),
     trialSpecial: normalizeSpecialCollection(p.trialSpecial),
+    keychainPlan: isKeychainPlan(p.keychainPlan) ? p.keychainPlan : 'none',
     ...bookDesignState,
     pet: isPetId(p.pet) ? p.pet : 'mobibou',
     haptics: p.haptics !== false,
@@ -106,8 +116,14 @@ export function normalizeSaved(value: unknown): Saved {
     omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null,
     omikujiPetId: isPetId(p.omikujiPetId) ? p.omikujiPetId : null,
   };
-  loaded.realSpecial = loaded.real.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.realSpecial);
-  loaded.trialSpecial = loaded.trial.rewards.reduce((result, reward) => rollSpecialDrop(result, reward.id), loaded.trialSpecial);
+  // Covers now come from finishing a route, so unlock them for routes already finished.
+  const finished = (saved: Progress[]) => saved.filter(record => record.routeId && record.completedAt).map(record => record.routeId!);
+  for (const [field, records] of [['realBookDesigns', [loaded.real, ...Object.entries(loaded.routes ?? {}).filter(([key]) => key.startsWith('real:')).map(([, record]) => record)]], ['trialBookDesigns', [loaded.trial, ...Object.entries(loaded.routes ?? {}).filter(([key]) => key.startsWith('trial:')).map(([, record]) => record)]]] as const) {
+    const owned = { ...loaded[field].owned };
+    finished([...records]).forEach(routeId => { owned[routeId] = true; });
+    loaded[field] = { ...loaded[field], owned };
+  }
+  loaded.bookDesigns = cloneBookDesigns(loaded.demo ? loaded.trialBookDesigns : loaded.realBookDesigns);
   return loaded;
 }
 
@@ -283,7 +299,7 @@ export function useJourney() {
     enter: (demo: boolean) => { epoch.current++; change(p => ({ ...p, onboarded: true, demo, bookDesigns: cloneBookDesigns(demo ? p.trialBookDesigns : p.realBookDesigns) })); },
     demoWalk: () => change(p => updateSavedProgress(p, 'trial', rollDay(p.trial).steps + 1000)),
     demoTomorrow: () => change(p => ({ ...p, trial: { ...p.trial, steps: 0, baseline: 0, highWater: 0, dayStart: p.trial.rewards.length, day: localDay() } })),
-    acknowledge: () => change(p => p.demo ? { ...p, trial: { ...p.trial, pending: p.trial.pending.slice(1) } } : { ...p, real: { ...p.real, pending: p.real.pending.slice(1) } }),
+    acknowledge: () => change(p => p.demo ? { ...p, trial: { ...p.trial, pending: p.trial.pending.slice(1) }, trialSpecial: finishArrival(p.trialSpecial) } : { ...p, real: { ...p.real, pending: p.real.pending.slice(1) }, realSpecial: finishArrival(p.realSpecial) }),
     selectRoute: (routeId: string) => change(p => {
       if (!getPilgrimage(routeId)) return p;
       const field = p.demo ? 'trial' : 'real';
@@ -309,47 +325,25 @@ export function useJourney() {
         ? p
         : setActiveBookDesigns(p, { ...activeBookDesigns, selected: { ...activeBookDesigns.selected, [routeId]: design } });
     }),
-    purchasePass: (kind: PassKind) => change(p => {
-      const field = p.demo ? 'trialSpecial' : 'realSpecial';
-      return { ...p, [field]: purchasePass(p[field], kind) };
-    }),
-    /** Mock grant hook for reward/shop UI and test fixtures. */
+    /** Grant a ticket (operator present or plan grant). */
     grantPass: (kind: PassKind, amount = 1) => change(p => {
       const field = p.demo ? 'trialSpecial' : 'realSpecial';
       return { ...p, [field]: grantPass(p[field], kind, amount) };
     }),
-    /** Use a new keychain ticket only for a persisted natural failure. */
-    redeemKeychainDrop: (shrineId: string) => change(p => {
+    /** Roll the keychain for the arrival ceremony that just opened (once per ceremony). */
+    rollKeychain: (shrineId: string) => change(p => {
       const field = p.demo ? 'trialSpecial' : 'realSpecial';
-      return { ...p, [field]: redeemKeychainDrop(p[field], shrineId) };
+      const next = rollKeychainOnArrival(p[field], shrineId, p.keychainPlan);
+      return next === p[field] ? p : { ...p, [field]: next };
     }),
-    /** Decline a pending failed roll without consuming a ticket. */
-    declineKeychainDrop: (shrineId: string) => change(p => {
+    /** Spend a ticket on the miss that is on screen. */
+    redeemKeychainTicket: (shrineId: string) => change(p => {
       const field = p.demo ? 'trialSpecial' : 'realSpecial';
-      return { ...p, [field]: declineKeychainDrop(p[field], shrineId) };
+      const next = redeemKeychainTicket(p[field], shrineId);
+      return next === p[field] ? p : { ...p, [field]: next };
     }),
-    /**
-     * Unlock the selected active-route cover once. Invalid/archived routes,
-     * already-owned covers, and empty balances are all no-ops.
-     */
-    redeemCoverChange: (routeId: string) => change(p => {
-      const field = p.demo ? 'trialSpecial' : 'realSpecial';
-      const activeBookDesigns = p.demo ? p.trialBookDesigns : p.realBookDesigns;
-      const alreadyOwned = activeBookDesigns.owned[routeId] === true;
-      const coverExists = PILGRIMAGES.some(route => route.id === routeId);
-      const special = redeemCoverChangeState(p[field], routeId, { coverExists, alreadyOwned });
-      if (special === p[field]) return p;
-      const next = setActiveBookDesigns({ ...p, [field]: special }, {
-        ...activeBookDesigns,
-        owned: { ...activeBookDesigns.owned, [routeId]: true },
-        selected: { ...activeBookDesigns.selected, [routeId]: 'route' },
-      });
-      return next;
-    }),
-    redeemPass: (shrineId: string, kind: SpecialKind) => change(p => {
-      const field = p.demo ? 'trialSpecial' : 'realSpecial';
-      return { ...p, [field]: redeemPass(p[field], shrineId, kind) };
-    }),
+    /** Placeholder until StoreKit reports the real subscription state. */
+    setKeychainPlan: (keychainPlan: KeychainPlan) => change(p => p.keychainPlan === keychainPlan ? p : { ...p, keychainPlan }),
     bond: () => change(p => ({ ...p, affection: { ...p.affection, [p.pet]: Math.min(9999, (p.affection[p.pet] ?? 0) + 1) } })),
     toggleHaptics: () => change(p => ({ ...p, haptics: !p.haptics })),
   };

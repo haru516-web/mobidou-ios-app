@@ -1,261 +1,124 @@
 /**
- * Pure rules for optional collection items and mock exchange passes.
- * Goshuin ownership itself remains in `services/progress`; this module only
- * records optional results for an already-awarded shrine.
+ * Pure rules for the miniature keychain drop and its exchange tickets.
+ * Goshuin ownership itself remains in `services/progress`.
+ *
+ * Rules:
+ * - A keychain is owned at most once per shrine.
+ * - Each time the player arrives at a shrine whose keychain they do not own,
+ *   the ceremony rolls once (base rate, or the subscriber rate). Owned means
+ *   no roll at all.
+ * - An exchange ticket may be spent only on the miss that is on screen; it is
+ *   never usable on a past miss.
  */
 
-/** Natural keychain probability for each newly awarded goshuin. */
-export const KEYCHAIN_DROP_RATE = 0.10;
+/** Drop rate for players without a subscription. */
+export const KEYCHAIN_BASE_RATE = 0.10;
+/** Drop rate while a monthly plan is active. */
+export const KEYCHAIN_PLAN_RATE = 0.50;
 
-/** Legacy sparkle probability retained for existing saved collections. */
-export const SPARKLE_DROP_RATE = 0.20;
+export type KeychainPlan = 'none' | 'light' | 'plus';
+export const KEYCHAIN_PLANS: readonly KeychainPlan[] = ['none', 'light', 'plus'];
+export const isKeychainPlan = (value: unknown): value is KeychainPlan => KEYCHAIN_PLANS.includes(value as KeychainPlan);
+export const keychainRate = (plan: KeychainPlan) => plan === 'none' ? KEYCHAIN_BASE_RATE : KEYCHAIN_PLAN_RATE;
 
-/** @deprecated Use KEYCHAIN_DROP_RATE or SPARKLE_DROP_RATE explicitly. */
+/** Exchange tickets granted each month by the "plus" plan; they do not carry over. */
+export const PLUS_MONTHLY_TICKETS = 10;
 
-export type SpecialKind = 'keychain' | 'sparkle';
-export type NewPassKind = 'coverChange' | 'keychainDrop';
-export type LegacyPassKind = 'ten' | 'fifty' | 'subscription';
-/** Kept broad so old callers continue to type-check during migration. */
-export type PassKind = NewPassKind | LegacyPassKind;
+export type PassKind = 'keychainDrop';
+export type PassInventory = { keychainDrop: number };
 
-/** Persisted state for the natural keychain result. */
-export type KeychainDecision = 'pending' | 'declined' | 'ticket' | 'natural';
-export type SpecialDropResult = { keychain: boolean; sparkle: boolean };
+export type KeychainOutcome = 'owned' | 'won' | 'missed' | 'ticket';
 
-/**
- * New ticket balances are independent of the previous ten/fifty/subscription
- * balances.  Legacy fields are retained verbatim and are never converted.
- */
-export type PassInventory = {
-  coverChange: number;
-  keychainDrop: number;
-  /** @deprecated Previous exchange-pass balance. */
-  ten: number;
-  /** @deprecated Previous exchange-pass balance. */
-  fifty: number;
-  /** @deprecated Previous exchange-pass balance. */
-  subscription: boolean;
-};
+/** The roll for the shrine whose arrival ceremony is on screen. */
+export type KeychainArrival = { shrineId: string; outcome: KeychainOutcome; rate: number };
 
 export type SpecialCollection = {
+  /** 0 or 1 per shrine. */
   keychains: Record<string, number>;
+  /** Legacy sparkle goshuin. Kept only so saved collections still display them; never rolled again. */
   sparkles: Record<string, number>;
-  rolls: Record<string, SpecialDropResult>;
-  /** One persisted decision per shrine's natural keychain roll. */
-  keychainDecisions: Record<string, KeychainDecision>;
   passes: PassInventory;
+  /** Persisted so that closing the app mid-ceremony can never re-roll. Cleared when the ceremony ends. */
+  arrival: KeychainArrival | null;
 };
 
 export const emptySpecialCollection = (): SpecialCollection => ({
   keychains: {},
   sparkles: {},
-  rolls: {},
-  keychainDecisions: {},
-  passes: { coverChange: 0, keychainDrop: 0, ten: 0, fifty: 0, subscription: false },
+  passes: { keychainDrop: 0 },
+  arrival: null,
 });
 
 function positiveInteger(value: unknown) {
   return Number.isInteger(value) && Number(value) > 0 ? Number(value) : 0;
 }
 
-function normalizeCounts(value: unknown): Record<string, number> {
+function normalizeOwned(value: unknown): Record<string, number> {
   if (!value || typeof value !== 'object') return {};
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([, count]) => Number.isInteger(count) && Number(count) > 0)
-      .map(([id, count]) => [id, Number(count)]),
+      .filter(([, count]) => positiveInteger(count) > 0)
+      // Old saves could hold several copies; the cap is one.
+      .map(([id]) => [id, 1]),
   );
 }
 
-function isKeychainDecision(value: unknown): value is KeychainDecision {
-  return value === 'pending' || value === 'declined' || value === 'ticket' || value === 'natural';
+function normalizeArrival(value: unknown): KeychainArrival | null {
+  if (!value || typeof value !== 'object') return null;
+  const { shrineId, outcome, rate } = value as Partial<KeychainArrival>;
+  if (typeof shrineId !== 'string' || !['owned', 'won', 'missed', 'ticket'].includes(outcome as string)) return null;
+  return { shrineId, outcome: outcome as KeychainOutcome, rate: typeof rate === 'number' && rate >= 0 && rate <= 1 ? rate : KEYCHAIN_BASE_RATE };
 }
 
-function normalizedDecisionForRoll(result: SpecialDropResult, value: unknown): KeychainDecision {
-  // A natural success must never become ticket-eligible through malformed or
-  // legacy decision data. Failed legacy rolls safely resume as pending.
-  if (result.keychain) return 'natural';
-  return isKeychainDecision(value) ? value : 'pending';
-}
-
+/** Accepts every earlier save shape (rolls, decisions, ten/fifty/subscription, cover tickets) and keeps only what still means something. */
 export function normalizeSpecialCollection(value: unknown): SpecialCollection {
   if (!value || typeof value !== 'object') return emptySpecialCollection();
-  const source = value as Partial<SpecialCollection> & { decisions?: unknown };
-  const passSource = source.passes && typeof source.passes === 'object'
-    ? source.passes
-    : {} as Partial<PassInventory>;
-
-  const rolls = source.rolls && typeof source.rolls === 'object'
-    ? Object.fromEntries(
-      Object.entries(source.rolls)
-        .filter(([, result]) => !!result && typeof result === 'object')
-        .map(([id, result]) => {
-          const roll = result as Partial<SpecialDropResult>;
-          return [id, { keychain: roll.keychain === true, sparkle: roll.sparkle === true }];
-        }),
-    ) as Record<string, SpecialDropResult>
-    : {};
-
-  // Accept `decisions` as a harmless alias from an intermediate build, while
-  // writing the canonical `keychainDecisions` field going forward.
-  const decisionSource = source.keychainDecisions && typeof source.keychainDecisions === 'object'
-    ? source.keychainDecisions
-    : source.decisions && typeof source.decisions === 'object'
-      ? source.decisions
-      : {};
-  const rawDecisions = Object.fromEntries(
-    Object.entries(decisionSource).filter(([, decision]) => isKeychainDecision(decision)),
-  );
-  const keychainDecisions: Record<string, KeychainDecision> = {};
-  for (const [id, result] of Object.entries(rolls)) {
-    keychainDecisions[id] = normalizedDecisionForRoll(result, rawDecisions[id]);
-  }
-
+  const source = value as { keychains?: unknown; sparkles?: unknown; passes?: { keychainDrop?: unknown } | null; arrival?: unknown };
   return {
-    keychains: normalizeCounts(source.keychains),
-    sparkles: normalizeCounts(source.sparkles),
-    rolls,
-    keychainDecisions,
-    passes: {
-      // New balances default to zero when loading legacy data.
-      coverChange: positiveInteger(passSource.coverChange),
-      keychainDrop: positiveInteger(passSource.keychainDrop),
-      // Legacy balances remain independent and are never mapped to tickets.
-      ten: positiveInteger(passSource.ten),
-      fifty: positiveInteger(passSource.fifty),
-      subscription: passSource.subscription === true,
-    },
+    keychains: normalizeOwned(source.keychains),
+    sparkles: normalizeOwned(source.sparkles),
+    passes: { keychainDrop: positiveInteger(source.passes?.keychainDrop) },
+    arrival: normalizeArrival(source.arrival),
   };
 }
 
-function addCount(counts: Record<string, number>, shrineId: string) {
-  return { ...counts, [shrineId]: (counts[shrineId] ?? 0) + 1 };
-}
+export const ownsKeychain = (collection: SpecialCollection, shrineId: string) => (collection.keychains[shrineId] ?? 0) > 0;
 
 /**
- * Roll optional items for one already-awarded shrine. The keychain uses the
- * exact `< 0.10` boundary; sparkle remains an independent legacy 20% roll.
- * A persisted shrine result is never re-rolled.
+ * Roll once for the arrival on screen. Idempotent for the same shrine, so a
+ * re-render or a restart during the ceremony shows the same result.
  */
-export function rollSpecialDrop(collection: SpecialCollection, shrineId: string, random: () => number = Math.random): SpecialCollection {
-  const previousResult = collection.rolls[shrineId];
-  const decisions = collection.keychainDecisions ?? {};
-  if (previousResult) {
-    if (decisions[shrineId]) return collection;
-    return {
-      ...collection,
-      keychainDecisions: {
-        ...decisions,
-        [shrineId]: previousResult.keychain ? 'natural' : 'pending',
-      },
-    };
-  }
-
-  const result = {
-    keychain: random() < KEYCHAIN_DROP_RATE,
-    sparkle: random() < SPARKLE_DROP_RATE,
-  };
+export function rollKeychainOnArrival(collection: SpecialCollection, shrineId: string, plan: KeychainPlan = 'none', random: () => number = Math.random): SpecialCollection {
+  if (collection.arrival?.shrineId === shrineId) return collection;
+  const rate = keychainRate(plan);
+  if (ownsKeychain(collection, shrineId)) return { ...collection, arrival: { shrineId, outcome: 'owned', rate } };
+  const won = random() < rate;
   return {
     ...collection,
-    keychains: result.keychain ? addCount(collection.keychains, shrineId) : collection.keychains,
-    sparkles: result.sparkle ? addCount(collection.sparkles, shrineId) : collection.sparkles,
-    rolls: { ...collection.rolls, [shrineId]: result },
-    keychainDecisions: {
-      ...decisions,
-      [shrineId]: result.keychain ? 'natural' : 'pending',
-    },
+    keychains: won ? { ...collection.keychains, [shrineId]: 1 } : collection.keychains,
+    arrival: { shrineId, outcome: won ? 'won' : 'missed', rate },
   };
 }
 
-export function hasPass(collection: SpecialCollection, kind: NewPassKind) {
-  return collection.passes[kind] > 0;
+/** Spend one ticket on the miss that is on screen. Anything else is a no-op. */
+export function redeemKeychainTicket(collection: SpecialCollection, shrineId: string): SpecialCollection {
+  const { arrival } = collection;
+  if (!arrival || arrival.shrineId !== shrineId || arrival.outcome !== 'missed' || collection.passes.keychainDrop <= 0) return collection;
+  return {
+    ...collection,
+    keychains: { ...collection.keychains, [shrineId]: 1 },
+    passes: { keychainDrop: collection.passes.keychainDrop - 1 },
+    arrival: { ...arrival, outcome: 'ticket' },
+  };
 }
 
-/** Grant passes using mock/local semantics without converting legacy balances. */
+/** The ceremony is over; the result cannot be acted on any more. */
+export function finishArrival(collection: SpecialCollection): SpecialCollection {
+  return collection.arrival ? { ...collection, arrival: null } : collection;
+}
+
 export function grantPass(collection: SpecialCollection, kind: PassKind, amount = 1): SpecialCollection {
   const quantity = positiveInteger(amount);
-  if (quantity <= 0) return collection;
-  if (kind === 'coverChange' || kind === 'keychainDrop') {
-    return { ...collection, passes: { ...collection.passes, [kind]: (collection.passes[kind] ?? 0) + quantity } };
-  }
-  if (kind === 'subscription') {
-    return { ...collection, passes: { ...collection.passes, subscription: true } };
-  }
-  return { ...collection, passes: { ...collection.passes, [kind]: (collection.passes[kind] ?? 0) + quantity } };
-}
-
-/** New ticket purchases grant one; old pass purchases retain 10/50 semantics. */
-export function purchasePass(collection: SpecialCollection, kind: PassKind): SpecialCollection {
-  if (kind === 'ten') return grantPass(collection, kind, 10);
-  if (kind === 'fifty') return grantPass(collection, kind, 50);
-  return grantPass(collection, kind, 1);
-}
-
-/**
- * Unlock one existing route cover. The hook layer supplies ownership and
- * availability because those live in saved book-design state.
- */
-export function redeemCoverChange(collection: SpecialCollection, routeId: string, options: { coverExists?: boolean; alreadyOwned?: boolean } = {}): SpecialCollection {
-  if (!routeId || options.coverExists === false || options.alreadyOwned === true || !hasPass(collection, 'coverChange')) return collection;
-  return {
-    ...collection,
-    passes: { ...collection.passes, coverChange: collection.passes.coverChange - 1 },
-  };
-}
-
-/**
- * Use one keychain ticket only after a persisted natural failure. The
- * `pending` decision is the guard against absent/successful rolls; repeated
- * redemption is idempotent.
- */
-export function redeemKeychainDrop(collection: SpecialCollection, shrineId: string): SpecialCollection {
-  const result = collection.rolls[shrineId];
-  const decisions = collection.keychainDecisions ?? {};
-  if (!result || result.keychain || decisions[shrineId] !== 'pending' || !hasPass(collection, 'keychainDrop')) return collection;
-  return {
-    ...collection,
-    keychains: addCount(collection.keychains, shrineId),
-    keychainDecisions: { ...decisions, [shrineId]: 'ticket' },
-    passes: { ...collection.passes, keychainDrop: collection.passes.keychainDrop - 1 },
-  };
-}
-
-/** Decline a failed natural keychain roll without consuming a ticket. */
-export function declineKeychainDrop(collection: SpecialCollection, shrineId: string): SpecialCollection {
-  const result = collection.rolls[shrineId];
-  const decisions = collection.keychainDecisions ?? {};
-  if (!result || result.keychain || decisions[shrineId] !== 'pending') return collection;
-  return { ...collection, keychainDecisions: { ...decisions, [shrineId]: 'declined' } };
-}
-
-/**
- * Compatibility API for the previous award UI. New UI should call
- * `redeemKeychainDrop`; this wrapper never spends a new keychain ticket on a
- * sparkle. Legacy ten/fifty/subscription balances are not converted.
- */
-export function redeemPass(collection: SpecialCollection, shrineId: string, kind: SpecialKind): SpecialCollection {
-  if (kind === 'keychain') {
-    const next = redeemKeychainDrop(collection, shrineId);
-    if (next !== collection) return next;
-  }
-  const result = collection.rolls[shrineId];
-  if (!result || result[kind]) return collection;
-  const decisions = collection.keychainDecisions ?? {};
-  if (kind === 'keychain' && decisions[shrineId] !== 'pending') return collection;
-  const passes = collection.passes.subscription
-    ? collection.passes
-    : collection.passes.ten > 0
-      ? { ...collection.passes, ten: collection.passes.ten - 1 }
-      : collection.passes.fifty > 0
-        ? { ...collection.passes, fifty: collection.passes.fifty - 1 }
-        : null;
-  if (!passes) return collection;
-  return {
-    ...collection,
-    passes,
-    keychains: kind === 'keychain' ? addCount(collection.keychains, shrineId) : collection.keychains,
-    sparkles: kind === 'sparkle' ? addCount(collection.sparkles, shrineId) : collection.sparkles,
-    rolls: { ...collection.rolls, [shrineId]: { ...result, [kind]: true } },
-    ...(kind === 'keychain' ? { keychainDecisions: { ...decisions, [shrineId]: 'ticket' as const } } : {}),
-  };
+  if (kind !== 'keychainDrop' || quantity <= 0) return collection;
+  return { ...collection, passes: { keychainDrop: collection.passes.keychainDrop + quantity } };
 }

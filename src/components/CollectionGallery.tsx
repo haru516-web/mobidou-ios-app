@@ -12,13 +12,12 @@ import { LockTag } from './LockTag';
 import { SlicedArt } from './SlicedArt';
 import { CollectionRoom } from './CollectionRoom';
 import { ScrollPopup } from './ScrollPopup';
-import type { PassKind, SpecialCollection } from '../services/specialRewards';
+import type { SpecialCollection } from '../services/specialRewards';
 import { PagedShrineGrid } from './GoshuinBook';
 
 const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.webp');
 const WALL_HOOK = require('../../assets/ui-round3/collection/collection-wall-hook-v2.webp');
 const COLLECTION_BACKDROP = require('../../assets/ui-round3/collection/collection-room-home-harmony-v1.webp');
-const COVER_CHANGE_TICKET = require('../../assets/ui-round3/tickets/ticket-cover-change-v2.webp');
 const KEYCHAIN_DROP_TICKET = require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp');
 const SERIF = 'Shippori';
 const KEYCHAIN_RAIL_Y = 0.14;
@@ -141,7 +140,7 @@ export type CollectionPage = 'room' | 'goshuin' | 'miniatures' | 'passes';
  * `onSectionLayout` reports where each section starts so the pop buttons can
  * jump to it.
  */
-export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, onPurchasePass, activeRoute, coverOwned = false, selectedCover = 'normal', onRedeemCoverChange, onSelectCover, zoom, onZoomChange, page, onSelectGoshuin, onClosePage }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; onPurchasePass: (kind: PassKind) => void; activeRoute?: Pilgrimage; coverOwned?: boolean; selectedCover?: 'normal' | 'route'; onRedeemCoverChange?: (routeId: string) => void; onSelectCover?: (routeId: string, design: 'normal' | 'route') => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void; onClosePage: () => void }) {
+export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, activeRoute, coverOwned = false, selectedCover = 'normal', onSelectCover, zoom, onZoomChange, page, onSelectGoshuin, onClosePage }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; activeRoute?: Pilgrimage; coverOwned?: boolean; selectedCover?: 'normal' | 'route'; onSelectCover?: (routeId: string, design: 'normal' | 'route') => void; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void; onClosePage: () => void }) {
   const { width } = useWindowDimensions();
   const viewportWidth = Math.min(480, Math.max(1, width));
   // Nothing scrolls vertically: the page fills the space under the pop buttons.
@@ -149,7 +148,6 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
   const roomHeight = areaHeight > 0 ? Math.max(260, areaHeight) : 470;
   const [swayImpulse, setSwayImpulse] = useState(0);
   const [detail, setDetail] = useState<Shrine | null>(null);
-  const [purchaseNotice, setPurchaseNotice] = useState('');
   const [coverPickerOpen, setCoverPickerOpen] = useState(false);
   const [coverNotice, setCoverNotice] = useState('');
   const [pinching, setPinching] = useState(false);
@@ -199,11 +197,6 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
     setPinching(false);
   };
 
-  const buy = (kind: PassKind, label: string) => {
-    onPurchasePass(kind);
-    setPurchaseNotice(`${label}を仮購入しました`);
-  };
-
   const showCoverPicker = () => {
     setCoverNotice('');
     setCoverPickerOpen(true);
@@ -213,25 +206,6 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
     if (!activeRoute) return;
     onSelectCover?.(activeRoute.id, design);
     setCoverNotice(design === 'route' ? '巡礼の表紙を選びました' : '通常表紙を選びました');
-  };
-
-  const unlockCover = () => {
-    if (!activeRoute || coverOwned || !GOSHUIN_BOOK_COVERS[activeRoute.id] || special.passes.coverChange <= 0) return;
-    onRedeemCoverChange?.(activeRoute.id);
-    setCoverNotice('表紙を解放しました。巡礼の表紙を選べます');
-  };
-
-  // Keep the ticket usable from the wallet itself.  Before a cover is
-  // unlocked, the same action first provides the local/mock ticket; after
-  // that it opens the picker so the user can spend it deliberately.
-  const coverNeedsTicket = !!activeRoute && !coverOwned && !!GOSHUIN_BOOK_COVERS[activeRoute.id] && special.passes.coverChange <= 0;
-  const handleCoverAction = () => {
-    if (!activeRoute) return;
-    if (coverNeedsTicket) {
-      buy('coverChange', '御朱印帳表紙替え引換券');
-      return;
-    }
-    showCoverPicker();
   };
 
   return (
@@ -285,19 +259,17 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
           return <View style={S.passBody}>
           <View style={S.ticketGrid}>
             <View style={S.ticketItem}>
-              <View style={[S.ticketImageFrame, { height: ticketHeight }]}><Image source={COVER_CHANGE_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の引換札。御朱印帳表紙替え引換券。巡礼の装いを新たに" /></View>
-              <Text style={S.ticketBalance}>所持 {special.passes.coverChange}枚</Text>
-              <WashiPressable plate="secondary" accessibilityRole="button" accessibilityLabel={!activeRoute ? '巡礼を選んでから表紙を選ぶ' : coverNeedsTicket ? '御朱印帳表紙替え引換券を仮取得' : '御朱印帳の表紙を選ぶ'} accessibilityState={{ disabled: !activeRoute }} disabled={!activeRoute} artwork={false} onPress={handleCoverAction} style={S.ticketButton}><Text style={S.ticketButtonText}>{!activeRoute ? '巡礼を選ぶ' : coverNeedsTicket ? '表紙替え券を仮取得' : '表紙を選ぶ'}</Text></WashiPressable>
+              <View style={[S.ticketImageFrame, { height: ticketHeight }]}><Image source={getGoshuinBookCover(activeRoute?.id) as ImageSourcePropType} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="御朱印帳の表紙。巡礼を結願すると専用表紙が手に入ります" /></View>
+              <Text style={S.ticketBalance}>{!activeRoute ? '結願で解放' : coverOwned ? '解放済み' : '結願で解放'}</Text>
+              <WashiPressable plate="secondary" accessibilityRole="button" accessibilityLabel={!activeRoute ? '巡礼を選んでから表紙を選ぶ' : '御朱印帳の表紙を選ぶ'} accessibilityState={{ disabled: !activeRoute }} disabled={!activeRoute} artwork={false} onPress={showCoverPicker} style={S.ticketButton}><Text style={S.ticketButtonText}>{!activeRoute ? '巡礼を選ぶ' : '表紙を選ぶ'}</Text></WashiPressable>
             </View>
             <View style={S.ticketItem}>
               <View style={[S.ticketImageFrame, { height: ticketHeight }]}><Image source={KEYCHAIN_DROP_TICKET} contentFit="contain" style={S.ticketImage} accessible accessibilityLabel="旅の授与札。ミニチュアキーホルダー引換券。ご縁を手元に" /></View>
               <Text style={S.ticketBalance}>所持 {special.passes.keychainDrop}枚</Text>
-              <WashiPressable plate="secondary" accessibilityRole="button" accessibilityLabel="ミニチュアキーホルダー引換券を仮取得" onPress={() => buy('keychainDrop', 'ミニチュアキーホルダー引換券')} artwork={false} style={S.ticketButton}><Text style={S.ticketButtonText}>1枚を仮取得</Text></WashiPressable>
+              <Text style={S.passNote}>外れたその場で使えます</Text>
             </View>
           </View>
-          {!!purchaseNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{purchaseNotice}</Text>}
           {!!coverNotice && <Text accessibilityLiveRegion="polite" style={S.purchaseNotice}>{coverNotice}</Text>}
-          <Text style={S.passNote}>仮取得はテスト用です。決済は発生しません</Text>
           </View>;
         }}
       </ScrollPopup>
@@ -319,11 +291,10 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
               {!coverOwned && <View style={S.coverUnlockBox}>
                 {GOSHUIN_BOOK_COVERS[activeRoute.id] ? <>
                   <Text style={S.coverUnlockTitle}>専用表紙はまだ未解放</Text>
-                  <Text style={S.coverUnlockText}>{special.passes.coverChange > 0 ? '所持している券を1枚使って、専用表紙を解放します。' : '御朱印帳表紙替え引換券がありません。下の券を仮取得できます。'}</Text>
-                  <WashiPressable plate="primary" accessibilityRole="button" accessibilityLabel="御朱印帳表紙替え引換券を使って専用表紙を解放" accessibilityState={{ disabled: special.passes.coverChange <= 0 }} disabled={special.passes.coverChange <= 0} onPress={unlockCover} artwork={false} style={[S.unlockButton, special.passes.coverChange <= 0 && S.unlockButtonDisabled]}><Text style={S.unlockButtonText}>{special.passes.coverChange > 0 ? '券を使って解放する' : '表紙替え券が必要です'}</Text></WashiPressable>
+                  <Text style={S.coverUnlockText}>この巡礼を結願すると、専用表紙が解放されます。</Text>
                 </> : <>
                   <Text style={S.coverUnlockTitle}>専用表紙は準備中</Text>
-                  <Text style={S.coverUnlockText}>この巡礼には専用デザインがまだありません。券は消費されません。</Text>
+                  <Text style={S.coverUnlockText}>この巡礼には専用デザインがまだありません。</Text>
                 </>}
               </View>}
             </>}

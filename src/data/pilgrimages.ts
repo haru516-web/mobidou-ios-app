@@ -1,4 +1,6 @@
-export type Pilgrimage = { id: string; name: string; type: string; subtitle: string; description: string; ids: string[]; targets: number[]; completion: string; title: string; gift: string; color: string; chapters: string[] };
+/** permanent routes are always playable; event routes only inside their window. */
+export type PilgrimageKind = 'permanent' | 'event';
+export type Pilgrimage = { kind?: PilgrimageKind; startsAt?: string; endsAt?: string; id: string; name: string; type: string; subtitle: string; description: string; ids: string[]; targets: number[]; completion: string; title: string; gift: string; color: string; chapters: string[] };
 export const MIN_FIRST_POINT_STEPS = 5000;
 
 const raiseFirstPointToMinimum = (route: Pilgrimage): Pilgrimage => {
@@ -32,7 +34,12 @@ const ARCHIVED_PILGRIMAGE_DEFINITIONS: Pilgrimage[] = [
 
 export const ARCHIVED_PILGRIMAGES: Pilgrimage[] = ARCHIVED_PILGRIMAGE_DEFINITIONS.map(raiseFirstPointToMinimum);
 
-export const getPilgrimage = (id?: string | null) => [...PILGRIMAGES, ...ARCHIVED_PILGRIMAGES].find(route => route.id === id);
+/** Event routes ship from the server catalogue later; none exist yet. */
+export const EVENT_PILGRIMAGES: Pilgrimage[] = [];
+
+export const isEventRoute = (route: Pilgrimage) => route.kind === 'event';
+
+export const getPilgrimage = (id?: string | null) => [...PILGRIMAGES, ...EVENT_PILGRIMAGES, ...ARCHIVED_PILGRIMAGES].find(route => route.id === id);
 
 /**
  * Pick the next journey after a route is completed. Prefer an unfinished route

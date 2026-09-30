@@ -10,11 +10,9 @@ import { PagedBody } from './PagedBody';
 import { answerFriendRequest, fetchFriendRequests, fetchFriends, getMyFriendCode, sendFriendRequest, SOCIAL_ONLINE, type Friend, type FriendRequest, type Gift, type GiftItem } from '../services/social';
 
 const TICKET_IMAGES: Record<GiftItem['kind'], number> = {
-  coverChange: require('../../assets/ui-round3/tickets/ticket-cover-change-v2.webp'),
   keychainDrop: require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp'),
 };
 const TICKET_NAMES: Record<GiftItem['kind'], string> = {
-  coverChange: '御朱印帳表紙替え引換券',
   keychainDrop: 'ミニチュアキーホルダー引換券',
 };
 

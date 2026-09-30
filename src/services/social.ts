@@ -15,7 +15,7 @@ import type { PassKind } from './specialRewards';
 
 export const SOCIAL_ONLINE = false;
 
-export type GiftItem = { kind: Extract<PassKind, 'coverChange' | 'keychainDrop'>; quantity: number };
+export type GiftItem = { kind: PassKind; quantity: number };
 export type Gift = { id: string; title: string; message: string; from: string; items: readonly GiftItem[]; sentAt: string; expiresAt?: string };
 
 export type Friend = { id: string; name: string; petId: PetId; goshuinCount: number; routeName: string; lastActive: string };
@@ -29,7 +29,7 @@ const READ_NOTICES_KEY = '@mobidou/notices/read/v1';
 
 const SAMPLE_GIFTS: readonly Gift[] = [
   { id: 'sample-welcome', title: 'もび道へようこそ', message: '旅のはじまりに、ささやかな授与品をどうぞ。', from: 'もび道 運営', items: [{ kind: 'keychainDrop', quantity: 1 }], sentAt: '2026-09-28' },
-  { id: 'sample-autumn', title: '秋の巡礼まつり', message: '期間中に巡礼した方へ、表紙替え引換券をお届けします。', from: 'もび道 運営', items: [{ kind: 'coverChange', quantity: 1 }], sentAt: '2026-09-27', expiresAt: '2026-10-31' },
+  { id: 'sample-autumn', title: '秋の巡礼まつり', message: '期間中に巡礼した方へ、キーホルダー交換券をお届けします。', from: 'もび道 運営', items: [{ kind: 'keychainDrop', quantity: 2 }], sentAt: '2026-09-27', expiresAt: '2026-10-31' },
 ];
 
 const SAMPLE_FRIENDS: readonly Friend[] = [
