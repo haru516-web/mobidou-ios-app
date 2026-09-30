@@ -207,7 +207,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
         <Text style={S.passOwned}>交換券 {ticketCount}枚</Text>
         {canUseTicket && <View style={S.exchangeActions}><Button title="券を使って受け取る" secondary onPress={useTicket} style={S.specialButton} /></View>}
       </Animated.View>
-      {complete && <View style={S.completion}><WashiArt /><Text style={S.completionTitle}>{route!.gift}</Text><Text style={S.completionText}>「{route!.title}」</Text><Text style={S.completionText}>旅の証を、御朱印帳に綴りました。</Text></View>}
+      {complete && <View style={S.completion}><WashiArt /><Text style={S.completionTitle}>{route!.gift}</Text><Text style={S.completionText}>「{route!.title}」</Text><Text style={S.completionText}>旅の証を、御朱印帳に綴りました。</Text>{!demo && <Text style={S.completionText}>ガチャを1回、無料で引けます。</Text>}</View>}
       <Button title={revealDone ? '御朱印帳にしまう' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={onClose} style={{ width: '100%', maxWidth: 350 }} />
     </>}
   </View></FitToHeight></View>;

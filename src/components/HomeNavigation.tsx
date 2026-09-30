@@ -254,12 +254,15 @@ type MobyPickerPopupProps = {
   selectedPet: PetId;
   /** When given, a Mobby the player has not met yet is shown locked and cannot be chosen. */
   isOwned?: (pet: PetId) => boolean;
+  /** Opens the box-opening screen. Hidden during the first pick. */
+  onGacha?: () => void;
+  freePulls?: number;
   onConfirm: (pet: PetId) => void;
   onClose: () => void;
   guided?: boolean;
 };
 
-export function MobyPickerPopup({ selectedPet, isOwned, onConfirm, onClose, guided = false }: MobyPickerPopupProps) {
+export function MobyPickerPopup({ selectedPet, isOwned, onGacha, freePulls = 0, onConfirm, onClose, guided = false }: MobyPickerPopupProps) {
   const reduced = useReducedMotion();
   const [animation, closeAnimation] = usePopupAnimation(reduced);
   const [draftPet, setDraftPet] = useState<PetId>(selectedPet);
@@ -271,7 +274,7 @@ export function MobyPickerPopup({ selectedPet, isOwned, onConfirm, onClose, guid
   return <PopupRoot style={[S.mobyRoot, FULL_POPUP_BOUNDS, FIXED_POPUP_ROOT]}>
     <Animated.View style={[S.popupCard, S.mobyCard, guided && S.guidedMobyCard, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
       <WashiArt />
-      <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>モビーを選ぶ</Text><Text style={S.popupSubtitle}>いっしょに歩く相棒を選択</Text></View>{!guided && <PopupClose onPress={closePopup} />}</View>
+      <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>モビーを選ぶ</Text><Text style={S.popupSubtitle}>いっしょに歩く相棒を選択</Text></View>{!guided && !!onGacha && <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel={freePulls > 0 ? `ガチャでモビーに出会う。無料で引けるのは${freePulls}回` : 'ガチャでモビーに出会う'} onPress={() => closeAnimation(onGacha)} style={S.gachaPill}><Text style={S.gachaPillText}>ガチャ{freePulls > 0 ? ` · 無料${freePulls}` : ''}</Text></Pressable>}{!guided && <PopupClose onPress={closePopup} />}</View>
       <TutorialTarget active={guided && guideStage === 'choose'} onRectChange={setTutorialRect} style={[S.mobyScroll, guided && guideStage === 'choose' && S.guidedMobyTarget]}>
         <ScrollView horizontal contentContainerStyle={S.mobyGrid} showsHorizontalScrollIndicator={false} directionalLockEnabled>
           {PET_CHARACTERS.map(pet => {
@@ -310,6 +313,8 @@ const S = StyleSheet.create({
   popupRoot: { position: 'absolute', left: 0, right: 0, top: 86, bottom: 77, zIndex: 30, alignItems: 'center' },
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },
   mobyCardOptionLocked: { opacity: .55 },
+  gachaPill: { minHeight: 42, paddingHorizontal: 14, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1E6D8', borderWidth: 1, borderColor: '#C7A98A' },
+  gachaPillText: { color: C.red, fontFamily: BRUSH, fontSize: 14 },
   mobyLockTag: { position: 'absolute', right: 8, bottom: 40 },
   mobyRoot: { justifyContent: 'flex-start', zIndex: 90 },
   popupScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241A10' },

@@ -14,6 +14,7 @@ import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView } from './src
 import { useJourney } from './src/services/useJourney';
 import { hasStarter, ownsMobby } from './src/services/gacha';
 import { DuplicateMobbies } from './src/components/DuplicateMobbies';
+import { GachaScreen } from './src/components/GachaScreen';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { pilgrimageShrines, PilgrimagePicker, RouteMap } from './src/components/PilgrimageScreen';
@@ -153,6 +154,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [openingVisible, setOpeningVisible] = useState(true);
   const [openingHomeReady, setOpeningHomeReady] = useState(false);
   const [routePicker, setRoutePicker] = useState(false);
+  const [gachaOpen, setGachaOpen] = useState(false);
   const [guidedRoutePresented, setGuidedRoutePresented] = useState(false);
   const [routePickerAfterCompletion, setRoutePickerAfterCompletion] = useState(false);
   const [promptedCompletedRouteId, setPromptedCompletedRouteId] = useState<string | null>(null);
@@ -617,7 +619,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
-    {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} isOwned={firstRunStage === 'character' || !hasStarter(data.mobbies) ? undefined : (id => ownsMobby(data.mobbies, id))} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') { setTutorialRect(null); setFirstRunStage('homeCompanion'); } }} onClose={() => setHomePopup(null)} />}
+    {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} isOwned={firstRunStage === 'character' || !hasStarter(data.mobbies) ? undefined : (id => ownsMobby(data.mobbies, id))} onGacha={firstRunStage === null && hasStarter(data.mobbies) && !onboardingPreview ? () => { setHomePopup(null); setGachaOpen(true); } : undefined} freePulls={data.mobbies.freePulls} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') { setTutorialRect(null); setFirstRunStage('homeCompanion'); } }} onClose={() => setHomePopup(null)} />}
     <View onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
       <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} />
     </View>
@@ -743,6 +745,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
 
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
+    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => setGachaOpen(false)}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} haptics={data.haptics} onDraw={journey.drawFreeMobby} onFinished={journey.acknowledgeMobbyPulls} onClose={() => setGachaOpen(false)} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
   </SafeAreaView></View>;
 }
