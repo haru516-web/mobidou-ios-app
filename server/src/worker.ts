@@ -1,4 +1,4 @@
-import { GACHA_POOLS, validatePool, type GachaPool } from "./config/gacha.ts";
+import { GACHA_PET_IDS, PAID_PITY_INTERVAL, validateGachaPetIds } from "./config/gacha.ts";
 import { equalSecretHash, hashSecret, randomToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
 import type { Env, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
@@ -89,25 +89,23 @@ function parseClock(value: string | undefined, fallback: string): number {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-function drawItem(pool: GachaPool, forcePity: boolean): string {
-  const candidates = forcePity ? pool.items.filter((item) => item.rarity >= pool.pityRarity) : pool.items;
-  if (candidates.length === 0) throw new HttpError(500, "invalid_gacha_pity_configuration");
-  const weightTotal = candidates.reduce((sum, item) => sum + item.weight, 0);
-  const random = crypto.getRandomValues(new Uint32Array(1))[0] / 0x1_0000_0000;
-  let cursor = random * weightTotal;
-  for (const item of candidates) {
-    cursor -= item.weight;
-    if (cursor < 0) return item.petId;
-  }
-  return candidates[candidates.length - 1].petId;
+type RandomSource = () => number;
+
+const secureRandom: RandomSource = () => crypto.getRandomValues(new Uint32Array(1))[0] / 0x1_0000_0000;
+
+function drawItem(candidates: readonly string[], random: RandomSource): string {
+  if (candidates.length === 0) throw new HttpError(500, "invalid_gacha_configuration");
+  const value = random();
+  if (!Number.isFinite(value) || value < 0 || value >= 1) throw new HttpError(500, "invalid_random_source");
+  return candidates[Math.min(candidates.length - 1, Math.floor(value * candidates.length))];
 }
 
-function gachaConfiguration(): Record<string, GachaPool> {
-  for (const pool of Object.values(GACHA_POOLS)) validatePool(pool);
-  return GACHA_POOLS;
+function gachaPetIds(): readonly string[] {
+  validateGachaPetIds();
+  return GACHA_PET_IDS;
 }
 
-async function handle(request: Request, env: Env, store: Store, now = new Date()): Promise<Response> {
+async function handle(request: Request, env: Env, store: Store, now = new Date(), random: RandomSource = secureRandom): Promise<Response> {
   const url = new URL(request.url);
   const method = request.method.toUpperCase();
   const path = url.pathname.replace(/\/$/, "") || "/";
@@ -115,6 +113,14 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   if (method === "GET" && path === "/health") return json({ ok: true });
   if (method === "GET" && path === "/gifts.json") return json(configuredGifts(env));
   if (method === "GET" && path === "/catalog.json") return json(configuredJson(env.CATALOG_JSON, []));
+  if (method === "GET" && path === "/gacha/odds") {
+    const petIds = gachaPetIds();
+    return json({
+      pets: petIds.map((petId) => ({ petId, rate: 1 / petIds.length })),
+      paidPityInterval: PAID_PITY_INTERVAL,
+      pityDescription: "Every 25th paid pull is guaranteed to be an unowned Mobby while any remain. Free pulls do not count."
+    });
+  }
 
   if (method === "POST" && path === "/auth/register") {
     const input = await body(request);
@@ -142,8 +148,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       } catch { throw new HttpError(400, "invalid_notification_transaction"); }
       if (transaction.revocationDate || notification.notificationType === "REFUND" || notification.notificationType === "REVOKE") {
         await store.revokePurchase(transaction.transactionId);
-      } else if (typeof notification.appAccountToken === "string") {
-        const user = await store.user(notification.appAccountToken);
+      } else if (transaction.appAccountToken) {
+        const user = await store.user(transaction.appAccountToken);
         const product = configuredProducts(env)[transaction.productId];
         if (user && product) {
           const activeProduct = transaction.expiresDate && transaction.expiresDate <= now.getTime() ? { ...product, monthlyTickets: 0 } : product;
@@ -196,6 +202,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     catch { throw new HttpError(400, "invalid_storekit_transaction"); }
     const product = configuredProducts(env)[transaction.productId];
     if (!product) throw new HttpError(400, "unknown_product");
+    if (!transaction.appAccountToken) throw new HttpError(400, "missing_app_account_token");
+    if (transaction.appAccountToken !== userId) throw new HttpError(403, "app_account_token_mismatch");
     if (transaction.revocationDate) {
       await store.revokePurchase(transaction.transactionId);
       return json({ status: "revoked" });
@@ -217,28 +225,47 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     return json({ consumed: amount, remaining: await store.ticketBalance(userId) });
   }
 
+  if (method === "POST" && path === "/pets/starter") {
+    const input = await body(request);
+    const petId = requireString(input.petId, "invalid_pet_id", 80);
+    if (!gachaPetIds().includes(petId as typeof GACHA_PET_IDS[number])) throw new HttpError(400, "unknown_pet");
+    const chosen = await store.chooseStarter(userId, petId);
+    if (!chosen) throw new HttpError(409, "starter_already_chosen");
+    return json({ petId, copies: 1 }, 201);
+  }
+
+  if (method === "POST" && path === "/free-pulls/claim") {
+    const input = await body(request);
+    const routeId = requireString(input.routeId, "invalid_route_id", 160);
+    const claimed = await store.claimFreePull(userId, routeId);
+    return json({ status: claimed ? "claimed" : "already_claimed" });
+  }
+
   if (method === "POST" && path === "/gacha/pull") {
     const input = await body(request);
-    const poolId = requireString(input.pool, "invalid_pool", 80);
     const count = input.count;
+    const kind = input.kind;
     if (count !== 1 && count !== 5) throw new HttpError(400, "count_must_be_1_or_5");
-    const pool = gachaConfiguration()[poolId];
-    if (!pool) throw new HttpError(404, "pool_not_found");
-    const wallet = await store.wallet(userId, poolId);
-    if (wallet.paid + wallet.free < count) throw new HttpError(409, "insufficient_gacha_balance");
-    const freeSpent = Math.min(wallet.free, count);
-    const paidSpent = count - freeSpent;
-    let pity = wallet.pity;
-    const draws = Array.from({ length: count }, (_, index) => {
-      const next = pity + 1;
-      const petId = drawItem(pool, next >= pool.pityLimit);
-      const rarity = pool.items.find((item) => item.petId === petId)?.rarity ?? 0;
-      pity = rarity >= pool.pityRarity ? 0 : next;
-      return { petId, paid: index >= freeSpent };
+    if (kind !== "free" && kind !== "paid") throw new HttpError(400, "kind_must_be_free_or_paid");
+    const pullKind: "free" | "paid" = kind;
+    if (pullKind === "free" && count !== 1) throw new HttpError(400, "free_pull_count_must_be_1");
+    const wallet = await store.wallet(userId);
+    if (wallet[pullKind] < count) throw new HttpError(409, `insufficient_${pullKind}_gacha_balance`);
+    const pool = gachaPetIds();
+    const owned = await store.ownedPets(userId);
+    let paidPulls = wallet.paidPulls;
+    const draws = Array.from({ length: count }, () => {
+      if (pullKind === "paid") paidPulls += 1;
+      const unowned = pool.filter((petId) => (owned[petId] ?? 0) === 0);
+      const guaranteed = pullKind === "paid" && paidPulls % PAID_PITY_INTERVAL === 0 && unowned.length > 0;
+      const petId = drawItem(guaranteed ? unowned : pool, random);
+      const isNew = (owned[petId] ?? 0) === 0;
+      owned[petId] = (owned[petId] ?? 0) + 1;
+      return { petId, kind: pullKind, isNew, guaranteed };
     });
-    try { await store.commitDraws(userId, poolId, draws, freeSpent, paidSpent, pity); }
+    try { await store.commitDraws(userId, draws, pullKind, paidPulls); }
     catch { throw new HttpError(409, "gacha_balance_changed_retry"); }
-    return json({ results: draws.map((draw) => ({ petId: draw.petId })), paidCount: paidSpent, freeCount: freeSpent, pity });
+    return json({ results: draws, paidPulls, remaining: wallet[pullKind] - count });
   }
 
   const eventStepsMatch = /^\/events\/([^/]+)\/steps$/.exec(path);
@@ -276,8 +303,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   throw new HttpError(404, "not_found");
 }
 
-export async function handleWithStore(request: Request, env: Env, store: Store, now = new Date()): Promise<Response> {
-  try { return await handle(request, env, store, now); }
+export async function handleWithStore(request: Request, env: Env, store: Store, now = new Date(), random: RandomSource = secureRandom): Promise<Response> {
+  try { return await handle(request, env, store, now, random); }
   catch (error) {
     if (error instanceof HttpError) return json({ error: error.code }, error.status);
     console.error("Request failed", error instanceof Error ? error.message : "unknown error");

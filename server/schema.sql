@@ -84,18 +84,31 @@ CREATE TABLE IF NOT EXISTS gacha_wallet_ledger (
 CREATE TABLE IF NOT EXISTS gacha_pulls (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  pool_id TEXT NOT NULL,
   result_pet_id TEXT NOT NULL,
   pulled_at TEXT NOT NULL,
-  paid INTEGER NOT NULL CHECK (paid IN (0, 1))
+  kind TEXT NOT NULL CHECK (kind IN ('free', 'paid')),
+  is_new INTEGER NOT NULL CHECK (is_new IN (0, 1)),
+  guaranteed INTEGER NOT NULL CHECK (guaranteed IN (0, 1))
 );
-CREATE INDEX IF NOT EXISTS gacha_pulls_history ON gacha_pulls(user_id, pool_id, pulled_at);
+CREATE INDEX IF NOT EXISTS gacha_pulls_history ON gacha_pulls(user_id, pulled_at);
 
 CREATE TABLE IF NOT EXISTS gacha_state (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  paid_pull_count INTEGER NOT NULL DEFAULT 0 CHECK (paid_pull_count >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS user_pets (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  pool_id TEXT NOT NULL,
-  pity_counter INTEGER NOT NULL DEFAULT 0 CHECK (pity_counter >= 0),
-  PRIMARY KEY (user_id, pool_id)
+  pet_id TEXT NOT NULL,
+  copies INTEGER NOT NULL DEFAULT 1 CHECK (copies >= 1),
+  PRIMARY KEY (user_id, pet_id)
+);
+
+CREATE TABLE IF NOT EXISTS free_pull_claims (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  route_id TEXT NOT NULL,
+  claimed_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, route_id)
 );
 
 CREATE TABLE IF NOT EXISTS events (
@@ -144,4 +157,11 @@ BEGIN
     paid_balance = paid_balance + CASE WHEN NEW.currency = 'paid' THEN NEW.delta ELSE 0 END,
     free_balance = free_balance + CASE WHEN NEW.currency = 'free' THEN NEW.delta ELSE 0 END
   WHERE user_id = NEW.user_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS free_pull_claim_grant
+AFTER INSERT ON free_pull_claims
+BEGIN
+  INSERT INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at)
+  VALUES ('free:' || NEW.user_id || ':' || NEW.route_id, NEW.user_id, 'free', 1, 'first_route_clear', NEW.route_id, NEW.claimed_at);
 END;

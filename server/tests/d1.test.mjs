@@ -45,7 +45,7 @@ test("D1 schema and ledger operations enforce idempotency and wallet constraints
   assert.equal(await store.claimGift(alice.id, { id: "welcome", title: "Welcome", tickets: 3, freePulls: 1 }), true);
   assert.equal(await store.claimGift(alice.id, { id: "welcome", title: "Welcome", tickets: 3, freePulls: 1 }), false);
   assert.equal(await store.ticketBalance(alice.id), 3);
-  assert.deepEqual(await store.wallet(alice.id, "standard"), { paid: 0, free: 1, pity: 0 });
+  assert.deepEqual(await store.wallet(alice.id), { paid: 0, free: 1, paidPulls: 0 });
 
   assert.equal(await store.grantMonthlyTickets(alice.id, "plus", "2026-09", "2026-10", 10), true);
   assert.equal(await store.grantMonthlyTickets(alice.id, "plus", "2026-09", "2026-10", 10), false);
@@ -60,12 +60,24 @@ test("D1 schema and ledger operations enforce idempotency and wallet constraints
   assert.equal(await store.ticketBalance(alice.id), 10);
   const paidTransaction = { ...transaction, transactionId: "apple-tx-2", productId: "gacha" };
   assert.equal(await store.recordPurchase(alice.id, paidTransaction, { paidPulls: 1 }), true);
-  assert.deepEqual(await store.wallet(alice.id, "standard"), { paid: 1, free: 1, pity: 0 });
+  assert.deepEqual(await store.wallet(alice.id), { paid: 1, free: 1, paidPulls: 0 });
 
-  await store.commitDraws(alice.id, "standard", [{ petId: "mobby-1", paid: false }], 1, 0, 1);
-  assert.deepEqual(await store.wallet(alice.id, "standard"), { paid: 1, free: 0, pity: 1 });
-  await assert.rejects(() => store.commitDraws(alice.id, "standard", [{ petId: "mobby-2", paid: false }], 1, 0, 2));
-  assert.deepEqual(await store.wallet(alice.id, "standard"), { paid: 1, free: 0, pity: 1 });
+  assert.equal(await store.chooseStarter(alice.id, "mobibou"), true);
+  assert.equal(await store.chooseStarter(alice.id, "mobirin"), false);
+  assert.deepEqual(await store.ownedPets(alice.id), { mobibou: 1 });
+  assert.equal(await store.claimFreePull(alice.id, "route-a"), true);
+  assert.equal(await store.claimFreePull(alice.id, "route-a"), false);
+  assert.deepEqual(await store.wallet(alice.id), { paid: 1, free: 2, paidPulls: 0 });
+
+  await store.commitDraws(alice.id, [{ petId: "mobibou", kind: "free", isNew: false, guaranteed: false }], "free", 0);
+  assert.deepEqual(await store.wallet(alice.id), { paid: 1, free: 1, paidPulls: 0 });
+  assert.deepEqual(await store.ownedPets(alice.id), { mobibou: 2 });
+  await assert.rejects(() => store.commitDraws(alice.id, [
+    { petId: "mobirin", kind: "paid", isNew: true, guaranteed: false },
+    { petId: null, kind: "paid", isNew: true, guaranteed: false }
+  ], "paid", 2));
+  assert.deepEqual(await store.wallet(alice.id), { paid: 1, free: 1, paidPulls: 0 });
+  assert.deepEqual(await store.ownedPets(alice.id), { mobibou: 2 });
 
   await database.prepare("INSERT INTO events (id, name, starts_at, ends_at, map_id) VALUES (?, ?, ?, ?, ?)")
     .run("autumn", "Autumn", "2026-09-01", "2026-10-01", "map-a");

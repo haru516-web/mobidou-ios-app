@@ -313,6 +313,7 @@ export async function verifySignedTransaction(jws: string, env: Pick<Env, "APPLE
     bundleId: payload.bundleId,
     purchaseDate: payload.purchaseDate,
     ...(typeof payload.expiresDate === "number" ? { expiresDate: payload.expiresDate } : {}),
-    ...(typeof payload.revocationDate === "number" ? { revocationDate: payload.revocationDate } : {})
+    ...(typeof payload.revocationDate === "number" ? { revocationDate: payload.revocationDate } : {}),
+    ...(typeof payload.appAccountToken === "string" ? { appAccountToken: payload.appAccountToken } : {})
   };
 }

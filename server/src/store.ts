@@ -13,7 +13,8 @@ export class D1Store implements Store {
     await this.db.batch([
       this.db.prepare("INSERT INTO users (id, secret_hash, friend_code, name, pet_id, goshuin_count, route_name, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(user.id, secretHash, user.friendCode, user.name, user.petId, user.goshuinCount, user.routeName, now),
-      this.db.prepare("INSERT INTO gacha_wallet (user_id) VALUES (?)").bind(user.id)
+      this.db.prepare("INSERT INTO gacha_wallet (user_id) VALUES (?)").bind(user.id),
+      this.db.prepare("INSERT INTO gacha_state (user_id) VALUES (?)").bind(user.id)
     ]);
   }
 
@@ -101,24 +102,45 @@ export class D1Store implements Store {
     await this.db.prepare("UPDATE purchases SET revoked_at = ? WHERE apple_transaction_id = ?").bind(nowIso(), transactionId).run();
   }
 
-  async wallet(userId: string, poolId: string): Promise<{ paid: number; free: number; pity: number }> {
-    const row = await this.db.prepare(`SELECT w.paid_balance, w.free_balance, COALESCE(s.pity_counter, 0) AS pity
-      FROM gacha_wallet w LEFT JOIN gacha_state s ON s.user_id = w.user_id AND s.pool_id = ? WHERE w.user_id = ?`)
-      .bind(poolId, userId).first<{ paid_balance: number; free_balance: number; pity: number }>();
-    return { paid: row?.paid_balance ?? 0, free: row?.free_balance ?? 0, pity: row?.pity ?? 0 };
+  async wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number }> {
+    const row = await this.db.prepare(`SELECT w.paid_balance, w.free_balance, COALESCE(s.paid_pull_count, 0) AS paid_pulls
+      FROM gacha_wallet w LEFT JOIN gacha_state s ON s.user_id = w.user_id WHERE w.user_id = ?`)
+      .bind(userId).first<{ paid_balance: number; free_balance: number; paid_pulls: number }>();
+    return { paid: row?.paid_balance ?? 0, free: row?.free_balance ?? 0, paidPulls: row?.paid_pulls ?? 0 };
   }
 
-  async commitDraws(userId: string, poolId: string, draws: Draw[], freeSpent: number, paidSpent: number, pity: number): Promise<void> {
+  async ownedPets(userId: string): Promise<Record<string, number>> {
+    const rows = await this.db.prepare("SELECT pet_id, copies FROM user_pets WHERE user_id = ?").bind(userId)
+      .all<{ pet_id: string; copies: number }>();
+    return Object.fromEntries((rows.results ?? []).map((row) => [row.pet_id, row.copies]));
+  }
+
+  async chooseStarter(userId: string, petId: string): Promise<boolean> {
+    const result = await this.db.prepare(`INSERT INTO user_pets (user_id, pet_id, copies)
+      SELECT ?, ?, 1 WHERE NOT EXISTS (SELECT 1 FROM user_pets WHERE user_id = ?)`)
+      .bind(userId, petId, userId).run();
+    return (result.meta?.changes ?? 0) > 0;
+  }
+
+  async claimFreePull(userId: string, routeId: string): Promise<boolean> {
+    const result = await this.db.prepare("INSERT OR IGNORE INTO free_pull_claims (user_id, route_id, claimed_at) VALUES (?, ?, ?)")
+      .bind(userId, routeId, nowIso()).run();
+    return (result.meta?.changes ?? 0) > 0;
+  }
+
+  async commitDraws(userId: string, draws: Draw[], kind: "free" | "paid", paidPulls: number): Promise<void> {
     const now = nowIso();
+    const spent = draws.length;
     const statements = [
-      ...(freeSpent > 0 ? [this.db.prepare("INSERT INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at) VALUES (?, ?, 'free', ?, 'gacha_pull', ?, ?)")
-        .bind(ledgerId(), userId, -freeSpent, randomToken(16), now)] : []),
-      ...(paidSpent > 0 ? [this.db.prepare("INSERT INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at) VALUES (?, ?, 'paid', ?, 'gacha_pull', ?, ?)")
-        .bind(ledgerId(), userId, -paidSpent, randomToken(16), now)] : []),
-      ...draws.map((draw) => this.db.prepare("INSERT INTO gacha_pulls (id, user_id, pool_id, result_pet_id, pulled_at, paid) SELECT ?, ?, ?, ?, ?, ? WHERE changes() >= 0")
-        .bind(crypto.randomUUID(), userId, poolId, draw.petId, now, draw.paid ? 1 : 0)),
-      this.db.prepare("INSERT INTO gacha_state (user_id, pool_id, pity_counter) VALUES (?, ?, ?) ON CONFLICT(user_id, pool_id) DO UPDATE SET pity_counter = excluded.pity_counter")
-        .bind(userId, poolId, pity)
+      this.db.prepare("INSERT INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at) VALUES (?, ?, ?, ?, 'gacha_pull', ?, ?)")
+        .bind(ledgerId(), userId, kind, -spent, randomToken(16), now),
+      ...draws.flatMap((draw) => [
+        this.db.prepare("INSERT INTO gacha_pulls (id, user_id, result_pet_id, pulled_at, kind, is_new, guaranteed) VALUES (?, ?, ?, ?, ?, ?, ?)")
+          .bind(crypto.randomUUID(), userId, draw.petId, now, draw.kind, draw.isNew ? 1 : 0, draw.guaranteed ? 1 : 0),
+        this.db.prepare(`INSERT INTO user_pets (user_id, pet_id, copies) VALUES (?, ?, 1)
+          ON CONFLICT(user_id, pet_id) DO UPDATE SET copies = copies + 1`).bind(userId, draw.petId)
+      ]),
+      ...(kind === "paid" ? [this.db.prepare("UPDATE gacha_state SET paid_pull_count = ? WHERE user_id = ?").bind(paidPulls, userId)] : [])
     ];
     await this.db.batch(statements);
   }

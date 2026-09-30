@@ -59,11 +59,14 @@ export interface VerifiedTransaction {
   purchaseDate: number;
   expiresDate?: number;
   revocationDate?: number;
+  appAccountToken?: string;
 }
 
 export interface Draw {
   petId: string;
-  paid: boolean;
+  kind: "free" | "paid";
+  isNew: boolean;
+  guaranteed: boolean;
 }
 
 export interface EventRecord {
@@ -85,8 +88,11 @@ export interface Store {
   grantMonthlyTickets(userId: string, plan: string, periodStart: string, periodEnd: string, amount: number): Promise<boolean>;
   recordPurchase(userId: string, transaction: VerifiedTransaction, product: ProductDefinition): Promise<boolean>;
   revokePurchase(transactionId: string): Promise<void>;
-  wallet(userId: string, poolId: string): Promise<{ paid: number; free: number; pity: number }>;
-  commitDraws(userId: string, poolId: string, draws: Draw[], freeSpent: number, paidSpent: number, pity: number): Promise<void>;
+  wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number }>;
+  ownedPets(userId: string): Promise<Record<string, number>>;
+  chooseStarter(userId: string, petId: string): Promise<boolean>;
+  claimFreePull(userId: string, routeId: string): Promise<boolean>;
+  commitDraws(userId: string, draws: Draw[], kind: "free" | "paid", paidPulls: number): Promise<void>;
   friends(userId: string): Promise<unknown[]>;
   friendRequests(userId: string): Promise<unknown[]>;
   requestFriend(fromId: string, toId: string, id: string): Promise<void>;

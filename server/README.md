@@ -37,16 +37,18 @@ Wrangler local values belong in an ignored `.dev.vars` file. Never commit secret
 - `GET /gifts.json` returns the configured static gift list; `POST /gifts/:id/claim` claims a configured gift once.
 - `GET /catalog.json` returns configured catalog JSON.
 - `GET /friends`, `POST /friend-requests`, `POST /friend-requests/:id/answer` list, request, and accept/decline friends by friend code.
-- `POST /purchases/verify` verifies a StoreKit transaction JWS against configured `x5c` certificate roots, expected bundle ID, and configured product IDs. `POST /apple/notifications` verifies signed notification envelopes and signed transaction data.
+- `POST /purchases/verify` verifies a StoreKit transaction JWS against configured `x5c` certificate roots, expected bundle ID, configured product IDs, and an `appAccountToken` equal to the authenticated user ID. Transactions without `appAccountToken` are rejected; clients must set the anonymous Mobidou user ID as the StoreKit app account token when purchasing. `POST /apple/notifications` verifies signed notification envelopes and reads `appAccountToken` from the verified `signedTransactionInfo` transaction.
 - `POST /tickets/consume` consumes from the ticket ledger, rejecting insufficient balances. Subscription ticket grants are keyed by plan and period.
-- `POST /gacha/pull` accepts one or five draws, spends free pulls before paid pulls, and stores outcomes server-side. The example pool lives in `src/config/gacha.ts`.
+- `POST /pets/starter { petId }` records the player's first Mobby only while no Mobby is owned.
+- `POST /free-pulls/claim { routeId }` grants one free pull once per user and pilgrimage route.
+- `POST /gacha/pull { count, kind }` accepts one free draw or one/five paid draws. All configured Mobbies are equally likely; every 25th paid draw guarantees an unowned Mobby while one remains. Results include `isNew` and `guaranteed`, and a five-pull is committed atomically.
+- `GET /gacha/odds` returns the equal per-Mobby rates and the paid-pity disclosure. The roster lives in `src/config/gacha.ts` and intentionally mirrors `src/petCatalog.ts` without importing app code.
 - `GET /events/:id` returns event status; `POST /events/:id/steps` accepts the user's cumulative daily value inside the configured Tokyo-time window.
 
 ## Incomplete and placeholder behavior
 
-- Gacha weights, sample pet IDs, pity limit, and pity rarity in `src/config/gacha.ts` are **UNDECIDED placeholders**. Replace them only after product probabilities and disclosure text are approved.
 - Real Apple roots, bundle ID, product IDs, App Store notification lifecycle mapping, and signed StoreKit test fixtures must be supplied/confirmed before production use. Tests create an ephemeral self-signed certificate in memory; that certificate is not an Apple certificate and is not committed.
 - The product catalog configuration grants only the configured ticket/pull amounts. Full subscription status reconciliation, renewal grace periods, refunds/revocations after previously spent benefits, and App Store Server API lookups are not implemented.
 - Gift and catalog JSON are operator configuration, not an admin UI. Event/team creation, team invitations, membership APIs, event rewards, anti-cheat validation against HealthKit, and device/account recovery are not implemented.
-- Friend request rate limits, abuse controls, account deletion/privacy workflows, and operational monitoring are not implemented.
+- Registration and friend request rate limits, abuse controls, account deletion/privacy workflows, and operational monitoring are not implemented. Before deployment, protect `POST /auth/register` with a Cloudflare WAF rate-limit rule keyed by source IP (for example, a small burst per minute plus a daily ceiling), return HTTP 429 when exceeded, and use Turnstile or an equivalent challenge after repeated attempts. Keep the exact thresholds in deployment configuration so they can be tuned without a code release.
 - The project has not been deployed and has not contacted Cloudflare or Apple services. Local route tests use an in-memory Store; the D1 schema is provided for local Wrangler integration.
