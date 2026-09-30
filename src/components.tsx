@@ -8,6 +8,7 @@ import { PullableCompanion } from './components/PullableCompanion';
 import { STAMP_IMAGES, type Shrine } from './data/shrines';
 import { WashiPressable as Pressable } from './components/Washi';
 import { SlicedArt } from './components/SlicedArt';
+import { LockTag } from './components/LockTag';
 export const C = { paper: '#F8F4EB', ink: '#322F29', red: '#A54E42', muted: '#8A8174', line: '#E3DACE', pale: '#EFE8DD', gold: '#AF9368' };
 export const SERIF = 'Shippori';
 export const BRUSH = 'OmikujiBrush';
@@ -77,7 +78,7 @@ export function Button({ title, onPress, secondary, disabled, icon, style, textS
 }
 export function Section({ title, subtitle, action, onPress, actionArtwork = true }: { title: string; subtitle?: string; action?: string; onPress?: () => void; actionArtwork?: boolean }) { return <View style={S.section}><View><Text style={S.sectionTitle}>{title}</Text>{subtitle && <Text style={S.eyebrow}>{subtitle}</Text>}</View>{action && <Pressable artwork={actionArtwork} accessibilityRole="button" onPress={onPress} style={S.link}><Text style={S.linkText}>{action}</Text><Icon name="chevron-forward" size={14} color={C.red} /></Pressable>}</View>; }
 export function Stamp({ shrine, locked, style, imageFit = 'cover' }: { shrine: Shrine; locked?: boolean; style?: StyleProp<ViewStyle>; imageFit?: 'cover' | 'contain' }) {
-  return <View style={[S.stamp, style]}><Image accessibilityLabel={`${shrine.name}の御朱印${locked ? '・未取得' : ''}`} source={STAMP_IMAGES[shrine.id]} style={{ width: '100%', height: '100%', opacity: locked ? .2 : 1 }} contentFit={imageFit} />{locked && <View style={S.lock}><Icon name="lock-closed-outline" color={C.muted} size={20} /><Text style={S.lockText}>まだ見ぬご縁</Text></View>}</View>;
+  return <View style={[S.stamp, style]}><Image accessibilityLabel={`${shrine.name}の御朱印${locked ? '・未取得' : ''}`} source={STAMP_IMAGES[shrine.id]} style={{ width: '100%', height: '100%', opacity: locked ? .2 : 1 }} contentFit={imageFit} />{locked && <View style={S.lock}><LockTag size={40} /><Text style={S.lockText}>まだ見ぬご縁</Text></View>}</View>;
 }
 export function useReducedMotion() {
   const [reduced, setReduced] = useState(false);

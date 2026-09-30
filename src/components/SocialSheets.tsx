@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Share, StyleSheet, Text, View } from 'react-native';
+import { WashiInput } from './WashiInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { BRUSH, C, Icon } from '../components';
@@ -174,7 +175,7 @@ export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean
     <View key="add"><SectionTitle title="フレンドを追加" />
     <View style={[S.card, S.addRow]}>
       <WashiArt />
-      <TextInput value={input} onChangeText={value => setInput(value.toUpperCase())} placeholder="MOBI-XXXX-XXXX" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="フレンドコード" style={S.codeInput} />
+      <WashiInput value={input} onChangeText={value => setInput(value.toUpperCase())} placeholder="MOBI-XXXX-XXXX" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="フレンドコード" style={S.codeInput} />
       <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={!input.trim()} onPress={() => void submit()} style={[S.primarySmall, !input.trim() && S.disabled]}><Text style={S.primarySmallText}>申請</Text></Pressable>
     </View></View>
 

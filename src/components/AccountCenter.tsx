@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { WashiInput } from './WashiInput';
 import { PagedBody } from './PagedBody';
 import { BRUSH, Button, C, Icon, SERIF, Section } from '../components';
 import { getPilgrimage } from '../data/pilgrimages';
@@ -137,12 +138,12 @@ export function AccountCenter({
           <Text style={S.small}>コードを作成し、すべて選択してコピーします。安全な方法で新しい端末へ渡してください。</Text>
           <View style={S.summaryLine}><Icon name="phone-portrait-outline" size={17} color={C.gold} /><Text style={S.summaryText}>{getPetCharacter(localSummary.petId).name} · 御朱印 {localSummary.rewardCount} 枚 · 累計 {localSummary.totalSteps.toLocaleString('ja-JP')} 歩</Text></View>
           <Button title={busy ? '作成中…' : '引き継ぎコードを作る'} icon="copy-outline" disabled={busy} onPress={() => void makeExportCode()} secondary />
-          {!!exportCode && <TextInput accessibilityLabel="引き継ぎコード。長押ししてすべて選択しコピー" value={exportCode} editable={false} multiline selectTextOnFocus textAlignVertical="top" style={S.codeOutput} />}
+          {!!exportCode && <WashiInput accessibilityLabel="引き継ぎコード。長押ししてすべて選択しコピー" value={exportCode} editable={false} multiline selectTextOnFocus textAlignVertical="top" style={S.codeOutput} />}
         </View>
 
         <View key="import" style={S.transferSection}>
           <Section title="別の端末の記録を読み込む" />
-          <TextInput
+          <WashiInput
             accessibilityLabel="引き継ぎコードを貼り付け"
             placeholder="引き継ぎコードをここに貼り付け"
             placeholderTextColor="#A39A8D"

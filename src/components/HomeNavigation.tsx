@@ -9,6 +9,7 @@ import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { CUSTOM_HOME_WIDGET_IDS, setHomeWidgetSlot, type CustomHomeWidgetId, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { CroppedArt } from './CroppedArt';
+import { SlicedArt } from './SlicedArt';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork } from './HomeWidgetArtwork';
 import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
@@ -242,6 +243,7 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
                   {renderWidgetArtwork(id)}
                 </View>
               </View>
+              {selected && <SlicedArt name="focusFrame" corner={14} />}
               {selected && <View style={S.widgetCheck}><Icon name="checkmark" size={12} color="#FFF" /></View>}
               </Pressable>
             </Animated.View>;
@@ -278,7 +280,7 @@ export function MobyPickerPopup({ selectedPet, onConfirm, onClose, guided = fals
             const selected = draftPet === pet.id;
             return <Pressable key={pet.id} artwork={false} accessibilityRole="radio" accessibilityLabel={`${pet.name}。${pet.catchphrase}`} accessibilityState={{ selected }} onPress={() => { setDraftPet(pet.id); if (guided) { setTutorialRect(null); setGuideStage('confirm'); } }} style={[S.mobyCardOption, selected && S.mobyCardOptionActive]}>
               <Image source={PET_BACKGROUNDS[pet.id]} style={S.mobyCardBackdrop} contentFit="cover" pointerEvents="none" /><View pointerEvents="none" style={S.mobyCardWash} /><View pointerEvents="none" style={[S.mobyCardTint, { backgroundColor: pet.accent + '35' }]} />
-              <Image source={pet.image} style={S.mobyThumb} contentFit="contain" /><Text style={S.mobyName}>{pet.name}</Text><Text numberOfLines={1} style={S.mobyCatchphrase}>{pet.catchphrase}</Text>{selected && <View style={S.mobyCheck}><Icon name="checkmark" size={12} color="#FFF" /></View>}
+              <Image source={pet.image} style={S.mobyThumb} contentFit="contain" /><Text style={S.mobyName}>{pet.name}</Text><Text numberOfLines={1} style={S.mobyCatchphrase}>{pet.catchphrase}</Text>{selected && <SlicedArt name="focusFrame" corner={14} />}{selected && <View style={S.mobyCheck}><Icon name="checkmark" size={12} color="#FFF" /></View>}
             </Pressable>;
           })}
         </ScrollView>
@@ -332,7 +334,7 @@ const S = StyleSheet.create({
   itemChoiceName: { color: C.ink, fontFamily: BRUSH, fontSize: 11, maxWidth: 92 },
   emptyMiniatures: { width: 270, height: 116, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F3EBDD', borderWidth: 1, borderColor: '#DCCBB9' },
   emptyMiniaturesText: { color: C.muted, fontFamily: 'Shippori', fontSize: 12 },
-  widgetTileSelected: { borderWidth: 2, borderColor: C.red, backgroundColor: '#FFF4E8' },
+  widgetTileSelected: { backgroundColor: '#FFF4E8' },
   widgetTileArtwork: { flex: 1, width: '100%', minHeight: 0, overflow: 'hidden' },
   widgetTileCanvas: { position: 'absolute' },
   widgetCheck: { position: 'absolute', right: 6, top: 6, backgroundColor: C.red, borderRadius: 9, width: 19, height: 19, alignItems: 'center', justifyContent: 'center' },
@@ -345,7 +347,7 @@ const S = StyleSheet.create({
   mobyScroll: { flexGrow: 0, marginTop: 10 },
   mobyGrid: { flexDirection: 'row', gap: 9, paddingVertical: 3 },
   mobyCardOption: { width: 112, height: 116, alignItems: 'center', justifyContent: 'flex-end', paddingVertical: 6, paddingHorizontal: 3, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#E2DACC', backgroundColor: '#FFF9F0' },
-  mobyCardOptionActive: { borderColor: C.red, borderWidth: 2, backgroundColor: '#F3E5D7', transform: [{ translateY: -3 }] },
+  mobyCardOptionActive: { backgroundColor: '#F3E5D7', transform: [{ translateY: -3 }] },
   mobyCardBackdrop: { ...StyleSheet.absoluteFillObject, opacity: .72 },
   mobyCardWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFF9E9A8' },
   mobyCardTint: { ...StyleSheet.absoluteFillObject },
