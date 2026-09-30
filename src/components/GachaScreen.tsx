@@ -36,15 +36,17 @@ function Part({ part, style, fallback }: { part: GachaArtPart; style: StyleProp<
 export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose }: Props) {
   const { width, height } = useWindowDimensions();
   const reduced = useReducedMotion();
-  // A tall box, like a blind box: about one and a half times as high as it is wide.
-  const boxW = Math.round(Math.min(210, width * .52));
+  // A tall box, like a blind box: about one and a half times as high as it is wide. Sized so that the
+  // whole front board, once slid up, still fits on screen above the box.
+  const boxW = Math.round(Math.min(190, width * .5, (height * .34) / 1.45));
   const boxH = Math.round(boxW * 1.45);
-  const boardW = Math.round(boxW * .86);
-  const boardH = Math.round(boxH * .7);
-  const boardLeft = Math.round((boxW - boardW) / 2);
-  const boardTop = boxH - boardH - Math.round(boxH * .06);
-  const lift = boardH * 1.05;
-  const centerY = Math.round(height * .47);
+  // The front board is the whole front of the box, and the whole board slides up.
+  const boardW = boxW;
+  const boardH = boxH;
+  const boardLeft = 0;
+  const boardTop = 0;
+  const lift = boxH * .9;
+  const centerY = Math.round(height * .58);
   const boxLeft = Math.round(width / 2 - boxW / 2);
   const boxTop = Math.round(centerY - boxH / 2);
 
@@ -196,10 +198,11 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const showMobby = opened ? mobbyAfterOpen(openedFor) : 0;
   const pet = result && isPetId(result.petId) ? getPetCharacter(result.petId) : null;
   const remaining = unrevealed.length;
-  const cavityW = boardW - 12;
-  const cavityH = boardH - 12;
-  const cavityLeft = boardLeft + 6;
-  const cavityTop = boardTop + 6;
+  // The inside of the box, seen once the front is up: the walls leave a thin frame.
+  const cavityLeft = Math.round(boxW * .05);
+  const cavityTop = Math.round(boxH * .035);
+  const cavityW = boxW - 2 * cavityLeft;
+  const cavityH = boxH - 2 * cavityTop;
 
   return <View style={S.page}>
     <Part part="stage" style={StyleSheet.absoluteFillObject} fallback={S.stageFallback} />
@@ -217,7 +220,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
           <View style={[StyleSheet.absoluteFillObject, S.wash, { opacity: glow }]} />
         </View>
         {pet && <Image accessible={false} source={pet.image} contentFit="contain" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: cavityTop + cavityH / 2 - boxW * .39 - (1 - showMobby) * 8, opacity: showMobby }]} />}
-        {/* Front board: lifted by hand. */}
+        {/* The whole front board: lifted by hand. */}
         <View {...boardPan.panHandlers} accessible={boardEnabled} accessibilityRole="button" accessibilityLabel="箱の前の板を上へ引き上げる" accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => settleBoard(1)} style={[S.abs, { left: boardLeft, top: boardTop, width: boardW, height: boardH, transform: [{ translateY: -lift * open }] }]}>
           <Part part="front" style={StyleSheet.absoluteFillObject} fallback={S.boardFallback} />
           {boardEnabled && <View pointerEvents="none" style={S.grip} />}
