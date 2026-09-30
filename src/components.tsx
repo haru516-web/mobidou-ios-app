@@ -13,6 +13,10 @@ export const SERIF = 'Shippori';
 export const BRUSH = 'OmikujiBrush';
 // Ink-brush pictures for the icons the app uses; anything else falls back to the vector set.
 const BRUSH_ICONS: Partial<Record<string, ImageSourcePropType>> = {
+  'settings-outline': require('../assets/ui-round3/icons/icon-settings.webp'),
+  'document-text-outline': require('../assets/ui-round3/icons/icon-document.webp'),
+  'navigate-outline': require('../assets/ui-round3/icons/icon-navigate.webp'),
+  'grid-outline': require('../assets/ui-round3/icons/icon-grid.webp'),
   'home-outline': require('../assets/ui-round3/icons/icon-home.webp'),
   'book-outline': require('../assets/ui-round3/icons/icon-book.webp'),
   'footsteps-outline': require('../assets/ui-round3/icons/icon-footsteps.webp'),

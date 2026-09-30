@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { BRUSH } from '../components';
+import { BRUSH, Icon } from '../components';
 import { SlicedArt } from './SlicedArt';
 
 export function TutorialTapHint({ step, label, detail }: { step: string; label: string; detail: string }) {
@@ -12,7 +11,7 @@ export function TutorialTapHint({ step, label, detail }: { step: string; label: 
       <Text style={S.title}>{label}</Text>
       <Text style={S.detail}>{detail}</Text>
     </View>
-    <Ionicons name="hand-left-outline" size={21} color="#9D6540" />
+    <Icon name="hand-left-outline" size={21} color="#9D6540" />
   </View>;
 }
 
