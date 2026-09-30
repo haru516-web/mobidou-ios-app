@@ -13,12 +13,7 @@ export type HomeWidgetItems = [string | null, string | null];
 export const DEFAULT_HOME_WIDGET_ORDER: HomeWidgetOrder = ['goshuin', 'miniature'];
 export const DEFAULT_HOME_WIDGET_ITEMS: HomeWidgetItems = [null, null];
 
-const HOME_WIDGET_SET = new Set<string>(HOME_WIDGET_IDS);
 const CUSTOM_HOME_WIDGET_SET = new Set<string>(CUSTOM_HOME_WIDGET_IDS);
-
-export function isHomeWidgetId(value: unknown): value is HomeWidgetId {
-  return typeof value === 'string' && HOME_WIDGET_SET.has(value);
-}
 
 export function isCustomHomeWidgetId(value: unknown): value is CustomHomeWidgetId {
   return typeof value === 'string' && CUSTOM_HOME_WIDGET_SET.has(value);

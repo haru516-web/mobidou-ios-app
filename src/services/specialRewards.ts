@@ -11,7 +11,6 @@ export const KEYCHAIN_DROP_RATE = 0.10;
 export const SPARKLE_DROP_RATE = 0.20;
 
 /** @deprecated Use KEYCHAIN_DROP_RATE or SPARKLE_DROP_RATE explicitly. */
-export const SPECIAL_DROP_RATE = SPARKLE_DROP_RATE;
 
 export type SpecialKind = 'keychain' | 'sparkle';
 export type NewPassKind = 'coverChange' | 'keychainDrop';
@@ -170,14 +169,6 @@ export function rollSpecialDrop(collection: SpecialCollection, shrineId: string,
 
 export function hasPass(collection: SpecialCollection, kind: NewPassKind) {
   return collection.passes[kind] > 0;
-}
-
-/** Legacy helper retained while the old award UI migrates. */
-export function hasExchangePass(collection: SpecialCollection) {
-  return hasPass(collection, 'keychainDrop')
-    || collection.passes.subscription
-    || collection.passes.ten > 0
-    || collection.passes.fifty > 0;
 }
 
 /** Grant passes using mock/local semantics without converting legacy balances. */

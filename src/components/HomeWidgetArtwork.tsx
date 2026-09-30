@@ -21,13 +21,6 @@ const PLATE_OMIKUJI_BOUNDS = { x0: .02, x1: .975, y0: .013, y1: .986 };
 
 const OMIKUJI_DRAW_CYLINDER = require('../../assets/ui-round3/omikuji/omikuji-draw-cylinder-v1.webp');
 
-function CardBackground({ source, shade = '#FFF9EFA8' }: { source: ImageSourcePropType; shade?: string }) {
-  return <>
-    <Image accessible={false} source={source} contentFit="cover" style={S.cardBackground} />
-    <View pointerEvents="none" style={[S.cardBackgroundShade, { backgroundColor: shade }]} />
-  </>;
-}
-
 export function HomeGoshuinArtwork({ source }: { source: ImageSourcePropType; background?: ImageSourcePropType }) {
   return <View pointerEvents="none" style={S.artworkStage}>
     <CroppedArt source={PLATE_GOSHUIN} bounds={PLATE_GOSHUIN_BOUNDS} />
@@ -46,13 +39,6 @@ export function HomeOmikujiArtwork({ fortune }: { fortune: OmikujiFortune | null
           <Image accessible={false} source={OMIKUJI_DRAW_CYLINDER} contentFit="contain" style={S.omikujiDrawCylinder} />
         </View>
       </View>}
-  </View>;
-}
-
-export function HomeMiniatureArtwork({ source, background }: { source: ImageSourcePropType; background: ImageSourcePropType }) {
-  return <View pointerEvents="none" style={S.artworkStage}>
-    <CardBackground source={background} shade="#FFF9EF32" />
-    <Image accessible={false} source={source} contentFit="contain" style={S.artworkImage} />
   </View>;
 }
 
@@ -98,7 +84,7 @@ function NeutralWalkingSprite({ source }: { source: ImageSourcePropType }) {
   </Animated.View>;
 }
 
-export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps = steps, totalSteps = steps, previousPointSteps = 0, nextPointSteps, background, horizontal = false }: { petId: PetId; petImage: ImageSourcePropType; progress: number; steps: number; todaySteps?: number; totalSteps?: number; previousPointSteps?: number; nextPointSteps: number | null; background: ImageSourcePropType; horizontal?: boolean }) {
+export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps = steps, totalSteps = steps, previousPointSteps = 0, nextPointSteps, horizontal = false }: { petId: PetId; petImage: ImageSourcePropType; progress: number; steps: number; todaySteps?: number; totalSteps?: number; previousPointSteps?: number; nextPointSteps: number | null; horizontal?: boolean }) {
   const [frame, setFrame] = useState(0);
   const walkSource = PILGRIMAGE_WALK_ATLASES[petId];
   const ratio = Math.max(0, Math.min(1, progress));

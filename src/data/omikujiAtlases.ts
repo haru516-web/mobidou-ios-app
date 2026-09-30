@@ -1,6 +1,5 @@
 import type { ImageSourcePropType } from 'react-native';
 
-export const OMIKUJI_FRAME_COUNT = 8;
 export const OMIKUJI_ATLASES: Record<string, ImageSourcePropType> = {
   mobirin: require('../../assets/mobies/omikuji/mobirin/draw-v2.webp'), mobichi: require('../../assets/mobies/omikuji/mobichi/draw-v2.webp'),
   yami: require('../../assets/mobies/omikuji/yami/draw-v2.webp'), mobiyan: require('../../assets/mobies/omikuji/mobiyan/draw-v2.webp'),

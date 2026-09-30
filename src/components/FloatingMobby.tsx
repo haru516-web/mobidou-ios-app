@@ -74,16 +74,6 @@ function pointerId(event: any): number | null {
   return typeof id === 'number' ? id : null;
 }
 
-export function speechEnding(petId: PetId) {
-  if (petId === 'mobibou') return 'だぜ';
-  if (petId === 'reamobby' || petId === 'uyumobby' || petId === 'lanimobby') return 'だにゃん';
-  if (petId === 'mobirin') return 'ですぞ';
-  if (petId === 'mobichi') return 'だよ〜';
-  if (petId === 'yami') return 'だよ…';
-  if (petId === 'mobiyura') return 'なのだ';
-  return 'だよ';
-}
-
 function WalkFrame({ source, petId, frame }: { source: ImageSourcePropType; petId: PetId; frame: number }) {
   const metric = walkMetrics[`${petId}/walk`];
   if (!metric) return null;

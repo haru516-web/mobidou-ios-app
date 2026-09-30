@@ -94,6 +94,3 @@ export const COLLECTION_KEYCHAINS = {
   tsuzuri: require('../../assets/collection/keychains/keychain-tsuzuri-v1-transparent.webp'),
 } as const;
 
-export const COLLECTION_KEYCHAINS_BY_SHRINE_ID = COLLECTION_KEYCHAINS;
-
-export type CollectionKeychainShrineId = keyof typeof COLLECTION_KEYCHAINS;

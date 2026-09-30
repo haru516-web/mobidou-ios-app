@@ -6,14 +6,6 @@ export const PILGRIMAGE_WALK_ATLAS_WIDTH = 1536;
 export const PILGRIMAGE_WALK_ATLAS_HEIGHT = 1024;
 export const PILGRIMAGE_WALK_FRAME_WIDTH = PILGRIMAGE_WALK_ATLAS_WIDTH / PILGRIMAGE_WALK_FRAME_COUNT;
 export const PILGRIMAGE_WALK_FRAME_HEIGHT = PILGRIMAGE_WALK_ATLAS_HEIGHT;
-export const PILGRIMAGE_WALK_METRICS = {
-  atlasWidth: PILGRIMAGE_WALK_ATLAS_WIDTH,
-  atlasHeight: PILGRIMAGE_WALK_ATLAS_HEIGHT,
-  frameCount: PILGRIMAGE_WALK_FRAME_COUNT,
-  frameWidth: PILGRIMAGE_WALK_FRAME_WIDTH,
-  frameHeight: PILGRIMAGE_WALK_FRAME_HEIGHT,
-} as const;
-
 // Horizontal four-frame sheets: contact, down, passing, up.
 // Each frame is 384 x 1024 with one shared baseline and real alpha transparency.
 export const PILGRIMAGE_WALK_ATLASES: Record<PetId, ImageSourcePropType> = {

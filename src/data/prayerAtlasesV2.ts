@@ -1,7 +1,6 @@
 import type { ImageSourcePropType } from 'react-native';
 
 export const PRAYER_ACTION_ORDER = ['rei', 'rei', 'hakushu', 'hakushu', 'rei'] as const;
-export const PRAYER_FRAME_COUNT = 40;
 // Packed 4112 x 514 atlases; eight equal cells with a transparent one-pixel
 // gutter, matched to the idle artwork.
 export const PRAYER_ATLASES: Record<string, { rei: ImageSourcePropType; hakushu: ImageSourcePropType }> = {

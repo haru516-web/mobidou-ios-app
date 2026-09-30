@@ -147,19 +147,14 @@ type HomeCustomizationPopupProps = {
   ownedGoshuinIds: string[];
   ownedMiniatureIds: string[];
   latest: Shrine;
-  selectedPetId: PetId;
-  selectedPetImage: ImageSourcePropType;
   background: ImageSourcePropType;
-  routeSteps: number;
-  progress: number;
-  nextPointSteps: number | null;
   onSave: (order: HomeWidgetOrder) => void;
   onSaveItems: (items: HomeWidgetItems) => void;
   onDragTarget: (slot: 0 | 1 | null) => void;
   onClose: () => void;
 };
 
-export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds, ownedMiniatureIds, latest, selectedPetId, selectedPetImage, background, routeSteps, progress, nextPointSteps, onSave, onSaveItems, onDragTarget, onClose }: HomeCustomizationPopupProps) {
+export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds, ownedMiniatureIds, latest, background, onSave, onSaveItems, onDragTarget, onClose }: HomeCustomizationPopupProps) {
   const reduced = useReducedMotion();
   const [animation, closeAnimation] = usePopupAnimation(reduced);
   const [draft, setDraft] = useState<HomeWidgetOrder>([...order] as HomeWidgetOrder);

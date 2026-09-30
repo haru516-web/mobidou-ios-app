@@ -24,7 +24,6 @@ const hakushu = [
   require('../../assets/mobies/actions/mobibou/mobibou-hakushu-08.webp'),
 ] as const satisfies readonly ImageSourcePropType[];
 
-export const MOBIBOU_ACTION_ASSETS = [...rei, ...hakushu] as const;
 /** Bow, bow, clap-clap, bow: the hakushu strip holds both claps, so it plays once. */
 export const MOBIBOU_PRAYER_ORDER: readonly PrayerAction[] = ['rei', 'rei', 'hakushu', 'rei'];
 export const MOBIBOU_ACTION_STRIPS = { rei, hakushu } as const;

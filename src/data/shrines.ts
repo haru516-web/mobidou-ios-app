@@ -113,7 +113,6 @@ export const SHRINES = [
 ] as const;
 
 export type Shrine = typeof SHRINES[number];
-export type ShrineId = Shrine['id'];
 
 export const STAMP_IMAGES = {
   star: require('../../assets/goshuin/star.webp'),

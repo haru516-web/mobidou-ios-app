@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Modal, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -7,16 +7,15 @@ import { useFonts } from 'expo-font';
 import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500Medium';
 import { ShipporiMincho_700Bold } from '@expo-google-fonts/shippori-mincho/700Bold';
 import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku/400Regular';
-import { BRUSH, Button, C, Clouds, Companion, Icon, Section, SERIF, Stamp, Torii } from './src/components';
+import { BRUSH, Button, C, Clouds, Companion, Icon, SERIF, Stamp, Torii } from './src/components';
 import { getPetCharacter, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets } from './src/services/progress';
-import { sourceLabel } from './src/services/steps';
 import { useJourney } from './src/services/useJourney';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { pilgrimageShrines, PilgrimagePicker, RouteMap } from './src/components/PilgrimageScreen';
-import { PillText, WashiArt, WashiPressable as Pressable } from './src/components/Washi';
+import { PillText, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from './src/data/pilgrimagePeekImages';
@@ -25,13 +24,12 @@ import { BookPageTurn, type BookPageTurnHandle } from './src/components/BookPage
 import { HomeBottomNavigation, HomeCustomizationPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
 import { BookIndexPopup, GoshuinBookCover } from './src/components/GoshuinBook';
 import { CroppedArt } from './src/components/CroppedArt';
-import { WashiSwitch } from './src/components/WashiSwitch';
 import { ScrollPopup } from './src/components/ScrollPopup';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
 import { StepProgressRing } from './src/components/StepProgressRing';
 import { FloatingMobby, type MobbyMenuItem, type MobbySpot } from './src/components/FloatingMobby';
 import { PopButton } from './src/components/PopButton';
-import { FitToHeight, PagedBody } from './src/components/PagedBody';
+import { FitToHeight } from './src/components/PagedBody';
 import { countsAsUnread, FriendsSheet, NotificationsSheet, PresentBoxSheet, type AppNotice } from './src/components/SocialSheets';
 import { fetchGifts, markGiftReceived, markNoticesRead, readReadNoticeIds, readReceivedGiftIds, type Gift } from './src/services/social';
 import type { CustomHomeWidgetId } from './src/services/homePreferences';
@@ -39,6 +37,8 @@ import { OmikujiExperience } from './src/components/OmikujiExperience';
 import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './src/components/TutorialSpotlight';
 import { fortuneForDay, localOmikujiDay } from './src/data/omikuji';
 import { AccountCenter, type AccountPage } from './src/components/AccountCenter';
+import { Close, M } from './src/components/ModalParts';
+import { SettingsModal } from './src/components/SettingsModal';
 import { OpeningExperience } from './src/components/OpeningExperience';
 import { CollectionBackdrop, getHomeBackgroundMetrics, HomeAnchoredBackground } from './src/components/HomeBackdrops';
 
@@ -74,7 +74,6 @@ function displayDate(day: string) { const [y, m, d] = day.split('-'); return `${
 
 type HomeLayout = { y: number; height: number };
 
-const SETTINGS_BACKGROUND = require('./assets/ui-washi/settings/settings-bg.webp');
 const BOOK_PAGE_LEFT = require('./assets/ui-washi/goshuin/page-left.webp');
 const BOOK_PAGE_RIGHT = require('./assets/ui-washi/goshuin/page-right.webp');
 const BOOK_CLOTH = require('./assets/ui-washi/goshuin/book-cover.webp');
@@ -147,8 +146,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [accountEntryVisible, setAccountEntryVisible] = useState(false);
   const [accountEntryPage, setAccountEntryPage] = useState<AccountPage>('welcome');
   const [overlayBusy, setOverlayBusy] = useState(false);
-  const [info, setInfo] = useState<'privacy' | 'about' | null>(null);
-  const [confirmDiscardBackup, setConfirmDiscardBackup] = useState(false);
   const [openingVisible, setOpeningVisible] = useState(true);
   const [openingHomeReady, setOpeningHomeReady] = useState(false);
   const [routePicker, setRoutePicker] = useState(false);
@@ -429,7 +426,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     return null;
   };
   const renderHomeStepsCard = () => <Pressable nativeID="home-widget-steps" artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数。今日${fmt(todaySteps)}歩。累計${fmt(totalSteps)}歩。${homeNextPointLabel ? `${homeNextPointLabel}。` : ''}おでかけをひらく`} onPress={() => openSection('walk')} style={S.homeStepsCard}>
-    <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} background={currentBackground.image} />
+    <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} />
   </Pressable>;
   useEffect(() => () => { if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current); }, []);
   // 通知: things to do now, where the journey stands, and what happened.
@@ -536,7 +533,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <Pressable plate="round" artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable>
       </View>
     </View>
-    {!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
+    {!!journey.error && <View style={M.error}><Text style={M.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
     <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={[S.content, tab === 'home' && S.homeContent]}>
       {tab === 'home' && <>
         {firstRunStage === 'homeOmikuji'
@@ -610,7 +607,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} onPurchasePass={journey.purchasePass} activeRoute={activeRoute} coverOwned={routeBookOwned} selectedCover={routeBookSelected ? 'route' : 'normal'} onRedeemCoverChange={journey.redeemCoverChange} onSelectCover={journey.selectBookDesign} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={shrine => setDetail(shrine)} onClosePage={() => setCollectionPage('room')} />
       </>}
     </View>
-    {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} selectedPetId={pet.id} selectedPetImage={pet.image} background={currentBackground.image} routeSteps={routeSteps} progress={routeSteps / Math.max(1, nextTarget)} nextPointSteps={homeNextPointSteps} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
+    {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') { setTutorialRect(null); setFirstRunStage('homeCompanion'); } }} onClose={() => setHomePopup(null)} />}
     <View onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
       <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} />
@@ -651,7 +648,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </ScrollPopup>
 
     <Modal visible={!!detail} transparent onShow={() => { setOverlayBusy(true); openDetailPopup(); }} onDismiss={() => { detailPopupProgress.stopAnimation(); detailPopupProgress.setValue(0); detailStampPreviewProgress.stopAnimation(); detailStampPreviewProgress.setValue(0); setDetail(null); setDetailStampPreview(false); setOverlayBusy(false); }} animationType="none" onRequestClose={() => { if (detailStampPreview) closeDetailStampPreview(); else closeDetailPopup(); }} presentationStyle="overFullScreen">
-      <SafeAreaView style={[S.modal, { backgroundColor: 'transparent' }]}>
+      <SafeAreaView style={[M.modal, { backgroundColor: 'transparent' }]}>
         <Animated.View pointerEvents="none" style={[S.detailModalBackdrop, { opacity: detailPopupProgress }]} />
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="御朱印詳細を閉じる" onPress={() => closeDetailPopup()} style={StyleSheet.absoluteFillObject} />
         {detail && <View pointerEvents="box-none" style={S.detailPopupLayout}>
@@ -684,17 +681,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <Modal visible={settings && !accountPage} onShow={() => setOverlayBusy(true)} onDismiss={() => { if (!accountPage) { setInfo(null); setOverlayBusy(false); } }} animationType="slide" onRequestClose={() => setSettings(false)} presentationStyle="pageSheet"><SafeAreaView style={S.modal}><Image accessible={false} source={SETTINGS_BACKGROUND} contentFit="cover" pointerEvents="none" style={StyleSheet.absoluteFill} /><View style={S.modalHeader}><Text style={S.modalTitle}>設定</Text><Close onPress={() => { setInfo(null); setSettings(false); setAccountPage(null); }} /></View>{!!journey.error && <View style={S.error}><Text style={S.errorText}>{journey.error}</Text></View>}<ScrollView style={S.settingsContent} contentContainerStyle={S.settingsScrollContent} showsVerticalScrollIndicator={false}>
-      {!!journey.corruptedBackup && <View key="backup"><Section title="読み込めなかった記録" /><View style={S.settingCard}><WashiArt /><Text style={S.settingHelp}>以前の記録を読み込めなかったため、端末内に退避しています。お問い合わせや手作業での復旧に使えるよう、内容を表示してコピーできます。</Text><TextInput accessibilityLabel="退避した記録。長押ししてすべて選択しコピー" value={journey.corruptedBackup} editable={false} multiline selectTextOnFocus textAlignVertical="top" style={S.backupText} />{confirmDiscardBackup ? <><Text style={S.settingHelp}>削除すると元に戻せません。削除しますか？</Text><Button title="退避した記録を削除する" onPress={() => { void journey.discardCorruptedBackup(); setConfirmDiscardBackup(false); }} /><Button title="やめる" secondary onPress={() => setConfirmDiscardBackup(false)} style={{ marginTop: 10 }} /></> : <Button title="退避した記録を削除" secondary onPress={() => setConfirmDiscardBackup(true)} style={{ marginTop: 10 }} />}</View></View>}
-      <View key="account"><Section title="アカウント" /><View style={S.settingCard}><WashiArt /><Meta icon="person-circle-outline" text="未ログイン · この端末に保存" /><Text style={S.settingHelp}>ログインやクラウド同期は未設定です。アカウント画面からログイン状況を確認し、別の端末へ記録を引き継げます。</Text><Button title="アカウント管理" icon="person-circle-outline" onPress={() => setAccountPage('manage')} /></View></View>
-      <View key="steps"><Section title="歩数のつながり" /><View style={S.settingCard}><WashiArt /><Meta icon="footsteps-outline" text={sourceLabel[data.source]} /><Text style={S.settingHelp}>{data.source === 'healthkit' ? 'ヘルスケアの当日歩数を読み取ります。0歩のままの場合は、ヘルスケアの共有設定をご確認ください。読み取り権限の拒否はアプリから判別できません。' : data.source === 'motion' ? 'Expo Goではモーションとフィットネスから読み取ります。HealthKitはiOSの開発ビルドで利用できます。' : 'iPhoneで歩数を連携すると、今日の歩数で御朱印を集められます。'}
-      </Text><Button title="歩数を連携する" disabled={journey.busy} onPress={() => void journey.connect()} />{Platform.OS === 'ios' && <Button title="iPhoneの設定をひらく" secondary onPress={() => void Linking.openSettings().catch(() => {})} style={{ marginTop: 10 }} />}</View></View>
-      <View key="home"><Section title="ホーム" /><Text style={S.settingHelp}>ホームのカードは長押しでも編集できます。</Text><Button title="ホームのカードを編集" icon="grid-outline" secondary onPress={() => { setSettings(false); openHomePopup('custom'); }} /></View>
-      <View key="haptics" style={S.settingRow}><View style={{ flex: 1 }}><Text style={S.settingLabel}>ふれあいの振動</Text><Text style={S.settingHelp}>なでたとき・御朱印を授かったとき</Text></View><WashiSwitch accessibilityLabel="ふれあいの振動" value={data.haptics} onValueChange={journey.toggleHaptics} /></View>
-      <View key="demo"><Section title="もび道を体験" /><Text style={S.settingHelp}>体験用の御朱印帳で、お散歩と授与演出を試せます。本番の記録には影響しません。</Text><Button title={data.demo ? '体験を終えて実記録にもどる' : '体験モードをはじめる'} secondary onPress={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} /></View>
-      <View key="about"><Section title="このアプリについて" /><Button title="プライバシーとデータ" secondary onPress={() => setInfo('privacy')} /><Button title="もび道について・利用上の案内" secondary onPress={() => setInfo('about')} style={{ marginTop: 10 }} />
-      <Text style={S.footerNote}>{'もび道（もびどう） 1.0.0\n今日の一歩に、小さなご縁を。'}</Text></View>
-    </ScrollView>{!!info && (<View style={S.infoBackdrop}><View style={S.infoCard}><WashiArt /><Text style={S.modalTitle}>{info === 'privacy' ? 'プライバシーとデータ' : 'もび道について'}</Text><View style={{ height: Math.min(430, windowHeight * .5) }}><PagedBody gap={14}>{(info === 'privacy' ? 'もび道は、今日の歩数・集めた御朱印・選んだモビー・ふれあい回数・設定を端末内に保存します。\n\nログイン、広告、アクセス解析、サーバー送信はありません。GPSも使用しません。歩数は御朱印の解放にのみ使用し、ヘルスケアへ書き込みません。\n\n端末を変更しても記録は自動では引き継がれません。設定のアカウント管理から引き継ぎコードを作成し、新しい端末で読み込んでください。アプリを削除すると記録は失われる場合があります。歩数アクセスはiPhoneの設定からいつでも変更できます。' : 'もび道（もびどう）は、モビーと歩いて架空の御朱印を集めるアプリです。\n\n巡礼は、日常の場所から特別な場所へ移動し、道中の祈りや記録を経て日常へ戻る旅。もび道では、神域参詣・山岳修行・札所周回・観音巡礼・七願掛け・物語の聖地巡礼という6つの旅の型から選べます。\n\n各地点は社・宮・寺・観音堂などの参拝先として設計し、参拝後に境内の授与所で御朱印を授かります。登場する社・宮・地名・御朱印はすべて、もびの世界の創作です。実在の宗教施設や実際の参拝・授与品とは関係ありません。\n\n歩数は1日単位で、端末の現地時間に合わせて切り替わります。御朱印は順番に解放され、最後まで歩き切ると結願証・称号・専用の結願印を授かります。\n\n歩きながらの画面操作は立ち止まって。体調に合わせて、無理なく楽しんでください。').split('\n\n').map((paragraph, index) => <Text key={index} style={S.infoText}>{paragraph}</Text>)}</PagedBody></View><Button title="とじる" onPress={() => setInfo(null)} /></View></View>)}</SafeAreaView></Modal>
+    <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onEditHome={() => { setSettings(false); openHomePopup('custom'); }} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} />
 
 
 
@@ -712,8 +699,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       }}
       presentationStyle="pageSheet"
     >
-      <SafeAreaView style={S.modal}>
-        <View style={S.modalHeader}>
+      <SafeAreaView style={M.modal}>
+        <View style={M.modalHeader}>
           {(accountEntryVisible ? accountEntryPage : accountPage) !== 'welcome' && <Pressable
             accessibilityRole="button"
             accessibilityLabel={accountEntryVisible ? 'はじめの画面へ戻る' : accountPage === 'manage' ? '設定に戻る' : 'アカウント画面へ戻る'}
@@ -722,7 +709,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               : setAccountPage(page => page === 'manage' ? null : 'manage')}
             style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
           ><Icon name="chevron-back" size={21} color={C.red} /></Pressable>}
-          <Text style={[S.modalTitle, (accountEntryVisible ? accountEntryPage : accountPage) !== 'welcome' && { flex: 1 }]}>
+          <Text style={[M.modalTitle, (accountEntryVisible ? accountEntryPage : accountPage) !== 'welcome' && { flex: 1 }]}>
             {accountEntryVisible
               ? ({ welcome: 'はじめての方へ', login: 'ログイン', transfer: 'データ引き継ぎ', manage: 'アカウント' } as const)[accountEntryPage]
               : ({ manage: 'アカウント', login: 'ログイン', transfer: 'データ引き継ぎ', welcome: 'はじめての方へ' } as const)[accountPage ?? 'manage']}
@@ -750,8 +737,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} onRedeemKeychainDrop={journey.redeemKeychainDrop} onDeclineKeychainDrop={journey.declineKeychainDrop} onClose={() => { const index = Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
   </SafeAreaView></View>;
 }
-function Close({ onPress }: { onPress: () => void }) { return <Pressable plate="round" accessibilityRole="button" accessibilityLabel="閉じる" onPress={onPress} style={S.close}><Icon name="close" /></Pressable>; }
-function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name']; text: string }) { return <View style={S.meta}><Icon name={icon} size={18} color={C.gold} /><Text style={S.metaText}>{text}</Text></View>; }
 
 const S = StyleSheet.create({
   pageTop: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -4, marginBottom: 8 },
@@ -788,14 +773,11 @@ const S = StyleSheet.create({
   headerLogo: { width: 112, height: 40 },
   header: { height: 64, paddingLeft: 20, paddingRight: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, brand: { flexDirection: 'row', alignItems: 'center', gap: 5 }, logo: { fontFamily: BRUSH, fontSize: 39, letterSpacing: 2, color: C.ink }, logoMark: { width: 32, height: 32, borderRadius: 6, marginLeft: 2, transform: [{ rotate: '8deg' }] },
   content: { flex: 1, paddingHorizontal: 24, paddingBottom: 12, overflow: 'hidden' }, homeContent: { paddingBottom: 0 }, chapter: { fontFamily: BRUSH, color: '#766452', fontSize: 14, letterSpacing: 2 },
-  dot: { height: 4, width: 4, backgroundColor: C.red, borderRadius: 5 }, error: { backgroundColor: '#F5DCD4', margin: 10, padding: 9, flexDirection: 'row', alignItems: 'center', borderRadius: 8 }, errorText: { color: '#813D31', flexShrink: 1, fontSize: 12, lineHeight: 19 },
-  homeWidgetsHidden: { opacity: 0 }, homeCardGroup: { marginTop: 'auto' }, homeWidgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'space-between', marginTop: 5, marginBottom: 8 }, homeWidgetCard: { width: '48%', height: 244, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', padding: 11, overflow: 'hidden', alignItems: 'stretch' },
+  dot: { height: 4, width: 4, backgroundColor: C.red, borderRadius: 5 },   homeWidgetsHidden: { opacity: 0 }, homeCardGroup: { marginTop: 'auto' }, homeWidgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'space-between', marginTop: 5, marginBottom: 8 }, homeWidgetCard: { width: '48%', height: 244, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', padding: 11, overflow: 'hidden', alignItems: 'stretch' },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 6 }, footerNote: { marginTop: 25, textAlign: 'center', color: '#9A9081', fontSize: 12, lineHeight: 19 },
   bookWrap: { marginHorizontal: -17, marginTop: 38, paddingHorizontal: 5, paddingVertical: 5, backgroundColor: 'transparent', shadowColor: '#27170F', shadowOffset: { width: 0, height: 15 }, shadowOpacity: .34, shadowRadius: 17, elevation: 12 }, bookCoverEdge: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 8, overflow: 'hidden' }, bookCloth: { ...StyleSheet.absoluteFillObject, opacity: .42 }, bookPaperEdges: { position: 'absolute', top: 2, bottom: 3, left: 3, right: 3, borderRadius: 5, backgroundColor: '#DBCCAD', borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#AF9875' }, bookViewport: { position: 'relative', overflow: 'hidden', borderRadius: 3, minHeight: 340 }, openBook: { flexDirection: 'row', overflow: 'hidden', minHeight: 340, height: 340 }, bookPageArt: { position: 'absolute', top: 0, bottom: 0, width: '50%', overflow: 'hidden' }, bookLeft: { flex: 1, padding: 12, justifyContent: 'center' }, bookRight: { flex: 1.02, padding: 15, paddingLeft: 12, justifyContent: 'center', gap: 9 }, bookReading: { fontSize: 11, color: C.muted, letterSpacing: 1 }, bookName: { fontFamily: BRUSH, fontSize: 21, color: C.ink, lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: BRUSH, fontSize: 12, lineHeight: 21, color: C.red }, bookDescription: { fontFamily: SERIF, fontSize: 11, lineHeight: 20, color: '#6C6050' }, bookLocation: { flex: 1, fontSize: 11, lineHeight: 14, color: '#887B68' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 12, fontFamily: BRUSH },
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 110, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF9EFE6' }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 },
   nextPilgrimageAction: { position: 'relative', alignSelf: 'stretch', alignItems: 'center', paddingTop: 56, marginTop: 58 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
   walkMinimal: { flex: 1, alignItems: 'center', paddingTop: 2, paddingBottom: 6 },
-  modal: { flex: 1, backgroundColor: C.paper, width: '100%', maxWidth: 600, alignSelf: 'center' }, modalHeader: { padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: C.line }, modalTitle: { fontFamily: BRUSH, fontSize: 23, color: C.ink }, close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 12, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: BRUSH, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: BRUSH, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 26, color: '#6D6354', textAlign: 'center', marginTop: 8 }, meta: { flexDirection: 'row', gap: 11, alignItems: 'center' }, metaText: { fontSize: 12, color: '#776B59', flex: 1, lineHeight: 20 },
-  detailModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#241D17A8' }, detailPopupLayout: { ...StyleSheet.absoluteFillObject, zIndex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 }, detailPopupCard: { position: 'relative', width: '90%', maxWidth: 500, height: '88%', maxHeight: 820, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#201810', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .3, shadowRadius: 22, elevation: 16 }, detailPopupScroll: { flex: 1 }, detailPopupContent: { paddingHorizontal: 22, paddingTop: 52, paddingBottom: 18 }, detailPopupClose: { position: 'absolute', top: 12, right: 12, zIndex: 10 }, detailStampTapTarget: { flex: 1, minHeight: 90, aspectRatio: 2 / 3, maxWidth: 290, alignSelf: 'center', marginVertical: 12 }, stampPreviewOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: 24 }, stampPreviewBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#211A16D9' }, stampPreviewFrame: { width: '88%', maxWidth: 360, shadowColor: '#160F0B', shadowOffset: { width: 0, height: 12 }, shadowOpacity: .45, shadowRadius: 20, elevation: 18 }, stampPreviewCard: { width: '100%', aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 9, borderWidth: 1, borderColor: '#E1D3BB', backgroundColor: '#F5EFDF' }, stampPreviewClose: { position: 'absolute', top: 12, right: 12, zIndex: 2 },
-  settingsContent: { flex: 1, paddingHorizontal: 24, paddingTop: 8 }, settingsScrollContent: { gap: 14, paddingBottom: 24 }, backupText: { minHeight: 90, maxHeight: 160, borderWidth: 1, borderColor: C.line, borderRadius: 10, padding: 10, fontSize: 12, lineHeight: 15, color: C.ink, backgroundColor: '#FFFFFF' }, settingCard: { padding: 14 }, settingHelp: { fontSize: 12, color: C.muted, lineHeight: 20, marginVertical: 8 }, settingRow: { flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: C.line, paddingVertical: 12 }, settingLabel: { color: C.ink, fontFamily: BRUSH, fontSize: 15 }, infoBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241AB0', justifyContent: 'center', alignItems: 'center', padding: 24 }, infoCard: { width: '100%', maxWidth: 420, padding: 28, gap: 20 }, infoText: { fontSize: 13, lineHeight: 24, color: '#726653' },
-});
+  detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 12, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: BRUSH, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: BRUSH, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 26, color: '#6D6354', textAlign: 'center', marginTop: 8 },   detailModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#241D17A8' }, detailPopupLayout: { ...StyleSheet.absoluteFillObject, zIndex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 }, detailPopupCard: { position: 'relative', width: '90%', maxWidth: 500, height: '88%', maxHeight: 820, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#201810', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .3, shadowRadius: 22, elevation: 16 }, detailPopupScroll: { flex: 1 }, detailPopupContent: { paddingHorizontal: 22, paddingTop: 52, paddingBottom: 18 }, detailPopupClose: { position: 'absolute', top: 12, right: 12, zIndex: 10 }, detailStampTapTarget: { flex: 1, minHeight: 90, aspectRatio: 2 / 3, maxWidth: 290, alignSelf: 'center', marginVertical: 12 }, stampPreviewOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: 24 }, stampPreviewBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#211A16D9' }, stampPreviewFrame: { width: '88%', maxWidth: 360, shadowColor: '#160F0B', shadowOffset: { width: 0, height: 12 }, shadowOpacity: .45, shadowRadius: 20, elevation: 18 }, stampPreviewCard: { width: '100%', aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 9, borderWidth: 1, borderColor: '#E1D3BB', backgroundColor: '#F5EFDF' }, stampPreviewClose: { position: 'absolute', top: 12, right: 12, zIndex: 2 },
+  });

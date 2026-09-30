@@ -103,7 +103,7 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
     });
   }, [complete, frameProgress, width]);
 
-  const finishGesture = useCallback((gesture: { dx: number; dy: number }) => {
+  const finishGesture = useCallback(() => {
     if (width <= 0 || autoRunningRef.current) return;
     if (gestureCommittedRef.current) {
       gestureCommittedRef.current = false;
@@ -132,8 +132,8 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
         startAutoJourney();
       }
     },
-    onPanResponderRelease: (_, gesture) => finishGesture(gesture),
-    onPanResponderTerminate: (_, gesture) => finishGesture(gesture),
+    onPanResponderRelease: () => finishGesture(),
+    onPanResponderTerminate: () => finishGesture(),
   }), [finishGesture, frameProgress, startAutoJourney, width]);
 
   return <SafeAreaView

@@ -132,10 +132,6 @@ export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet, gu
   </View>;
 }
 
-export function CompletionPage({ route, progress, onChooseNext }: { route: Pilgrimage; progress: Progress; onChooseNext?: () => void }) {
-  return <PaperCard><View style={{ alignItems: 'center', gap: 10, paddingVertical: 15 }}><Text style={S.kicker}>巡 礼 結 願 証</Text><Text style={S.headline}>{route.name}</Text><Text style={[S.title, { color: C.red, borderWidth: 2, borderColor: C.red, padding: 13 }]}>結願</Text><Text style={S.body}>{route.gift}</Text><Text style={S.body}>{route.completion}。</Text><Text style={S.label}>「{route.title}」</Text><Text style={S.small}>{progress.completedAt} · {route.ids.length}のご縁を結びました</Text>{onChooseNext && <Button title="次の巡礼を選ぶ" icon="map-outline" onPress={onChooseNext} style={{ marginTop: 10, alignSelf: 'stretch' }} />}</View></PaperCard>;
-}
-
 const S = StyleSheet.create({
   headerBare: { padding: 6, paddingTop: 4 }, footerBare: { paddingHorizontal: 2, paddingBottom: 4 },
   guidedRouteTarget: { alignSelf: 'stretch', marginTop: 15, padding: 5 }, guidedRouteButton: { borderWidth: 3, borderColor: '#E6C171', shadowColor: '#8B6135', shadowOpacity: .48, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 9 },

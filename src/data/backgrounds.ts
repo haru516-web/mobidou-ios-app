@@ -1,12 +1,5 @@
 export type BackgroundSeason = 'spring' | 'summer' | 'autumn' | 'winter';
 
-export const BACKGROUND_SEASONS = [
-  { id: 'spring', label: '春', color: '#D98982' },
-  { id: 'summer', label: '夏', color: '#5E8F73' },
-  { id: 'autumn', label: '秋', color: '#B56A45' },
-  { id: 'winter', label: '冬', color: '#6C8EA4' },
-] as const satisfies ReadonlyArray<{ id: BackgroundSeason; label: string; color: string }>;
-
 export const BACKGROUND_OPTIONS = [
   { id: 'spring-dawn', season: 'spring', label: '花明かり', note: '桜霞の朝', image: require('../../assets/ui-round3/backgrounds/spring-dawn.webp') },
   { id: 'spring-rain', season: 'spring', label: '雨花の道', note: '紫陽花しずく', image: require('../../assets/ui-round3/backgrounds/spring-rain.webp') },
