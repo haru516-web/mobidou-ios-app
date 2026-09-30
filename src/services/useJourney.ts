@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, startRoute, resumeRoute, type Progress } from './progress';
+import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, startRoute, startReplay, resumeRoute, type Progress } from './progress';
 import { getPilgrimage } from '../data/pilgrimages';
 import { connectSteps, readTodaySteps, type StepSource } from './steps';
 import { isPetId, type PetId } from '../petCatalog';
@@ -304,11 +304,12 @@ export function useJourney() {
       if (!getPilgrimage(routeId)) return p;
       const field = p.demo ? 'trial' : 'real';
       const active = rollDay(p[field]);
-      if (active.routeId === routeId) return p;
+      // Choosing a finished route again (even the one on screen) starts a new lap; its clear is kept.
+      if (active.routeId === routeId) { const replay = startReplay(active); return replay === active ? p : { ...p, [field]: replay }; }
       const routes = { ...p.routes, [field + ':' + (active.routeId ?? 'legacy')]: active };
       const saved = routes[field + ':' + routeId];
       const restored = saved ? rollDay(saved) : startRoute(routeId, active.steps, new Date(), active.totalSteps ?? active.steps);
-      return { ...p, routes, [field]: resumeRoute(active, restored) };
+      return { ...p, routes, [field]: startReplay(resumeRoute(active, restored)) };
     }),
     choosePet: (pet: PetId) => change(p => ({ ...p, pet })),
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),

@@ -16,7 +16,13 @@ export const SHRINE_IDS = [
 ] as const;
 export const DAILY_TARGETS = [5000, 7000, 9000] as const;
 export type Reward = { id: string; date: string; steps: number; threshold: number };
-export type Progress = { day: string; steps: number; totalSteps: number; dayStart: number; rewards: Reward[]; pending: string[]; routeId?: string; baseline?: number; highWater?: number; routeSteps?: number; completedAt?: string };
+export type Progress = { day: string; steps: number; totalSteps: number; dayStart: number; rewards: Reward[]; pending: string[]; routeId?: string; baseline?: number; highWater?: number; routeSteps?: number; completedAt?: string;
+  /**
+   * Set while a finished route is being walked again. The route's clear
+   * (rewards, completedAt) is never reset; the lap counts steps from this
+   * point, so `creditedSteps - lapBase` is how far the current lap has gone.
+   */
+  lapBase?: number };
 export function expandPointTargets(pointCount: number, pattern: readonly number[]): number[] {
   const cycleTotal = pattern.at(-1) ?? 0;
   return Array.from({ length: pointCount }, (_, index) => Math.floor(index / pattern.length) * cycleTotal + (pattern[index % pattern.length] ?? cycleTotal));
@@ -37,6 +43,32 @@ function estimateHistoricalSteps(day: string, steps: number, rewards: readonly R
   }
   if (steps > 0) byDay.set(day, Math.max(byDay.get(day) ?? 0, steps));
   return [...byDay.values()].reduce((total, value) => total + value, 0);
+}
+
+/** Steps walked in the current lap of a route that is being walked again. */
+export const lapCredited = (p: Progress) => p.lapBase === undefined ? 0 : Math.max(0, creditedSteps(p) - p.lapBase);
+
+/**
+ * Begin walking a finished route again. The clear is kept and the lap starts
+ * from zero. A lap that is still in progress is left alone.
+ */
+export function startReplay(p: Progress): Progress {
+  if (!p.routeId || !p.completedAt) return p;
+  const lastTarget = routeTargets(p).at(-1) ?? 0;
+  if (p.lapBase !== undefined && lapCredited(p) < lastTarget) return p;
+  return { ...p, lapBase: creditedSteps(p) };
+}
+
+/**
+ * The progress the screens should draw: for a lap of a finished route, only
+ * the stops reached in this lap count. Otherwise the record itself.
+ */
+export function lapView(p: Progress): Progress {
+  if (p.lapBase === undefined || !p.routeId) return p;
+  const lap = lapCredited(p);
+  const targets = routeTargets(p);
+  const reached = targets.filter(target => lap >= target).length;
+  return { ...p, rewards: p.rewards.slice(0, reached), routeSteps: lap, completedAt: reached >= targets.length ? p.completedAt : undefined };
 }
 
 export function resumeRoute(active: Progress, saved: Progress): Progress {
@@ -80,6 +112,16 @@ export function updateSteps(progress: Progress, steps: number, date = new Date()
       pending.push(id);
     }
   });
+  if (next.routeId && next.lapBase !== undefined) {
+    // Walking a finished route again: every stop is already owned, so a stop
+    // reached in this lap only queues its arrival ceremony.
+    const before = creditedSteps(next) - next.lapBase;
+    const after = credited - next.lapBase;
+    routeTargets(next).forEach((threshold, index) => {
+      const id = routeIds(next)[index];
+      if (id && before < threshold && after >= threshold && !pending.includes(id)) pending.push(id);
+    });
+  }
   return { ...next, steps: value, totalSteps: previousTotal + addedSteps, highWater, rewards, pending, ...(next.routeId ? { routeSteps: credited, ...(rewards.length === routeIds(next).length ? { completedAt: next.completedAt ?? next.day } : {}) } : {}) };
 }
 export function normalizeProgress(value: unknown, now = new Date()): Progress {
@@ -106,11 +148,12 @@ export function normalizeProgress(value: unknown, now = new Date()): Progress {
   if (!Number.isInteger(p.dayStart) || p.dayStart! < 0 || p.dayStart! > rewards.length || rewards.length - p.dayStart! > maximumSameDayRewards || !Number.isFinite(p.steps) || p.steps! < 0 || (p.totalSteps !== undefined && (!Number.isFinite(p.totalSteps) || p.totalSteps < 0))) throw new Error('Invalid saved day');
   if (p.highWater !== undefined && (!Number.isFinite(p.highWater) || p.highWater < 0)) throw new Error('Invalid saved day');
   if (p.routeId && (![p.baseline ?? 0, p.routeSteps ?? 0].every(n => Number.isFinite(n) && n! >= 0))) throw new Error('Invalid route steps');
+  const lapBase = p.routeId && rewards.length === ids.length && Number.isFinite(p.lapBase) && p.lapBase! >= 0 ? p.lapBase : undefined;
   const pending = p.pending.map(id => {
     const index = legacyIds.indexOf(id);
     return index >= 0 ? ids[index] : id;
   });
   const estimatedTotalSteps = estimateHistoricalSteps(p.day, p.steps!, rewards, !p.routeId);
   const migratedRouteSteps = p.routeId ? Math.max(p.routeSteps ?? 0, rewards.length === 0 ? 0 : (routeTargets({ ...freshProgress(now), routeId: p.routeId })[rewards.length - 1] ?? 0)) : undefined;
-  return rollDay({ day: p.day, steps: p.steps!, totalSteps: Math.max(p.totalSteps ?? 0, estimatedTotalSteps), dayStart: p.dayStart!, highWater: p.highWater ?? p.steps!, rewards, pending: [...new Set(pending.filter(id => rewards.some(r => r.id === id)))], ...(p.routeId ? { routeId: p.routeId, baseline: p.baseline ?? 0, routeSteps: migratedRouteSteps, ...(rewards.length === ids.length ? { completedAt: p.completedAt ?? rewards[rewards.length - 1].date } : {}) } : {}) }, now);
+  return rollDay({ day: p.day, steps: p.steps!, totalSteps: Math.max(p.totalSteps ?? 0, estimatedTotalSteps), dayStart: p.dayStart!, highWater: p.highWater ?? p.steps!, rewards, pending: [...new Set(pending.filter(id => rewards.some(r => r.id === id)))], ...(p.routeId ? { routeId: p.routeId, baseline: p.baseline ?? 0, routeSteps: migratedRouteSteps, ...(rewards.length === ids.length ? { completedAt: p.completedAt ?? rewards[rewards.length - 1].date } : {}), ...(lapBase !== undefined ? { lapBase } : {}) } : {}) }, now);
 }

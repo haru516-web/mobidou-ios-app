@@ -70,7 +70,8 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const revealHapticSent = useRef(false);
   const phase = useMemo(() => locate(frame), [frame]);
   const prayer = PRAYER_ATLASES[pet.id];
-  const complete = !!route && stopIndex === route.ids.length - 1;
+  // The clear reward belongs to the first finish only; a later lap is just a visit.
+  const complete = !!route && stopIndex === route.ids.length - 1 && !goshuinOwned;
   // Keep the authored ceremony playback unchanged. Reduce Motion is scoped
   // to the post-prayer reveal layer below so it never changes a prayer frame.
   const revealReducedMotion = useReducedMotion();

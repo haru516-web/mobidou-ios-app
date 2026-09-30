@@ -10,7 +10,7 @@ import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku/400Regular';
 import { BRUSH, Button, C, Clouds, Companion, Icon, SERIF, Stamp, Torii } from './src/components';
 import { getPetCharacter, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
-import { DAILY_TARGETS, creditedSteps, expandPointTargets } from './src/services/progress';
+import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
@@ -96,6 +96,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const journey = useJourney();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { data, progress } = journey;
+  // While a finished route is walked again, the screens draw the current lap; the clear itself is untouched.
+  const view = useMemo(() => lapView(progress), [progress]);
   const accountPreview = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('account-preview') === '1';
   const onboardingPreview = accountPreview || (__DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('onboarding-preview') === '1');
   const [tutorialPreviewPet, setTutorialPreviewPet] = useState<PetId | null>(null);
@@ -186,7 +188,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const firstRunOmikujiComplete = isFirstRunOmikuji && omikujiDrawn && !omikujiAnimating;
   const currentBackground = getBackgroundOption(data.backgroundId);
   const activeRoute = getPilgrimage(progress.routeId);
-  const routeSteps = creditedSteps(progress);
+  const routeSteps = creditedSteps(view);
   const todaySteps = Math.max(0, progress.steps);
   const totalSteps = Math.max(todaySteps, progress.totalSteps ?? todaySteps);
   const activeShrines = pilgrimageShrines(activeRoute);
@@ -206,10 +208,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const routeBookOwned = !!activeRoute && data.bookDesigns.owned[activeRoute.id] === true;
   const routeBookSelected = !!activeRoute && data.bookDesigns.selected[activeRoute.id] === 'route' && routeBookOwned;
   const pointTargets = expandPointTargets(activeShrines.length, activeRoute?.targets ?? DAILY_TARGETS);
-  const nextIndex = activeShrines.findIndex((shrine, index) => !progress.rewards.some(r => r.id === (activeRoute?.ids[index] ?? shrine.id)));
+  const nextIndex = activeShrines.findIndex((shrine, index) => !view.rewards.some(r => r.id === (activeRoute?.ids[index] ?? shrine.id)));
   const next = nextIndex >= 0 ? activeShrines[nextIndex] : undefined;
   const nextTarget = nextIndex >= 0 ? (pointTargets[nextIndex] ?? 5000) : (pointTargets.at(-1) ?? 5000);
-  const collected = activeShrines.filter((_, index) => progress.rewards.some(r => r.id === (activeRoute?.ids[index] ?? activeShrines[index].id)));
+  const collected = activeShrines.filter((_, index) => view.rewards.some(r => r.id === (activeRoute?.ids[index] ?? activeShrines[index].id)));
   const latestIndex = Math.max(0, collected.length - 1);
   const latest = collected[latestIndex] ?? activeShrines[0] ?? SHRINES[0];
   const selectedIndex = activeShrines.length ? featured % activeShrines.length : 0;
@@ -217,6 +219,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const bookPageTurnRef = useRef<BookPageTurnHandle>(null);
   const pendingIndex = progress.pending[0] ? (activeRoute?.ids.indexOf(progress.pending[0]) ?? -1) : -1;
   const pending = pendingIndex >= 0 ? activeShrines[pendingIndex] : SHRINES.find(s => s.id === progress.pending[0]);
+  // Already holding this goshuin (another lap, or the same shrine in another route) makes the visit short.
+  const pendingGoshuinOwned = !!pending && (progress.lapBase !== undefined || Object.entries(routeRecords).some(([routeId, record]) => routeId !== activeRoute?.id && record.rewards.some(reward => reward.id === pending.id)));
   const awardVisible = !!pending && data.onboarded && openingHomeReady && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !homePopup && !omikujiModal;
   // Like a UITabBarController, each tab keeps the sub-screen it was left on.
   const move = (value: Tab) => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); scrollY.setValue(0); setTab(value); };
@@ -379,7 +383,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   };
   const closeRoutePicker = () => {
     if (!activeRoute) return;
-    if (routePickerAfterCompletion && progress.completedAt) {
+    if (routePickerAfterCompletion && view.completedAt) {
       const completedIds = Object.entries(routeRecords).filter(([, record]) => !!record.completedAt).map(([routeId]) => routeId);
       const nextRouteId = getNextPilgrimageId(activeRoute.id, completedIds);
       if (nextRouteId) { selectPilgrimageRoute(nextRouteId); return; }
@@ -439,7 +443,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     ...(!omikujiDrawn ? [{ id: `todo:omikuji:${omikujiDay}`, kind: 'todo' as const, icon: 'document-text-outline' as const, title: '今日のおみくじを引こう', body: '一日一度のご縁です。', actionLabel: 'おみくじを引く', onAction: () => { move('home'); setOmikujiModal(true); } }] : []),
     ...(data.source === 'none' && !data.demo ? [{ id: 'todo:steps', kind: 'todo' as const, icon: 'footsteps-outline' as const, title: '歩数を連携しよう', body: '歩いた分だけ、巡礼が進みます。', actionLabel: '歩数を連携する', onAction: () => void journey.connect() }] : []),
     ...(activeRoute && next ? [{ id: 'status:next', kind: 'status' as const, icon: 'navigate-outline' as const, title: `次は${next.name}まで あと${fmt(stepsLeft)}歩`, body: activeRoute.name, actionLabel: '巡礼絵図を見る', onAction: () => openSection('walk', 'walkMap') }] : []),
-    ...collected.map((shrine, index) => ({ shrine, index, reward: progress.rewards[index] })).reverse().map(({ shrine, index, reward }) => ({ id: `event:reward:${recordPrefix}:${activeRoute?.id ?? ''}:${reward?.id ?? shrine.id}`, kind: 'event' as const, icon: 'flower-outline' as const, title: `${shrine.name}の御朱印を授かりました`, date: reward ? displayDate(reward.date) : undefined, actionLabel: '御朱印を見る', onAction: () => { setFeatured(index); setDetail(shrine); } })),
+    ...collected.map((shrine, index) => ({ shrine, index, reward: view.rewards[index] })).reverse().map(({ shrine, index, reward }) => ({ id: `event:reward:${recordPrefix}:${activeRoute?.id ?? ''}:${reward?.id ?? shrine.id}`, kind: 'event' as const, icon: 'flower-outline' as const, title: `${shrine.name}の御朱印を授かりました`, date: reward ? displayDate(reward.date) : undefined, actionLabel: '御朱印を見る', onAction: () => { setFeatured(index); setDetail(shrine); } })),
   ];
   const unreadNotices = notices.filter(notice => countsAsUnread(notice, readNoticeIds)).length;
   const giftsWaiting = gifts.filter(gift => !receivedGiftIds.has(gift.id)).length;
@@ -481,11 +485,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     if (!omikujiDrawn) setOmikujiModal(true);
   }, [tab, openingHomeReady, openingVisible, journey.ready, routePicker, progress.routeId, omikujiDrawn, firstRunStage]);
   useEffect(() => {
-    if (openingHomeReady && !openingVisible && progress.routeId && progress.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId) {
+    if (openingHomeReady && !openingVisible && progress.routeId && view.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId) {
       setPromptedCompletedRouteId(progress.routeId);
       openNextRoutePicker();
     }
-  }, [openingHomeReady, openingVisible, progress.routeId, progress.completedAt, progress.pending.length, promptedCompletedRouteId]);
+  }, [openingHomeReady, openingVisible, progress.routeId, view.completedAt, progress.pending.length, promptedCompletedRouteId]);
   useEffect(() => {
     if (settings || detail || routePicker || openingVisible || homePopup || omikujiModal) { setOverlayBusy(true); return; }
     const timer = setTimeout(() => setOverlayBusy(false), 380);
@@ -581,14 +585,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         </View>
         {mapOpen && activeRoute
           ? <View style={S.walkMinimal}>
-            <RouteMap route={activeRoute} count={progress.rewards.length} progress={progress} pet={pet} showSpeech viewportHeight={Math.max(300, scrollViewportHeight - 72)} onStop={(shrine, index) => { setFeatured(index); setDetail(shrine); }} />
+            <RouteMap route={activeRoute} count={view.rewards.length} progress={view} pet={pet} showSpeech viewportHeight={Math.max(300, scrollViewportHeight - 72)} onStop={(shrine, index) => { setFeatured(index); setDetail(shrine); }} />
           </View>
           : <View style={S.walkMinimal}>
             <StepProgressRing steps={routeSteps} goal={nextTarget} size={walkRingSize} />
-            <PillText textStyle={S.walkCaption}>{progress.completedAt ? '結願しました。次の巡礼へ出かけましょう。' : next ? `次は ${next.name} · あと ${fmt(stepsLeft)}歩` : 'この巡礼のすべてのご縁を結びました。'}</PillText>
+            <PillText textStyle={S.walkCaption}>{view.completedAt ? '結願しました。次の巡礼へ出かけましょう。' : next ? `次は ${next.name} · あと ${fmt(stepsLeft)}歩` : 'この巡礼のすべてのご縁を結びました。'}</PillText>
             {/* The companion peeks over the main action, as on the old steps card. */}
             {activeRoute && <View style={S.nextPilgrimageAction}>
-              {progress.completedAt
+              {view.completedAt
                 ? <Button title="次の巡礼を選ぶ" icon="map-outline" onPress={openNextRoutePicker} style={S.walkActionButton} />
                 : data.demo
                   ? <Button title="体験で1,000歩あるく" icon="footsteps-outline" onPress={journey.demoWalk} style={S.walkActionButton} />
@@ -734,7 +738,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
 
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
-    <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { const index = Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
+    <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
   </SafeAreaView></View>;
 }
 

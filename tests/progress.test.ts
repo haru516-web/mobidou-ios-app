@@ -138,3 +138,67 @@ test('a downward correction on a route does not double-count credited route step
   route = updateSteps(route, 5000, day);
   assert.equal(route.routeSteps, 5000);
 });
+
+// Walking a finished route again.
+import { creditedSteps, lapCredited, lapView, routeTargets, startReplay } from '../src/services/progress.ts';
+const finishedRoute = (routeId = 'compassion') => {
+  const start = startRoute(routeId, 0, day);
+  const targets = routeTargets(start);
+  // The first-lap ceremonies have been watched by the time a lap starts.
+  return { done: { ...updateSteps(start, targets.at(-1)!, day), pending: [] as string[] }, targets };
+};
+test('a route that is not finished cannot start a lap', () => {
+  const partial = updateSteps(startRoute('compassion', 0, day), 5000, day);
+  assert.equal(startReplay(partial), partial);
+});
+test('starting a lap keeps the clear and starts counting from zero', () => {
+  const { done } = finishedRoute();
+  assert.ok(done.completedAt);
+  const lap = startReplay(done);
+  assert.equal(lap.completedAt, done.completedAt);
+  assert.deepEqual(lap.rewards, done.rewards);
+  assert.equal(lapCredited(lap), 0);
+  assert.equal(lapView(lap).rewards.length, 0);
+  assert.equal(lapView(lap).completedAt, undefined);
+});
+test('a lap queues a ceremony for each stop reached, never adds rewards, and keeps the clear', () => {
+  const { done, targets } = finishedRoute();
+  const lap = startReplay(done);
+  const total = creditedSteps(lap);
+  const first = updateSteps(lap, lap.steps + targets[0], day);
+  assert.deepEqual(first.pending.slice(-1), [done.rewards[0].id]);
+  assert.equal(first.rewards.length, done.rewards.length);
+  assert.equal(first.completedAt, done.completedAt);
+  assert.equal(lapCredited(first), targets[0]);
+  assert.equal(lapView(first).rewards.length, 1);
+  assert.equal(creditedSteps(first), total + targets[0]);
+  // The same reading does not queue the stop twice.
+  assert.equal(updateSteps(first, first.steps, day).pending.length, first.pending.length);
+});
+test('a large reading in one lap queues every stop it crossed, in order', () => {
+  const { done, targets } = finishedRoute();
+  const lap = startReplay(done);
+  const walked = updateSteps(lap, lap.steps + targets.at(-1)!, day);
+  assert.deepEqual(walked.pending, done.rewards.map(reward => reward.id));
+  assert.equal(lapView(walked).completedAt, done.completedAt);
+  assert.equal(lapView(walked).rewards.length, done.rewards.length);
+});
+test('a finished lap can start another, and an unfinished one is left alone', () => {
+  const { done, targets } = finishedRoute();
+  const lap = startReplay(done);
+  assert.equal(startReplay(lap), lap);
+  const walked = updateSteps(lap, lap.steps + targets.at(-1)!, day);
+  const again = startReplay(walked);
+  assert.equal(lapCredited(again), 0);
+  assert.equal(again.completedAt, done.completedAt);
+});
+test('a lap survives save and restore, and a bad lap marker is dropped', () => {
+  const { done, targets } = finishedRoute();
+  const walked = updateSteps(startReplay(done), done.steps + targets[1], day);
+  const restored = normalizeProgress(JSON.parse(JSON.stringify(walked)), day);
+  assert.equal(restored.lapBase, walked.lapBase);
+  assert.equal(lapCredited(restored), lapCredited(walked));
+  assert.equal(normalizeProgress({ ...JSON.parse(JSON.stringify(walked)), lapBase: -5 }, day).lapBase, undefined);
+  const partial = updateSteps(startRoute('compassion', 0, day), 5000, day);
+  assert.equal(normalizeProgress({ ...JSON.parse(JSON.stringify(partial)), lapBase: 100 }, day).lapBase, undefined);
+});
