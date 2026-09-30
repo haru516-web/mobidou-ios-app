@@ -1,34 +1,32 @@
-export interface GachaItem {
-  petId: string;
-  weight: number;
-  rarity: number;
-}
+/**
+ * Server-owned gacha roster. Keep these IDs in sync with src/petCatalog.ts.
+ * Downloadable Mobbies can be added here without importing application code.
+ */
+export const GACHA_PET_IDS = [
+  "mobirin",
+  "mobichi",
+  "yami",
+  "mobiyan",
+  "mobiyura",
+  "reomoby",
+  "potemoby",
+  "mobibou",
+  "babumoby",
+  "bearmobby",
+  "boymobby",
+  "dogmobby",
+  "lanimobby",
+  "ojimobby",
+  "reamobby",
+  "shikamobby",
+  "uyumobby",
+  "wolfmobby"
+] as const;
 
-export interface GachaPool {
-  id: string;
-  items: GachaItem[];
-  pityLimit: number;
-  pityRarity: number;
-}
+export const PAID_PITY_INTERVAL = 25;
 
-// Rates and pity are placeholders. Product design has not been decided.
-export const GACHA_POOLS: Record<string, GachaPool> = {
-  standard: {
-    id: "standard",
-    pityLimit: 50,
-    pityRarity: 3,
-    items: [
-      { petId: "mobby_sample_01", weight: 0.6, rarity: 1 },
-      { petId: "mobby_sample_02", weight: 0.3, rarity: 2 },
-      { petId: "mobby_sample_03", weight: 0.1, rarity: 3 }
-    ]
-  }
-};
-
-export function validatePool(pool: GachaPool): void {
-  if (!pool.id || pool.items.length === 0 || pool.pityLimit < 1) throw new Error("Invalid gacha pool");
-  const total = pool.items.reduce((sum, item) => sum + item.weight, 0);
-  if (pool.items.some((item) => item.weight <= 0 || !item.petId) || Math.abs(total - 1) > 1e-8) {
-    throw new Error("Gacha weights must be positive and sum to 1");
+export function validateGachaPetIds(petIds: readonly string[] = GACHA_PET_IDS): void {
+  if (petIds.length === 0 || petIds.some((petId) => !petId) || new Set(petIds).size !== petIds.length) {
+    throw new Error("Gacha pet IDs must be non-empty and unique");
   }
 }

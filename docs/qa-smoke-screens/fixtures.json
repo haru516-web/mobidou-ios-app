@@ -1,0 +1,464 @@
+{
+  "base": {
+    "version": 1,
+    "onboarded": true,
+    "demo": false,
+    "real": {
+      "day": "2026-09-30",
+      "steps": 3280,
+      "totalSteps": 3280,
+      "dayStart": 0,
+      "routeId": "sanctuary",
+      "baseline": 0,
+      "highWater": 3280,
+      "routeSteps": 3280,
+      "rewards": [
+        {
+          "id": "rain",
+          "date": "2026-09-30",
+          "steps": 1080,
+          "threshold": 1000
+        },
+        {
+          "id": "forest",
+          "date": "2026-09-30",
+          "steps": 3280,
+          "threshold": 3000
+        }
+      ],
+      "pending": []
+    },
+    "trial": {
+      "day": "2026-09-30",
+      "steps": 0,
+      "totalSteps": 0,
+      "dayStart": 0,
+      "rewards": [],
+      "pending": []
+    },
+    "pet": "mobibou",
+    "affection": {
+      "mobibou": 24
+    },
+    "haptics": false,
+    "source": "none",
+    "omikujiDay": "2026-09-30",
+    "omikujiPetId": "mobibou",
+    "mobbies": {
+      "owned": {
+        "mobibou": 2,
+        "mobirin": 1,
+        "mobichi": 1
+      },
+      "paidPulls": 24,
+      "freePulls": 1,
+      "freePullRoutes": [
+        "sanctuary"
+      ],
+      "unrevealed": []
+    }
+  },
+  "noRoute": {
+    "version": 1,
+    "onboarded": true,
+    "demo": false,
+    "real": {
+      "day": "2026-09-30",
+      "steps": 0,
+      "totalSteps": 0,
+      "dayStart": 0,
+      "rewards": [],
+      "pending": []
+    },
+    "trial": {
+      "day": "2026-09-30",
+      "steps": 0,
+      "totalSteps": 0,
+      "dayStart": 0,
+      "rewards": [],
+      "pending": []
+    },
+    "pet": "mobibou",
+    "affection": {
+      "mobibou": 24
+    },
+    "haptics": false,
+    "source": "none",
+    "omikujiDay": "2026-09-30",
+    "omikujiPetId": "mobibou",
+    "mobbies": {
+      "owned": {
+        "mobibou": 2,
+        "mobirin": 1,
+        "mobichi": 1
+      },
+      "paidPulls": 24,
+      "freePulls": 1,
+      "freePullRoutes": [
+        "sanctuary"
+      ],
+      "unrevealed": []
+    }
+  },
+  "omikuji": {
+    "version": 1,
+    "onboarded": true,
+    "demo": false,
+    "real": {
+      "day": "2026-09-30",
+      "steps": 3280,
+      "totalSteps": 3280,
+      "dayStart": 0,
+      "routeId": "sanctuary",
+      "baseline": 0,
+      "highWater": 3280,
+      "routeSteps": 3280,
+      "rewards": [
+        {
+          "id": "rain",
+          "date": "2026-09-30",
+          "steps": 1080,
+          "threshold": 1000
+        },
+        {
+          "id": "forest",
+          "date": "2026-09-30",
+          "steps": 3280,
+          "threshold": 3000
+        }
+      ],
+      "pending": []
+    },
+    "trial": {
+      "day": "2026-09-30",
+      "steps": 0,
+      "totalSteps": 0,
+      "dayStart": 0,
+      "rewards": [],
+      "pending": []
+    },
+    "pet": "mobibou",
+    "affection": {
+      "mobibou": 24
+    },
+    "haptics": false,
+    "source": "none",
+    "omikujiDay": null,
+    "omikujiPetId": null,
+    "mobbies": {
+      "owned": {
+        "mobibou": 2,
+        "mobirin": 1,
+        "mobichi": 1
+      },
+      "paidPulls": 24,
+      "freePulls": 1,
+      "freePullRoutes": [
+        "sanctuary"
+      ],
+      "unrevealed": []
+    }
+  },
+  "trial": {
+    "version": 1,
+    "onboarded": true,
+    "demo": true,
+    "real": {
+      "day": "2026-09-30",
+      "steps": 3280,
+      "totalSteps": 3280,
+      "dayStart": 0,
+      "routeId": "sanctuary",
+      "baseline": 0,
+      "highWater": 3280,
+      "routeSteps": 3280,
+      "rewards": [
+        {
+          "id": "rain",
+          "date": "2026-09-30",
+          "steps": 1080,
+          "threshold": 1000
+        },
+        {
+          "id": "forest",
+          "date": "2026-09-30",
+          "steps": 3280,
+          "threshold": 3000
+        }
+      ],
+      "pending": []
+    },
+    "trial": {
+      "day": "2026-09-30",
+      "steps": 3280,
+      "totalSteps": 3280,
+      "dayStart": 0,
+      "routeId": "sanctuary",
+      "baseline": 0,
+      "highWater": 3280,
+      "routeSteps": 3280,
+      "rewards": [
+        {
+          "id": "rain",
+          "date": "2026-09-30",
+          "steps": 1080,
+          "threshold": 1000
+        },
+        {
+          "id": "forest",
+          "date": "2026-09-30",
+          "steps": 3280,
+          "threshold": 3000
+        }
+      ],
+      "pending": []
+    },
+    "pet": "mobibou",
+    "affection": {
+      "mobibou": 24
+    },
+    "haptics": false,
+    "source": "none",
+    "omikujiDay": "2026-09-30",
+    "omikujiPetId": "mobibou",
+    "mobbies": {
+      "owned": {
+        "mobibou": 2,
+        "mobirin": 1,
+        "mobichi": 1
+      },
+      "paidPulls": 24,
+      "freePulls": 1,
+      "freePullRoutes": [
+        "sanctuary"
+      ],
+      "unrevealed": []
+    }
+  },
+  "gachaResult": {
+    "version": 1,
+    "onboarded": true,
+    "demo": false,
+    "real": {
+      "day": "2026-09-30",
+      "steps": 3280,
+      "totalSteps": 3280,
+      "dayStart": 0,
+      "routeId": "sanctuary",
+      "baseline": 0,
+      "highWater": 3280,
+      "routeSteps": 3280,
+      "rewards": [
+        {
+          "id": "rain",
+          "date": "2026-09-30",
+          "steps": 1080,
+          "threshold": 1000
+        },
+        {
+          "id": "forest",
+          "date": "2026-09-30",
+          "steps": 3280,
+          "threshold": 3000
+        }
+      ],
+      "pending": []
+    },
+    "trial": {
+      "day": "2026-09-30",
+      "steps": 0,
+      "totalSteps": 0,
+      "dayStart": 0,
+      "rewards": [],
+      "pending": []
+    },
+    "pet": "mobibou",
+    "affection": {
+      "mobibou": 24
+    },
+    "haptics": false,
+    "source": "none",
+    "omikujiDay": "2026-09-30",
+    "omikujiPetId": "mobibou",
+    "mobbies": {
+      "owned": {
+        "mobibou": 2,
+        "mobirin": 1
+      },
+      "paidPulls": 24,
+      "freePulls": 0,
+      "freePullRoutes": [
+        "sanctuary"
+      ],
+      "unrevealed": [
+        {
+          "petId": "mobichi",
+          "isNew": true,
+          "guaranteed": false,
+          "kind": "free"
+        }
+      ]
+    }
+  },
+  "completion": {
+    "version": 1,
+    "onboarded": true,
+    "demo": false,
+    "real": {
+      "day": "2026-09-30",
+      "steps": 8000,
+      "totalSteps": 8000,
+      "dayStart": 0,
+      "routeId": "sanctuary",
+      "baseline": 0,
+      "highWater": 8000,
+      "routeSteps": 8000,
+      "rewards": [
+        {
+          "id": "rain",
+          "date": "2026-09-30",
+          "steps": 1000,
+          "threshold": 1000
+        },
+        {
+          "id": "forest",
+          "date": "2026-09-30",
+          "steps": 3000,
+          "threshold": 3000
+        },
+        {
+          "id": "takekaze",
+          "date": "2026-09-30",
+          "steps": 5000,
+          "threshold": 5000
+        },
+        {
+          "id": "morika",
+          "date": "2026-09-30",
+          "steps": 6000,
+          "threshold": 6000
+        },
+        {
+          "id": "morikage",
+          "date": "2026-09-30",
+          "steps": 8000,
+          "threshold": 8000
+        }
+      ],
+      "pending": [
+        "morikage"
+      ],
+      "completedAt": "2026-09-30"
+    },
+    "trial": {
+      "day": "2026-09-30",
+      "steps": 0,
+      "totalSteps": 0,
+      "dayStart": 0,
+      "rewards": [],
+      "pending": []
+    },
+    "pet": "mobibou",
+    "affection": {
+      "mobibou": 24
+    },
+    "haptics": false,
+    "source": "none",
+    "omikujiDay": "2026-09-30",
+    "omikujiPetId": "mobibou",
+    "mobbies": {
+      "owned": {
+        "mobibou": 2,
+        "mobirin": 1,
+        "mobichi": 1
+      },
+      "paidPulls": 24,
+      "freePulls": 1,
+      "freePullRoutes": [
+        "sanctuary"
+      ],
+      "unrevealed": []
+    }
+  },
+  "replay": {
+    "version": 1,
+    "onboarded": true,
+    "demo": false,
+    "real": {
+      "day": "2026-09-30",
+      "steps": 9000,
+      "totalSteps": 9000,
+      "dayStart": 0,
+      "routeId": "sanctuary",
+      "baseline": 0,
+      "highWater": 9000,
+      "routeSteps": 9000,
+      "rewards": [
+        {
+          "id": "rain",
+          "date": "2026-09-30",
+          "steps": 1000,
+          "threshold": 1000
+        },
+        {
+          "id": "forest",
+          "date": "2026-09-30",
+          "steps": 3000,
+          "threshold": 3000
+        },
+        {
+          "id": "takekaze",
+          "date": "2026-09-30",
+          "steps": 5000,
+          "threshold": 5000
+        },
+        {
+          "id": "morika",
+          "date": "2026-09-30",
+          "steps": 6000,
+          "threshold": 6000
+        },
+        {
+          "id": "morikage",
+          "date": "2026-09-30",
+          "steps": 8000,
+          "threshold": 8000
+        }
+      ],
+      "pending": [
+        "rain"
+      ],
+      "completedAt": "2026-09-30",
+      "lapBase": 8000
+    },
+    "trial": {
+      "day": "2026-09-30",
+      "steps": 0,
+      "totalSteps": 0,
+      "dayStart": 0,
+      "rewards": [],
+      "pending": []
+    },
+    "pet": "mobibou",
+    "affection": {
+      "mobibou": 24
+    },
+    "haptics": false,
+    "source": "none",
+    "omikujiDay": "2026-09-30",
+    "omikujiPetId": "mobibou",
+    "mobbies": {
+      "owned": {
+        "mobibou": 2,
+        "mobirin": 1,
+        "mobichi": 1
+      },
+      "paidPulls": 24,
+      "freePulls": 1,
+      "freePullRoutes": [
+        "sanctuary"
+      ],
+      "unrevealed": []
+    }
+  }
+}

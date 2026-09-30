@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
 import { handleWithStore } from "../src/worker.ts";
 import { hashSecret, verifySignedTransaction } from "../src/crypto.ts";
+import { GACHA_PET_IDS, PAID_PITY_INTERVAL } from "../src/config/gacha.ts";
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
@@ -18,7 +19,10 @@ class MemoryStore {
   events = new Map();
   steps = new Map();
   pulls = [];
-  pity = new Map();
+  owned = new Map();
+  freePullClaims = new Set();
+  paidPullCounts = new Map();
+  failNextCommit = false;
 
   async registerUser(user, secretHash) {
     this.users.set(user.id, user);
@@ -64,14 +68,31 @@ class MemoryStore {
     return true;
   }
   async revokePurchase(transactionId) { this.purchases.delete(transactionId); }
-  async wallet(userId, poolId) { return { ...this.walletRows.get(userId), pity: this.pity.get(`${userId}:${poolId}`) ?? 0 }; }
-  async commitDraws(userId, poolId, draws, freeSpent, paidSpent, pity) {
+  async wallet(userId) { return { ...this.walletRows.get(userId), paidPulls: this.paidPullCounts.get(userId) ?? 0 }; }
+  async ownedPets(userId) { return { ...(this.owned.get(userId) ?? {}) }; }
+  async chooseStarter(userId, petId) {
+    const owned = this.owned.get(userId) ?? {};
+    if (Object.keys(owned).length > 0) return false;
+    this.owned.set(userId, { [petId]: 1 });
+    return true;
+  }
+  async claimFreePull(userId, routeId) {
+    const key = `${userId}:${routeId}`;
+    if (this.freePullClaims.has(key)) return false;
+    this.freePullClaims.add(key);
+    this.walletRows.get(userId).free += 1;
+    return true;
+  }
+  async commitDraws(userId, draws, kind, paidPulls) {
+    if (this.failNextCommit) { this.failNextCommit = false; throw new Error("simulated transaction failure"); }
     const wallet = this.walletRows.get(userId);
-    if (wallet.free < freeSpent || wallet.paid < paidSpent) throw new Error("insufficient balance");
-    wallet.free -= freeSpent;
-    wallet.paid -= paidSpent;
-    this.pulls.push(...draws.map((draw) => ({ userId, poolId, ...draw })));
-    this.pity.set(`${userId}:${poolId}`, pity);
+    if (wallet[kind] < draws.length) throw new Error("insufficient balance");
+    const owned = { ...(this.owned.get(userId) ?? {}) };
+    for (const draw of draws) owned[draw.petId] = (owned[draw.petId] ?? 0) + 1;
+    wallet[kind] -= draws.length;
+    this.owned.set(userId, owned);
+    this.pulls.push(...draws.map((draw) => ({ userId, ...draw })));
+    if (kind === "paid") this.paidPullCounts.set(userId, paidPulls);
   }
   async friends(userId) {
     return [...this.friendRows].filter((row) => row.startsWith(`${userId}:`)).map((row) => this.users.get(row.split(":")[1]));
@@ -120,13 +141,13 @@ async function register(context, name = "Tester") {
   context.credentials.set(data.userId, `${data.userId}.${data.secret}`);
   return data;
 }
-function call(context, method, path, body, user = null, now) {
+function call(context, method, path, body, user = null, now, random) {
   const credential = user ? context.credentials.get(user) : null;
   return handleWithStore(new Request(`https://server.test${path}`, {
     method,
     ...(body === undefined ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
     ...(credential ? { headers: { "content-type": "application/json", authorization: `Bearer ${credential}` }, body: body === undefined ? undefined : JSON.stringify(body) } : {})
-  }), env, context.store, now);
+  }), env, context.store, now, random);
 }
 
 function der(tag, content) {
@@ -225,7 +246,7 @@ test("claiming the same gift twice grants tickets and free pulls once", async ()
   assert.deepEqual(await first.json(), { status: "claimed" });
   assert.deepEqual(await second.json(), { status: "already_claimed" });
   assert.equal(await context.store.ticketBalance(account.userId), 4);
-  assert.equal((await context.store.wallet(account.userId, "standard")).free, 1);
+  assert.equal((await context.store.wallet(account.userId)).free, 1);
 });
 
 test("monthly ticket grants are period-idempotent and insufficient consumes are rejected", async () => {
@@ -245,19 +266,20 @@ test("monthly ticket grants are period-idempotent and insufficient consumes are 
 test("StoreKit ES256 JWS verifies with the configured self-signed test root and purchase replay grants once", async () => {
   const root = await selfSignedTestRoot();
   const testEnv = { ...env, APPLE_ROOT_CERTIFICATES: root.pem };
-  const jws = await signedTransaction(root);
+  const jws = await signedTransaction(root, { appAccountToken: "verification-only" });
   const verified = await verifySignedTransaction(jws, testEnv);
   assert.equal(verified.transactionId, "tx-001");
 
   const context = createContext();
   const account = await register(context);
+  const accountJws = await signedTransaction(root, { appAccountToken: account.userId });
   const first = await handleWithStore(new Request("https://server.test/purchases/verify", {
     method: "POST", headers: { authorization: `Bearer ${context.credentials.get(account.userId)}`, "content-type": "application/json" },
-    body: JSON.stringify({ signedTransactionInfo: jws })
+    body: JSON.stringify({ signedTransactionInfo: accountJws })
   }), testEnv, context.store);
   const replay = await handleWithStore(new Request("https://server.test/purchases/verify", {
     method: "POST", headers: { authorization: `Bearer ${context.credentials.get(account.userId)}`, "content-type": "application/json" },
-    body: JSON.stringify({ signedTransactionInfo: jws })
+    body: JSON.stringify({ signedTransactionInfo: accountJws })
   }), testEnv, context.store);
   assert.equal((await first.json()).status, "verified");
   assert.equal((await replay.json()).status, "already_processed");
@@ -280,6 +302,24 @@ test("tampered StoreKit JWS and unknown product are rejected", async () => {
   assert.equal(response.status, 400);
 });
 
+test("purchase verification requires appAccountToken to match the authenticated user", async () => {
+  const root = await selfSignedTestRoot();
+  const testEnv = { ...env, APPLE_ROOT_CERTIFICATES: root.pem };
+  const context = createContext();
+  const alice = await register(context, "Alice");
+  const bob = await register(context, "Bob");
+  const missing = await signedTransaction(root, { transactionId: "tx-missing-token" });
+  const mismatched = await signedTransaction(root, { transactionId: "tx-wrong-user", appAccountToken: bob.userId });
+  assert.equal((await handleWithStore(new Request("https://server.test/purchases/verify", {
+    method: "POST", headers: { authorization: `Bearer ${context.credentials.get(alice.userId)}`, "content-type": "application/json" },
+    body: JSON.stringify({ signedTransactionInfo: missing })
+  }), testEnv, context.store)).status, 400);
+  assert.equal((await handleWithStore(new Request("https://server.test/purchases/verify", {
+    method: "POST", headers: { authorization: `Bearer ${context.credentials.get(alice.userId)}`, "content-type": "application/json" },
+    body: JSON.stringify({ signedTransactionInfo: mismatched })
+  }), testEnv, context.store)).status, 403);
+});
+
 test("friend code request, acceptance, and friends list are wired", async () => {
   const context = createContext();
   const alice = await register(context, "Alice");
@@ -294,23 +334,89 @@ test("friend code request, acceptance, and friends list are wired", async () => 
   assert.equal((await (await call(context, "GET", "/friends", undefined, alice.userId)).json()).friends.length, 1);
 });
 
-test("gacha spends free balance separately from paid balance", async () => {
+test("gacha odds expose all Mobbies at equal rates and fixed random values reach both boundaries", async () => {
   const context = createContext();
   const account = await register(context);
-  await call(context, "POST", "/gifts/paid-test/claim", {}, account.userId);
-  await call(context, "POST", "/gifts/welcome/claim", {}, account.userId);
-  const pull = await call(context, "POST", "/gacha/pull", { pool: "standard", count: 1 }, account.userId);
-  assert.equal(pull.status, 200);
-  assert.equal((await pull.json()).freeCount, 1);
-  const afterFree = await context.store.wallet(account.userId, "standard");
-  assert.deepEqual({ paid: afterFree.paid, free: afterFree.free }, { paid: 1, free: 0 });
-  assert.ok(Number.isInteger(afterFree.pity));
-  const paidPull = await call(context, "POST", "/gacha/pull", { pool: "standard", count: 1 }, account.userId);
-  assert.equal(paidPull.status, 200);
-  assert.equal((await paidPull.json()).paidCount, 1);
-  const afterPaid = await context.store.wallet(account.userId, "standard");
-  assert.deepEqual({ paid: afterPaid.paid, free: afterPaid.free }, { paid: 0, free: 0 });
-  assert.ok(Number.isInteger(afterPaid.pity));
+  const odds = await (await call(context, "GET", "/gacha/odds")).json();
+  assert.equal(odds.pets.length, 18);
+  assert.equal(odds.paidPityInterval, PAID_PITY_INTERVAL);
+  odds.pets.forEach((entry) => assert.equal(entry.rate, 1 / 18));
+  context.store.walletRows.get(account.userId).paid = 2;
+  const first = await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0);
+  const last = await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0.999999);
+  assert.equal((await first.json()).results[0].petId, GACHA_PET_IDS[0]);
+  assert.equal((await last.json()).results[0].petId, GACHA_PET_IDS.at(-1));
+});
+
+test("starter and first-clear free pulls are each idempotent, and free five-pulls are rejected", async () => {
+  const context = createContext();
+  const account = await register(context);
+  assert.equal((await call(context, "POST", "/pets/starter", { petId: "mobibou" }, account.userId)).status, 201);
+  assert.equal((await call(context, "POST", "/pets/starter", { petId: "mobirin" }, account.userId)).status, 409);
+  assert.equal((await call(context, "POST", "/pets/starter", { petId: "not-a-mobby" }, account.userId)).status, 400);
+  assert.equal((await (await call(context, "POST", "/free-pulls/claim", { routeId: "route-a" }, account.userId)).json()).status, "claimed");
+  assert.equal((await (await call(context, "POST", "/free-pulls/claim", { routeId: "route-a" }, account.userId)).json()).status, "already_claimed");
+  assert.equal((await context.store.wallet(account.userId)).free, 1);
+  assert.equal((await call(context, "POST", "/gacha/pull", { count: 5, kind: "free" }, account.userId)).status, 400);
+});
+
+test("free pulls do not advance paid pity and duplicate copies set isNew correctly", async () => {
+  const context = createContext();
+  const account = await register(context);
+  await call(context, "POST", "/pets/starter", { petId: GACHA_PET_IDS[0] }, account.userId);
+  await call(context, "POST", "/free-pulls/claim", { routeId: "route-a" }, account.userId);
+  context.store.paidPullCounts.set(account.userId, 24);
+  const response = await call(context, "POST", "/gacha/pull", { count: 1, kind: "free" }, account.userId, undefined, () => 0);
+  const result = (await response.json()).results[0];
+  assert.deepEqual(result, { petId: GACHA_PET_IDS[0], kind: "free", isNew: false, guaranteed: false });
+  assert.equal((await context.store.wallet(account.userId)).paidPulls, 24);
+  assert.equal((await context.store.ownedPets(account.userId))[GACHA_PET_IDS[0]], 2);
+});
+
+test("paid pull 25 and 50 guarantee an unowned Mobby while 24 and 26 do not", async () => {
+  const context = createContext();
+  const account = await register(context);
+  const owned = Object.fromEntries(GACHA_PET_IDS.slice(0, -2).map((petId) => [petId, 1]));
+  context.store.owned.set(account.userId, owned);
+  context.store.walletRows.get(account.userId).paid = 4;
+  context.store.paidPullCounts.set(account.userId, 23);
+  const randomValues = [0, 0, 0, 0];
+  const random = () => randomValues.shift() ?? 0;
+  const at24 = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, random)).json()).results[0];
+  const at25 = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, random)).json()).results[0];
+  const at26 = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, random)).json()).results[0];
+  assert.equal(at24.guaranteed, false);
+  assert.equal(at25.guaranteed, true);
+  assert.equal(at25.petId, GACHA_PET_IDS.at(-2));
+  assert.equal(at26.guaranteed, false);
+  context.store.walletRows.get(account.userId).paid = 1;
+  context.store.paidPullCounts.set(account.userId, 49);
+  const at50 = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0)).json()).results[0];
+  assert.equal(at50.guaranteed, true);
+  assert.equal(at50.petId, GACHA_PET_IDS.at(-1));
+});
+
+test("a pity pull falls back to the uniform pool when every Mobby is owned", async () => {
+  const context = createContext();
+  const account = await register(context);
+  context.store.owned.set(account.userId, Object.fromEntries(GACHA_PET_IDS.map((petId) => [petId, 1])));
+  context.store.walletRows.get(account.userId).paid = 1;
+  context.store.paidPullCounts.set(account.userId, 24);
+  const result = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0)).json()).results[0];
+  assert.deepEqual(result, { petId: GACHA_PET_IDS[0], kind: "paid", isNew: false, guaranteed: false });
+});
+
+test("a failed five-pull commits no balance, ownership, history, or paid-pity changes", async () => {
+  const context = createContext();
+  const account = await register(context);
+  context.store.walletRows.get(account.userId).paid = 5;
+  context.store.paidPullCounts.set(account.userId, 22);
+  context.store.failNextCommit = true;
+  const response = await call(context, "POST", "/gacha/pull", { count: 5, kind: "paid" }, account.userId, undefined, () => 0);
+  assert.equal(response.status, 409);
+  assert.deepEqual(await context.store.wallet(account.userId), { paid: 5, free: 0, paidPulls: 22 });
+  assert.deepEqual(await context.store.ownedPets(account.userId), {});
+  assert.equal(context.store.pulls.length, 0);
 });
 
 test("event step submissions use Tokyo time and replace same-day cumulative values", async () => {
@@ -342,4 +448,27 @@ test("Apple notification route validates its signed envelope and handles revocat
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signedPayload: jws })
   }), { ...env, APPLE_ROOT_CERTIFICATES: root.pem }, context.store);
   assert.equal(response.status, 204);
+});
+
+test("Apple notification grants by the transaction appAccountToken, not a top-level value", async () => {
+  const root = await selfSignedTestRoot();
+  const context = createContext();
+  const correct = await register(context, "Correct");
+  const wrong = await register(context, "Wrong");
+  const transaction = await signedTransaction(root, { transactionId: "notification-grant", appAccountToken: correct.userId });
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const header = encode({ alg: "ES256", x5c: [root.certificate.toString("base64")] });
+  const payload = encode({
+    notificationType: "DID_RENEW",
+    appAccountToken: wrong.userId,
+    data: { bundleId: "com.example.mobidou", signedTransactionInfo: transaction }
+  });
+  const input = `${header}.${payload}`;
+  const signature = Buffer.from(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, root.pair.privateKey, Buffer.from(input))).toString("base64url");
+  const response = await handleWithStore(new Request("https://server.test/apple/notifications", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signedPayload: `${input}.${signature}` })
+  }), { ...env, APPLE_ROOT_CERTIFICATES: root.pem }, context.store);
+  assert.equal(response.status, 204);
+  assert.equal(await context.store.ticketBalance(correct.userId), 10);
+  assert.equal(await context.store.ticketBalance(wrong.userId), 0);
 });
