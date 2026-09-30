@@ -121,3 +121,16 @@ export function pullFive(collection: MobbyCollection, pool: readonly string[], r
 export function acknowledgePulls(collection: MobbyCollection): MobbyCollection {
   return collection.unrevealed.length ? { ...collection, unrevealed: [] } : collection;
 }
+
+/**
+ * The small Mobbies to show around the main one: one per duplicate copy, of
+ * any kind. Stable order (most copies first, then by id) so the crowd does not
+ * reshuffle between visits; `more` is how many did not fit.
+ */
+export function duplicateCrowd(collection: MobbyCollection, limit = 8): { petIds: string[]; more: number } {
+  const all = Object.entries(collection.owned)
+    .filter(([, copies]) => copies > 1)
+    .sort(([a, aCopies], [b, bCopies]) => bCopies - aCopies || (a < b ? -1 : 1))
+    .flatMap(([id, copies]) => Array.from({ length: copies - 1 }, () => id));
+  return { petIds: all.slice(0, Math.max(0, limit)), more: Math.max(0, all.length - Math.max(0, limit)) };
+}

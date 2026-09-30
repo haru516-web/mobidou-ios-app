@@ -4,6 +4,7 @@ import {
   acknowledgePulls,
   chooseStarter,
   duplicateCount,
+  duplicateCrowd,
   emptyMobbyCollection,
   gachaOdds,
   grantFreePullForClear,
@@ -134,4 +135,15 @@ test('an older save keeps its chosen Mobby, and damaged data is repaired', () =>
 test('ownsMobby reports ownership from the count', () => {
   assert.equal(ownsMobby({ ...emptyMobbyCollection(), owned: { pet1: 1 } }, 'pet1'), true);
   assert.equal(ownsMobby(emptyMobbyCollection(), 'pet1'), false);
+});
+
+test('the crowd has one small Mobby per duplicate copy, in a stable order, capped with a remainder', () => {
+  const owned = { pet0: 3, pet1: 1, pet2: 2, pet3: 2 };
+  const crowd = duplicateCrowd({ ...emptyMobbyCollection(), owned });
+  assert.deepEqual(crowd.petIds, ['pet0', 'pet0', 'pet2', 'pet3']);
+  assert.equal(crowd.more, 0);
+  const many = duplicateCrowd({ ...emptyMobbyCollection(), owned: { pet0: 12 } }, 8);
+  assert.equal(many.petIds.length, 8);
+  assert.equal(many.more, 3);
+  assert.deepEqual(duplicateCrowd(emptyMobbyCollection()), { petIds: [], more: 0 });
 });

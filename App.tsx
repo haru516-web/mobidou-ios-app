@@ -13,6 +13,7 @@ import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
 import { hasStarter, ownsMobby } from './src/services/gacha';
+import { DuplicateMobbies } from './src/components/DuplicateMobbies';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { pilgrimageShrines, PilgrimagePicker, RouteMap } from './src/components/PilgrimageScreen';
@@ -546,7 +547,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           : <>
             <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? undefined : { transform: [{ translateY: homeCharacterShiftY }] }}>
               <TutorialTarget active={firstRunStage === 'homeCompanion'} onRectChange={setTutorialRect}>
-                <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+                <View>
+                  <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+                  <DuplicateMobbies collection={data.mobbies} />
+                </View>
               </TutorialTarget>
             </View>
           </>}
