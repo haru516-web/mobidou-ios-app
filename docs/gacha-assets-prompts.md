@@ -9,8 +9,8 @@
 
 |ファイル|寸法|bytes|
 |---|---|---:|
-|`assets/gacha/box-body.webp`|880×1280|58,744|
-|`assets/gacha/box-front.webp`|880×1280|62,440|
+|`assets/gacha/box-body.webp`|880×1280|101,380|
+|`assets/gacha/box-front.webp`|880×1280|174,438|
 |`assets/gacha/box-shadow.webp`|1024×300|23,044|
 |`assets/gacha/glow-core.webp`|1024×1024|200,444|
 |`assets/gacha/glow-rays.webp`|1024×1024|325,054|
@@ -21,7 +21,106 @@
 
 ---
 
-# 箱2点の生成記録
+## 追加依頼: 漆塗りとアプリロゴ（現在の採用版）
+
+# ガチャ木箱の漆塗り素材
+
+2026-09-30に box-body.webp と box-front.webp を差し替えた記録。共通の箱寸法、透明背景、重ね合わせ確認など、元依頼書 docs/codex-gacha-assets.md の要件は引き続き適用する。変更対象はこの2素材と生成・確認記録のみ。コードと他の素材は変更していない。
+
+## 変更内容
+
+- 木箱を明るい桐色から、深い飴色〜黒褐色の拭き漆風に変更。控えめな艶と細かな木目を残し、汚しや傷は抑えた。
+- box-front中央にアプリロゴを配置。ロゴ原本は assets/mobidou-opening-emblem.webp。ImageGenに参照入力として渡して図柄を描画させており、原本の画素を直接貼り付ける方式ではない。鳥居、モビー、輪、巻き雲と元の配色を保つよう指示した。
+- ImageGen出力は各素材を880×1280に正規化。アルファ値1より大きい範囲を切り出し、780×1130にリサイズして、透明な880×1280キャンバスの座標(50,75)へ配置した。形式変換はRGBA WebP quality 90、method 6、alpha_quality 100。
+- box-frontをbox-bodyに重ねた確認画像を制作担当が docs/gacha-assets-verification/box-overlay-review.webp に保存。親担当が box-closed.webp と box-parts-review.webp および明暗背景の all-assets-review.webp を再生成し、隙間なく閉じた箱に見えることを目視確認した。
+
+## 生成元
+
+- box-bodyの編集対象: assets/gacha/box-body.webp（差し替え前）
+- box-frontの編集対象: assets/gacha/box-front.webp（差し替え前）
+- ロゴ参照画像: assets/mobidou-opening-emblem.webp
+- 使用ツール: 組み込みImageGen。透明背景を指定。
+- body最終候補: C:\Users\User\.codex\generated_images\01a0f24d-89b1-78e1-871d-75a6e8d68fb3\exec-ac07b153-76c6-46b1-a349-537f3bb4e9ba.png
+- front最終候補: C:\Users\User\.codex\generated_images\01a0f24d-89b1-78e1-871d-75a6e8d68fb3\exec-43ce8d13-93b1-405c-a65d-60872afdb3bf.png
+
+## ImageGenへ送ったプロンプト
+
+以下は実際の指示文。frontの後半2回はロゴサイズの調整で、最後の出力を採用した。
+
+### box-body.webp
+
+~~~text
+Use case: precise-object-edit
+Asset type: transparent layered mobile-game gacha animation asset, box-body.webp
+Input images: Image 1 is the edit target. Preserve its exact front-facing portrait box silhouette, alignment, proportions, transparent canvas, and visible bounds; change only the material and finish.
+Primary request: transform this open-front Japanese wooden box body into an old-fashioned lacquered box body. Keep the open cavity and all structural geometry from Image 1.
+Subject: an empty, front-facing tall rectangular box body, open at the front, viewed perfectly straight-on. The narrow top, left, right, and bottom rails frame a deep empty cavity. Match the source proportions and outer silhouette exactly so a separate matching full-face sliding panel can cover it.
+Style/medium: refined Japanese traditional product illustration, believable hand-applied fuki-urushi lacquer on aged wood, restrained natural wood grain beneath lacquer, crafted antique household object.
+Composition/framing: isolated object centered on a fully transparent alpha canvas. Keep the same complete object silhouette and placement as Image 1, with 880x1280 portrait proportions. Rails remain slender: about 5% of canvas width at sides and 3.5% of canvas height at top and bottom. No camera angle or perspective.
+Lighting/mood: gentle warm studio illumination with soft, narrow lacquer highlights only on the object surface. The cavity remains dark, near-uniform black-brown. No cast shadow or glow outside the object.
+Color palette: deep amber-brown to near-black brown urushi, understated muted warm highlights. The open cavity is dark solid brown-black.
+Materials/textures: smooth aged wiped lacquer with a quiet satin gloss, subtle fine grain, modest age and hand-crafted variation. Keep it dignified and clean, without excessive dirt, cracks, chips, ornament, or distressing.
+Text (verbatim): none.
+Constraints: preserve the original box geometry and alignment; open cavity has no front panel; no objects inside; transparent alpha outside the box; no shadow beyond the object; no other assets.
+Avoid: light paulownia color, pale wood, red/black random decoration, gold ornament, crest, logo, marks, lettering, symbols, checkerboard, background, backdrop, floor, frame, border around the canvas, perspective, extra panels, handles, prominent damage, grime, smoke, glow, watermark.
+~~~
+
+### box-front.webp: 初回の漆塗りとロゴ配置
+
+~~~text
+Use case: compositing
+Asset type: transparent layered mobile-game gacha animation asset, box-front.webp
+Input images: Image 1 is the edit target: preserve its complete front panel silhouette, rounded corners, straight-on alignment, size, and transparent canvas. Image 2 is the exact official Mobidou app emblem, provided as the logo insert reference. Reproduce Image 2 faithfully; do not invent a substitute logo.
+Primary request: transform the light wood sliding front panel into a refined antique Japanese fuki-urushi lacquer panel, then place the exact app emblem from Image 2 at the center of the full panel.
+Subject: one tall rectangular one-piece sliding panel that completely covers the front of the box. The original top-center finger notch and small understated vermilion braided grip detail may remain at the top edge. The old small circular crest on the source panel must be replaced by the supplied app emblem.
+Style/medium: a dignified old Japanese crafted object with hand-applied wiped lacquer, subtly aged wood beneath lacquer, restrained natural wood grain, fine satin-gloss reflections. The emblem should look like a carefully applied traditional inlay or finish on the lacquer, while preserving the exact source artwork and colors.
+Composition/framing: perfectly front-facing, centered, portrait 880x1280 transparent alpha canvas. Match Image 1's outer shape and visible bounds exactly, approximately x=50..830 and y=75..1205 within its canvas. The board occupies the same full area as the separate box body. Center the logo precisely on the board's geometric center (canvas center x=440,y=640). Scale the logo artwork to about 30% of the visible panel width (approximately 234 px wide within the 780 px board). Keep enough detail to recognize the original torii, Mobidou character, circular ring, and cloud-scroll motifs.
+Lighting/mood: gentle warm studio illumination, restrained narrow reflected highlights on lacquer only; no cast shadow or glow outside the board.
+Color palette: deep amber brown through near-black brown lacquer; app emblem keeps its original vermilion red, near-black, and warm antique ivory/gold colors from Image 2.
+Materials/textures: smooth, quiet-gloss wiped lacquer with subtle fine grain, modest wear and handmade character. Clean and dignified, without excessive grime or distress.
+Text (verbatim): none. The app emblem is a pictorial logo, not text.
+Constraints: change only the material finish and central emblem on Image 1; maintain its one-piece full-face sliding panel geometry, outer bounds, top grip/notch, and transparent alpha outside the panel. Use Image 2 as the exact logo insert. Keep logo geometry, color relationships, torii, character face, ring and cloud motifs faithful and intact. No other marks.
+Avoid: generic crest, kamon, replacement symbol, simplified logo, altered character face, changed torii, altered rings or clouds, extra ornament, words, lettering, watermark, light paulownia wood, pale wood, checkerboard, opaque backdrop, background, floor, cast shadow, perspective, multiple boards, extra handles, excessive scratches, chips, dirt, or cracks.
+~~~
+
+### box-front.webp: ロゴ縮小の調整1
+
+~~~text
+Use case: precise-object-edit
+Asset type: transparent layered mobile-game gacha animation asset, box-front.webp
+Input images: Image 1 is the current complete front panel and is the edit target. Image 2 is the exact official app emblem reference. Preserve every part of Image 1 unchanged except the size of the central emblem.
+Primary request: reduce the existing central app emblem to approximately 30% of the visible board width, then center it precisely on the board. It is currently too large, roughly half the board width. Keep it recognizable and faithful to Image 2.
+Subject: the same single dark antique Japanese lacquer sliding board from Image 1, with the same shape, wood grain, finish, highlights, finger notch and top braided grip.
+Composition/framing: retain the exact panel, canvas, alignment and transparent background from Image 1. The emblem must be centered at the board's geometric center and occupy about 30% of its width, leaving clear lacquer visible around it. Preserve full emblem aspect ratio, do not crop it. Use Image 2 as the source for the emblem; keep its torii, Mobidou character, ring, cloud-scroll motifs, and original red, near-black, and antique-ivory/gold colors intact.
+Lighting/mood: unchanged quiet lacquer reflection.
+Materials/textures: unchanged fuki-urushi wood and tasteful applied emblem.
+Text (verbatim): none.
+Constraints: only change emblem scale and any tiny placement adjustment needed to put its center exactly at the center of the board. Do not alter the logo design or color. Do not change the board, grain, highlights, notch, handle, alpha, geometry or silhouette.
+Avoid: large emblem, emblem wider than 35% of the board, off-center mark, generic crest, altered or simplified logo, extra ornament, lettering, watermark, background, checkerboard, cast shadow.
+~~~
+
+### box-front.webp: ロゴ縮小の調整2（採用出力）
+
+~~~text
+Use case: precise-object-edit
+Asset type: transparent layered mobile-game gacha animation asset, box-front.webp
+Input images: Image 1 is the complete current front panel edit target. Image 2 is the exact official app emblem reference.
+Primary request: keep Image 1 unchanged except reduce the central app emblem to a clearly modest small size, exactly about one quarter of the visible panel width (25%, roughly 220 px on the 880px canvas; under 30%). The current emblem is still too large at about 40% of panel width; reduce it to about two-thirds of its current size. Center it precisely on the board.
+Subject: same single antique dark brown Japanese fuki-urushi sliding panel with subtle grain, quiet gloss, and top-center notch with small vermilion braided grip.
+Composition/framing: preserve the current front panel image, silhouette, position, panel texture, highlights, transparent canvas and top grip. Keep the emblem centered on the geometric center of the board. The full emblem must fit, keep its original square aspect ratio and full edge motifs, and leave generous visible lacquer around it.
+Logo fidelity: use the exact artwork in Image 2 as the logo source. Retain its recognizable torii gate, Mobidou character face, circular rings, cloud-scroll ornament, and original vermilion, near-black and antique ivory/gold colors. Do not reinterpret or simplify it.
+Text (verbatim): none.
+Constraints: only change emblem size and any tiny placement adjustment required for precise centering. The logo artwork should occupy 25% of visible board width, no more than 30%. Maintain actual transparency outside the panel.
+Avoid: emblem wider than 30% of board, off-center emblem, generic crest, redesign, extra marks, words, watermark, checkerboard, opaque background, cast shadow, any changes to the board, grain, color, highlights, shape, alpha, notch or grip.
+~~~
+
+## 最終確認
+
+親担当の検査で箱2点は880×1280、RGBA、四隅alpha=0、外接矩形(50,75,830,1205)で一致。body 101,380 bytes、front 174,438 bytes。箱以外5点と元ロゴのSHA256は変更前と一致。ユーザー追加指定の漆仕上げ・中央ロゴが初回の桐色・丸い朱紋に優先する。
+
+---
+
+# 初回の箱2点の生成記録（旧版・履歴）
 
 この記録は `box-body.webp` と `box-front.webp` の生成履歴・元画像・後処理をまとめたものです。採用・不採用を含む実際の生成プロンプトを以下に記録します。
 
