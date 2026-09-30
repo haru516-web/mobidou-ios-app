@@ -6,12 +6,11 @@ import type { ImageSourcePropType } from 'react-native';
  * plain stand-in shape for any part that has no art yet, so the animation can
  * be built and checked before the illustrations land.
  */
-export type GachaArtPart = 'lid' | 'base' | 'flap' | 'shadow' | 'glowCore' | 'glowRays' | 'rope' | 'stage';
+export type GachaArtPart = 'body' | 'front' | 'shadow' | 'glowCore' | 'glowRays' | 'rope' | 'stage';
 
 export const GACHA_ART: Record<GachaArtPart, ImageSourcePropType | null> = {
-  lid: null,
-  base: null,
-  flap: null,
+  body: null,
+  front: null,
   shadow: null,
   glowCore: null,
   glowRays: null,

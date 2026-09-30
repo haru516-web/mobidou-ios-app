@@ -6,12 +6,11 @@ import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, type GachaArtPart } from '../data/gachaArt';
 import { getPetCharacter, isPetId } from '../petCatalog';
 import type { PullResult } from '../services/gacha';
-import { flapAt, glowAt, lidAt, mobbyAt, phaseAt, rollAt, settleAt, T, TOTAL_MS } from './gachaTimeline';
+import { AFTER_OPEN_MS, canOpen, glowAfterOpen, glowWhileLifting, mobbyAfterOpen, phaseOf, resolveRelease, rollAt, ROLL_MS, SETTLED_AT_MS, settleAt } from './gachaTimeline';
 
 const PULL_TO_DRAW = 64;
 const MAX_PULL = 110;
-/** Front, right, back, left: the rotation that turns "below the box" into each side. */
-const FLAP_ANGLES = [0, -90, 180, 90] as const;
+const OPEN_TWEEN_MS = 260;
 
 type Props = {
   /** Free pulls the player can still use. */
@@ -37,55 +36,128 @@ function Part({ part, style, fallback }: { part: GachaArtPart; style: StyleProp<
 export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose }: Props) {
   const { width, height } = useWindowDimensions();
   const reduced = useReducedMotion();
-  const size = Math.round(Math.min(220, width * .52));
+  const boxW = Math.round(Math.min(250, width * .62));
+  const boxH = Math.round(boxW * .86);
+  const boardW = Math.round(boxW * .86);
+  const boardH = Math.round(boxH * .62);
+  const boardLeft = Math.round((boxW - boardW) / 2);
+  const boardTop = boxH - boardH - Math.round(boxH * .08);
+  const lift = boardH * 1.05;
   const centerY = Math.round(height * .47);
+  const boxLeft = Math.round(width / 2 - boxW / 2);
+  const boxTop = Math.round(centerY - boxH / 2);
 
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(unrevealed.length > 0);
   const [ms, setMs] = useState(0);
+  /** How far the front board has been lifted, 0..1. */
+  const [open, setOpen] = useState(0);
+  const [opened, setOpened] = useState(false);
+  const [openedFor, setOpenedFor] = useState(0);
   const [pull, setPull] = useState(0);
   const startedAt = useRef<number | null>(null);
+  const openedAt = useRef<number | null>(null);
   const drawRequested = useRef(false);
   const lastPhase = useRef<string>('');
+  const dragStart = useRef(0);
+  const openRef = useRef(0);
+  const tween = useRef<number>(0);
 
   const result = unrevealed[index];
-  const phase = phaseAt(ms);
+  const phase = phaseOf(ms, opened ? openedFor : null);
   const done = playing && phase === 'revealed';
+
+  const resetScene = useCallback(() => {
+    cancelAnimationFrame(tween.current);
+    startedAt.current = null;
+    openedAt.current = null;
+    lastPhase.current = '';
+    openRef.current = 0;
+    setMs(0);
+    setOpen(0);
+    setOpened(false);
+    setOpenedFor(0);
+  }, []);
 
   // A pull the player just asked for arrives as a waiting result; start showing it.
   useEffect(() => {
     if (!playing && drawRequested.current && unrevealed.length > 0) {
       drawRequested.current = false;
       setIndex(0);
-      setMs(0);
-      startedAt.current = null;
+      resetScene();
       setPlaying(true);
     }
-  }, [playing, unrevealed.length]);
+  }, [playing, unrevealed.length, resetScene]);
 
-  // The clock for one opening.
+  // The box rolls in and settles by itself.
   useEffect(() => {
     if (!playing || !result) return;
-    if (reduced) { setMs(TOTAL_MS); return; }
+    if (reduced) { setMs(SETTLED_AT_MS); return; }
     let frame = 0;
     const tick = (now: number) => {
       if (startedAt.current === null) startedAt.current = now;
-      const elapsed = Math.min(TOTAL_MS, now - startedAt.current);
+      const elapsed = Math.min(SETTLED_AT_MS, now - startedAt.current);
       setMs(elapsed);
-      if (elapsed < TOTAL_MS) frame = requestAnimationFrame(tick);
+      if (elapsed < SETTLED_AT_MS) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [playing, result, index, reduced]);
 
-  // A small touch when the box lands, when it opens and when the sides fall.
+  // Once the board is fully up, the light holds and fades.
+  useEffect(() => {
+    if (!opened) return;
+    if (reduced) { setOpenedFor(AFTER_OPEN_MS); return; }
+    let frame = 0;
+    const tick = (now: number) => {
+      if (openedAt.current === null) openedAt.current = now;
+      const elapsed = Math.min(AFTER_OPEN_MS, now - openedAt.current);
+      setOpenedFor(elapsed);
+      if (elapsed < AFTER_OPEN_MS) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [opened, reduced]);
+
+  // A small touch when the box lands and when the board comes up.
   useEffect(() => {
     if (!haptics || !playing || phase === lastPhase.current) return;
     lastPhase.current = phase;
-    const style = phase === 'settle' ? Haptics.ImpactFeedbackStyle.Heavy : phase === 'lid' || phase === 'flaps' ? Haptics.ImpactFeedbackStyle.Medium : null;
-    if (style) void Haptics.impactAsync(style).catch(() => {});
+    if (phase === 'settle') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+    if (phase === 'hold') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     if (phase === 'revealed') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   }, [haptics, playing, phase]);
+
+  /** Move the board to `to` over a short time, then act on where it ended up. */
+  const settleBoard = useCallback((to: 0 | 1) => {
+    cancelAnimationFrame(tween.current);
+    const from = openRef.current;
+    let begun: number | null = null;
+    const step = (now: number) => {
+      if (begun === null) begun = now;
+      const t = Math.min(1, (now - begun) / OPEN_TWEEN_MS);
+      const value = from + (to - from) * t;
+      openRef.current = value;
+      setOpen(value);
+      if (t < 1) tween.current = requestAnimationFrame(step);
+      else if (to === 1) setOpened(true);
+    };
+    tween.current = requestAnimationFrame(step);
+  }, []);
+
+  const boardEnabled = playing && !opened && canOpen(ms);
+  const boardPan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => boardEnabled,
+    onMoveShouldSetPanResponder: () => boardEnabled,
+    onPanResponderGrant: () => { cancelAnimationFrame(tween.current); dragStart.current = openRef.current; },
+    onPanResponderMove: (_, gesture) => {
+      const value = Math.max(0, Math.min(1, dragStart.current - gesture.dy / lift));
+      openRef.current = value;
+      setOpen(value);
+    },
+    onPanResponderRelease: () => settleBoard(resolveRelease(openRef.current) === 'open' ? 1 : 0),
+    onPanResponderTerminate: () => settleBoard(0),
+  }), [boardEnabled, lift, settleBoard]);
 
   const requestDraw = useCallback(() => {
     if (playing || freePulls <= 0 || drawRequested.current) return;
@@ -93,7 +165,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     onDraw();
   }, [playing, freePulls, onDraw]);
 
-  const panResponder = useMemo(() => PanResponder.create({
+  const ropePan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => !playing && freePulls > 0,
     onMoveShouldSetPanResponder: () => !playing && freePulls > 0,
     onPanResponderMove: (_, gesture) => setPull(Math.max(0, Math.min(MAX_PULL, gesture.dy))),
@@ -104,64 +176,60 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const next = () => {
     if (index + 1 < unrevealed.length) {
       setIndex(index + 1);
-      setMs(0);
-      startedAt.current = null;
-      lastPhase.current = '';
+      resetScene();
       return;
     }
     setPlaying(false);
     setIndex(0);
-    setMs(0);
-    startedAt.current = null;
-    lastPhase.current = '';
+    resetScene();
     onFinished();
   };
 
-  const roll = rollAt(ms);
-  const glow = glowAt(ms);
-  const lid = lidAt(ms);
-  const settle = settleAt(ms);
-  const rolling = ms < T.roll;
-  const pet = result && isPetId(result.petId) ? getPetCharacter(result.petId) : null;
-  const boxShown = playing;
-  const remaining = unrevealed.length;
+  const skip = () => { cancelAnimationFrame(tween.current); openRef.current = 1; setMs(SETTLED_AT_MS); setOpen(1); setOpened(true); setOpenedFor(AFTER_OPEN_MS); };
 
-  const flapHeight = size / 2;
+  const roll = rollAt(Math.min(ms, ROLL_MS));
+  const settle = settleAt(ms);
+  const glow = opened ? glowAfterOpen(openedFor) : glowWhileLifting(open);
+  const showMobby = opened ? mobbyAfterOpen(openedFor) : 0;
+  const pet = result && isPetId(result.petId) ? getPetCharacter(result.petId) : null;
+  const remaining = unrevealed.length;
+  const cavityW = boardW - 12;
+  const cavityH = boardH - 12;
+  const cavityLeft = boardLeft + 6;
+  const cavityTop = boardTop + 6;
+
   return <View style={S.page}>
     <Part part="stage" style={StyleSheet.absoluteFillObject} fallback={S.stageFallback} />
 
-    {/* Light behind the box. */}
-    {boxShown && <>
-      <Part part="glowRays" style={[S.center, { width: size * 3.4, height: size * 3.4, left: width / 2 - size * 1.7, top: centerY - size * 1.7, opacity: glow * .85, transform: [{ rotate: `${ms * .02}deg` }] }]} fallback={S.raysFallback} />
-      <Part part="glowCore" style={[S.center, { width: size * 2.4, height: size * 2.4, left: width / 2 - size * 1.2, top: centerY - size * 1.2, opacity: glow }]} fallback={S.coreFallback} />
-    </>}
+    {playing && <>
+      {/* Light behind the box, centred on the opening. */}
+      <Part part="glowRays" style={[S.abs, { width: boxW * 3.4, height: boxW * 3.4, left: width / 2 - boxW * 1.7, top: boxTop + cavityTop + cavityH / 2 - boxW * 1.7, opacity: glow * .85, transform: [{ rotate: `${(opened ? openedFor : 0) * .02}deg` }] }]} fallback={S.raysFallback} />
+      <Part part="glowCore" style={[S.abs, { width: boxW * 2.4, height: boxW * 2.4, left: width / 2 - boxW * 1.2, top: boxTop + cavityTop + cavityH / 2 - boxW * 1.2, opacity: glow }]} fallback={S.coreFallback} />
+      <Part part="shadow" style={[S.abs, { width: boxW * 1.2, height: boxW * .35, left: boxLeft - boxW * .1 + roll.x * boxW, top: boxTop + boxH - boxW * .12, opacity: .7 }]} fallback={S.shadowFallback} />
 
-    {/* The box. */}
-    {boxShown && <>
-      <Part part="shadow" style={[S.center, { width: size * 1.1, height: size * 1.1, left: width / 2 - size * .55 + roll.x * size, top: centerY - size * .5 + size * .12, opacity: rolling ? .6 : .8 }]} fallback={S.shadowFallback} />
-      <View pointerEvents="none" style={[S.center, { width: size, height: size, left: width / 2 - size / 2, top: centerY - size / 2, transform: [{ translateX: roll.x * size }, { translateY: -roll.hop * size }, { rotate: `${roll.rotate}deg` }, { scale: settle }] }]}>
-        <Part part="base" style={StyleSheet.absoluteFillObject} fallback={S.baseFallback} />
-        <View style={[StyleSheet.absoluteFillObject, S.wash, { opacity: glow }]} />
-        {pet && <Image accessible={false} source={pet.image} contentFit="contain" style={[S.mobby, { width: size * .82, height: size * .82, left: size * .09, top: size * .09, opacity: mobbyAt(ms) }]} />}
-        {FLAP_ANGLES.map((angle, flapIndex) => {
-          const fall = flapAt(ms, flapIndex);
-          return <View key={angle} style={[S.flapPivot, { width: size, height: size, transform: [{ rotate: `${angle}deg` }] }]}>
-            <Part part="flap" style={[S.flap, { width: size, height: flapHeight, top: size, transform: [{ scaleY: .1 + .9 * fall }] }]} fallback={S.flapFallback} />
-            <View style={[S.flapShade, { width: size, height: flapHeight, top: size, opacity: (1 - fall) * .35, transform: [{ scaleY: .1 + .9 * fall }] }]} />
-          </View>;
-        })}
-        <Part part="lid" style={[StyleSheet.absoluteFillObject, { transformOrigin: 'left center', transform: [{ scaleX: Math.cos(lid * Math.PI * .88) }], opacity: lid >= 1 ? .0 : 1 }]} fallback={S.lidFallback} />
+      {/* The box: body, the opening with its light, the Mobby, and the front board. */}
+      <View pointerEvents="box-none" style={[S.abs, { width: boxW, height: boxH, left: boxLeft, top: boxTop, transform: [{ translateX: roll.x * boxW }, { translateY: -roll.hop * boxW }, { rotate: `${roll.rotate}deg` }, { scale: settle }] }]}>
+        <Part part="body" style={StyleSheet.absoluteFillObject} fallback={S.bodyFallback} />
+        <View pointerEvents="none" style={[S.cavity, { left: cavityLeft, top: cavityTop, width: cavityW, height: cavityH }]}>
+          <View style={[StyleSheet.absoluteFillObject, S.wash, { opacity: glow }]} />
+        </View>
+        {pet && <Image accessible={false} source={pet.image} contentFit="contain" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: cavityTop + cavityH / 2 - boxW * .39 - (1 - showMobby) * 8, opacity: showMobby }]} />}
+        {/* Front board: lifted by hand. */}
+        <View {...boardPan.panHandlers} accessible={boardEnabled} accessibilityRole="button" accessibilityLabel="箱の前の板を上へ引き上げる" accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => settleBoard(1)} style={[S.abs, { left: boardLeft, top: boardTop, width: boardW, height: boardH, transform: [{ translateY: -lift * open }] }]}>
+          <Part part="front" style={StyleSheet.absoluteFillObject} fallback={S.boardFallback} />
+          {boardEnabled && <View pointerEvents="none" style={S.grip} />}
+        </View>
       </View>
     </>}
 
     {/* The cord to pull. */}
-    {!playing && <View {...panResponder.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 40, height: 250 + MAX_PULL }]}>
+    {!playing && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 40, height: 250 + MAX_PULL }]}>
       <Part part="rope" style={[S.rope, { transform: [{ translateY: pull }] }]} fallback={S.ropeFallback} />
       {freePulls > 0 && <View style={[S.tassel, { transform: [{ translateY: pull }] }]} />}
     </View>}
 
     <View style={S.top}>
-      <Text accessibilityRole="header" style={S.title}>{playing ? (done ? 'ご縁が結ばれました' : phase === 'roll' ? '箱が転がってきました' : phase === 'settle' ? '箱が止まりました' : '箱が開きます') : 'ご縁を結ぶ'}</Text>
+      <Text accessibilityRole="header" style={S.title}>{!playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'roll' ? '箱が転がってきました' : phase === 'settle' ? '箱が止まりました' : phase === 'ready' ? '前の板を、上へ引き上げて' : '光があふれています'}</Text>
       {remaining > 1 && playing && <Text style={S.count}>{index + 1} / {remaining}</Text>}
     </View>
 
@@ -176,7 +244,10 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       <Button title="とじる" secondary onPress={onClose} style={S.wide} />
     </View>}
 
-    {playing && !done && <View style={S.bottom}><Button title="演出を省略" secondary onPress={() => { setMs(TOTAL_MS); }} style={S.wide} /></View>}
+    {playing && !done && <View style={S.bottom}>
+      {phase === 'ready' && <Text style={S.small}>板の上を、指で上へなぞってください</Text>}
+      <Button title="演出を省略" secondary onPress={skip} style={S.wide} />
+    </View>}
 
     {done && result && pet && <View style={S.bottom}>
       <Text style={S.name}>{pet.name}</Text>
@@ -190,18 +261,16 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 const S = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#302D25', overflow: 'hidden' },
   stageFallback: { backgroundColor: '#2A251E' },
-  center: { position: 'absolute' },
-  raysFallback: { borderRadius: 9999, borderWidth: 0, backgroundColor: 'transparent' },
+  abs: { position: 'absolute' },
+  raysFallback: { borderRadius: 9999, backgroundColor: 'transparent' },
   coreFallback: { borderRadius: 9999, backgroundColor: '#FFE7A0', shadowColor: '#FFF3C4', shadowOpacity: 1, shadowRadius: 60, shadowOffset: { width: 0, height: 0 } },
-  shadowFallback: { borderRadius: 9999, backgroundColor: '#00000055' },
-  baseFallback: { backgroundColor: '#3A2B1F', borderWidth: 6, borderColor: '#B98F5B', borderRadius: 6 },
+  shadowFallback: { borderRadius: 9999, backgroundColor: '#00000066' },
+  bodyFallback: { backgroundColor: '#C9A374', borderWidth: 6, borderColor: '#8B6135', borderRadius: 8 },
+  cavity: { position: 'absolute', backgroundColor: '#2B1E14', borderRadius: 4, overflow: 'hidden' },
   wash: { backgroundColor: '#FFF3C8' },
   mobby: { position: 'absolute' },
-  flapPivot: { position: 'absolute', left: 0, top: 0 },
-  flap: { position: 'absolute', left: 0, transformOrigin: 'center top' },
-  flapFallback: { backgroundColor: '#C9A374', borderWidth: 3, borderColor: '#8B6135', borderRadius: 4 },
-  flapShade: { position: 'absolute', left: 0, backgroundColor: '#1A120A', transformOrigin: 'center top' },
-  lidFallback: { backgroundColor: '#D3AE7C', borderWidth: 6, borderColor: '#8B6135', borderRadius: 6 },
+  boardFallback: { backgroundColor: '#D8B884', borderWidth: 4, borderColor: '#8B6135', borderRadius: 6 },
+  grip: { position: 'absolute', left: '50%', marginLeft: -26, top: 10, width: 52, height: 8, borderRadius: 4, backgroundColor: '#8B6135' },
   ropeArea: { position: 'absolute', top: 0, width: 80, alignItems: 'center' },
   rope: { position: 'absolute', top: -20, width: 34, height: 270 },
   ropeFallback: { width: 6, backgroundColor: '#B23B2E', borderRadius: 3, left: 14 },
