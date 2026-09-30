@@ -11,7 +11,7 @@ const moduleUrls = [
   ['react-native', stub('export const AppState = { currentState: null, addEventListener: () => ({ remove() {} }) };')],
   ['@react-native-async-storage/async-storage', stub('export default { getItem: async () => null, setItem: async () => {} };')],
   ['./steps', stub('export const connectSteps = async () => "none"; export const readTodaySteps = async () => ({ steps: 0, at: new Date() });')],
-  ['../petCatalog', stub('export const isPetId = () => false;')],
+  ['../petCatalog', stub('export const PET_CHARACTERS = [{ id: "mobibou" }, { id: "mobirin" }]; export const isPetId = id => id === "mobibou" || id === "mobirin";')],
   ['../data/backgrounds', stub('export const defaultBackgroundId = () => "spring-dawn"; export const isBackgroundId = () => true;')],
 ];
 const loaderSource = `const moduleUrls = new Map(${JSON.stringify(moduleUrls)});
@@ -81,4 +81,33 @@ test('transfer codes round-trip and reject a damaged or edited code', async () =
   const legacy = JSON.parse(code);
   delete legacy.checksum;
   assert.equal(readTransferData(JSON.stringify(legacy)).onboarded, true);
+});
+
+const { startRoute, updateSteps, routeTargets } = await import('../src/services/progress.ts');
+const savedWith = (over: Record<string, unknown>) => {
+  const today = new Date();
+  const start = startRoute('compassion', 0, today);
+  const done = { ...updateSteps(start, routeTargets(start).at(-1)!, today), pending: [] as string[] };
+  return { version: 1, onboarded: true, demo: false, real: done, trial: { day: done.day, steps: 0, totalSteps: 0, dayStart: 0, rewards: [], pending: [] }, pet: 'mobirin', ...over };
+};
+
+test('a save from before the Mobby collection keeps its chosen Mobby and earns a free pull for each finished route', () => {
+  const loaded = normalizeSaved(savedWith({}));
+  assert.deepEqual(loaded.mobbies.owned, { mobirin: 1 });
+  assert.equal(loaded.mobbies.freePulls, 1);
+  assert.deepEqual(loaded.mobbies.freePullRoutes, ['compassion']);
+  // Loading the same save again must not hand out the pull twice.
+  const again = normalizeSaved({ ...savedWith({}), mobbies: loaded.mobbies });
+  assert.equal(again.mobbies.freePulls, 1);
+});
+
+test('a save that has not been onboarded starts with no Mobby, so the first pick becomes the starter', () => {
+  const loaded = normalizeSaved(savedWith({ onboarded: false }));
+  assert.deepEqual(loaded.mobbies.owned, {});
+});
+
+test('the trial book never earns real free pulls', () => {
+  const trialDone = savedWith({});
+  const loaded = normalizeSaved({ ...trialDone, real: { ...trialDone.trial }, trial: trialDone.real, demo: true });
+  assert.equal(loaded.mobbies.freePulls, 0);
 });

@@ -4,7 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, startRoute, startReplay, resumeRoute, type Progress } from './progress';
 import { getPilgrimage } from '../data/pilgrimages';
 import { connectSteps, readTodaySteps, type StepSource } from './steps';
-import { isPetId, type PetId } from '../petCatalog';
+import { isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
+import { acknowledgePulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, type MobbyCollection } from './gacha';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
 import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
@@ -13,7 +14,7 @@ import { localOmikujiDay } from '../data/omikuji';
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
 export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
-type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; keychainPlan: KeychainPlan; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
+type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; keychainPlan: KeychainPlan; mobbies: MobbyCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
 export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
 export type BookDesignState = { bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns };
 
@@ -58,12 +59,13 @@ export function setActiveBookDesigns<T extends { demo: boolean; bookDesigns: Boo
 const initial = (): Saved => {
   const realBookDesigns = emptyBookDesigns();
   const trialBookDesigns = emptyBookDesigns();
-  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), keychainPlan: 'none', bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null, omikujiPetId: null };
+  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), keychainPlan: 'none', mobbies: emptyMobbyCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null, omikujiPetId: null };
 };
 
 /** Reaching the end of a route for the first time unlocks its own book cover. */
-function unlockCoverOnFirstClear(saved: Saved, field: 'real' | 'trial', previous: Progress, next: Progress): Saved {
+function rewardFirstClear(saved: Saved, field: 'real' | 'trial', previous: Progress, next: Progress): Saved {
   if (!next.routeId || !next.completedAt || previous.completedAt) return saved;
+  if (field === 'real') saved = { ...saved, mobbies: grantFreePullForClear(saved.mobbies, next.routeId) };
   const designsField = field === 'real' ? 'realBookDesigns' : 'trialBookDesigns';
   const designs = saved[designsField];
   if (designs.owned[next.routeId]) return saved;
@@ -81,7 +83,7 @@ function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: numbe
   // Periodic refreshes usually read the same count; skip the no-op so it
   // neither re-renders the app nor rewrites storage.
   if (JSON.stringify(next) === JSON.stringify(previous)) return saved;
-  return unlockCoverOnFirstClear({ ...saved, [field]: next }, field, previous, next);
+  return rewardFirstClear({ ...saved, [field]: next }, field, previous, next);
 }
 
 export function normalizeSaved(value: unknown): Saved {
@@ -100,6 +102,8 @@ export function normalizeSaved(value: unknown): Saved {
     realSpecial: normalizeSpecialCollection(p.realSpecial),
     trialSpecial: normalizeSpecialCollection(p.trialSpecial),
     keychainPlan: isKeychainPlan(p.keychainPlan) ? p.keychainPlan : 'none',
+    // A save from before the collection existed keeps the Mobby it was using.
+    mobbies: normalizeMobbyCollection(p.mobbies, isPetId, p.onboarded === true && isPetId(p.pet) ? p.pet : undefined),
     ...bookDesignState,
     pet: isPetId(p.pet) ? p.pet : 'mobibou',
     haptics: p.haptics !== false,
@@ -124,6 +128,8 @@ export function normalizeSaved(value: unknown): Saved {
     loaded[field] = { ...loaded[field], owned };
   }
   loaded.bookDesigns = cloneBookDesigns(loaded.demo ? loaded.trialBookDesigns : loaded.realBookDesigns);
+  // Routes already cleared in the real book also earned their free pull.
+  finished([loaded.real, ...Object.entries(loaded.routes ?? {}).filter(([key]) => key.startsWith('real:')).map(([, record]) => record)]).forEach(routeId => { loaded.mobbies = grantFreePullForClear(loaded.mobbies, routeId); });
   return loaded;
 }
 
@@ -311,7 +317,18 @@ export function useJourney() {
       const restored = saved ? rollDay(saved) : startRoute(routeId, active.steps, new Date(), active.totalSteps ?? active.steps);
       return { ...p, routes, [field]: startReplay(resumeRoute(active, restored)) };
     }),
-    choosePet: (pet: PetId) => change(p => ({ ...p, pet })),
+    /** The first pick becomes the starter; afterwards only a Mobby the player owns can be chosen. */
+    choosePet: (pet: PetId) => change(p => {
+      if (!hasStarter(p.mobbies)) return { ...p, pet, mobbies: chooseStarter(p.mobbies, pet, isPetId) };
+      return ownsMobby(p.mobbies, pet) && p.pet !== pet ? { ...p, pet } : p;
+    }),
+    /** Use one free pull (earned by the first clear of a route). Paid pulls are decided by the server. */
+    drawFreeMobby: () => change(p => {
+      const mobbies = pullOnce(p.mobbies, PET_CHARACTERS.map(character => character.id), 'free');
+      return mobbies === p.mobbies ? p : { ...p, mobbies };
+    }),
+    /** The reveal is over. */
+    acknowledgeMobbyPulls: () => change(p => { const mobbies = acknowledgePulls(p.mobbies); return mobbies === p.mobbies ? p : { ...p, mobbies }; }),
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),
     saveHomeWidgetItems: (items: HomeWidgetItems) => change(p => ({ ...p, homeWidgetItems: normalizeHomeWidgetItems(items) })),
     // Remember whose fortune was drawn so switching partners later the same

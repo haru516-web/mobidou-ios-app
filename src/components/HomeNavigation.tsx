@@ -7,6 +7,7 @@ import { PET_BACKGROUNDS } from '../data/petBackgrounds';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { CUSTOM_HOME_WIDGET_IDS, setHomeWidgetSlot, type CustomHomeWidgetId, type HomeWidgetId, type HomeWidgetItems, type HomeWidgetOrder } from '../services/homePreferences';
+import { LockTag } from './LockTag';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { CroppedArt } from './CroppedArt';
 import { SlicedArt } from './SlicedArt';
@@ -251,12 +252,14 @@ export function HomeCustomizationPopup({ order, items, shrines, ownedGoshuinIds,
 
 type MobyPickerPopupProps = {
   selectedPet: PetId;
+  /** When given, a Mobby the player has not met yet is shown locked and cannot be chosen. */
+  isOwned?: (pet: PetId) => boolean;
   onConfirm: (pet: PetId) => void;
   onClose: () => void;
   guided?: boolean;
 };
 
-export function MobyPickerPopup({ selectedPet, onConfirm, onClose, guided = false }: MobyPickerPopupProps) {
+export function MobyPickerPopup({ selectedPet, isOwned, onConfirm, onClose, guided = false }: MobyPickerPopupProps) {
   const reduced = useReducedMotion();
   const [animation, closeAnimation] = usePopupAnimation(reduced);
   const [draftPet, setDraftPet] = useState<PetId>(selectedPet);
@@ -273,9 +276,11 @@ export function MobyPickerPopup({ selectedPet, onConfirm, onClose, guided = fals
         <ScrollView horizontal contentContainerStyle={S.mobyGrid} showsHorizontalScrollIndicator={false} directionalLockEnabled>
           {PET_CHARACTERS.map(pet => {
             const selected = draftPet === pet.id;
-            return <Pressable key={pet.id} artwork={false} accessibilityRole="radio" accessibilityLabel={`${pet.name}。${pet.catchphrase}`} accessibilityState={{ selected }} onPress={() => { setDraftPet(pet.id); if (guided) { setTutorialRect(null); setGuideStage('confirm'); } }} style={[S.mobyCardOption, selected && S.mobyCardOptionActive]}>
+            const locked = !!isOwned && !isOwned(pet.id);
+            return <Pressable key={pet.id} artwork={false} disabled={locked} accessibilityRole="radio" accessibilityLabel={`${pet.name}。${locked ? 'まだ出会っていません' : pet.catchphrase}`} accessibilityState={{ selected, disabled: locked }} onPress={() => { setDraftPet(pet.id); if (guided) { setTutorialRect(null); setGuideStage('confirm'); } }} style={[S.mobyCardOption, selected && S.mobyCardOptionActive, locked && S.mobyCardOptionLocked]}>
               <Image source={PET_BACKGROUNDS[pet.id]} style={S.mobyCardBackdrop} contentFit="cover" pointerEvents="none" /><View pointerEvents="none" style={S.mobyCardWash} /><View pointerEvents="none" style={[S.mobyCardTint, { backgroundColor: pet.accent + '35' }]} />
               <Image source={pet.image} style={S.mobyThumb} contentFit="contain" /><Text style={S.mobyName}>{pet.name}</Text><Text numberOfLines={1} style={S.mobyCatchphrase}>{pet.catchphrase}</Text>{selected && <SlicedArt name="focusFrame" corner={14} />}{selected && <View style={S.mobyCheck}><Icon name="checkmark" size={12} color="#FFF" /></View>}
+              {locked && <LockTag size={38} style={S.mobyLockTag} />}
             </Pressable>;
           })}
         </ScrollView>
@@ -304,6 +309,8 @@ const S = StyleSheet.create({
   navUnderline: { width: 34, height: 6, marginTop: -1 },
   popupRoot: { position: 'absolute', left: 0, right: 0, top: 86, bottom: 77, zIndex: 30, alignItems: 'center' },
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },
+  mobyCardOptionLocked: { opacity: .55 },
+  mobyLockTag: { position: 'absolute', right: 8, bottom: 40 },
   mobyRoot: { justifyContent: 'flex-start', zIndex: 90 },
   popupScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241A10' },
   popupCard: { width: '94%', maxWidth: 440, overflow: 'hidden' },
