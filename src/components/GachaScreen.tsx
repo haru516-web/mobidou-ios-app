@@ -36,12 +36,13 @@ function Part({ part, style, fallback }: { part: GachaArtPart; style: StyleProp<
 export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose }: Props) {
   const { width, height } = useWindowDimensions();
   const reduced = useReducedMotion();
-  const boxW = Math.round(Math.min(250, width * .62));
-  const boxH = Math.round(boxW * .86);
+  // A tall box, like a blind box: about one and a half times as high as it is wide.
+  const boxW = Math.round(Math.min(210, width * .52));
+  const boxH = Math.round(boxW * 1.45);
   const boardW = Math.round(boxW * .86);
-  const boardH = Math.round(boxH * .62);
+  const boardH = Math.round(boxH * .7);
   const boardLeft = Math.round((boxW - boardW) / 2);
-  const boardTop = boxH - boardH - Math.round(boxH * .08);
+  const boardTop = boxH - boardH - Math.round(boxH * .06);
   const lift = boardH * 1.05;
   const centerY = Math.round(height * .47);
   const boxLeft = Math.round(width / 2 - boxW / 2);
@@ -149,6 +150,8 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const boardPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => boardEnabled,
     onMoveShouldSetPanResponder: () => boardEnabled,
+    // Once the board is in hand nothing else may take the drag away.
+    onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => { cancelAnimationFrame(tween.current); dragStart.current = openRef.current; },
     onPanResponderMove: (_, gesture) => {
       const value = Math.max(0, Math.min(1, dragStart.current - gesture.dy / lift));
@@ -259,7 +262,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 }
 
 const S = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#302D25', overflow: 'hidden' },
+  page: { flex: 1, backgroundColor: '#302D25', overflow: 'hidden', userSelect: 'none' },
   stageFallback: { backgroundColor: '#2A251E' },
   abs: { position: 'absolute' },
   raysFallback: { borderRadius: 9999, backgroundColor: 'transparent' },
