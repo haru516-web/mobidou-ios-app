@@ -1,0 +1,177 @@
+[
+  {
+    "file": "assets/gacha/box-body.webp",
+    "dimensions": [
+      880,
+      1280
+    ],
+    "bytes": 101380,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      50,
+      75,
+      830,
+      1205
+    ]
+  },
+  {
+    "file": "assets/gacha/box-front.webp",
+    "dimensions": [
+      880,
+      1280
+    ],
+    "bytes": 174438,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      50,
+      75,
+      830,
+      1205
+    ]
+  },
+  {
+    "file": "assets/gacha/box-shadow.webp",
+    "dimensions": [
+      1024,
+      300
+    ],
+    "bytes": 23044,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      253
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      136,
+      43,
+      938,
+      283
+    ]
+  },
+  {
+    "file": "assets/gacha/glow-core.webp",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "bytes": 200444,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      62,
+      62,
+      962,
+      962
+    ]
+  },
+  {
+    "file": "assets/gacha/glow-rays.webp",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "bytes": 325054,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      62,
+      62,
+      956,
+      962
+    ]
+  },
+  {
+    "file": "assets/gacha/rope.webp",
+    "dimensions": [
+      256,
+      1024
+    ],
+    "bytes": 37168,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      68,
+      0,
+      189,
+      994
+    ]
+  },
+  {
+    "file": "assets/gacha/stage-bg.webp",
+    "dimensions": [
+      1170,
+      2532
+    ],
+    "bytes": 396876,
+    "decodedMode": "RGB",
+    "alphaExtrema": [
+      255,
+      255
+    ],
+    "cornerAlpha": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "alphaBounds": [
+      0,
+      0,
+      1170,
+      2532
+    ]
+  }
+]
