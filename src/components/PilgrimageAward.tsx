@@ -158,7 +158,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     { id: 'rei', source: prayer?.rei, frame: prayerFrame % 8, visible: !walking && action === 'rei' },
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];
-  return <SafeAreaView style={S.page}><FitToHeight style={S.fit}><View style={S.content}>
+  return <SafeAreaView style={S.page}><FitToHeight key={showAward ? 'award' : 'walk'} style={S.fit}><View style={S.content}>
     <Text style={S.eyebrow}>{demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>
     <Text accessibilityRole="header" style={S.title}>{showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>
     <View style={[S.stage, { height: width * 2 / 3 }]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
@@ -212,11 +212,12 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     </>}
   </View></FitToHeight>
   {/* Outside the scaled area, so it keeps its size and stays tappable however tall the content is. */}
-  {showAward && <View style={S.closeBar}><Button title={revealDone ? '御朱印帳にしまう' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={onClose} style={{ width: '100%', maxWidth: 350 }} /></View>}
+  {/* Always present, so the room left for the scaled content does not change when the button appears. */}
+  <View style={S.closeBar}>{showAward && <Button title={revealDone ? '御朱印帳にしまう' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={onClose} style={{ width: '100%', maxWidth: 350 }} />}</View>
   </SafeAreaView>;
 }
 const S = StyleSheet.create({
-  fit: { flex: 1 }, closeBar: { alignItems: 'center', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12 },
+  fit: { flex: 1 }, closeBar: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, minHeight: 76 },
   page: { flex: 1, backgroundColor: '#302D25' }, content: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 24, gap: 15 },
   eyebrow: { color: '#D5BD98', fontSize: 11, letterSpacing: 2 }, title: { color: '#FFF8E9', fontFamily: BRUSH, fontSize: 23, textAlign: 'center', minHeight: 32 }, stage: { width: '100%', maxWidth: 520, overflow: 'hidden', borderRadius: 14, backgroundColor: '#D9CAB2' },
   phaseTrack: { flexDirection: 'row', gap: 9, padding: 7 }, phaseDot: { height: 4, width: 18, borderRadius: 2 }, skip: { backgroundColor: '#FFF5E8', maxWidth: 350, minHeight: 44 }, rewardScene: { width: '100%', maxWidth: 350, minHeight: 292, alignItems: 'center', justifyContent: 'center', position: 'relative' }, rewardHalo: { position: 'absolute', width: 254, height: 254, borderRadius: 127, borderWidth: 1.5, borderColor: '#D8B98A', backgroundColor: '#D8B98A18' }, particle: { position: 'absolute', left: '50%', top: '50%', width: 30, height: 30, marginLeft: -15, marginTop: -15, textAlign: 'center', fontWeight: '700' }, reward: { width: 204, alignItems: 'center', padding: 13, borderRadius: 10, backgroundColor: '#FFF8E9', overflow: 'hidden', zIndex: 2, shadowColor: '#17130F', shadowOffset: { width: 0, height: 8 }, shadowOpacity: .22, shadowRadius: 16, elevation: 8 }, stampFrame: { width: 180, height: 232, alignItems: 'center', justifyContent: 'center' }, inkRing: { position: 'absolute', alignSelf: 'center', top: 31, width: 170, height: 170, borderRadius: 85, borderWidth: 2, borderColor: C.red }, seal: { position: 'absolute', right: 4, bottom: 9, borderWidth: 3, borderColor: C.red, padding: 6, transform: [{ rotate: '-10deg' }], backgroundColor: '#FFF6E8DD' }, sealText: { color: C.red, fontFamily: BRUSH, fontSize: 19 }, copyGroup: { alignItems: 'center', gap: 2 }, name: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 21, textAlign: 'center' }, theme: { color: '#E6D8C5', fontSize: 12, lineHeight: 22, textAlign: 'center' }, guaranteeBadge: { borderWidth: 1, borderColor: '#C69B72', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 5, backgroundColor: '#5C493B', marginTop: 2 }, guaranteeText: { color: '#F6D9A3', fontFamily: SERIF, fontSize: 11, letterSpacing: 1 }, completion: { padding: 18, alignItems: 'center', overflow: 'hidden', width: '100%', maxWidth: 350, gap: 8 }, completionTitle: { fontFamily: BRUSH, fontSize: 20, color: C.red }, completionText: { fontSize: 12, color: C.ink },
