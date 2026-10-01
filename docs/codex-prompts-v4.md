@@ -6,8 +6,8 @@
 
 | # | 作業 | ブランチ | 触ってよい場所 |
 |---|---|---|---|
-| 1 | ガチャ素材の組み込みと見た目の調整 | `codex/gacha-art-wiring` / `D:\mobby\mobidou-gacha` | `src/data/gachaArt.ts`, `src/components/GachaScreen.tsx`, `src/components/gachaTimeline.ts`, `tests/gachaTimeline.test.ts`, `docs/` |
-| 2 | 公開前チェックリストの作成（調査のみ） | `codex/prerelease-checklist` / `D:\mobby\mobidou-prerelease` | `docs/prerelease-checklist.md`（新規）のみ |
+| 1 | ガチャ素材の組み込みと見た目の調整 | `codex/gacha-art-wiring` | `src/data/gachaArt.ts`, `src/components/GachaScreen.tsx`, `src/components/gachaTimeline.ts`, `tests/gachaTimeline.test.ts`, `docs/` |
+| 2 | 公開前チェックリストの作成（調査のみ） | `codex/prerelease-checklist` | `docs/prerelease-checklist.md`（新規）のみ |
 
 Claudeは `claude/ui-navigation-overhaul` で、アプリ側のイベント歩数送信などを進めます。最後にマージで合流します。
 
