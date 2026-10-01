@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { PillText } from './Washi';
 import { CroppedArt } from './CroppedArt';
 import { UI_ART } from '../data/uiArt';

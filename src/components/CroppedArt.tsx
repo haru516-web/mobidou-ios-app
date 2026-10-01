@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import type { ImageSourcePropType } from 'react-native';
 
 /** The part of an image that holds the artwork, as 0..1 fractions of its width and height. */

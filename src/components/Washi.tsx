@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable as NativePressable, View, StyleSheet, Text, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { SlicedArt } from './SlicedArt';
 import { CroppedArt } from './CroppedArt';
 import { UI_ART } from '../data/uiArt';

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AccessibilityInfo, Pressable as PlainPressable, StyleSheet, Text, View, type ImageSourcePropType, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './components/AppImage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
 import type { PetCharacter } from './petCatalog';

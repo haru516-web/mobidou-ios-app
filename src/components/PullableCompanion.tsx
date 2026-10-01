@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import Svg, { Defs, Image as SvgImage, Mask } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, Platform, Pressable as RNPressable, StyleSheet, Text, View, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import type { PetId } from '../petCatalog';
 import { PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import rawWalkMetrics from '../data/pilgrimageSpriteMetrics.json';

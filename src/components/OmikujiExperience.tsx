@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { Image, ImageBackground } from 'expo-image';
+import { Image, ImageBackground } from './AppImage';
 import type { OmikujiFortune } from '../data/omikuji';
 import { OMIKUJI_ATLASES } from '../data/omikujiAtlases';
 import type { PetCharacter } from '../petCatalog';

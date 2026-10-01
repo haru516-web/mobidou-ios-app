@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { BRUSH, C, Icon, useReducedMotion } from '../components';
 import { WashiArt } from './Washi';
 import { CroppedArt } from './CroppedArt';

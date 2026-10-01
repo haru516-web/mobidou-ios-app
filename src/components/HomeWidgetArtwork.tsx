@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { BRUSH } from '../components';
 import type { PetId } from '../petCatalog';
 import type { OmikujiFortune } from '../data/omikuji';

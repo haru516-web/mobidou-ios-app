@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import Svg, { Path, Image as SvgImage } from 'react-native-svg';
 import { UI_ART } from '../data/uiArt';
 import { PILGRIMAGES, type Pilgrimage } from '../data/pilgrimages';

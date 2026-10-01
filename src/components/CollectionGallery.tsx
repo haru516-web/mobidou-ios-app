@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type ImageSourcePropType } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { BRUSH, Icon } from '../components';
 import { SHRINES, STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { PILGRIMAGE_IMAGES } from '../data/pilgrimageImages';

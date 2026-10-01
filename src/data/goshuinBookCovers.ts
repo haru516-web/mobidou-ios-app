@@ -1,10 +1,9 @@
-import type React from 'react';
-import type { Image } from 'expo-image';
+import type { ImageSourcePropType } from 'react-native';
 import { PILGRIMAGE_IMAGES } from './pilgrimageImages';
 
 // Route cover artwork is registered here. A route miniature is a deliberate,
 // stable fallback while a new cover asset is being produced or migrated.
-export type GoshuinBookCoverSource = React.ComponentProps<typeof Image>['source'];
+export type GoshuinBookCoverSource = ImageSourcePropType;
 export const GOSHUIN_BOOK_COVERS: Partial<Record<string, GoshuinBookCoverSource>> = {
   sanctuary: require('../../assets/ui-round3/covers/sanctuary.webp'),
   mountain: require('../../assets/ui-round3/covers/mountain.webp'),

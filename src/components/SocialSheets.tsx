@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Share, StyleSheet, Text, View } from 'react-native';
 import { WashiInput } from './WashiInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { BRUSH, C, Icon } from '../components';
 import { getPetCharacter, type PetCharacter } from '../petCatalog';
 import { WashiArt, WashiPressable as Pressable } from './Washi';

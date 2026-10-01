@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { ImageBackground } from 'expo-image';
+import { ImageBackground } from './AppImage';
 import { categoriesForFortune, type OmikujiFortune } from '../data/omikuji';
 import { BRUSH } from '../components';
 

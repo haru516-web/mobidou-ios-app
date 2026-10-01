@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { BRUSH, C } from '../components';
 import { CroppedArt } from './CroppedArt';
 import { WashiPressable as Pressable } from './Washi';

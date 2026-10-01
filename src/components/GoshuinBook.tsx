@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { BRUSH, C, Icon } from '../components';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';

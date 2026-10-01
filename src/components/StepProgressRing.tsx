@@ -1,6 +1,6 @@
 import React, { useId } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import Svg, { Circle, Defs, Image as SvgImage, Mask, RadialGradient, Stop } from 'react-native-svg';
 import { BRUSH, C } from '../components';
 

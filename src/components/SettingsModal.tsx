@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { BRUSH, Button, C, Icon, Section } from '../components';
 import { sourceLabel } from '../services/steps';
 import type { useJourney } from '../services/useJourney';

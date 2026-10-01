@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, BackHandler, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { BRUSH, C, Icon, useReducedMotion } from '../components';
 import { PET_CHARACTERS, type PetId } from '../petCatalog';
 import { PET_BACKGROUNDS } from '../data/petBackgrounds';

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Modal, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import { Image } from './src/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500Medium';

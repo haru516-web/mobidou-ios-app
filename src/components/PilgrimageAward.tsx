@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image as RNImage, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import type { PetCharacter } from '../petCatalog';

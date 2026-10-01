@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './AppImage';
 import { BRUSH, Button, SERIF } from '../components';
 import { SHOP_GROUPS, SHOP_PRODUCTS, type ShopProduct } from '../data/shop';
 import { GACHA_UI_ART, SHOP_PRODUCT_ART } from '../data/gachaUiArt';
