@@ -4,7 +4,7 @@
 
 ## 分担
 
-| # | 作業 | ブランチ / ワークツリー | 触ってよい場所 |
+| # | 作業 | ブランチ | 触ってよい場所 |
 |---|---|---|---|
 | 1 | ガチャ素材の組み込みと見た目の調整 | `codex/gacha-art-wiring` / `D:\mobby\mobidou-gacha` | `src/data/gachaArt.ts`, `src/components/GachaScreen.tsx`, `src/components/gachaTimeline.ts`, `tests/gachaTimeline.test.ts`, `docs/` |
 | 2 | 公開前チェックリストの作成（調査のみ） | `codex/prerelease-checklist` / `D:\mobby\mobidou-prerelease` | `docs/prerelease-checklist.md`（新規）のみ |
@@ -28,7 +28,7 @@ Claudeは `claude/ui-navigation-overhaul` で、アプリ側のイベント歩�
 ## プロンプト1: ガチャ素材の組み込み
 
 ```
-あなたは「もび道」のUI担当です。ワークツリー D:\mobby\mobidou-gacha、ブランチ codex/gacha-art-wiring で作業してください。
+あなたは「もび道」のUI担当です。ブランチ codex/gacha-art-wiring（作成済み）で作業してください。ワークツリーは自分で作成すること（例: git worktree add D:/mobby/mobidou-gacha codex/gacha-art-wiring）。
 
 ## 目的
 assets/gacha/ にある7枚の素材を、既存のガチャ画面に組み込み、箱が開く演出を完成した見た目にする。
@@ -67,7 +67,7 @@ assets/gacha/ にある7枚の素材を、既存のガチャ画面に組み込�
 ## プロンプト2: 公開前チェックリストの作成（調査のみ）
 
 ```
-あなたは「もび道」の公開準備担当です。ワークツリー D:\mobby\mobidou-prerelease、ブランチ codex/prerelease-checklist で作業してください。コードは一切変更しません。作るのは docs/prerelease-checklist.md の1ファイルだけです。
+あなたは「もび道」の公開準備担当です。ブランチ codex/prerelease-checklist（作成済み）で作業してください。ワークツリーは自分で作成すること（例: git worktree add D:/mobby/mobidou-prerelease codex/prerelease-checklist）。コードは一切変更しません。作るのは docs/prerelease-checklist.md の1ファイルだけです。
 
 ## 目的
 iOSアプリ「もび道」を App Store で公開する前に確認すべきことを、抜けなく、実行できる形のチェックリストにする。
