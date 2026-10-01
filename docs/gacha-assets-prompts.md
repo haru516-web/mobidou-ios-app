@@ -489,3 +489,24 @@ Constraints: true transparent alpha beyond the valance; all four corners transpa
 ~~~
 
 ---
+
+
+# 補助の粉塵シート（2026-10-01）
+
+任意素材U-1も用意した。元画像は exec-37ed3ffb-3946-46ab-a54f-6bccbdd719ed.png（1774×887）。薄い生成り灰色へ色調を合わせ、1コマ256×256の4×2シート、1024×512へ正規化した。各コマでalpha>=24の外接矩形を取得し、3pxの縁を残して縮小。フレームサイズは82/116/150/182/210/176/124/68px幅を上限に配置し、alpha最大値は116/126/136/146/162/126/74/20。RGBA WebP quality90、method6、alpha_quality100で45,086 bytes。床・影・箱・文字は加えていない。
+
+## U-1 採用プロンプト
+
+~~~text
+Use case: production mobile-game impact effect sprite sheet.
+Asset type: transparent 8-frame dust puff atlas, assets/gacha/cart/dust.webp, final 1024x512.
+Input image 1 is the quiet engawa stage. Match its delicate Japanese watercolor softness and warm dawn light, but do not copy scene details.
+Primary request: one evenly spaced 4-column by 2-row sprite atlas, eight separate evolving puffs of fine dust from a wooden box touching a clean engawa floor. Read frames left-to-right, top row then bottom row. Each cell is 256x256. No borders, labels or numbers.
+Animation: frame 1 a tiny low puff; frames 2-3 lift and widen; frame 4 spreads into soft wisps; frame 5 reaches maximum size, a shallow horizontal cloud; frames 6-7 break apart and fade; frame 8 is almost invisible, with only a faint wisp. All eight frames progress smoothly.
+Visual: thin warm greige / pale beige-gray watercolor dust, airy and translucent, soft irregular edges, subtle tiny particles close to the ground. Keep the form low and horizontal, with the center transparent enough that it does not look like a solid blob. No dark smoke.
+Composition: centered within each square cell, completely contained; genuine alpha transparency outside the dust. Each cell can loop or play once without clipping.
+Lighting and palette: pale warm grey, muted cream and faint amber highlights, soft upper-left dawn light.
+Constraints: transparent background, no floor, ground plane, cast shadow, box, character, object, fire, smoke plume, halo, glow, checkerboard, text, letters, numbers, logo or watermark.
+~~~
+
+---
