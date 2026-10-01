@@ -1,7 +1,10 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { BRUSH, Button, SERIF } from '../components';
 import { SHOP_PRODUCTS, type ShopProduct } from '../data/shop';
+import { GACHA_UI_ART, SHOP_PRODUCT_ART } from '../data/gachaUiArt';
+import { SlicedArt } from './SlicedArt';
 
 type Props = {
   /** Start a purchase. Omit while the App Store connection is not available: the buttons then say so. */
@@ -11,8 +14,13 @@ type Props = {
 /** The shop tab of the gacha screen: single and five pulls, and the monthly plans. */
 export function GachaShop({ onBuy }: Props) {
   const group = (kind: ShopProduct['kind'], heading: string) => <View style={S.group}>
-    <Text accessibilityRole="header" style={S.heading}>{heading}</Text>
+    <View style={S.headingPlate}>
+      <SlicedArt art={GACHA_UI_ART.shopHeading} />
+      <Text accessibilityRole="header" style={S.heading}>{heading}</Text>
+    </View>
     {SHOP_PRODUCTS.filter(product => product.kind === kind).map(product => <View key={product.id} style={S.card}>
+      <SlicedArt art={GACHA_UI_ART.shopCard} corner={22} />
+      <Image accessible={false} source={SHOP_PRODUCT_ART[product.id]} contentFit="contain" style={S.art} />
       <View style={S.cardText}>
         <Text style={S.title}>{product.title}</Text>
         <Text style={S.detail}>{product.detail}</Text>
@@ -32,8 +40,10 @@ export function GachaShop({ onBuy }: Props) {
 const S = StyleSheet.create({
   root: { gap: 14, width: '100%', maxWidth: 380, alignSelf: 'center' },
   group: { gap: 8 },
-  heading: { alignSelf: 'flex-start', color: '#F6D9A3', fontFamily: SERIF, fontSize: 13, letterSpacing: 1, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, overflow: 'hidden', backgroundColor: '#211A13D9' },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: '#211A13D9', borderWidth: 1, borderColor: '#6B5A3F' },
+  headingPlate: { alignSelf: 'flex-start', minHeight: 30, paddingHorizontal: 18, justifyContent: 'center' },
+  heading: { color: '#6B3A2A', fontFamily: SERIF, fontSize: 13, letterSpacing: 1 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingLeft: 18, paddingRight: 16 },
+  art: { width: 52, height: 52 },
   cardText: { flex: 1, gap: 3 },
   title: { color: '#FFF8E9', fontFamily: BRUSH, fontSize: 18 },
   detail: { color: '#D5BD98', fontSize: 11, lineHeight: 16 },

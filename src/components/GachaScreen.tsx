@@ -6,6 +6,8 @@ import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, type GachaArtPart } from '../data/gachaArt';
 import { getPetCharacter, isPetId } from '../petCatalog';
 import { GachaShop } from './GachaShop';
+import { SlicedArt } from './SlicedArt';
+import { GACHA_UI_ART } from '../data/gachaUiArt';
 import type { ShopProduct } from '../data/shop';
 import type { PullResult } from '../services/gacha';
 import { AFTER_OPEN_MS, CONFETTI_COLORS, MAX_DIM, bloomAt, confettiAt, blossomsAt, burstAt, fallAt, lightTintAt, motesAt, seasonRateAt, canOpen, dimAt, dustAt, flashAt, gatherAt, glowAfterOpen, glowWhileLifting, HAPTIC_BEATS, landingShake, mobbyAfterOpen, phaseOf, pillarAt, popAt, resolveRelease, rollAt, ROLL_MS, rumbleAt, seamGlow, SETTLED_AT_MS, settleAt, shimmerAt, silhouetteAt, sparklesAt, tempoAt } from './gachaTimeline';
@@ -408,9 +410,9 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     </View>
 
     {showShop && !playing && <View style={S.tabs} accessibilityRole="tablist">
-      <Pressable accessibilityRole="tab" accessibilityState={{ selected: !shopOpen }} onPress={() => setTab('draw')} style={[S.tab, !shopOpen && S.tabOn]}><Text style={[S.tabText, !shopOpen && S.tabTextOn]}>ひく</Text></Pressable>
+      <Pressable accessibilityRole="tab" accessibilityState={{ selected: !shopOpen }} onPress={() => setTab('draw')} style={S.tab}><SlicedArt art={!shopOpen ? GACHA_UI_ART.tabOn : GACHA_UI_ART.tabOff} /><Text style={[S.tabText, !shopOpen && S.tabTextOn]}>ひく</Text></Pressable>
       <View style={S.tabGap} />
-      <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={[S.tab, shopOpen && S.tabOn]}><Text style={[S.tabText, shopOpen && S.tabTextOn]}>購入</Text></Pressable>
+      <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={S.tab}><SlicedArt art={shopOpen ? GACHA_UI_ART.tabOn : GACHA_UI_ART.tabOff} /><Text style={[S.tabText, shopOpen && S.tabTextOn]}>購入</Text></Pressable>
     </View>}
 
     {/* Once the Mobby has been revealed, one tap shows it large and another tap puts it back. */}
@@ -460,8 +462,7 @@ const S = StyleSheet.create({
   ropeHint: { position: 'absolute', left: 0, right: 0, textAlign: 'center', color: '#FFF8E9', fontFamily: BRUSH, fontSize: 18, letterSpacing: 1, textShadowColor: '#000000AA', textShadowRadius: 6 },
   tabs: { position: 'absolute', left: 0, right: 0, top: 76, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   tabGap: { width: 56 },
-  tab: { minWidth: 84, minHeight: 36, paddingHorizontal: 14, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#211A13B3', borderWidth: 1, borderColor: '#6B5A3F' },
-  tabOn: { backgroundColor: '#F1E6D8', borderColor: '#C7A98A' },
+  tab: { minWidth: 104, minHeight: 40, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
   tabText: { color: '#D5BD98', fontFamily: BRUSH, fontSize: 15 },
   tabTextOn: { color: '#A54E42' },
   shop: { position: 'absolute', left: 16, right: 16, top: 128, bottom: 84, justifyContent: 'center' },

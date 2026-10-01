@@ -11,6 +11,7 @@ import { LockTag } from './LockTag';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { CroppedArt } from './CroppedArt';
 import { SlicedArt } from './SlicedArt';
+import { GACHA_NAV_ICON } from '../data/gachaUiArt';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork } from './HomeWidgetArtwork';
 import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './TutorialSpotlight';
 
@@ -36,7 +37,7 @@ const PRIMARY_NAV_ITEMS = [
 ] as const;
 
 /** The gacha is not a screen of its own: its tab opens the box-opening scene over the current one. */
-const GACHA_NAV_ITEM = { title: 'ガチャ', icon: 'gift-outline' } as const;
+const GACHA_NAV_ITEM = { title: 'ガチャ', image: GACHA_NAV_ICON } as const;
 
 type HomeBottomNavigationProps = {
   tab: PrimaryTab;
@@ -68,7 +69,7 @@ export function HomeBottomNavigation({ tab, onNavigate, disabled = false, onGach
  * One tab. The chosen tab is stamped: a vermilion ink seal blooms behind its
  * icon, the icon lifts a little, and the name is underlined with a brush stroke.
  */
-function NavTab({ item, selected, onPress, badge = 0 }: { item: { title: string; icon: React.ComponentProps<typeof Icon>['name'] }; selected: boolean; onPress: () => void; badge?: number }) {
+function NavTab({ item, selected, onPress, badge = 0 }: { item: { title: string; icon?: React.ComponentProps<typeof Icon>['name']; /** A drawn icon used instead of `icon`. */ image?: ImageSourcePropType }; selected: boolean; onPress: () => void; badge?: number }) {
   const reduced = useReducedMotion();
   const progress = useRef(new Animated.Value(selected ? 1 : 0)).current;
   const useNativeDriver = Platform.OS !== 'web';
@@ -86,7 +87,9 @@ function NavTab({ item, selected, onPress, badge = 0 }: { item: { title: string;
   return <Pressable artwork={false} accessibilityRole="tab" accessibilityLabel={badge > 0 ? `${item.title}。無料で引けるのは${badge}回` : item.title} accessibilityState={{ selected }} onPress={onPress} style={S.navItem}>
     <Animated.View style={[S.navIconWrap, { transform: [{ translateY: lift }] }]}>
       <Animated.Image accessible={false} source={NAV_TAB_ACTIVE} resizeMode="contain" style={[S.navInk, { opacity: progress, transform: [{ scale: sealScale }, { rotate: sealTurn }] }]} />
-      <Icon name={item.icon} size={22} color={selected ? '#FFF9EF' : '#6F675B'} />
+      {item.image
+        ? <Image accessible={false} source={item.image} contentFit="contain" tintColor={selected ? '#FFF9EF' : '#6F675B'} style={S.navImage} />
+        : <Icon name={item.icon ?? 'help-outline'} size={22} color={selected ? '#FFF9EF' : '#6F675B'} />}
       {badge > 0 && <View style={S.navBadge}><Text style={S.navBadgeText}>{badge > 9 ? '9+' : badge}</Text></View>}
     </Animated.View>
     <View style={S.navLabelWrap}>
@@ -317,6 +320,7 @@ const S = StyleSheet.create({
   navIconWrap: { width: 42, height: 40, alignItems: 'center', justifyContent: 'center' },
   navBadge: { position: 'absolute', top: -2, right: -4, minWidth: 16, height: 16, paddingHorizontal: 3, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: C.red },
   navBadgeText: { color: '#FFF9EF', fontSize: 10, fontWeight: '700', lineHeight: 12 },
+  navImage: { width: 30, height: 30 },
   navInk: { position: 'absolute', width: 42, height: 42 },
   navLabelWrap: { alignItems: 'center', marginTop: 1 },
   navLabel: { fontFamily: BRUSH, fontSize: 11, letterSpacing: .4, color: '#6F675B' },

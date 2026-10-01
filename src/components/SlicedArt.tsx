@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 
-import { UI_ART, type UiArtName } from '../data/uiArt';
+import { UI_ART, type UiArt, type UiArtName } from '../data/uiArt';
 import { CroppedArt } from './CroppedArt';
 
 type Edges = { left: number; right: number; top: number; bottom: number };
@@ -14,8 +14,8 @@ type Edges = { left: number; right: number; top: number; bottom: number };
  *
  * `corner` is how big the fixed edge is on screen, in points.
  */
-export function SlicedArt({ name, corner, style }: { name: UiArtName; corner?: number; style?: StyleProp<ViewStyle> }) {
-  const art = UI_ART[name];
+export function SlicedArt({ name, art: given, corner, style }: { name?: UiArtName; /** Artwork that is not in the shared set (such as the gacha shop's). */ art?: UiArt; corner?: number; style?: StyleProp<ViewStyle> }) {
+  const art = given ?? UI_ART[name as UiArtName];
   const [size, setSize] = useState({ width: 0, height: 0 });
   const onLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -24,7 +24,7 @@ export function SlicedArt({ name, corner, style }: { name: UiArtName; corner?: n
   const box = art.box;
   const boxWidth = box.x1 - box.x0;
   const boxHeight = box.y1 - box.y0;
-  const slice: { left?: number; right?: number; top?: number; bottom?: number } = 'slice' in art ? art.slice : {};
+  const slice: { left?: number; right?: number; top?: number; bottom?: number } = 'slice' in art && art.slice ? art.slice : {};
   // Fixed edge widths inside the artwork box, in source pixels.
   const edges: Edges = {
     left: Math.max(1, (slice.left ?? 0) - box.x0),
