@@ -1,0 +1,26 @@
+{
+  "cell": { "width": 768, "height": 512 },
+  "groundLine": 464,
+  "walk": [
+    { "bedX": 216, "bedY": 274, "bedAngle": 0 },
+    { "bedX": 216, "bedY": 267.5, "bedAngle": -0.17 },
+    { "bedX": 216, "bedY": 272, "bedAngle": -0.35 },
+    { "bedX": 216, "bedY": 272, "bedAngle": -0.70 },
+    { "bedX": 216, "bedY": 277, "bedAngle": 1.05 },
+    { "bedX": 216, "bedY": 275, "bedAngle": 1.05 },
+    { "bedX": 216, "bedY": 273, "bedAngle": 0 },
+    { "bedX": 216, "bedY": 276, "bedAngle": 0 }
+  ],
+  "unload": [
+    { "bedX": 216, "bedY": 274, "bedAngle": 0 },
+    { "bedX": 235.5, "bedY": 276.5, "bedAngle": 0.16 },
+    { "bedX": 456.5, "bedY": 262.5, "bedAngle": 0.15 },
+    { "bedX": 422.5, "bedY": 286.5, "bedAngle": 14.99 },
+    { "bedX": 420, "bedY": 277, "bedAngle": 19.61 },
+    { "bedX": 417.5, "bedY": 286, "bedAngle": 20.88 },
+    { "bedX": 453, "bedY": 270, "bedAngle": 0 },
+    { "bedX": 234.5, "bedY": 277, "bedAngle": 0 }
+  ],
+  "box": { "width": 184, "height": 268 },
+  "slideEnd": { "x": 255, "y": 464 }
+}

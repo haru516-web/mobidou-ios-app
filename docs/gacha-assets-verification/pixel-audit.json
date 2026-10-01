@@ -173,5 +173,193 @@
       1170,
       2532
     ]
+  },
+  {
+    "file": "assets/gacha/cart/carrier-walk.webp",
+    "dimensions": [
+      3075,
+      1025
+    ],
+    "bytes": 617256,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      45,
+      106,
+      3029,
+      980
+    ],
+    "atlas": {
+      "columns": 4,
+      "rows": 2,
+      "cell": [
+        768,
+        512
+      ],
+      "gutterColumns": [
+        768,
+        1537,
+        2306
+      ],
+      "gutterRow": 512,
+      "gutterMaxAlpha": 0
+    }
+  },
+  {
+    "file": "assets/gacha/cart/carrier-unload.webp",
+    "dimensions": [
+      3075,
+      1025
+    ],
+    "bytes": 507988,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      45,
+      99,
+      3032,
+      981
+    ],
+    "atlas": {
+      "columns": 4,
+      "rows": 2,
+      "cell": [
+        768,
+        512
+      ],
+      "gutterColumns": [
+        768,
+        1537,
+        2306
+      ],
+      "gutterRow": 512,
+      "gutterMaxAlpha": 0
+    }
+  },
+  {
+    "file": "assets/gacha/curtain-left.webp",
+    "dimensions": [
+      700,
+      2532
+    ],
+    "bytes": 197630,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "cornerAlpha": [
+      252,
+      0,
+      1,
+      0
+    ],
+    "alphaBounds": [
+      0,
+      0,
+      615,
+      2532
+    ]
+  },
+  {
+    "file": "assets/gacha/curtain-right.webp",
+    "dimensions": [
+      700,
+      2532
+    ],
+    "bytes": 196388,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "cornerAlpha": [
+      0,
+      252,
+      0,
+      1
+    ],
+    "alphaBounds": [
+      85,
+      0,
+      700,
+      2532
+    ]
+  },
+  {
+    "file": "assets/gacha/curtain-valance.webp",
+    "dimensions": [
+      1170,
+      320
+    ],
+    "bytes": 74486,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      4,
+      0,
+      1166,
+      168
+    ]
+  },
+  {
+    "file": "assets/gacha/cart/dust.webp",
+    "dimensions": [
+      1024,
+      512
+    ],
+    "bytes": 45086,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      162
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      37,
+      92,
+      987,
+      441
+    ],
+    "atlas": {
+      "columns": 4,
+      "rows": 2,
+      "cell": [
+        256,
+        256
+      ]
+    }
   }
 ]
