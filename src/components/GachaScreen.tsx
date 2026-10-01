@@ -8,7 +8,7 @@ import { getPetCharacter, isPetId } from '../petCatalog';
 import { GachaShop } from './GachaShop';
 import type { ShopProduct } from '../data/shop';
 import type { PullResult } from '../services/gacha';
-import { AFTER_OPEN_MS, bloomAt, burstAt, canOpen, dimAt, flashAt, glowAfterOpen, glowWhileLifting, landingShake, mobbyAfterOpen, phaseOf, popAt, resolveRelease, rollAt, ROLL_MS, rumbleAt, seamGlow, SETTLED_AT_MS, settleAt, silhouetteAt, sparklesAt } from './gachaTimeline';
+import { AFTER_OPEN_MS, bloomAt, burstAt, canOpen, dimAt, dustAt, flashAt, gatherAt, glowAfterOpen, glowWhileLifting, HAPTIC_BEATS, landingShake, mobbyAfterOpen, phaseOf, pillarAt, popAt, resolveRelease, rollAt, ROLL_MS, rumbleAt, seamGlow, SETTLED_AT_MS, settleAt, silhouetteAt, sparklesAt } from './gachaTimeline';
 
 const PULL_TO_DRAW = 64;
 const MAX_PULL = 110;
@@ -68,6 +68,8 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const [openedFor, setOpenedFor] = useState(0);
   const [pull, setPull] = useState(0);
   const [bob, setBob] = useState(0);
+  /** A free-running clock (ms) for motion that does not follow the opening's own timeline, such as the trembling. */
+  const [clock, setClock] = useState(0);
   const startedAt = useRef<number | null>(null);
   const openedAt = useRef<number | null>(null);
   const drawRequested = useRef(false);
@@ -152,9 +154,29 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     if (!haptics || !playing || phase === lastPhase.current) return;
     lastPhase.current = phase;
     if (phase === 'settle') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
-    if (phase === 'hold') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     if (phase === 'revealed') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   }, [haptics, playing, phase]);
+
+  useEffect(() => {
+    if (!playing || reduced) return;
+    let frame = 0;
+    let begun: number | null = null;
+    const tick = (now: number) => {
+      if (begun === null) begun = now;
+      setClock(now - begun);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, reduced, index]);
+
+  // Once the board is up, the phone beats along with the light: a tap per heartbeat, then a heavy one at the burst.
+  useEffect(() => {
+    if (!opened || !haptics) return;
+    const styles = { light: Haptics.ImpactFeedbackStyle.Light, medium: Haptics.ImpactFeedbackStyle.Medium, heavy: Haptics.ImpactFeedbackStyle.Heavy };
+    const timers = HAPTIC_BEATS.map(beat => setTimeout(() => { void Haptics.impactAsync(styles[beat.strength]).catch(() => {}); }, beat.at));
+    return () => timers.forEach(clearTimeout);
+  }, [opened, haptics]);
 
   /** Move the board to `to` over a short time, then act on where it ended up. */
   const settleBoard = useCallback((to: 0 | 1) => {
@@ -227,7 +249,10 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const bloom = playing ? bloomAt(opened ? openedFor : null, open) : 0;
   const flash = opened ? flashAt(openedFor) : 0;
   const burst = opened ? burstAt(openedFor) : { scale: 0, opacity: 0 };
-  const rumble = rumbleAt(open, opened, ms + openedFor);
+  const rumble = rumbleAt(open, opened, clock, opened ? openedFor : 0);
+  const gather = opened ? gatherAt(openedFor) : [];
+  const pillar = opened ? pillarAt(openedFor) : { height: 0, opacity: 0 };
+  const dust = opened ? dustAt(openedFor) : [];
   const seam = playing && !opened ? seamGlow(ms) : 0;
   const sparkles = opened ? sparklesAt(openedFor) : [];
   const shake = playing ? landingShake(ms) : 0;
@@ -251,6 +276,10 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
         <Part part="glowRays" style={[S.abs, { width: boxW * 5, height: boxW * 5, left: cx - boxW * 2.5, top: cy - boxW * 2.5, opacity: burst.opacity, transform: [{ rotate: `${-(openedFor) * .05 + 20}deg` }, { scale: burst.scale }] }]} />
       </View>
 
+      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, S.additive]}>
+        {pillar.opacity > 0 && <Part part="glowCore" style={[S.abs, { width: boxW * 1.5, height: (cy + 60) * 1.6 * pillar.height, left: cx - boxW * .75, top: cy - (cy + 60) * 1.6 * pillar.height + boxW * .35, opacity: pillar.opacity }]} />}
+      </View>
+
       <Part part="shadow" style={[S.abs, { width: boxW * 1.3, height: boxW * 1.3 * 300 / 1024, left: boxLeft - boxW * .15 + roll.x * boxW, top: boxTop + boxH * .94 - boxW * .19, opacity: .85 * (1 - dim * .5) }]} />
 
       {/* The box: body, the opening with its light, the Mobby, and the front board. */}
@@ -272,6 +301,8 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       {/* Light washing over everything, gold specks flying out of the opening, and the flash at the moment it opens. */}
       <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, S.additive]}>
         <Part part="glowCore" style={[S.abs, { width: width * 2.4, height: width * 2.4, left: cx - width * 1.2, top: cy - width * 1.2, opacity: glow * .5 }]} />
+        {gather.map((speck, i) => <Part key={`g${i}`} part="glowCore" style={[S.abs, { width: boxW * speck.size * 2.6, height: boxW * speck.size * 2.6, left: cx + speck.x * boxW - boxW * speck.size * 1.3, top: cy + speck.y * boxW - boxW * speck.size * 1.3, opacity: speck.opacity }]} />)}
+        {dust.map((flake, i) => <Part key={`d${i}`} part="glowCore" style={[S.abs, { width: width * flake.size * 3, height: width * flake.size * 3, left: flake.x * width - width * flake.size * 1.5, top: flake.y * height, opacity: flake.opacity * .9 }]} />)}
         {sparkles.map((spark, i) => <Part key={i} part="glowCore" style={[S.abs, { width: boxW * spark.size * 2.6, height: boxW * spark.size * 2.6, left: cx + spark.x * boxW - boxW * spark.size * 1.3, top: cy + spark.y * boxW - boxW * spark.size * 1.3, opacity: spark.opacity }]} />)}
       </View>
       <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#FFF6DA', opacity: flash }]} />
@@ -284,7 +315,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     {!playing && !shopOpen && freePulls > 0 && <Text pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 14, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}>下にひっぱってね</Text>}
 
     <View style={S.top}>
-      <Text accessibilityRole="header" style={[S.title, !playing && !shopOpen && S.titleHidden]}>{shopOpen ? '購入' : !playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'roll' ? '箱が転がってきました' : phase === 'settle' ? '箱が止まりました' : phase === 'ready' ? '前の板を、上へ引き上げて' : '光があふれています'}</Text>
+      <Text accessibilityRole="header" style={[S.title, !playing && !shopOpen && S.titleHidden]}>{shopOpen ? '購入' : !playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'roll' ? '箱が転がってきました' : phase === 'settle' ? '箱が止まりました' : phase === 'ready' ? '前の板を、上へ引き上げて' : phase === 'charge' ? '光が集まっています' : '光があふれています'}</Text>
       {remaining > 1 && playing && <Text style={S.count}>{index + 1} / {remaining}</Text>}
     </View>
 
