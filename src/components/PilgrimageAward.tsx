@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import type { PetCharacter } from '../petCatalog';
 import type { Shrine } from '../data/shrines';
@@ -157,7 +158,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     { id: 'rei', source: prayer?.rei, frame: prayerFrame % 8, visible: !walking && action === 'rei' },
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];
-  return <View style={S.page}><FitToHeight><View style={S.content}>
+  return <SafeAreaView style={S.page}><FitToHeight><View style={S.content}>
     <Text style={S.eyebrow}>{demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>
     <Text accessibilityRole="header" style={S.title}>{showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>
     <View style={[S.stage, { height: width * 2 / 3 }]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
@@ -210,7 +211,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
       {complete && <View style={S.completion}><WashiArt /><Text style={S.completionTitle}>{route!.gift}</Text><Text style={S.completionText}>「{route!.title}」</Text><Text style={S.completionText}>旅の証を、御朱印帳に綴りました。</Text>{!demo && <Text style={S.completionText}>ガチャを1回、無料で引けます。</Text>}</View>}
       <Button title={revealDone ? '御朱印帳にしまう' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={onClose} style={{ width: '100%', maxWidth: 350 }} />
     </>}
-  </View></FitToHeight></View>;
+  </View></FitToHeight></SafeAreaView>;
 }
 const S = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#302D25' }, content: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 24, gap: 15 },

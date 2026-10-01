@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
@@ -44,6 +45,8 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
 
 export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy }: Props) {
   const [tab, setTab] = useState<'draw' | 'shop'>('draw');
+  // The scene fills the screen edge to edge, but the title, tabs and buttons keep clear of the notch and the home indicator.
+  const insets = useSafeAreaInsets();
   const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
   const measureScene = useCallback(({ nativeEvent: { layout } }: LayoutChangeEvent) => {
     setSize(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height });
@@ -433,12 +436,12 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     </View>}
     {!playing && !shopOpen && freePulls > 0 && <Text pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 14, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}>下にひっぱってね</Text>}
 
-    <View style={S.top}>
+    <View style={[S.top, { top: 32 + insets.top }]}>
       <Text accessibilityRole="header" style={[S.title, !playing && !shopOpen && S.titleHidden]}>{shopOpen ? '購入' : !playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'curtain' ? '幕が開きます' : phase === 'roll' ? 'モビーが荷を運んできました' : phase === 'settle' ? '荷が届きました' : phase === 'ready' ? '前の板を、上へ引き上げて' : phase === 'charge' ? '光が集まっています' : '光があふれています'}</Text>
       {remaining > 1 && playing && <Text style={S.count}>{index + 1} / {remaining}</Text>}
     </View>
 
-    {showShop && !playing && <View style={S.tabs} accessibilityRole="tablist">
+    {showShop && !playing && <View style={[S.tabs, { top: 76 + insets.top }]} accessibilityRole="tablist">
       <Pressable accessibilityRole="tab" accessibilityState={{ selected: !shopOpen }} onPress={() => setTab('draw')} style={S.tab}><SlicedArt art={!shopOpen ? GACHA_UI_ART.tabOn : GACHA_UI_ART.tabOff} /><Text style={[S.tabText, !shopOpen && S.tabTextOn]}>ひく</Text></Pressable>
       <View style={S.tabGap} />
       <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={S.tab}><SlicedArt art={shopOpen ? GACHA_UI_ART.tabOn : GACHA_UI_ART.tabOff} /><Text style={[S.tabText, shopOpen && S.tabTextOn]}>購入</Text></Pressable>
@@ -450,11 +453,11 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       {zoomT > 0 && <Image accessible={false} source={pet.image} contentFit="contain" style={{ position: 'absolute', width: bigSize, height: bigSize, left: (width - bigSize) / 2, top: bigTop, opacity: Math.min(1, zoomT * 1.6), transform: [{ scale: .55 + .45 * zoomT + .08 * Math.sin(Math.min(1, zoomT) * Math.PI) }] }} />}
     </Pressable>}
 
-    {shopOpen && <View style={S.shop}><GachaShop onBuy={onBuy} /></View>}
+    {shopOpen && <View style={[S.shop, { top: 128 + insets.top, bottom: 84 + insets.bottom }]}><GachaShop onBuy={onBuy} /></View>}
 
-    {shopOpen && <View style={S.bottom}><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
+    {shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 
-    {!playing && !shopOpen && <View style={S.bottom}>
+    {!playing && !shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}>
       {freePulls > 0
         ? <>
           <Text style={S.small}>無料で引ける回数 {freePulls}回</Text>
@@ -464,12 +467,12 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       <Button title="とじる" secondary onPress={onClose} style={S.wide} />
     </View>}
 
-    {playing && !(done && panelReady) && <View style={S.bottom}>
+    {playing && !(done && panelReady) && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}>
       {phase === 'ready' && <Text style={S.small}>板の上を、指で上へなぞってください</Text>}
       <Button title="演出を省略" secondary onPress={skip} style={S.wide} />
     </View>}
 
-    {done && panelReady && result && pet && <View style={S.bottom}>
+    {done && panelReady && result && pet && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}>
       <Text style={S.hint}>{zoomed ? 'タップで元に戻る' : 'タップで大きく見る'}</Text>
       <Text style={S.name}>{pet.name}</Text>
       <Text style={S.badge}>{result.isNew ? 'はじめまして！' : 'また会えたね。小さなモビーがそばに来るよ'}</Text>
