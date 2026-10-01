@@ -9,10 +9,11 @@ import type { SpecialCollection } from './specialRewards';
  * Local testing only: while this is on, every Mobby, goshuin, miniature, route cover and pass is
  * owned, passes and free pulls never run out, and the omikuji can be drawn again after each draw.
  * It only works in development builds (`__DEV__`), so a release build can never unlock anything
- * by it. Set to false to play with a normal save again; the unlocked items stay in the saved data
- * until it is reset.
+ * by it. It is off unless the dev server is started with EXPO_PUBLIC_DEV_UNLOCK_ALL=1 (so a device
+ * build plays the real flow: walking animations, new goshuin, real gacha supply). Items it has
+ * unlocked stay in the saved data until it is reset (settings has a dev-only reset button).
  */
-export const DEV_UNLOCK_ALL = typeof __DEV__ !== 'undefined' && __DEV__ && true;
+export const DEV_UNLOCK_ALL = typeof __DEV__ !== 'undefined' && __DEV__ && process.env.EXPO_PUBLIC_DEV_UNLOCK_ALL === '1';
 
 const SUPPLY = 99;
 

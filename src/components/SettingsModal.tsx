@@ -44,6 +44,7 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
   const [info, setInfo] = useState<InfoKind | null>(null);
   const [tourPicker, setTourPicker] = useState(false);
   const [confirmDiscardBackup, setConfirmDiscardBackup] = useState(false);
+  const [confirmDevReset, setConfirmDevReset] = useState(false);
 
   const close = () => { setInfo(null); setTourPicker(false); onClose(); };
   const startTour = (selection: TourSelection) => { setTourPicker(false); onStartTour(selection); };
@@ -107,6 +108,17 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
           <Text style={M.settingHelp}>各画面の使い方を、もう一度ゆっくり見られます。</Text>
           <Button title="チュートリアルを見る" icon="help-circle-outline" secondary onPress={() => setTourPicker(true)} />
         </View>
+        {__DEV__ && <View key="dev">
+          <Section title="開発用" />
+          <Text style={M.settingHelp}>開発ビルドだけの項目です。端末の記録をすべて消して、最初から始め直します。</Text>
+          {confirmDevReset
+            ? <>
+              <Text style={M.settingHelp}>この端末の記録がすべて消えます。よろしいですか？</Text>
+              <Button title="消して最初からやり直す" onPress={() => void journey.devResetAll()} />
+              <Button title="やめる" secondary onPress={() => setConfirmDevReset(false)} style={{ marginTop: 10 }} />
+            </>
+            : <Button title="記録を消して最初から" secondary onPress={() => setConfirmDevReset(true)} />}
+        </View>}
         <View key="about">
           <Section title="このアプリについて" />
           <Button title="プライバシーとデータ" secondary onPress={() => setInfo('privacy')} />

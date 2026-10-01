@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, DevSettings } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, startRoute, startReplay, resumeRoute, type Progress } from './progress';
 import { getPilgrimage } from '../data/pilgrimages';
@@ -338,6 +338,14 @@ export function useJourney() {
     // day does not change an already drawn result.
     drawDailyOmikuji: () => change(p => ({ ...p, omikujiDay: localOmikujiDay(), omikujiPetId: p.pet })),
     resetDailyOmikuji: () => change(p => ({ ...p, omikujiDay: null, omikujiPetId: null })),
+    /** Development builds only: wipe the saved record and restart the app from the first launch. */
+    devResetAll: async () => {
+      if (!__DEV__) return;
+      await writing.current.catch(() => {});
+      await AsyncStorage.removeItem(KEY);
+      await AsyncStorage.removeItem(CORRUPTED_BACKUP_KEY);
+      DevSettings.reload();
+    },
     chooseBackground: (backgroundId: BackgroundId) => change(p => ({ ...p, backgroundId })),
     purchaseBookDesign: (routeId: string) => change(p => setActiveBookDesigns(p, { owned: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).owned, [routeId]: true }, selected: { ...(p.demo ? p.trialBookDesigns : p.realBookDesigns).selected, [routeId]: 'route' } })),
     selectBookDesign: (routeId: string, design: 'normal' | 'route') => change(p => {
