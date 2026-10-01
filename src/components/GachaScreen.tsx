@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image as RNImage, PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
-import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
@@ -368,7 +367,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 
       {/* The carrier Mobby pulls the cart in, tips the box onto the floor and leaves. */}
       {car?.sheet && <View pointerEvents="none" style={[S.abs, { left: stopLeft + car.dx * sc, top: cellTop, width: cart.cell.width * sc, height: cart.cell.height * sc, overflow: 'hidden' }]}>
-        <Image accessible={false} source={car.sheet === 'walk' ? GACHA_STAGE_ART.carrierWalk : GACHA_STAGE_ART.carrierUnload} contentFit="fill" transition={0} style={{ position: 'absolute', width: GACHA_SHEET.width * sc, height: GACHA_SHEET.height * sc, left: -(car.frame % 4) * GACHA_SHEET.cellStep.x * sc, top: -Math.floor(car.frame / 4) * GACHA_SHEET.cellStep.y * sc }} />
+        <RNImage accessible={false} source={car.sheet === 'walk' ? GACHA_STAGE_ART.carrierWalk : GACHA_STAGE_ART.carrierUnload} resizeMode="stretch" style={{ position: 'absolute', width: GACHA_SHEET.width * sc, height: GACHA_SHEET.height * sc, left: -(car.frame % 4) * GACHA_SHEET.cellStep.x * sc, top: -Math.floor(car.frame / 4) * GACHA_SHEET.cellStep.y * sc }} />
       </View>}
 
       {/* The box: body, the opening with its light, the Mobby, and the front board. */}
@@ -388,7 +387,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       </View>
 
       {dustFrame !== null && <View pointerEvents="none" style={[S.abs, { left: width / 2 - boxW * .85, top: boxTop + boxH - boxW * 1.2, width: boxW * 1.7, height: boxW * 1.7, overflow: 'hidden', opacity: .9 }]}>
-        <Image accessible={false} source={GACHA_STAGE_ART.dust} contentFit="fill" transition={0} style={{ position: 'absolute', width: GACHA_DUST_SHEET.width * boxW * 1.7 / GACHA_DUST_SHEET.cell, height: GACHA_DUST_SHEET.height * boxW * 1.7 / GACHA_DUST_SHEET.cell, left: -(dustFrame % 4) * boxW * 1.7, top: -Math.floor(dustFrame / 4) * boxW * 1.7 }} />
+        <RNImage accessible={false} source={GACHA_STAGE_ART.dust} resizeMode="stretch" style={{ position: 'absolute', width: GACHA_DUST_SHEET.width * boxW * 1.7 / GACHA_DUST_SHEET.cell, height: GACHA_DUST_SHEET.height * boxW * 1.7 / GACHA_DUST_SHEET.cell, left: -(dustFrame % 4) * boxW * 1.7, top: -Math.floor(dustFrame / 4) * boxW * 1.7 }} />
       </View>}
 
       {/* Light washing over everything, gold specks flying out of the opening, and the flash at the moment it opens. */}
@@ -426,10 +425,10 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     {/* The curtain: shut while the cord waits, drawn aside when it is pulled. The valance and its ring stay. */}
     {!shopOpen && <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
       {curtainOpen < 1 && <>
-        <Image accessible={false} source={GACHA_STAGE_ART.curtainLeft} contentFit="cover" contentPosition={{ right: 0, top: 0 }} transition={0} style={[S.abs, { left: 0, top: 0, width: curtainHalf, height, transform: [{ translateX: -curtainOpen * (curtainHalf + 8) }] }]} />
-        <Image accessible={false} source={GACHA_STAGE_ART.curtainRight} contentFit="cover" contentPosition={{ left: 0, top: 0 }} transition={0} style={[S.abs, { left: width - curtainHalf, top: 0, width: curtainHalf, height, transform: [{ translateX: curtainOpen * (curtainHalf + 8) }] }]} />
+        <View style={[S.abs, { left: 0, top: 0, width: curtainHalf, height, overflow: 'hidden', transform: [{ translateX: -curtainOpen * (curtainHalf + 8) }] }]}><RNImage accessible={false} source={GACHA_STAGE_ART.curtainLeft} resizeMode="cover" style={{ width: '100%', height: '100%' }} /></View>
+        <View style={[S.abs, { left: width - curtainHalf, top: 0, width: curtainHalf, height, overflow: 'hidden', transform: [{ translateX: curtainOpen * (curtainHalf + 8) }] }]}><RNImage accessible={false} source={GACHA_STAGE_ART.curtainRight} resizeMode="cover" style={{ width: '100%', height: '100%' }} /></View>
       </>}
-      <Image accessible={false} source={GACHA_STAGE_ART.valance} contentFit="fill" transition={0} style={[S.abs, { left: 0, top: 0, width, height: width * GACHA_CURTAIN.valanceHeight / GACHA_CURTAIN.valanceWidth }]} />
+      <RNImage accessible={false} source={GACHA_STAGE_ART.valance} resizeMode="stretch" style={[S.abs, { left: 0, top: 0, width, height: width * GACHA_CURTAIN.valanceHeight / GACHA_CURTAIN.valanceWidth }]} />
     </View>}
 
     {/* The cord to pull. */}

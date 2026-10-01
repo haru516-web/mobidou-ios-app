@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { Animated, Easing, Image as RNImage, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -53,7 +53,7 @@ const REVEAL_PARTICLES = [
 function Sprite({ source, metric, frame, size, onLoad }: { source: ImageSourcePropType; metric: Metric; frame: number; size: number; onLoad: () => void }) {
   const scale = size / metric.cropHeight;
   return <View style={{ width: metric.cropWidth * scale, height: size, overflow: 'hidden' }}>
-    <Image source={source} onLoad={onLoad} contentFit="fill" transition={0} style={{ position: 'absolute', left: -(metric.cellWidth * frame + metric.left) * scale, top: -metric.top * scale, width: metric.width * scale, height: metric.height * scale }} />
+    <RNImage source={source} onLoad={onLoad} resizeMode="stretch" style={{ position: 'absolute', left: -(metric.cellWidth * frame + metric.left) * scale, top: -metric.top * scale, width: metric.width * scale, height: metric.height * scale }} />
   </View>;
 }
 
