@@ -444,3 +444,48 @@ Constraints: true transparent background; no floor, ground plane, contact shadow
 ~~~
 
 ---
+
+
+# 緞帳素材（2026-10-01）
+
+分類Wは、漆塗りの箱と朱の意匠になじむ深い朱の無地布に、控えめな金の縁取りを合わせた。縞幕は藍染の運び屋と競合するため採用しなかった。最初の強い内向き弧の候補（exec-5e5632e9-587d-4eb1-bd92-7861874632ac.png）とその部分編集（exec-fa7e3f65-7437-4dea-9db0-872b6e36088d.png）は中央の形が残ったため不採用。採用候補は curtain-right.webp の exec-45b91510-df58-4901-ace8-59e2dd2c43b6.png（798×1972）。
+
+### W-1 の後処理
+
+元画像のalpha>=16外接矩形(189,0,798,1921)を取得し、premultiplied-alphaで高さ2532pxへリサンプルした。各行の内側端を測り、41行中央値で細かな輪郭ゆれをならした後、内側端がx=85（上）からx=100（下）へ少し動くよう、布幅615pxへ横方向に再マッピング。700×2532キャンバスの右パネルを作り、左パネルはその正確な水平反転。quality90、method6、alpha_quality100。最終容量: right 196,388 bytes、left 197,630 bytes。
+
+### W-2 の後処理
+
+valance生成元 exec-bbffc0f9-583b-4c60-a507-18115e33becf.png（2124×740）のalpha>=16外接矩形(13,175,2113,478)を切り出し、縦横比を保って幅1162pxへ縮小。1170×320の透明キャンバスへx=4、y=0で配置。quality90、method6、alpha_quality100。最終74,486 bytes。
+
+## W-1 採用プロンプト
+
+~~~text
+Use case: production mobile-game layered sprite, isolated right-hand theatre curtain.
+Asset type: curtain-right.webp, one transparent portrait curtain panel, normalized to 700x2532.
+Input image 1 is the engawa scene for quiet pre-dawn light and Japanese painted texture. Images 2 and 3 show the dark antique lacquer box and its warm gold detailing; coordinate the curtain color with them.
+Primary request: a single heavy deep-vermilion theatre curtain panel with broad vertical pleats and a narrow antique-gold wavy lower hem with evenly spaced small tassels. Plain deep red cloth, no stripes.
+Critical geometry of the inner edge: this is the RIGHT curtain, so its center-facing inner edge is on the LEFT side of the cloth. Keep a clear transparent margin on that inner-left side. After normalization to a 700x2532 canvas, the inner edge should stay nearly vertical at x≈85 from top to bottom; allow only a very slight graceful bow, no more than about 20px sideways change over the entire height. Do not create a deep crescent, diagonal opening, gathered-away center, concave bowl or large middle bulge. The mirrored pair must meet and overlap by 60px at screen center when placed on a 1170px-wide screen.
+Composition: right-panel cloth starts near x=85 and fills to the right canvas edge; the outside edge at right is straight and can bleed offscreen. Full height. Broad folds are vertical and nearly parallel. The lower hem gently ripples by only a few pixels and carries a neat fine gold edge and small regular tassels. No gold piping along the inner vertical edge; overlapping red fabric should have no bright central seam.
+Style: tactile illustrated silk or velvet with refined Japanese watercolor softness, quiet natural highlights, same polished finish as the supplied reference art.
+Lighting: soft upper-left light on raised folds only.
+Palette: deep muted oxblood / shrine vermilion, warm antique gold.
+Materials: rich matte-woven cloth, visible broad folds, no glossy plastic.
+Constraints: true alpha transparency wherever there is no cloth; preserve the empty inner margin. No background, floor, shadows, glow, white/black/chromatic fringe, checkerboard, valance, rope, person, writing, symbols, logo or watermark. No oversized curve on the inner edge.
+~~~
+
+## W-2 採用プロンプト
+
+~~~text
+Use case: production mobile-game transparent layered theatre valance.
+Asset type: assets/gacha/curtain-valance.webp, final canvas 1170x320.
+Input image 1 is the engawa stage mood and soft dawn light. Input images 2 and 3 are the antique lacquered box parts; match their restrained gold craftsmanship and quiet Japanese color harmony.
+Primary request: a single very wide shallow upper valance that hangs across the top of a traditional Japanese theatre curtain, hiding the curtain's hanging point. Deep vermilion cloth with restrained antique-gold edging and embroidery.
+Composition: panoramic horizontal strip, about 3.66:1. Full-bleed cloth across the width with transparent background around its silhouette. A straight top edge suitable for placement against the screen top. Lower edge is a graceful sequence of shallow repeated scallops, not a straight line. Keep an unobstructed small round gold ring exactly at the horizontal center (x=585 in the final canvas), attached to the valance to pass a separate cord through; do not draw the cord.
+Details: finely woven deep crimson silk, soft vertical folds that visually continue the curtain folds, narrow clean gold piping on the upper and scalloped lower hem, small evenly spaced gold tassels along the lower scallops, one clear polished gold ring at the center. Refined, traditional, delicate, not ornate.
+Style: tactile Japanese painted game illustration with soft watercolor edges, subtle fabric weave, craft detail matching the references.
+Lighting: gentle soft light from upper left, highlights only on cloth and gold.
+Constraints: true transparent alpha beyond the valance; all four corners transparent. No background, stage, floor, poles, rods, ropes, cord, people, text, letters, numbers, logo, watermark, checkerboard, or hard rectangle. No thick side borders or giant central ornament.
+~~~
+
+---
