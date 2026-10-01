@@ -35,21 +35,30 @@ const PRIMARY_NAV_ITEMS = [
   { id: 'collection', title: 'コレクション', icon: 'albums-outline' },
 ] as const;
 
+/** The gacha is not a screen of its own: its tab opens the box-opening scene over the current one. */
+const GACHA_NAV_ITEM = { title: 'ガチャ', icon: 'gift-outline' } as const;
+
 type HomeBottomNavigationProps = {
   tab: PrimaryTab;
   onNavigate: (tab: PrimaryTab) => void;
   disabled?: boolean;
+  /** Opens the gacha. Its tab sits in the middle of the bar and is shown only when this is given. */
+  onGacha?: () => void;
+  /** Free pulls waiting; shown as a small count on the gacha tab. */
+  freePulls?: number;
 };
 
 // The washi tab frame. The separate menu button that used to sit to its right
 // is gone (every screen is reachable from the tabs and segmented controls), so
 // the frame now spans the full width.
-export function HomeBottomNavigation({ tab, onNavigate, disabled = false }: HomeBottomNavigationProps) {
+export function HomeBottomNavigation({ tab, onNavigate, disabled = false, onGacha, freePulls = 0 }: HomeBottomNavigationProps) {
+  const gacha = <NavTab key="gacha" item={GACHA_NAV_ITEM} selected={false} badge={freePulls} onPress={() => onGacha?.()} />;
+  const items = PRIMARY_NAV_ITEMS.map(item => <NavTab key={item.id} item={item} selected={tab === item.id} onPress={() => onNavigate(item.id)} />);
   return <View style={S.navShell} pointerEvents={disabled ? 'none' : 'auto'} accessibilityElementsHidden={disabled} aria-hidden={disabled ? true : undefined} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
     <View style={[S.primaryNavFrame, CONTINUOUS_CORNER]}>
       <CroppedArt source={NAV_BACKGROUND} bounds={NAV_BOUNDS} />
       <View style={S.primaryNav} accessibilityRole="tablist">
-        {PRIMARY_NAV_ITEMS.map(item => <NavTab key={item.id} item={item} selected={tab === item.id} onPress={() => onNavigate(item.id)} />)}
+        {onGacha ? [...items.slice(0, 2), gacha, ...items.slice(2)] : items}
       </View>
     </View>
   </View>;
@@ -59,7 +68,7 @@ export function HomeBottomNavigation({ tab, onNavigate, disabled = false }: Home
  * One tab. The chosen tab is stamped: a vermilion ink seal blooms behind its
  * icon, the icon lifts a little, and the name is underlined with a brush stroke.
  */
-function NavTab({ item, selected, onPress }: { item: (typeof PRIMARY_NAV_ITEMS)[number]; selected: boolean; onPress: () => void }) {
+function NavTab({ item, selected, onPress, badge = 0 }: { item: { title: string; icon: React.ComponentProps<typeof Icon>['name'] }; selected: boolean; onPress: () => void; badge?: number }) {
   const reduced = useReducedMotion();
   const progress = useRef(new Animated.Value(selected ? 1 : 0)).current;
   const useNativeDriver = Platform.OS !== 'web';
@@ -74,10 +83,11 @@ function NavTab({ item, selected, onPress }: { item: (typeof PRIMARY_NAV_ITEMS)[
   const lift = progress.interpolate({ inputRange: [0, 1], outputRange: [0, -4] });
   const sealScale = progress.interpolate({ inputRange: [0, 1], outputRange: [.5, 1] });
   const sealTurn = progress.interpolate({ inputRange: [0, 1], outputRange: ['-24deg', '-6deg'] });
-  return <Pressable artwork={false} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected }} onPress={onPress} style={S.navItem}>
+  return <Pressable artwork={false} accessibilityRole="tab" accessibilityLabel={badge > 0 ? `${item.title}。無料で引けるのは${badge}回` : item.title} accessibilityState={{ selected }} onPress={onPress} style={S.navItem}>
     <Animated.View style={[S.navIconWrap, { transform: [{ translateY: lift }] }]}>
       <Animated.Image accessible={false} source={NAV_TAB_ACTIVE} resizeMode="contain" style={[S.navInk, { opacity: progress, transform: [{ scale: sealScale }, { rotate: sealTurn }] }]} />
       <Icon name={item.icon} size={22} color={selected ? '#FFF9EF' : '#6F675B'} />
+      {badge > 0 && <View style={S.navBadge}><Text style={S.navBadgeText}>{badge > 9 ? '9+' : badge}</Text></View>}
     </Animated.View>
     <View style={S.navLabelWrap}>
       <Text numberOfLines={1} style={[S.navLabel, selected && S.navLabelSelected]}>{item.title}</Text>
@@ -305,6 +315,8 @@ const S = StyleSheet.create({
   primaryNav: { flexDirection: 'row' },
   navItem: { flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
   navIconWrap: { width: 42, height: 40, alignItems: 'center', justifyContent: 'center' },
+  navBadge: { position: 'absolute', top: -2, right: -4, minWidth: 16, height: 16, paddingHorizontal: 3, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: C.red },
+  navBadgeText: { color: '#FFF9EF', fontSize: 10, fontWeight: '700', lineHeight: 12 },
   navInk: { position: 'absolute', width: 42, height: 42 },
   navLabelWrap: { alignItems: 'center', marginTop: 1 },
   navLabel: { fontFamily: BRUSH, fontSize: 11, letterSpacing: .4, color: '#6F675B' },

@@ -1,16 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, type GachaArtPart } from '../data/gachaArt';
 import { getPetCharacter, isPetId } from '../petCatalog';
+import { GachaShop } from './GachaShop';
+import type { ShopProduct } from '../data/shop';
 import type { PullResult } from '../services/gacha';
 import { AFTER_OPEN_MS, canOpen, glowAfterOpen, glowWhileLifting, mobbyAfterOpen, phaseOf, resolveRelease, rollAt, ROLL_MS, SETTLED_AT_MS, settleAt } from './gachaTimeline';
 
 const PULL_TO_DRAW = 64;
 const MAX_PULL = 110;
 const OPEN_TWEEN_MS = 260;
+/** The idle cord bobs down this far and back, once per BOB_MS. */
+const BOB_PX = 14;
+const BOB_MS = 1700;
 
 type Props = {
   /** Free pulls the player can still use. */
@@ -23,6 +28,10 @@ type Props = {
   /** Every waiting result has been shown. */
   onFinished: () => void;
   onClose: () => void;
+  /** Show the shop tab. Leave off in builds where purchases are not offered. */
+  showShop?: boolean;
+  /** Start a purchase from the shop tab; without it the shop's buttons are inactive. */
+  onBuy?: (product: ShopProduct) => void;
 };
 
 /** Render supplied artwork without stretching its canvas. */
@@ -30,7 +39,8 @@ function Part({ part, style }: { part: GachaArtPart; style: StyleProp<ViewStyle>
   return <Image accessible={false} pointerEvents="none" source={GACHA_ART[part]} contentFit={part === 'stage' ? 'cover' : 'contain'} transition={0} style={style as never} />;
 }
 
-export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose }: Props) {
+export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy }: Props) {
+  const [tab, setTab] = useState<'draw' | 'shop'>('draw');
   const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
   const measureScene = useCallback(({ nativeEvent: { layout } }: LayoutChangeEvent) => {
     setSize(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height });
@@ -57,6 +67,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const [opened, setOpened] = useState(false);
   const [openedFor, setOpenedFor] = useState(0);
   const [pull, setPull] = useState(0);
+  const [bob, setBob] = useState(0);
   const startedAt = useRef<number | null>(null);
   const openedAt = useRef<number | null>(null);
   const drawRequested = useRef(false);
@@ -120,6 +131,21 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [opened, reduced]);
+
+  // While waiting, the cord bobs up and down to invite a pull. It stops once the player takes hold of it.
+  const idle = !playing && tab === 'draw' && freePulls > 0 && pull === 0;
+  useEffect(() => {
+    if (!idle || reduced) { setBob(0); return; }
+    let frame = 0;
+    let begun: number | null = null;
+    const tick = (now: number) => {
+      if (begun === null) begun = now;
+      setBob(BOB_PX * (1 - Math.cos(((now - begun) / BOB_MS) * 2 * Math.PI)) / 2);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [idle, reduced]);
 
   // A small touch when the box lands and when the board comes up.
   useEffect(() => {
@@ -197,6 +223,8 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const showMobby = opened ? mobbyAfterOpen(openedFor) : 0;
   const pet = result && isPetId(result.petId) ? getPetCharacter(result.petId) : null;
   const remaining = unrevealed.length;
+  const ropeLength = Math.min(300, height * .48);
+  const shopOpen = showShop && !playing && tab === 'shop';
   return <View style={S.page} onLayout={measureScene}>
     <Part part="stage" style={StyleSheet.absoluteFillObject} />
 
@@ -217,19 +245,29 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     </>}
 
     {/* The cord to pull. */}
-    {!playing && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + MAX_PULL }]}>
-      <Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + MAX_PULL) / 4, height: Math.min(300, height * .48) + MAX_PULL, top: -MAX_PULL + pull }]} />
+    {!playing && !shopOpen && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + MAX_PULL }]}>
+      <Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + MAX_PULL) / 4, height: Math.min(300, height * .48) + MAX_PULL, top: -MAX_PULL + (pull > 0 ? pull : bob) }]} />
     </View>}
+    {!playing && !shopOpen && freePulls > 0 && <Text pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 14, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}>下にひっぱってね</Text>}
 
     <View style={S.top}>
-      <Text accessibilityRole="header" style={S.title}>{!playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'roll' ? '箱が転がってきました' : phase === 'settle' ? '箱が止まりました' : phase === 'ready' ? '前の板を、上へ引き上げて' : '光があふれています'}</Text>
+      <Text accessibilityRole="header" style={[S.title, !playing && !shopOpen && S.titleHidden]}>{shopOpen ? '購入' : !playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'roll' ? '箱が転がってきました' : phase === 'settle' ? '箱が止まりました' : phase === 'ready' ? '前の板を、上へ引き上げて' : '光があふれています'}</Text>
       {remaining > 1 && playing && <Text style={S.count}>{index + 1} / {remaining}</Text>}
     </View>
 
-    {!playing && <View style={S.bottom}>
+    {showShop && !playing && <View style={S.tabs} accessibilityRole="tablist">
+      <Pressable accessibilityRole="tab" accessibilityState={{ selected: !shopOpen }} onPress={() => setTab('draw')} style={[S.tab, !shopOpen && S.tabOn]}><Text style={[S.tabText, !shopOpen && S.tabTextOn]}>ひく</Text></Pressable>
+      <View style={S.tabGap} />
+      <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={[S.tab, shopOpen && S.tabOn]}><Text style={[S.tabText, shopOpen && S.tabTextOn]}>購入</Text></Pressable>
+    </View>}
+
+    {shopOpen && <View style={S.shop}><GachaShop onBuy={onBuy} /></View>}
+
+    {shopOpen && <View style={S.bottom}><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
+
+    {!playing && !shopOpen && <View style={S.bottom}>
       {freePulls > 0
         ? <>
-          <Text style={S.prompt}>ひもを下へ引いてください</Text>
           <Text style={S.small}>無料で引ける回数 {freePulls}回</Text>
           <Button title="ひもを引く" onPress={requestDraw} style={S.wide} />
         </>
@@ -257,7 +295,17 @@ const S = StyleSheet.create({
   mobby: { position: 'absolute' },
   ropeArea: { position: 'absolute', top: 0, width: 104, alignItems: 'center' },
   rope: { position: 'absolute', top: -20, width: 34, height: 270 },
+  ropeHint: { position: 'absolute', left: 0, right: 0, textAlign: 'center', color: '#FFF8E9', fontFamily: BRUSH, fontSize: 18, letterSpacing: 1, textShadowColor: '#000000AA', textShadowRadius: 6 },
+  tabs: { position: 'absolute', left: 0, right: 0, top: 76, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  tabGap: { width: 56 },
+  tab: { minWidth: 84, minHeight: 36, paddingHorizontal: 14, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#211A13B3', borderWidth: 1, borderColor: '#6B5A3F' },
+  tabOn: { backgroundColor: '#F1E6D8', borderColor: '#C7A98A' },
+  tabText: { color: '#D5BD98', fontFamily: BRUSH, fontSize: 15 },
+  tabTextOn: { color: '#A54E42' },
+  shop: { position: 'absolute', left: 16, right: 16, top: 128, bottom: 84, justifyContent: 'center' },
   top: { position: 'absolute', left: 0, right: 0, top: 32, alignItems: 'center', gap: 6, paddingHorizontal: 24 },
+  // On the draw tab the cord hangs through the title, so the tabs act as the heading and the title is kept for screen readers only.
+  titleHidden: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   title: { color: '#FFF8E9', fontFamily: BRUSH, fontSize: 23, textAlign: 'center' },
   count: { color: '#D5BD98', fontSize: 12, letterSpacing: 1.5 },
   bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 16, backgroundColor: '#211A13D9' },
