@@ -1,0 +1,20 @@
+{
+  "tabs/tab-on.webp": {
+    "left": 56,
+    "right": 56
+  },
+  "tabs/tab-off.webp": {
+    "left": 56,
+    "right": 56
+  },
+  "shop/card-plate.webp": {
+    "left": 80,
+    "right": 80,
+    "top": 60,
+    "bottom": 60
+  },
+  "shop/heading-plate.webp": {
+    "left": 40,
+    "right": 40
+  }
+}
