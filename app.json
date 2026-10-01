@@ -10,14 +10,34 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "jp.mobby.mobidou",
-      "entitlements": { "com.apple.developer.healthkit": true },
+      "entitlements": {
+        "com.apple.developer.healthkit": true
+      },
       "infoPlist": {
         "NSHealthShareUsageDescription": "今日の歩数を読み取り、もびの世界の御朱印を集めるために使用します。データは端末内に保存します。",
         "NSMotionUsageDescription": "今日の歩数を読み取り、歩いた分だけ御朱印を集めるために使用します。",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-    "plugins": ["expo-font", ["expo-sensors", { "motionPermission": "歩数に合わせて、もびの世界の御朱印を集めるために使用します。" }], "expo-asset"],
-    "web": { "bundler": "metro", "name": "もび道 — 歩く、集める、好きになる。" }
+    "plugins": [
+      "expo-font",
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "歩数に合わせて、もびの世界の御朱印を集めるために使用します。"
+        }
+      ],
+      "expo-asset"
+    ],
+    "web": {
+      "bundler": "metro",
+      "name": "もび道 — 歩く、集める、好きになる。"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bfdcaf4d-9b6e-4016-a0ae-be4d6dbdf2ed"
+      }
+    },
+    "owner": "obana.h"
   }
 }
