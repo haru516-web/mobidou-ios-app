@@ -221,6 +221,7 @@ async function build() {
   const built = {};
   for (const k of ['front', 'side', 'back']) built[k] = buildView(img, VIEWS[k]);
   const unit = WORLD_H / (built.front.bbox.y1 - built.front.bbox.y0);
+  window.__baked = { built, unit };
 
   for (const key of KEYS) {
     const v = built[key.view];
@@ -420,3 +421,32 @@ function frame() {
 }
 build().then(frame);
 window.__relief = { settings, pull, poke, layers, get spin() { return spin; }, set spin(v) { spin = v; } };
+
+// Dev-only: bake the cut-out colour, height field and hit mask of each view into assets/mobies/relief.
+window.__exportAssets = async () => {
+  const { built, unit } = window.__baked;
+  const MASK_W = 64, MASK_H = 80;
+  const meta = { worldHeight: WORLD_H, rimPx: RIM_PX, unit, views: {} };
+  const post = (name, body) => fetch('/save/' + name, { method: 'POST', body });
+  for (const [name, v] of Object.entries(built)) {
+    const { crop, hf, bbox, c } = v;
+    await post('mobibou-' + name + '.png', await new Promise((r) => c.toBlob(r, 'image/png')));
+    const hc = document.createElement('canvas'); hc.width = crop.w; hc.height = crop.h;
+    const hctx = hc.getContext('2d');
+    const img = hctx.createImageData(crop.w, crop.h);
+    for (let i = 0; i < hf.length; i++) { const q = Math.round(hf[i] * 255); img.data[i * 4] = q; img.data[i * 4 + 1] = q; img.data[i * 4 + 2] = q; img.data[i * 4 + 3] = 255; }
+    hctx.putImageData(img, 0, 0);
+    await post('mobibou-' + name + '-height.png', await new Promise((r) => hc.toBlob(r, 'image/png')));
+    // silhouette bits for hit-testing on device (row-major, 8 cells per byte, v measured downward)
+    const alpha = c.getContext('2d').getImageData(0, 0, crop.w, crop.h).data;
+    const bytes = new Uint8Array(Math.ceil((MASK_W * MASK_H) / 8));
+    for (let my = 0; my < MASK_H; my++) for (let mx = 0; mx < MASK_W; mx++) {
+      const px = Math.min(crop.w - 1, Math.floor(((mx + 0.5) / MASK_W) * crop.w));
+      const py = Math.min(crop.h - 1, Math.floor(((my + 0.5) / MASK_H) * crop.h));
+      if (alpha[(py * crop.w + px) * 4 + 3] > 128) { const bit = my * MASK_W + mx; bytes[bit >> 3] |= 1 << (bit & 7); }
+    }
+    meta.views[name] = { w: crop.w, h: crop.h, bbox, mask: btoa(String.fromCharCode(...bytes)), maskW: MASK_W, maskH: MASK_H };
+  }
+  await post('relief-meta.json', JSON.stringify(meta));
+  return Object.keys(built);
+};

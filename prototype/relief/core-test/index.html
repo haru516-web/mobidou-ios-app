@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>reliefCore harness</title>
+<style>html,body{margin:0;height:100%;background:#efeeec;overflow:hidden}canvas{display:block;margin:0 auto;touch-action:none;background:transparent}</style>
+<script type="importmap">{ "imports": { "./build/pullMeshCore": "./build/pullMeshCore.js" } }</script>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+import { createRelief } from './build/reliefCore.js';
+const meta = await fetch('/src/data/mobibouReliefMeta.json').then((r) => r.json());
+const A = '/assets/mobies/relief/mobibou-';
+const sources = Object.fromEntries(['front', 'side', 'back'].map((v) => [v, { color: A + v + '.png', height: A + v + '-height.png' }]));
+const W = Math.min(innerWidth, 440), H = Math.min(innerHeight, 560), dpr = Math.min(devicePixelRatio || 1, 2);
+const canvas = document.getElementById('c');
+canvas.width = W * dpr; canvas.height = H * dpr; canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });
+const cache = new Map();
+const loadTexture = async (g, src) => {
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  const t = g.createTexture(); g.bindTexture(g.TEXTURE_2D, t);
+  g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, img);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR);
+  return t;
+};
+const ctl = createRelief(gl, { width: W, height: H, sources, meta, loadTexture, onError: (e) => console.error('relief error', e) });
+const pos = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture?.(e.pointerId); ctl.pointerDown(...pos(e)); });
+canvas.addEventListener('pointermove', (e) => ctl.pointerMove(...pos(e)));
+canvas.addEventListener('pointerup', () => ctl.pointerUp());
+window.__ctl = ctl;
+</script></body></html>
