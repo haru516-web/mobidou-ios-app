@@ -13,7 +13,6 @@ export type PetId =
   | 'bearmobby'
   | 'boymobby'
   | 'dogmobby'
-  | 'lanimobby'
   | 'ojimobby'
   | 'reamobby'
   | 'shikamobby'
@@ -128,14 +127,6 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
     accent: '#D9A66C',
     image: require('../assets/mobies/dogmobby.webp'),
     meaningTemplates: ['{meaning}って意味だよ！ わかったら、しっぽを振りたくなるね。', '{meaning}ってこと。大丈夫、何度でも一緒に覚えよう！'],
-  },
-  {
-    id: 'lanimobby',
-    name: 'ラニモビー',
-    catchphrase: '静かに甘えるふわふわねこ',
-    accent: '#E7D3D2',
-    image: require('../assets/mobies/lanimobby.webp'),
-    meaningTemplates: ['{meaning}って意味だよ。ふわっとした言葉だけど、ちゃんと伝わるね。', '{meaning}ってこと。ゆっくり言うと、もっと自然に聞こえるよ。'],
   },
   {
     id: 'ojimobby',

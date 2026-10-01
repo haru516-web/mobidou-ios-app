@@ -39,16 +39,6 @@
     "cropWidth": 384,
     "cropHeight": 890
   },
-  "lanimobby/walk": {
-    "columns": 4,
-    "width": 1536,
-    "height": 1024,
-    "cellWidth": 384,
-    "left": 0,
-    "top": 283,
-    "cropWidth": 384,
-    "cropHeight": 460
-  },
   "mobibou/walk": {
     "columns": 4,
     "width": 1536,
@@ -258,26 +248,6 @@
     "top": 24,
     "cropWidth": 481,
     "cropHeight": 443
-  },
-  "lanimobby/rei": {
-    "columns": 8,
-    "width": 4112,
-    "height": 514,
-    "cellWidth": 514,
-    "left": 0,
-    "top": 32,
-    "cropWidth": 514,
-    "cropHeight": 436
-  },
-  "lanimobby/hakushu": {
-    "columns": 8,
-    "width": 4112,
-    "height": 514,
-    "cellWidth": 514,
-    "left": 0,
-    "top": 32,
-    "cropWidth": 514,
-    "cropHeight": 436
   },
   "mobibou/rei": {
     "columns": 8,

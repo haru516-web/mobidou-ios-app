@@ -7,7 +7,7 @@ export const OMIKUJI_ATLASES: Record<string, ImageSourcePropType> = {
   potemoby: require('../../assets/mobies/omikuji/potemoby/draw-v2.webp'), mobibou: require('../../assets/mobies/omikuji/mobibou/draw-v2.webp'),
   babumoby: require('../../assets/mobies/omikuji/babumoby/draw-v2.webp'), bearmobby: require('../../assets/mobies/omikuji/bearmobby/draw-v2.webp'),
   boymobby: require('../../assets/mobies/omikuji/boymobby/draw-v2.webp'), dogmobby: require('../../assets/mobies/omikuji/dogmobby/draw-v2.webp'),
-  lanimobby: require('../../assets/mobies/omikuji/lanimobby/draw-v2.webp'), ojimobby: require('../../assets/mobies/omikuji/ojimobby/draw-v2.webp'),
+  ojimobby: require('../../assets/mobies/omikuji/ojimobby/draw-v2.webp'),
   reamobby: require('../../assets/mobies/omikuji/reamobby/draw-v2.webp'), shikamobby: require('../../assets/mobies/omikuji/shikamobby/draw-v2.webp'),
   uyumobby: require('../../assets/mobies/omikuji/uyumobby/draw-v2.webp'), wolfmobby: require('../../assets/mobies/omikuji/wolfmobby/draw-v2.webp'),
 };

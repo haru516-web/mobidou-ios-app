@@ -15,7 +15,6 @@ export const GACHA_PET_IDS = [
   "bearmobby",
   "boymobby",
   "dogmobby",
-  "lanimobby",
   "ojimobby",
   "reamobby",
   "shikamobby",

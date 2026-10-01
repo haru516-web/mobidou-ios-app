@@ -13,7 +13,6 @@ export const PILGRIMAGE_WALK_ATLASES: Record<PetId, ImageSourcePropType> = {
   bearmobby: require('../../assets/mobies/pilgrimage-walk/bearmobby.webp'),
   boymobby: require('../../assets/mobies/pilgrimage-walk/boymobby.webp'),
   dogmobby: require('../../assets/mobies/pilgrimage-walk/dogmobby.webp'),
-  lanimobby: require('../../assets/mobies/pilgrimage-walk/lanimobby.webp'),
   mobibou: require('../../assets/mobies/pilgrimage-walk/mobibou.webp'),
   mobichi: require('../../assets/mobies/pilgrimage-walk/mobichi.webp'),
   mobirin: require('../../assets/mobies/pilgrimage-walk/mobirin.webp'),

@@ -337,9 +337,9 @@ test("gacha odds expose all Mobbies at equal rates and fixed random values reach
   const context = createContext();
   const account = await register(context);
   const odds = await (await call(context, "GET", "/gacha/odds")).json();
-  assert.equal(odds.pets.length, 18);
+  assert.equal(odds.pets.length, 17);
   assert.equal(odds.paidPityInterval, PAID_PITY_INTERVAL);
-  odds.pets.forEach((entry) => assert.equal(entry.rate, 1 / 18));
+  odds.pets.forEach((entry) => assert.equal(entry.rate, 1 / 17));
   context.store.walletRows.get(account.userId).paid = 2;
   const first = await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0);
   const last = await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0.999999);

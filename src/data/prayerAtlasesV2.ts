@@ -16,7 +16,6 @@ export const PRAYER_ATLASES: Record<string, { rei: ImageSourcePropType; hakushu:
   bearmobby: { rei: require('../../assets/mobies/prayer-v2/bearmobby/rei.webp'), hakushu: require('../../assets/mobies/prayer-v2/bearmobby/hakushu.webp') },
   boymobby: { rei: require('../../assets/mobies/prayer-v2/boymobby/rei.webp'), hakushu: require('../../assets/mobies/prayer-v2/boymobby/hakushu.webp') },
   dogmobby: { rei: require('../../assets/mobies/prayer-v2/dogmobby/rei.webp'), hakushu: require('../../assets/mobies/prayer-v2/dogmobby/hakushu.webp') },
-  lanimobby: { rei: require('../../assets/mobies/prayer-v2/lanimobby/rei.webp'), hakushu: require('../../assets/mobies/prayer-v2/lanimobby/hakushu.webp') },
   ojimobby: { rei: require('../../assets/mobies/prayer-v2/ojimobby/rei.webp'), hakushu: require('../../assets/mobies/prayer-v2/ojimobby/hakushu.webp') },
   reamobby: { rei: require('../../assets/mobies/prayer-v2/reamobby/rei.webp'), hakushu: require('../../assets/mobies/prayer-v2/reamobby/hakushu.webp') },
   shikamobby: { rei: require('../../assets/mobies/prayer-v2/shikamobby/rei.webp'), hakushu: require('../../assets/mobies/prayer-v2/shikamobby/hakushu.webp') },

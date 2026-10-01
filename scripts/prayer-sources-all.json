@@ -48,10 +48,6 @@
     "idle": "assets/mobies/dogmobby.png",
     "source": "assets/mobies/prayer-v2/dogmobby/source.png"
   },
-  "lanimobby": {
-    "idle": "assets/mobies/lanimobby.png",
-    "source": "assets/mobies/prayer-v2/lanimobby/source.png"
-  },
   "ojimobby": {
     "idle": "assets/mobies/ojimobby.png",
     "source": "assets/mobies/prayer-v2/ojimobby/source.png"
