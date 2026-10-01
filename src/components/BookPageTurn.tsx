@@ -236,8 +236,15 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
   </View>;
 });
 
+/**
+ * The iOS page-curl view draws its own plain paper and a different layout from the spread the app draws everywhere else
+ * (the illustrated paper, the stamp on the left, the text on the right). Until it is made to draw the same spread, the app's own
+ * page turn is used on every platform so the book looks the same.
+ */
+const USE_NATIVE_PAGE_CURL = false;
+
 export const BookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function BookPageTurn(props, ref) {
-  if (Platform.OS === 'ios' && isNativePageCurlAvailable && props.nativePages) {
+  if (USE_NATIVE_PAGE_CURL && Platform.OS === 'ios' && isNativePageCurlAvailable && props.nativePages) {
     return <NativeBookPageTurn
       forwardedRef={ref}
       pages={props.nativePages}
