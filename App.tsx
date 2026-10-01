@@ -241,7 +241,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     omikujiWasOpen.current = false;
     if (DEV_UNLOCK_ALL && omikujiDrawn && firstRunStage === null && !onboardingPreview) journey.resetDailyOmikuji();
   }, [omikujiModal]); // eslint-disable-line react-hooks/exhaustive-deps
-  const move = (value: Tab) => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); scrollY.setValue(0); setTab(value); };
+  const move = (value: Tab) => {  setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); scrollY.setValue(0); setTab(value); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setMobbyMenuOpen(false); setHomePopup(kind); setTab('home'); scrollY.setValue(0); };
   const handleTutorialCompanionBond = () => {
     journey.bond();
@@ -503,11 +503,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     if (!omikujiDrawn) setOmikujiModal(true);
   }, [tab, openingHomeReady, openingVisible, journey.ready, routePicker, progress.routeId, omikujiDrawn, firstRunStage]);
   useEffect(() => {
-    if (openingHomeReady && !openingVisible && progress.routeId && view.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId) {
-      setPromptedCompletedRouteId(progress.routeId);
-      openNextRoutePicker();
-    }
-  }, [openingHomeReady, openingVisible, progress.routeId, view.completedAt, progress.pending.length, promptedCompletedRouteId]);
+    if (!(openingHomeReady && !openingVisible && !omikujiModal && progress.routeId && view.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId)) return undefined;
+    // Wait for the omikuji (opened on entering the home) and the award screen to finish closing: iOS silently drops a modal that is presented in the
+    // same moment another one is dismissed, which left this picker "open" but invisible and blocking the whole screen.
+    const timer = setTimeout(() => { setPromptedCompletedRouteId(progress.routeId ?? null); openNextRoutePicker(); }, 900);
+    return () => clearTimeout(timer);
+  }, [openingHomeReady, openingVisible, omikujiModal, progress.routeId, view.completedAt, progress.pending.length, promptedCompletedRouteId]);
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
     if (!tourRequest || settings) return undefined;
