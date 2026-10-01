@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { Image as RNImage, PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -40,7 +40,9 @@ type Props = {
 
 /** Render supplied artwork without stretching its canvas. */
 function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<ViewStyle>; tint?: string }) {
-  return <Image accessible={false} tintColor={tint} pointerEvents="none" source={GACHA_ART[part]} contentFit={part === 'stage' ? 'cover' : 'contain'} transition={0} style={style as never} />;
+  // The core Image, not expo-image: on a device expo-image drew nothing for the glow layers and the Mobby here.
+  // The picture sits in a view that carries the position and size, and fills it: a core Image told only to stretch (absoluteFill) was drawn at its own pixel size.
+  return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
 export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy }: Props) {
@@ -376,8 +378,8 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
           <Part part="glowCore" tint={tintCss} style={[S.abs, { width: boxW * 1.5, height: boxW * 1.5, left: -boxW * .25, top: boxH / 2 - boxW * .75, opacity: Math.min(1, Math.max(glow * .85, white * .8) + seam * .7), transform: [{ scale: .9 + .2 * bloom }] }]} />
         </View>
         {pet && <>
-          <Image accessible={false} pointerEvents="none" source={pet.image} contentFit="contain" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: boxH / 2 - boxW * .39 - (1 - showMobby) * 10, opacity: showMobby, transform: [{ scale: pop }] }]} />
-          <Image accessible={false} pointerEvents="none" source={pet.image} contentFit="contain" tintColor="#FFFFFF" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: boxH / 2 - boxW * .39 - white * boxW * .1, opacity: white, transform: [{ scale: .8 + .2 * white }] }]} />
+          <RNImage accessible={false} source={pet.image} resizeMode="contain" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: boxH / 2 - boxW * .39 - (1 - showMobby) * 10, opacity: showMobby, transform: [{ scale: pop }] }]} />
+          <RNImage accessible={false} source={pet.image} resizeMode="contain" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: boxH / 2 - boxW * .39 - white * boxW * .1, opacity: white, transform: [{ scale: .8 + .2 * white }] }, { tintColor: '#FFFFFF' }]} />
         </>}
         {/* The whole front board: lifted by hand. */}
         <View {...boardPan.panHandlers} accessible={boardEnabled} accessibilityRole="button" accessibilityLabel="箱の前の板を上へ引き上げる" accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => settleBoard(1)} style={[S.abs, { left: boardLeft, top: boardTop, width: boardW, height: boardH, transform: [{ translateY: -lift * open }] }]}>
@@ -450,7 +452,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     {/* Once the Mobby has been revealed, one tap shows it large and another tap puts it back. */}
     {canZoom && <Pressable accessibilityRole="button" accessibilityLabel={zoomed ? 'モビーを小さく戻す' : 'モビーを大きく見る'} onPress={() => setZoomed(value => !value)} style={StyleSheet.absoluteFillObject}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#05030A', opacity: .78 * zoomT }]} />
-      {zoomT > 0 && <Image accessible={false} source={pet.image} contentFit="contain" style={{ position: 'absolute', width: bigSize, height: bigSize, left: (width - bigSize) / 2, top: bigTop, opacity: Math.min(1, zoomT * 1.6), transform: [{ scale: .55 + .45 * zoomT + .08 * Math.sin(Math.min(1, zoomT) * Math.PI) }] }} />}
+      {zoomT > 0 && <RNImage accessible={false} source={pet.image} resizeMode="contain" style={{ position: 'absolute', width: bigSize, height: bigSize, left: (width - bigSize) / 2, top: bigTop, opacity: Math.min(1, zoomT * 1.6), transform: [{ scale: .55 + .45 * zoomT + .08 * Math.sin(Math.min(1, zoomT) * Math.PI) }] }} />}
     </Pressable>}
 
     {shopOpen && <View style={[S.shop, { top: 128 + insets.top, bottom: 84 + insets.bottom }]}><GachaShop onBuy={onBuy} /></View>}
