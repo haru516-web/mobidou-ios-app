@@ -22,7 +22,7 @@ Optional local `.dev.vars` / deployment settings are read by name only here; thi
 - `PRODUCT_CATALOG_JSON`: JSON object keyed by App Store product ID; values may contain `plan`, `monthlyTickets`, and/or `paidPulls`.
 - `GIFTS_JSON`: JSON array of `{ id, title, tickets?, freePulls?, paidPulls? }` records.
 - `CATALOG_JSON`: static public catalog JSON served from `/catalog.json`.
-- `EVENT_STEPS_WINDOW_START` / `EVENT_STEPS_WINDOW_END`: Tokyo-local `HH:mm` submission window; default is 20:00 through (excluding) 20:30.
+- `EVENT_STEPS_WINDOW_START`: Tokyo-local `HH:mm` when a day's submission window opens; default 20:00. The window for day D runs until the same time on D+1, so a submission before that time on D+1 is recorded for D.
 - `EVENT_STEPS_DAILY_MAX`: maximum accepted cumulative steps per user/day; default is 100000.
 
 Wrangler local values belong in an ignored `.dev.vars` file. Never commit secrets or certificate material. Product and gift examples are intentionally omitted; configure only approved product identifiers and actual campaign records outside this source tree.
@@ -43,7 +43,7 @@ Wrangler local values belong in an ignored `.dev.vars` file. Never commit secret
 - `POST /free-pulls/claim { routeId }` grants one free pull once per user and pilgrimage route.
 - `POST /gacha/pull { count, kind }` accepts one free draw or one/five paid draws. All configured Mobbies are equally likely; every 25th paid draw guarantees an unowned Mobby while one remains. Results include `isNew` and `guaranteed`, and a five-pull is committed atomically.
 - `GET /gacha/odds` returns the equal per-Mobby rates and the paid-pity disclosure. The roster lives in `src/config/gacha.ts` and intentionally mirrors `src/petCatalog.ts` without importing app code.
-- `GET /events/:id` returns event status; `POST /events/:id/steps` accepts the user's cumulative daily value inside the configured Tokyo-time window.
+- `GET /events/:id` returns event status; `POST /events/:id/steps` accepts the user's cumulative daily value for the currently open day. Send `day` (`YYYY-MM-DD`) to name the day the value belongs to; a mismatch returns 409 `steps_day_mismatch` with `openDay`. `GET /events/:id` also returns `openDay`, the day that can currently be submitted.
 
 ## Incomplete and placeholder behavior
 

@@ -284,10 +284,11 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     const endsAt = Date.parse(event.endsAt);
     if (!Number.isFinite(startsAt) || !Number.isFinite(endsAt) || startsAt >= endsAt) throw new HttpError(500, "invalid_event_schedule");
     if (now.getTime() < startsAt || now.getTime() >= endsAt) throw new HttpError(409, "event_not_active");
-    const { day, minute } = tokyoDateAndMinute(now);
+    // Each Tokyo day's window runs from START that day to START the next day, so exactly one day is open at any moment.
     const start = parseClock(env.EVENT_STEPS_WINDOW_START, "20:00");
-    const end = parseClock(env.EVENT_STEPS_WINDOW_END, "20:30");
-    if (end <= start || minute < start || minute >= end) throw new HttpError(409, "outside_steps_submission_window");
+    const { day } = tokyoDateAndMinute(new Date(now.getTime() - start * 60_000));
+    // Clients name the day their cumulative belongs to, so a morning send of "today so far" is rejected instead of filed under yesterday.
+    if (input.day !== undefined && input.day !== day) return json({ error: "steps_day_mismatch", openDay: day }, 409);
     const saved = await store.saveEventSteps(userId, eventId, day, cumulative);
     return json({ day, cumulative: saved });
   }
@@ -297,7 +298,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     const eventId = decodeURIComponent(eventMatch[1]);
     const event = await store.event(eventId);
     if (!event) throw new HttpError(404, "event_not_found");
-    return json({ ...event, ...(await store.eventStatus(eventId)) });
+    const openDay = tokyoDateAndMinute(new Date(now.getTime() - parseClock(env.EVENT_STEPS_WINDOW_START, "20:00") * 60_000)).day;
+    return json({ ...event, ...(await store.eventStatus(eventId)), openDay });
   }
 
   throw new HttpError(404, "not_found");

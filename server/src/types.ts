@@ -24,7 +24,6 @@ export interface Env {
   GIFTS_JSON?: string;
   CATALOG_JSON?: string;
   EVENT_STEPS_WINDOW_START?: string;
-  EVENT_STEPS_WINDOW_END?: string;
   EVENT_STEPS_DAILY_MAX?: string;
 }
 

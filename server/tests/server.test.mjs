@@ -129,7 +129,6 @@ const env = {
   GIFTS_JSON: JSON.stringify([{ id: "welcome", title: "Welcome", tickets: 4, freePulls: 1 }, { id: "paid-test", title: "Paid test", paidPulls: 1 }]),
   CATALOG_JSON: JSON.stringify([{ id: "mobby_sample_01", name: "Sample" }]),
   EVENT_STEPS_WINDOW_START: "20:00",
-  EVENT_STEPS_WINDOW_END: "20:30",
   EVENT_STEPS_DAILY_MAX: "100000"
 };
 
@@ -430,8 +429,26 @@ test("event step submissions use Tokyo time and replace same-day cumulative valu
   assert.equal((await second.json()).cumulative, 500);
   const status = await call(context, "GET", "/events/autumn", undefined, account.userId, now);
   assert.equal((await status.json()).totalCumulative, 500);
-  const outside = await call(context, "POST", "/events/autumn/steps", { cumulative: 900 }, account.userId, new Date("2026-09-30T12:00:00.000Z"));
-  assert.equal(outside.status, 409);
+  // 21:00 JST the same day still counts for 09-30.
+  const evening = await call(context, "POST", "/events/autumn/steps", { cumulative: 900 }, account.userId, new Date("2026-09-30T12:00:00.000Z"));
+  assert.deepEqual(await evening.json(), { day: "2026-09-30", cumulative: 900 });
+});
+
+test("event steps missed in the evening can be sent until 20:00 JST the next day", async () => {
+  const context = createContext();
+  const account = await register(context);
+  context.store.events.set("autumn", { id: "autumn", name: "Autumn", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "map-a" });
+  const late = await call(context, "POST", "/events/autumn/steps", { cumulative: 700 }, account.userId, new Date("2026-09-30T10:59:00.000Z")); // 19:59 JST 09-30 -> belongs to 09-29
+  assert.deepEqual(await late.json(), { day: "2026-09-29", cumulative: 700 });
+  const morning = await call(context, "POST", "/events/autumn/steps", { cumulative: 800 }, account.userId, new Date("2026-09-30T15:30:00.000Z")); // 00:30 JST 10-01 -> belongs to 09-30
+  assert.deepEqual(await morning.json(), { day: "2026-09-30", cumulative: 800 });
+  const wrong = await call(context, "POST", "/events/autumn/steps", { cumulative: 999, day: "2026-10-01" }, account.userId, new Date("2026-09-30T15:30:00.000Z"));
+  assert.equal(wrong.status, 409);
+  assert.deepEqual(await wrong.json(), { error: "steps_day_mismatch", openDay: "2026-09-30" });
+  const status = await call(context, "GET", "/events/autumn", undefined, account.userId, new Date("2026-09-30T15:30:00.000Z"));
+  assert.equal((await status.json()).openDay, "2026-09-30");
+  const nextWindow = await call(context, "POST", "/events/autumn/steps", { cumulative: 50 }, account.userId, new Date("2026-10-01T11:00:00.000Z")); // 20:00 JST 10-01 opens a new day
+  assert.deepEqual(await nextWindow.json(), { day: "2026-10-01", cumulative: 50 });
 });
 
 test("Apple notification route validates its signed envelope and handles revocation", async () => {
