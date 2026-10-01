@@ -8,7 +8,7 @@ import { getPetCharacter, isPetId } from '../petCatalog';
 import { GachaShop } from './GachaShop';
 import type { ShopProduct } from '../data/shop';
 import type { PullResult } from '../services/gacha';
-import { AFTER_OPEN_MS, canOpen, glowAfterOpen, glowWhileLifting, mobbyAfterOpen, phaseOf, resolveRelease, rollAt, ROLL_MS, SETTLED_AT_MS, settleAt } from './gachaTimeline';
+import { AFTER_OPEN_MS, bloomAt, burstAt, canOpen, dimAt, flashAt, glowAfterOpen, glowWhileLifting, landingShake, mobbyAfterOpen, phaseOf, popAt, resolveRelease, rollAt, ROLL_MS, rumbleAt, seamGlow, SETTLED_AT_MS, settleAt, silhouetteAt, sparklesAt } from './gachaTimeline';
 
 const PULL_TO_DRAW = 64;
 const MAX_PULL = 110;
@@ -223,26 +223,59 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const showMobby = opened ? mobbyAfterOpen(openedFor) : 0;
   const pet = result && isPetId(result.petId) ? getPetCharacter(result.petId) : null;
   const remaining = unrevealed.length;
+  const dim = playing ? dimAt(open, opened ? openedFor : null) : 0;
+  const bloom = playing ? bloomAt(opened ? openedFor : null, open) : 0;
+  const flash = opened ? flashAt(openedFor) : 0;
+  const burst = opened ? burstAt(openedFor) : { scale: 0, opacity: 0 };
+  const rumble = rumbleAt(open, opened, ms + openedFor);
+  const seam = playing && !opened ? seamGlow(ms) : 0;
+  const sparkles = opened ? sparklesAt(openedFor) : [];
+  const shake = playing ? landingShake(ms) : 0;
+  const white = opened ? silhouetteAt(openedFor) : 0;
+  const pop = opened ? popAt(openedFor) : .62;
+  const cx = boxLeft + boxW / 2;
+  const cy = boxTop + boxH / 2;
   const ropeLength = Math.min(300, height * .48);
   const shopOpen = showShop && !playing && tab === 'shop';
   return <View style={S.page} onLayout={measureScene}>
     <Part part="stage" style={StyleSheet.absoluteFillObject} />
 
-    {playing && <>
-      <Part part="shadow" style={[S.abs, { width: boxW * 1.3, height: boxW * 1.3 * 300 / 1024, left: boxLeft - boxW * .15 + roll.x * boxW, top: boxTop + boxH * .94 - boxW * .19, opacity: .85 }]} />
+    {playing && <View pointerEvents="box-none" style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: shake }] }]}>
+      {/* The room goes dark so the light has something to shine against. */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#05030A', opacity: dim }]} />
+
+      {/* Backlight: rays burst out and a halo swells behind the box. Added to the scene, not laid over it. */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, S.additive]}>
+        <Part part="glowCore" style={[S.abs, { width: boxW * 4.2, height: boxW * 4.2, left: cx - boxW * 2.1, top: cy - boxW * 2.1, opacity: Math.min(1, glow * .8) * Math.min(1, bloom), transform: [{ scale: .85 + .3 * bloom }] }]} />
+        <Part part="glowRays" style={[S.abs, { width: boxW * 5, height: boxW * 5, left: cx - boxW * 2.5, top: cy - boxW * 2.5, opacity: glow * .7, transform: [{ rotate: `${(opened ? openedFor : open * 200) * .03}deg` }, { scale: .7 + .25 * bloom }] }]} />
+        <Part part="glowRays" style={[S.abs, { width: boxW * 5, height: boxW * 5, left: cx - boxW * 2.5, top: cy - boxW * 2.5, opacity: burst.opacity, transform: [{ rotate: `${-(openedFor) * .05 + 20}deg` }, { scale: burst.scale }] }]} />
+      </View>
+
+      <Part part="shadow" style={[S.abs, { width: boxW * 1.3, height: boxW * 1.3 * 300 / 1024, left: boxLeft - boxW * .15 + roll.x * boxW, top: boxTop + boxH * .94 - boxW * .19, opacity: .85 * (1 - dim * .5) }]} />
 
       {/* The box: body, the opening with its light, the Mobby, and the front board. */}
-      <View pointerEvents="box-none" style={[S.abs, { width: boxW, height: boxH, left: boxLeft, top: boxTop, transform: [{ translateX: roll.x * boxW }, { translateY: -roll.hop * boxW }, { rotate: `${roll.rotate}deg` }, { scale: settle }] }]}>
+      <View pointerEvents="box-none" style={[S.abs, { width: boxW, height: boxH, left: boxLeft, top: boxTop, transform: [{ translateX: roll.x * boxW + rumble.x }, { translateY: -roll.hop * boxW + rumble.y }, { rotate: `${roll.rotate}deg` }, { scale: settle }] }]}>
         <Part part="body" style={StyleSheet.absoluteFillObject} />
-        <Part part="glowRays" style={[S.abs, { width: boxW * 2.4, height: boxW * 2.4, left: -boxW * .7, top: boxH / 2 - boxW * 1.2, opacity: glow * .85, transform: [{ rotate: `${(opened ? openedFor : 0) * .02}deg` }] }]} />
-        <Part part="glowCore" style={[S.abs, { width: boxW * 1.8, height: boxW * 1.8, left: -boxW * .4, top: boxH / 2 - boxW * .9, opacity: glow }]} />
-        {pet && <Image accessible={false} pointerEvents="none" source={pet.image} contentFit="contain" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: boxH / 2 - boxW * .39 - (1 - showMobby) * 8, opacity: showMobby }]} />}
+        <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, S.additive]}>
+          <Part part="glowCore" style={[S.abs, { width: boxW * 1.5, height: boxW * 1.5, left: -boxW * .25, top: boxH / 2 - boxW * .75, opacity: Math.min(1, Math.max(glow * 1.1, white * .95) + seam), transform: [{ scale: .9 + .2 * bloom }] }]} />
+        </View>
+        {pet && <>
+          <Image accessible={false} pointerEvents="none" source={pet.image} contentFit="contain" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: boxH / 2 - boxW * .39 - (1 - showMobby) * 10, opacity: showMobby, transform: [{ scale: pop }] }]} />
+          <Image accessible={false} pointerEvents="none" source={pet.image} contentFit="contain" tintColor="#FFFFFF" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: boxH / 2 - boxW * .39 - white * boxW * .1, opacity: white, transform: [{ scale: .8 + .2 * white }] }]} />
+        </>}
         {/* The whole front board: lifted by hand. */}
         <View {...boardPan.panHandlers} accessible={boardEnabled} accessibilityRole="button" accessibilityLabel="箱の前の板を上へ引き上げる" accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => settleBoard(1)} style={[S.abs, { left: boardLeft, top: boardTop, width: boardW, height: boardH, transform: [{ translateY: -lift * open }] }]}>
           <Part part="front" style={StyleSheet.absoluteFillObject} />
         </View>
       </View>
-    </>}
+
+      {/* Light washing over everything, gold specks flying out of the opening, and the flash at the moment it opens. */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, S.additive]}>
+        <Part part="glowCore" style={[S.abs, { width: width * 2.4, height: width * 2.4, left: cx - width * 1.2, top: cy - width * 1.2, opacity: glow * .5 }]} />
+        {sparkles.map((spark, i) => <Part key={i} part="glowCore" style={[S.abs, { width: boxW * spark.size * 2.6, height: boxW * spark.size * 2.6, left: cx + spark.x * boxW - boxW * spark.size * 1.3, top: cy + spark.y * boxW - boxW * spark.size * 1.3, opacity: spark.opacity }]} />)}
+      </View>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#FFF6DA', opacity: flash }]} />
+    </View>}
 
     {/* The cord to pull. */}
     {!playing && !shopOpen && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + MAX_PULL }]}>
@@ -292,6 +325,8 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 const S = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#302D25', overflow: 'hidden', userSelect: 'none' },
   abs: { position: 'absolute' },
+  // Added to what is behind it (like real light) instead of covering it. Needs the new architecture / a browser.
+  additive: { mixBlendMode: 'screen' } as object,
   mobby: { position: 'absolute' },
   ropeArea: { position: 'absolute', top: 0, width: 104, alignItems: 'center' },
   rope: { position: 'absolute', top: -20, width: 34, height: 270 },

@@ -1,6 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  bloomAt,
+  burstAt,
+  dimAt,
+  flashAt,
+  FLASH_MS,
+  landingShake,
+  MAX_DIM,
+  popAt,
+  rumbleAt,
+  silhouetteAt,
+  sparklesAt,
   AFTER_OPEN_MS,
   canOpen,
   FADE_MS,
@@ -81,4 +92,67 @@ test('the Mobby stays hidden through the hold and the first half of the fade', (
   const appearing = HOLD_MS + FADE_MS * .6;
   assert.ok(mobbyAfterOpen(appearing) > 0);
   assert.ok(glowAfterOpen(appearing) < .5);
+});
+
+test('the room darkens while the board rises and brightens again as the light fades', () => {
+  assert.equal(dimAt(0, null), 0);
+  assert.ok(dimAt(.5, null) > 0 && dimAt(.5, null) < MAX_DIM);
+  assert.ok(Math.abs(dimAt(1, 0) - MAX_DIM) < .01);
+  assert.ok(dimAt(1, AFTER_OPEN_MS) < .01);
+});
+
+test('the box trembles harder as the board comes up and holds still once open', () => {
+  assert.deepEqual(rumbleAt(0, false, 100), { x: 0, y: 0 });
+  assert.deepEqual(rumbleAt(1, true, 100), { x: 0, y: 0 });
+  const slight = Math.abs(rumbleAt(.1, false, 17).x);
+  const strong = Math.abs(rumbleAt(1, false, 17).x);
+  assert.ok(strong > slight);
+});
+
+test('the flash is brightest at the moment of opening and gone after its length', () => {
+  assert.ok(flashAt(0) > .9);
+  assert.ok(flashAt(FLASH_MS / 2) < flashAt(0));
+  assert.equal(flashAt(FLASH_MS), 0);
+});
+
+test('the ray burst expands while fading out', () => {
+  assert.ok(burstAt(0).opacity > .99);
+  assert.ok(burstAt(400).scale > burstAt(0).scale);
+  assert.ok(burstAt(900).opacity < .01);
+});
+
+test('the glow swells past full right after opening and then settles near full', () => {
+  assert.ok(bloomAt(null, 0) < bloomAt(null, 1));
+  assert.ok(bloomAt(200, 1) > 1.1);
+  assert.ok(bloomAt(3000, 1) < 1.1);
+});
+
+test('the white silhouette rises in the light and gives way to the colour', () => {
+  assert.equal(silhouetteAt(0), 0);
+  assert.ok(silhouetteAt(HOLD_MS) > .9);
+  assert.ok(silhouetteAt(AFTER_OPEN_MS) < .01);
+});
+
+test('the Mobby pops past full size once and settles at 1', () => {
+  assert.ok(popAt(0) < .7);
+  const sizes = Array.from({ length: 80 }, (_, i) => popAt(HOLD_MS + FADE_MS * .5 + i * 10));
+  assert.ok(Math.max(...sizes) > 1);
+  assert.ok(Math.abs(popAt(AFTER_OPEN_MS) - 1) < .001);
+});
+
+test('sparkles are deterministic, only live while the light is out, and stay finite', () => {
+  assert.deepEqual(sparklesAt(0), []);
+  assert.deepEqual(sparklesAt(1500), sparklesAt(1500));
+  assert.ok(sparklesAt(1500).length > 5);
+  assert.deepEqual(sparklesAt(AFTER_OPEN_MS + 5000), []);
+  for (const spark of sparklesAt(1200)) {
+    assert.ok(Number.isFinite(spark.x) && Number.isFinite(spark.y));
+    assert.ok(spark.opacity >= 0 && spark.opacity <= 1);
+  }
+});
+
+test('the landing thud shakes only right after the box stops', () => {
+  assert.equal(landingShake(ROLL_MS - 1), 0);
+  assert.equal(landingShake(ROLL_MS + 1000), 0);
+  assert.ok(Array.from({ length: 40 }, (_, i) => Math.abs(landingShake(ROLL_MS + i * 10))).some(value => value > 1));
 });
