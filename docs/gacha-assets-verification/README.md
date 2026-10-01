@@ -126,3 +126,33 @@ unload 1コマ目は、WebP書き出し前の正規化RGBAではwalk 1コマ目�
 - assets/gacha/cart/dust.webp: 1024×512、45,086 bytes、RGBA。4×2コマ、各256×256。フレームごとのalpha最大値は116 / 126 / 136 / 146 / 162 / 126 / 74 / 20で、5コマ目が最大、8コマ目はほぼ消える。
 - 明るい生成りと暗い藍灰背景に重ね、粉の透過と縁を目視確認: dust-light-dark-review.webp。アルファ外接矩形はpixel-audit.json。
 - 900,000 bytes未満。PNG原本はリポジトリに含めていない。
+
+## 和風引き幕への差し替え確認（2026-10-01）
+
+ブランチ `codex/gacha-wafu-curtain`、ワークツリー `D:/codex-worktrees/gacha-wafu-curtain/mobidou`。変更範囲は `assets/gacha/` の幕3点と本ディレクトリの確認記録、`docs/gacha-assets-prompts.md` の生成記録。コードは変更していない。pushなし。
+
+### 採用案とデザイン
+
+- W-1 左右の幕: **案A 定式幕**。黒・柿色・萌葱の木綿縦縞。案Bの朱無地より芝居小屋らしく、縁側の夜明けの色・漆箱・荷車と調和した。共通の連続マスターから左右を切り出したため、縞と襞は中央でも同じ色と流れでつながる。
+- W-2 上の飾り: **案A 木の鴨居と生成りの短い垂れ**。飴色の漆と生成りの木綿を使い、中央に金輪を配置。箱の木肌と幕に馴染み、文字を読む暗い静かな帯も確保できる。
+- 家紋・屋号・文字・数字・ロゴ・透かしは素材に描いていない。
+
+### 最終WebPとピクセル検査
+
+|素材|寸法|容量|モード|alpha範囲|alpha外接矩形|
+|---|---:|---:|---|---|---|
+|`assets/gacha/curtain-left.webp`|700×2532|226,726 bytes|RGBA|0–255|[0,0,700,2532]|
+|`assets/gacha/curtain-right.webp`|700×2532|204,380 bytes|RGBA|0–255|[0,0,700,2532]|
+|`assets/gacha/curtain-valance.webp`|1170×320|53,828 bytes|RGBA|0–255|[0,0,1170,320]|
+
+全素材900,000 bytes未満。pixel-audit.jsonに容量、寸法、alpha範囲、四隅、外接矩形を記録。最終WebPをPillowで再度開いて検査した。原本PNGはプロジェクトに置いていない。
+
+### 重ね合わせ・可読性・背景確認
+
+- `curtains-closed-stage-review.webp`: `stage-bg.webp` に閉じた左右幕と上飾りを合成。`GachaScreen.tsx` の左右それぞれ画面幅/2+30pxの表示枠で重ね、重複幅60pxを確認。375×812と430×932の両方で中央は同じ柿色の縞に続き、縦の継ぎ目が目立たない。
+- `curtains-tabs-review.webp`: 375×812表示で生成り色の「ひく」「購入」を上飾りの下部へ重ねた。下部の暗い帯の上で両方読める。帯は最終画像のy=200..320を無地にし、指定の下100pxも含む。
+- `curtains-light-dark-review.webp`: 明るい生成りと暗い藍灰の両背景で輪郭を確認。白/黒の縁取りや背景色の焼き込みは見えない。
+- `curtains-375x812-review.webp` と `curtains-430x932-review.webp`: 各端末比率で伸ばした状態を確認。縞は縦のまま保たれ、約11本が見える。縞幅の崩れや極端な歪みはない。
+- `curtain-valance.webp` の金輪は中央付近（x≈585）、上端から約60px、直径約50px。紐は描いていない。
+
+`pixel-audit.json` 更新済み。`git diff --check`: 成功。

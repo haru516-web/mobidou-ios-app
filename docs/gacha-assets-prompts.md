@@ -510,3 +510,60 @@ Constraints: transparent background, no floor, ground plane, cast shadow, box, c
 ~~~
 
 ---
+
+# 和風引き幕素材（2026-10-01）
+
+ブランチ: `codex/gacha-wafu-curtain`。ワークツリー: `D:/codex-worktrees/gacha-wafu-curtain/mobidou`。指示書 `docs/codex-gacha-wafu-curtain.md` を全文確認。素材はビルトイン `image_gen` で生成し、既存の `stage-bg.webp`、漆箱、荷車の光と質感を目視して文章のスタイル参照に反映した（画像入力はなし）。コード変更なし。
+
+## 採用案
+
+- W-1 幕: **案A 定式幕**。生成候補で黒・柿色・萌葱の縞と洗い込んだ木綿の質感が成立し、夜明け前の縁側、暗い漆、朱の荷車とよく合う。案Bの朱無地よりも芝居小屋の引き幕として識別しやすく、画面に必要な縦のリズムも作れる。
+- W-2 上の飾り: **案A 木の鴨居と生成りの短い垂れ**。箱の飴色の漆と色が連続し、生成り布が幕の明るい襞と調和する。中央の小さな金輪だけを残し、房・金縁・家紋・文字は加えていない。
+
+## W-1 の後処理
+
+採用した共通マスター候補は `C:/Users/User/.codex/generated_images/01a0f722-a276-76f2-be5a-13ae8d7a79d8/exec-3e9048d2-c5b8-4836-aae7-4e7d4657b76b.png`（1024×1536、RGBA）。alpha>=16 の外接矩形 `(8,10,1017,1509)` を切り出し、premultiplied-alpha Lanczos で1400×2532へ正規化。1枚の連続した縞から左右を切り出し、left は x=0..700、right は x=525..1225 を700×2532キャンバスへ配置した。現行 `GachaScreen.tsx` の左右幅（画面幅/2+30）と `contentPosition` に合わせてプレビューし、375×812 と430×932の双方で同じ色の縞から始まり中央の継ぎ目が見えない位置を選んだ。襞と縞は共通マスター由来なので中央の布目も連続する。
+
+WebP quality 90、method 6、alpha_quality 100、RGBAで書き出した。PNG原本はプロジェクトへ含めていない。
+
+## W-2 の後処理
+
+候補 `C:/Users/User/.codex/generated_images/01a0f722-a276-76f2-be5a-13ae8d7a79d8/exec-cdd7c485-17cc-4ae5-92a5-c03a7d5f168a.png`（2172×724、RGBA）の alpha>=16 外接矩形 `(0,275,2172,724)` を切り出し、縦横比を保って幅1170pxに縮小。鴨居と金輪の上端に25px分の木目を連続させて配置し、輪の中心を約 `(585,60)`、直径を約50pxに合わせた。下部は y=200..320 を模様のない暗い飴色の帯に統一（指定の最下100pxを含む）。
+
+RGBA WebP quality 90、method 6、alpha_quality 100で書き出した。確認用プレビューとピクセル監査は `docs/gacha-assets-verification/`。
+
+## ImageGenへ送ったプロンプト W-1
+
+~~~text
+Use case: stylized-concept
+Asset type: transparent layered mobile-game theatre-curtain master artwork, later cropped into assets/gacha/curtain-left.webp and curtain-right.webp
+Primary request: create one extremely tall, straight-on master image of a closed pair of traditional Japanese kabuki hikimaku panels. Make the two panels read as one continuous field of cloth with no central seam, so exact overlapping crops can be made from this single artwork.
+Scene/backdrop: none; genuine transparent alpha outside the curtain silhouette.
+Subject: a heavy, hanging cotton curtain with exactly twelve equal-width vertical stripes across the entire master width, in this exact repeating order from left to right: black, muted persimmon-orange, deep moegi green; repeat that three-color sequence four times. Every stripe must remain a clean distinct color. No color bleeding at stripe boundaries.
+Style/medium: refined Japanese illustrated mobile-game prop, matching the quiet dawn-washed engawa and deep amber-brown lacquer world: soft painterly rendering with believable washed cotton weave, no velvet or silk sheen.
+Composition/framing: very tall portrait canvas, front-facing orthographic view, no perspective. The curtain field fills the image from top to bottom and edge to edge; the two future crops must be one uninterrupted design. Stripes run straight vertically and remain parallel. Broad, few, gently weighted pleats; soft upper-left light makes the left side of each fold lighter and the right side darker, while preserving each stripe's base color. A tiny, understated natural-cream cotton hanging tape with evenly spaced small textile loops at the top edge, mostly hidden by a separate valance. Bottom hem almost straight, with only a slight natural wave from cloth weight; allow a thin dark matte weighted hem. The center at half width has no special mark, trim, or seam.
+Lighting/mood: soft natural pre-dawn light from upper left, calm and dignified.
+Color palette: traditional black, slightly faded persimmon, and deep muted moegi; cotton highlights and shadows remain within those hues.
+Materials/textures: washed-in cotton, subtle visible weave, soft hand, broad vertical folds, not glossy.
+Text (verbatim): none.
+Constraints: exact three-color stripe order and equal stripe widths; twelve stripes total; continuous texture and stripe alignment across the center; true transparent background beyond the fabric; no gold or metallic trim; no tassels or fringe; no border on either vertical edge; no rope or ring; no valance.
+Avoid: Western theatre drapes, velvet, silk gloss, scalloped curtain edge, arched center, gathers, family crest, kamon, logo, symbols, letters, numbers, watermark, embroidery, floral motifs, decorative patterns, extra objects, stage or room background, floor, cast shadow, checkerboard, halo, hard outline.
+~~~
+
+## ImageGenへ送ったプロンプト W-2
+
+~~~text
+Use case: stylized-concept
+Asset type: transparent shallow Japanese theatre valance, final asset assets/gacha/curtain-valance.webp at 1170x320
+Primary request: create the upper valance for a traditional kabuki hikimaku with black, persimmon and moegi cotton stripes. Use the Japanese wood lintel and cream hanging-cloth option. This must visually belong to the same quiet pre-dawn engawa and warm lacquered game-art world.
+Scene/backdrop: none; genuine transparent alpha outside the valance silhouette.
+Subject: a refined dark amber-brown wooden kamoi beam across the top, with fine understated lacquered wood grain and warm upper-left highlights. Beneath it hangs a short length of natural-cream cotton cloth, simple and restrained, with only a very shallow straight lower edge. At the midpoint of the beam, attach one small polished antique-gold ring through which a separate pull cord will pass.
+Composition/framing: very wide, extremely shallow horizontal composition. A straight top edge spans the full width. Keep the entire lower 100 pixels of the final 1170x320 canvas as a quiet, uninterrupted band with no pattern, no folds, no hardware; its dark warm-brown color should continue naturally from the upper shape. The wood beam and cream cloth occupy only the upper area, ending around two-thirds of the way down. The center ring must be horizontally centered exactly; target center x=585 and y=60, ring diameter about 50 pixels in the final asset (around 4.3% of width). Keep the ring cleanly visible against the beam; the cord itself is absent.
+Style/medium: carefully finished Japanese illustrated mobile-game prop, tactile but controlled, soft painterly rendering, subtle wood and cotton texture, not photoreal studio product photography.
+Lighting/mood: soft pre-dawn light from upper left, warm restrained highlights on wood and ring.
+Color palette: deep amber to dark brown lacquered wood, natural unbleached cream cotton, small muted gold ring; lower quiet band is deep warm charcoal-brown.
+Materials/textures: fine subdued wood grain, soft matte cotton, quiet metal sheen only on the ring.
+Text (verbatim): none.
+Constraints: genuine transparency outside the valance; full-width valance; quiet solid lower band from y=220 to y=320 with no ornament; exact centered small ring; no separate rope. No family crest, kamon, logo, letters, numbers, symbols, watermark, embroidery, tassels, fringe, gold trim, scalloped drapery or Western theater ornaments.
+Avoid: velvet, silk gloss, elaborate valance, flags, heraldic details, busy fabric folds in the lower band, background, wall, floor, cast shadow, white/black edge fringe, checkerboard.
+~~~

@@ -260,22 +260,22 @@
       700,
       2532
     ],
-    "bytes": 197630,
+    "bytes": 226726,
     "decodedMode": "RGBA",
     "alphaExtrema": [
       0,
-      254
+      255
     ],
     "cornerAlpha": [
-      252,
       0,
-      1,
-      0
+      63,
+      0,
+      5
     ],
     "alphaBounds": [
       0,
       0,
-      615,
+      700,
       2532
     ]
   },
@@ -285,20 +285,20 @@
       700,
       2532
     ],
-    "bytes": 196388,
+    "bytes": 204380,
     "decodedMode": "RGBA",
     "alphaExtrema": [
       0,
-      254
+      255
     ],
     "cornerAlpha": [
       0,
-      252,
       0,
-      1
+      5,
+      75
     ],
     "alphaBounds": [
-      85,
+      0,
       0,
       700,
       2532
@@ -310,23 +310,23 @@
       1170,
       320
     ],
-    "bytes": 74486,
+    "bytes": 53828,
     "decodedMode": "RGBA",
     "alphaExtrema": [
       0,
       255
     ],
     "cornerAlpha": [
-      0,
-      0,
-      0,
-      0
+      154,
+      245,
+      255,
+      255
     ],
     "alphaBounds": [
-      4,
       0,
-      1166,
-      168
+      0,
+      1170,
+      320
     ]
   },
   {
