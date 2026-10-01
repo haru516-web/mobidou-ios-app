@@ -3,7 +3,11 @@
 import * as THREE from 'three';
 
 const SHEET = './mobibou-sheet.webp';
-const CROP = { x: 0, y: 160, w: 545, h: 670 };   // front view on the sheet
+const VIEWS = {
+  front: { x: 0, y: 160, w: 541, h: 670 },
+  side: { x: 541, y: 160, w: 402, h: 670 },
+  back: { x: 943, y: 160, w: 505, h: 670 },
+};
 const WORLD_H = 2.6;                              // character height in world units
 const RIM_PX = 120;                               // how far in from the edge the surface reaches full height
 
@@ -40,6 +44,24 @@ function cutout(ctx, w, h) {
     if (x > 0) push(x - 1, y); if (x < w - 1) push(x + 1, y);
     if (y > 0) push(x, y - 1); if (y < h - 1) push(x, y + 1);
   }
+  // keep only the biggest connected piece of foreground (drops specks and neighbouring figures)
+  const comp = new Int32Array(w * h).fill(-1);
+  let best = -1, bestSize = 0, id = 0;
+  for (let s0 = 0; s0 < w * h; s0++) {
+    if (bg[s0] || comp[s0] >= 0) continue;
+    let size = 0; const st = [s0]; comp[s0] = id;
+    while (st.length) {
+      const i = st.pop(); size++;
+      const x = i % w, y = (i / w) | 0;
+      for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) {
+        if (j >= 0 && !bg[j] && comp[j] < 0) { comp[j] = id; st.push(j); }
+      }
+    }
+    if (size > bestSize) { bestSize = size; best = id; }
+    id++;
+  }
+  for (let i = 0; i < w * h; i++) if (!bg[i] && comp[i] !== best) bg[i] = 1;
+
   // erode one pixel to drop the light halo, then feather
   let a = new Float32Array(w * h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -106,22 +128,24 @@ function heightField(mask, w, h) {
 // ---- shaders -----------------------------------------------------------------------------
 const vertexShader = /* glsl */ `
 uniform vec3 uPullC, uPullD;
-uniform float uPullR, uDepth, uPoke;
+uniform float uPullR, uDepth, uPoke, uFlip;
 uniform vec3 uPokeC;
+uniform vec2 uOff;
 varying vec2 vUv, vBase;
 varying vec3 vN, vV;
 void main() {
   vec3 p = position;
   p.z *= uDepth;
-  vec2 d = p.xy - uPullC.xy;
+  vec2 q = vec2(p.x * uFlip, p.y) + uOff;          // position in the shared pivot space
+  vec2 d = q - uPullC.xy;
   float w = exp(-dot(d, d) / (uPullR * uPullR));
-  p += uPullD * w;
-  vec2 dc = p.xy - uPokeC.xy;
+  p += vec3(uPullD.x * uFlip, uPullD.y, uPullD.z) * w;
+  vec2 dc = q - uPokeC.xy;
   float wp = exp(-dot(dc, dc) / 0.12);
   p.z -= uPoke * wp * 0.35;
-  p.xy -= dc * uPoke * wp * 0.35;
+  p.xy -= vec2(dc.x * uFlip, dc.y) * uPoke * wp * 0.35;
   vUv = uv;
-  vBase = position.xy;
+  vBase = q;
   vN = normalize(normalMatrix * normal);
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   vV = -mv.xyz;
@@ -132,7 +156,7 @@ void main() {
 const fragmentShader = /* glsl */ `
 uniform sampler2D uMap;
 uniform vec3 uTouchC, uPullD;
-uniform float uTouchAmt, uShade;
+uniform float uTouchAmt, uShade, uOpacity;
 varying vec2 vUv, vBase;
 varying vec3 vN, vV;
 
@@ -163,7 +187,7 @@ void main() {
   col *= 1.0 + (n1 + n2) * 0.5 * tw;
   float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
   col += tex.rgb * rim * 0.28 * uShade;
-  gl_FragColor = vec4(col, tex.a);
+  gl_FragColor = vec4(col, tex.a * uOpacity);
   #include <colorspace_fragment>
 }
 `;
@@ -171,44 +195,68 @@ void main() {
 // ---- build -------------------------------------------------------------------------------
 const pivot = new THREE.Group();
 scene.add(pivot);
-let uniforms, mesh;
+// Four keyframes around the character: facing us, turned to its left/right side, and its back.
+const KEYS = [
+  { name: 'front', view: 'front', angle: 0, flip: 1 },
+  { name: 'sideL', view: 'side', angle: -Math.PI / 2, flip: 1 },
+  { name: 'back', view: 'back', angle: Math.PI, flip: 1 },
+  { name: 'sideR', view: 'side', angle: Math.PI / 2, flip: -1 },
+];
+const layers = [];   // one mesh per key
+
+function buildView(img, crop) {
+  const c = document.createElement('canvas');
+  c.width = crop.w; c.height = crop.h;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
+  const mask = cutout(ctx, crop.w, crop.h);
+  const hf = heightField(mask, crop.w, crop.h);
+  let x0 = crop.w, x1 = 0, y1 = 0, y0 = crop.h;
+  for (let y = 0; y < crop.h; y++) for (let x = 0; x < crop.w; x++) if (mask[y * crop.w + x]) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  return { c, hf, crop, bbox: { x0, x1, y0, y1 } };
+}
 
 async function build() {
   const img = await loadImage(SHEET);
-  const c = document.createElement('canvas');
-  c.width = CROP.w; c.height = CROP.h;
-  const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(img, CROP.x, CROP.y, CROP.w, CROP.h, 0, 0, CROP.w, CROP.h);
-  const mask = cutout(ctx, CROP.w, CROP.h);
-  const hf = heightField(mask, CROP.w, CROP.h);
+  const built = {};
+  for (const k of ['front', 'side', 'back']) built[k] = buildView(img, VIEWS[k]);
+  const unit = WORLD_H / (built.front.bbox.y1 - built.front.bbox.y0);
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-
-  const unit = WORLD_H / CROP.h;
-  const W = CROP.w * unit, H = CROP.h * unit;
-  const segX = 150, segY = 186;
-  const geo = new THREE.PlaneGeometry(W, H, segX, segY);
-  const pos = geo.attributes.position, uvA = geo.attributes.uv;
-  for (let i = 0; i < pos.count; i++) {
-    const u = uvA.getX(i), v = uvA.getY(i);
-    const px = Math.min(CROP.w - 1, Math.round(u * (CROP.w - 1)));
-    const py = Math.min(CROP.h - 1, Math.round((1 - v) * (CROP.h - 1)));
-    pos.setZ(i, hf[py * CROP.w + px] * RIM_PX * unit);
+  for (const key of KEYS) {
+    const v = built[key.view];
+    const { crop, hf, bbox } = v;
+    const tex = new THREE.CanvasTexture(v.c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const geo = new THREE.PlaneGeometry(crop.w * unit, crop.h * unit, 150, 186);
+    const pos = geo.attributes.position, uvA = geo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      const u = uvA.getX(i), vv = uvA.getY(i);
+      const px = Math.min(crop.w - 1, Math.round(u * (crop.w - 1)));
+      const py = Math.min(crop.h - 1, Math.round((1 - vv) * (crop.h - 1)));
+      pos.setZ(i, hf[py * crop.w + px] * RIM_PX * unit);
+    }
+    geo.computeVertexNormals();
+    // centre the silhouette on the pivot axis and stand every view on the same floor
+    const cx = ((bbox.x0 + bbox.x1) / 2 - crop.w / 2) * unit;
+    const off = new THREE.Vector2(-cx * key.flip, -WORLD_H / 2 - (crop.h / 2 - bbox.y1) * unit);
+    const uniforms = {
+      uMap: { value: tex },
+      uPullC: { value: new THREE.Vector3() }, uPullD: { value: new THREE.Vector3() }, uPullR: { value: 0.42 },
+      uPokeC: { value: new THREE.Vector3() }, uPoke: { value: 0 },
+      uTouchC: { value: new THREE.Vector3(0, 0, 9) }, uTouchAmt: { value: 0 },
+      uDepth: { value: settings.depth }, uShade: { value: settings.shade },
+      uOpacity: { value: 1 }, uFlip: { value: key.flip }, uOff: { value: off },
+    };
+    const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+    mesh.scale.x = key.flip;
+    mesh.position.set(off.x, off.y, 0);
+    mesh.visible = false;
+    const holder = new THREE.Group();   // turns the view to its keyframe angle
+    holder.add(mesh);
+    pivot.add(holder);
+    layers.push({ key, mesh, uniforms, holder });
   }
-  geo.computeVertexNormals();
-
-  uniforms = {
-    uMap: { value: tex },
-    uPullC: { value: new THREE.Vector3(0, 0, 0) }, uPullD: { value: new THREE.Vector3() }, uPullR: { value: 0.42 },
-    uPokeC: { value: new THREE.Vector3() }, uPoke: { value: 0 },
-    uTouchC: { value: new THREE.Vector3(0, 0, 9) }, uTouchAmt: { value: 0 },
-    uDepth: { value: settings.depth }, uShade: { value: settings.shade },
-  };
-  mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms, transparent: true, side: THREE.DoubleSide }));
-  pivot.add(mesh);
-  pivot.position.y = 0.05;
 
   const sc = document.createElement('canvas'); sc.width = sc.height = 128;
   const g = sc.getContext('2d');
@@ -216,11 +264,11 @@ async function build() {
   grad.addColorStop(0, 'rgba(60,50,45,0.4)'); grad.addColorStop(1, 'rgba(60,50,45,0)');
   g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc), transparent: true, depthWrite: false }));
-  sh.position.set(0, -H / 2 + 0.02, -0.05);
+  sh.position.set(0, -WORLD_H / 2 + 0.02, -0.05);
   scene.add(sh);
-  scene.add(sh);
-  document.getElementById('panel').appendChild(slider('depth', 0, 1.2, 0.01, (v) => (uniforms.uDepth.value = v)));
-  document.getElementById('panel').appendChild(slider('shade', 0, 1, 0.01, (v) => (uniforms.uShade.value = v)));
+  const panel = document.getElementById('panel');
+  panel.appendChild(slider('depth', 0, 1.2, 0.01, (v) => layers.forEach((l) => (l.uniforms.uDepth.value = v))));
+  panel.appendChild(slider('shade', 0, 1, 0.01, (v) => layers.forEach((l) => (l.uniforms.uShade.value = v))));
 }
 
 function slider(name, min, max, step, on) {
@@ -242,13 +290,36 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
+// ---- view blending -----------------------------------------------------------------------
+const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+let dominant = null;
+
+// Pick the two nearest keyframes for the current spin and cross-fade between them.
+function updateLayers(spin) {
+  const ws = layers.map((l) => smooth(Math.PI * 0.31, Math.PI * 0.19, Math.abs(wrap(spin - l.key.angle))));
+  const order = ws.map((w, i) => [w, i]).sort((a, b) => b[0] - a[0]);
+  const total = order[0][0] + order[1][0] || 1;
+  for (const l of layers) { l.mesh.visible = false; l.holder.rotation.y = wrap(spin - l.key.angle); }
+  const first = layers[order[0][1]], second = layers[order[1][1]];
+  first.mesh.visible = true; first.uniforms.uOpacity.value = 1; first.mesh.renderOrder = 0;
+  first.mesh.material.depthWrite = true; first.mesh.material.depthTest = true;
+  dominant = first;
+  if (order[1][0] > 0.001) {
+    second.mesh.visible = true;
+    second.uniforms.uOpacity.value = order[1][0] / total;
+    second.mesh.renderOrder = 1; second.mesh.material.depthWrite = false; second.mesh.material.depthTest = false;
+  }
+}
+
 // ---- interaction -------------------------------------------------------------------------
 const ray = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 const pull = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), target: new THREE.Vector3(), held: false };
 const poke = { v: 0, vel: 0 };
-let drag = null, touchAmt = 0, touchTarget = 0, lastMove = 0;
-let yaw = 0, pitch = 0, yawT = 0, pitchT = 0;
+const shared = { pullC: new THREE.Vector3(), pokeC: new THREE.Vector3(), touchC: new THREE.Vector3(0, 0, 9) };
+let drag = null, touchAmt = 0, touchTarget = 0, lastMove = 0, lastSpinInput = 0;
+let spin = 0, spinVel = 0, pitch = 0, pitchT = 0;
 const tmp = new THREE.Vector3();
 
 function setNdc(e) {
@@ -256,10 +327,10 @@ function setNdc(e) {
   ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
 }
 function hitBody() {
-  if (!mesh) return null;
+  if (!dominant) return null;
   pivot.updateMatrixWorld(true);
   ray.setFromCamera(ndc, camera);
-  return ray.intersectObject(mesh)[0] ?? null;
+  return ray.intersectObject(dominant.mesh)[0] ?? null;
 }
 canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture?.(e.pointerId);
@@ -269,8 +340,7 @@ canvas.addEventListener('pointerdown', (e) => {
     const local = pivot.worldToLocal(hit.point.clone());
     const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()).negate(), hit.point);
     drag = { mode: 'body', local, world: hit.point.clone(), plane, t0: performance.now(), x0: e.clientX, y0: e.clientY, moved: 0 };
-    uniforms.uPullC.value.copy(local);
-    uniforms.uTouchC.value.copy(local);
+    shared.pullC.copy(local); shared.touchC.copy(local);
     pull.held = true; touchTarget = 1;
   } else {
     drag = { mode: 'orbit', x: e.clientX, y: e.clientY };
@@ -279,9 +349,9 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('pointermove', (e) => {
   setNdc(e);
   if (drag?.mode === 'orbit') {
-    yawT = THREE.MathUtils.clamp(yawT + (e.clientX - drag.x) * 0.006, -0.6, 0.6);
-    pitchT = THREE.MathUtils.clamp(pitchT + (e.clientY - drag.y) * 0.004, -0.35, 0.35);
-    drag.x = e.clientX; drag.y = e.clientY;
+    spinVel += (e.clientX - drag.x) * -0.0045;
+    pitchT = THREE.MathUtils.clamp(pitchT + (e.clientY - drag.y) * 0.004, -0.3, 0.3);
+    drag.x = e.clientX; drag.y = e.clientY; lastSpinInput = performance.now();
     return;
   }
   if (drag?.mode === 'body') {
@@ -289,26 +359,23 @@ canvas.addEventListener('pointermove', (e) => {
     ray.setFromCamera(ndc, camera);
     const p = ray.ray.intersectPlane(drag.plane, new THREE.Vector3());
     if (!p) return;
-    const d = pivot.worldToLocal(p).sub(drag.local);
+    const d = pivot.worldToLocal(p.clone()).sub(drag.local);
     d.z = 0;
     if (d.length() > 0.6) d.setLength(0.6);
     pull.target.copy(d);
-    uniforms.uTouchC.value.copy(pivot.worldToLocal(p));
+    shared.touchC.copy(pivot.worldToLocal(p.clone()));
     return;
   }
-  // stroking without pressing: ruffle the fur under the pointer
   const hit = hitBody();
   if (hit) {
-    uniforms.uTouchC.value.copy(pivot.worldToLocal(hit.point.clone()));
+    shared.touchC.copy(pivot.worldToLocal(hit.point.clone()));
     touchTarget = 0.8; lastMove = performance.now();
   } else touchTarget = 0;
 });
 const release = () => {
-  if (drag?.mode === 'body') {
-    if (drag.moved < 8 && performance.now() - drag.t0 < 260) {
-      uniforms.uPokeC.value.copy(drag.local);
-      poke.vel += 9;
-    }
+  if (drag?.mode === 'body' && drag.moved < 8 && performance.now() - drag.t0 < 260) {
+    shared.pokeC.copy(drag.local);
+    poke.vel += 9;
   }
   drag = null; pull.held = false; pull.target.set(0, 0, 0); touchTarget = 0;
 };
@@ -321,26 +388,35 @@ const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const time = clock.elapsedTime;
-  if (uniforms) {
-    yaw += (yawT - yaw) * Math.min(1, dt * 8); pitch += (pitchT - pitch) * Math.min(1, dt * 8);
-    pivot.rotation.set(pitch, yaw + Math.sin(time * 0.5) * 0.015, 0);
+  if (layers.length) {
+    // free spin with inertia; when let go it settles on the nearest keyframe so it always looks its best
+    spin += spinVel; spinVel *= Math.exp(-6 * dt);
+    if (!drag && !window.__hold && performance.now() - lastSpinInput > 350 && Math.abs(spinVel) < 0.01) {
+      const nearest = Math.round(spin / (Math.PI / 2)) * (Math.PI / 2);
+      spin += (nearest - spin) * Math.min(1, dt * 5);
+    }
+    pitch += (pitchT - pitch) * Math.min(1, dt * 8);
+    if (!drag) pitchT *= Math.exp(-1.5 * dt);
+    pivot.rotation.set(pitch, 0, 0);
     pivot.scale.y = 1 + Math.sin(time * 1.5) * 0.004;
+    updateLayers(spin);
 
     const k = pull.held ? 80 : 40, damp = pull.held ? 14 : 5.5;
     tmp.copy(pull.target).sub(pull.pos).multiplyScalar(k * dt);
     pull.vel.add(tmp).multiplyScalar(Math.exp(-damp * dt));
     pull.pos.addScaledVector(pull.vel, dt);
-    uniforms.uPullD.value.copy(pull.pos);
-
     poke.vel += (-150 * poke.v) * dt; poke.vel *= Math.exp(-7 * dt); poke.v += poke.vel * dt;
-    uniforms.uPoke.value = poke.v;
-
     if (performance.now() - lastMove > 250 && !drag) touchTarget = 0;
     touchAmt += (touchTarget - touchAmt) * Math.min(1, dt * (touchTarget > touchAmt ? 14 : 4));
-    uniforms.uTouchAmt.value = touchAmt;
+    for (const l of layers) {
+      const u = l.uniforms;
+      u.uPullC.value.copy(shared.pullC); u.uPullD.value.copy(pull.pos);
+      u.uPokeC.value.copy(shared.pokeC); u.uPoke.value = poke.v;
+      u.uTouchC.value.copy(shared.touchC); u.uTouchAmt.value = touchAmt;
+    }
   }
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 build().then(frame);
-window.__relief = { settings, pull, poke, get uniforms() { return uniforms; } };
+window.__relief = { settings, pull, poke, layers, get spin() { return spin; }, set spin(v) { spin = v; } };
