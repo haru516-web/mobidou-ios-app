@@ -3,14 +3,15 @@ import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
-import { GACHA_ART, type GachaArtPart } from '../data/gachaArt';
+import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
 import { getPetCharacter, isPetId } from '../petCatalog';
 import { GachaShop } from './GachaShop';
 import { SlicedArt } from './SlicedArt';
 import { GACHA_UI_ART } from '../data/gachaUiArt';
 import type { ShopProduct } from '../data/shop';
 import type { PullResult } from '../services/gacha';
-import { AFTER_OPEN_MS, CONFETTI_COLORS, MAX_DIM, bloomAt, confettiAt, blossomsAt, burstAt, fallAt, lightTintAt, motesAt, seasonRateAt, canOpen, dimAt, dustAt, flashAt, gatherAt, glowAfterOpen, glowWhileLifting, HAPTIC_BEATS, landingShake, mobbyAfterOpen, phaseOf, pillarAt, popAt, resolveRelease, rollAt, ROLL_MS, rumbleAt, seamGlow, SETTLED_AT_MS, settleAt, shimmerAt, silhouetteAt, sparklesAt, tempoAt } from './gachaTimeline';
+import { carrierAt, dustFrameAt, placeBox } from './gachaCart';
+import { AFTER_OPEN_MS, CONFETTI_COLORS, MAX_DIM, bloomAt, confettiAt, blossomsAt, burstAt, fallAt, lightTintAt, motesAt, seasonRateAt, canOpen, dimAt, dustAt, flashAt, gatherAt, curtainAt, INTRO_END_MS, glowAfterOpen, glowWhileLifting, HAPTIC_BEATS, landingShake, mobbyAfterOpen, phaseOf, pillarAt, popAt, resolveRelease, ROLL_MS, rumbleAt, seamGlow, SETTLED_AT_MS, settleAt, shimmerAt, silhouetteAt, sparklesAt, tempoAt } from './gachaTimeline';
 
 const PULL_TO_DRAW = 64;
 const MAX_PULL = 110;
@@ -50,7 +51,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   // The OS "reduce motion" setting skips the whole show. In development it is ignored so the show can be checked on a machine that has it on.
   const reduced = useReducedMotion() && !__DEV__;
   // Use the measured modal space, reserving room for the title, lifted panel and result controls.
-  const boxW = Math.round(Math.max(0, Math.min(190, width * .5, (height - 330) / (1280 / 880 * 1.9))));
+  const boxW = Math.round(Math.max(0, Math.min(190, width * .41, (height - 330) / (1280 / 880 * 1.9))));
   const boxH = Math.round(boxW * 1280 / 880);
   // The front board is the whole front of the box, and the whole board slides up.
   const boardW = boxW;
@@ -129,13 +130,13 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   // The box rolls in and settles by itself.
   useEffect(() => {
     if (!playing || !result) return;
-    if (reduced) { setMs(SETTLED_AT_MS); return; }
+    if (reduced) { setMs(INTRO_END_MS); return; }
     let frame = 0;
     const tick = (now: number) => {
       if (startedAt.current === null) startedAt.current = now;
-      const elapsed = Math.min(SETTLED_AT_MS, now - startedAt.current);
+      const elapsed = Math.min(INTRO_END_MS, now - startedAt.current);
       setMs(elapsed);
-      if (elapsed < SETTLED_AT_MS) frame = requestAnimationFrame(tick);
+      if (elapsed < INTRO_END_MS) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
@@ -285,9 +286,18 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     onFinished();
   };
 
-  const skip = () => { cancelAnimationFrame(tween.current); openRef.current = 1; setMs(SETTLED_AT_MS); setOpen(1); setOpened(true); setOpenedFor(AFTER_OPEN_MS); };
+  const skip = () => { cancelAnimationFrame(tween.current); openRef.current = 1; setMs(INTRO_END_MS); setOpen(1); setOpened(true); setOpenedFor(AFTER_OPEN_MS); };
 
-  const roll = rollAt(Math.min(ms, ROLL_MS));
+  // The carrier's sheet pixels, scaled so the box on the cart is the box on the floor. The cell is placed so the box slides to the spot where it is opened.
+  const cart = GACHA_CART_ANCHORS;
+  const sc = boxW / cart.box.width;
+  const stopLeft = width / 2 - cart.slideEnd.x * sc;
+  const cellTop = boxTop + boxH - cart.slideEnd.y * sc;
+  const car = playing && width ? carrierAt(ms, cart, -(stopLeft / sc + 480), (width - 30 * sc - stopLeft) / sc) : null;
+  const place = car ? placeBox({ x: stopLeft + car.box.x * sc, y: cellTop + car.box.y * sc }, car.box.angle, boxW, boxH) : { left: boxLeft, top: boxTop, rotate: 0 };
+  const dustFrame = playing ? dustFrameAt(ms - ROLL_MS) : null;
+  const curtainOpen = playing ? curtainAt(ms) : 0;
+  const curtainHalf = width / 2 + 30;
   const settle = settleAt(ms);
   const glow = opened ? glowAfterOpen(openedFor) : glowWhileLifting(open);
   const showMobby = opened ? mobbyAfterOpen(openedFor) : 0;
@@ -348,10 +358,16 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
         {pillar.opacity > 0 && <Part part="glowCore" tint={tintCss} style={[S.abs, { width: boxW * .4, height: (cy + 60) * 1.6 * pillar.height, left: cx - boxW * .2, top: cy - (cy + 60) * 1.6 * pillar.height + boxW * .35, opacity: pillar.opacity * .5 }]} />}
       </View>
 
-      <Part part="shadow" style={[S.abs, { width: boxW * 1.3, height: boxW * 1.3 * 300 / 1024, left: boxLeft - boxW * .15 + roll.x * boxW, top: boxTop + boxH * .94 - boxW * .19, opacity: .85 * (1 - dim * .5) }]} />
+      {car?.sheet && <Part part="shadow" style={[S.abs, { width: 330 * sc, height: 330 * sc * 300 / 1024, left: stopLeft + car.bedX * sc - 165 * sc, top: cellTop + cart.groundLine * sc - 330 * sc * 300 / 1024 * .5, opacity: .7 * (1 - dim * .5) }]} />}
+      <Part part="shadow" style={[S.abs, { width: boxW * 1.3, height: boxW * 1.3 * 300 / 1024, left: boxLeft - boxW * .15, top: boxTop + boxH * .94 - boxW * .19, opacity: .85 * (1 - dim * .5) * Math.min(1, Math.max(0, (ms - ROLL_MS) / 150 + (car?.landed ? .2 : 0))) }]} />
+
+      {/* The carrier Mobby pulls the cart in, tips the box onto the floor and leaves. */}
+      {car?.sheet && <View pointerEvents="none" style={[S.abs, { left: stopLeft + car.dx * sc, top: cellTop, width: cart.cell.width * sc, height: cart.cell.height * sc, overflow: 'hidden' }]}>
+        <Image accessible={false} source={car.sheet === 'walk' ? GACHA_STAGE_ART.carrierWalk : GACHA_STAGE_ART.carrierUnload} contentFit="fill" transition={0} style={{ position: 'absolute', width: GACHA_SHEET.width * sc, height: GACHA_SHEET.height * sc, left: -(car.frame % 4) * GACHA_SHEET.cellStep.x * sc, top: -Math.floor(car.frame / 4) * GACHA_SHEET.cellStep.y * sc }} />
+      </View>}
 
       {/* The box: body, the opening with its light, the Mobby, and the front board. */}
-      <View pointerEvents="box-none" style={[S.abs, { width: boxW, height: boxH, left: boxLeft, top: boxTop, transform: [{ translateX: roll.x * boxW + rumble.x }, { translateY: -roll.hop * boxW + rumble.y }, { rotate: `${roll.rotate}deg` }, { scale: settle }] }]}>
+      <View pointerEvents="box-none" style={[S.abs, { width: boxW, height: boxH, left: place.left, top: place.top, transform: [{ translateX: rumble.x }, { translateY: rumble.y }, { rotate: `${place.rotate}deg` }, { scale: settle }] }]}>
         <Part part="body" style={StyleSheet.absoluteFillObject} />
         <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, S.additive]}>
           <Part part="glowCore" tint={tintCss} style={[S.abs, { width: boxW * 1.5, height: boxW * 1.5, left: -boxW * .25, top: boxH / 2 - boxW * .75, opacity: Math.min(1, Math.max(glow * .85, white * .8) + seam * .7), transform: [{ scale: .9 + .2 * bloom }] }]} />
@@ -365,6 +381,10 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
           <Part part="front" style={StyleSheet.absoluteFillObject} />
         </View>
       </View>
+
+      {dustFrame !== null && <View pointerEvents="none" style={[S.abs, { left: width / 2 - boxW * .85, top: boxTop + boxH - boxW * 1.2, width: boxW * 1.7, height: boxW * 1.7, overflow: 'hidden', opacity: .9 }]}>
+        <Image accessible={false} source={GACHA_STAGE_ART.dust} contentFit="fill" transition={0} style={{ position: 'absolute', width: GACHA_DUST_SHEET.width * boxW * 1.7 / GACHA_DUST_SHEET.cell, height: GACHA_DUST_SHEET.height * boxW * 1.7 / GACHA_DUST_SHEET.cell, left: -(dustFrame % 4) * boxW * 1.7, top: -Math.floor(dustFrame / 4) * boxW * 1.7 }} />
+      </View>}
 
       {/* Light washing over everything, gold specks flying out of the opening, and the flash at the moment it opens. */}
       <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, S.additive]}>
@@ -398,6 +418,15 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: tintCss, opacity: flash * .3 }]} />
     </View>}
 
+    {/* The curtain: shut while the cord waits, drawn aside when it is pulled. The valance and its ring stay. */}
+    {!shopOpen && <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+      {curtainOpen < 1 && <>
+        <Image accessible={false} source={GACHA_STAGE_ART.curtainLeft} contentFit="cover" contentPosition={{ right: 0, top: 0 }} transition={0} style={[S.abs, { left: 0, top: 0, width: curtainHalf, height, transform: [{ translateX: -curtainOpen * (curtainHalf + 8) }] }]} />
+        <Image accessible={false} source={GACHA_STAGE_ART.curtainRight} contentFit="cover" contentPosition={{ left: 0, top: 0 }} transition={0} style={[S.abs, { left: width - curtainHalf, top: 0, width: curtainHalf, height, transform: [{ translateX: curtainOpen * (curtainHalf + 8) }] }]} />
+      </>}
+      <Image accessible={false} source={GACHA_STAGE_ART.valance} contentFit="fill" transition={0} style={[S.abs, { left: 0, top: 0, width, height: width * GACHA_CURTAIN.valanceHeight / GACHA_CURTAIN.valanceWidth }]} />
+    </View>}
+
     {/* The cord to pull. */}
     {!playing && !shopOpen && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + MAX_PULL }]}>
       <Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + MAX_PULL) / 4, height: Math.min(300, height * .48) + MAX_PULL, top: -MAX_PULL + (pull > 0 ? pull : bob) }]} />
@@ -405,7 +434,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     {!playing && !shopOpen && freePulls > 0 && <Text pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 14, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}>下にひっぱってね</Text>}
 
     <View style={S.top}>
-      <Text accessibilityRole="header" style={[S.title, !playing && !shopOpen && S.titleHidden]}>{shopOpen ? '購入' : !playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'roll' ? '箱が転がってきました' : phase === 'settle' ? '箱が止まりました' : phase === 'ready' ? '前の板を、上へ引き上げて' : phase === 'charge' ? '光が集まっています' : '光があふれています'}</Text>
+      <Text accessibilityRole="header" style={[S.title, !playing && !shopOpen && S.titleHidden]}>{shopOpen ? '購入' : !playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'curtain' ? '幕が開きます' : phase === 'roll' ? 'モビーが荷を運んできました' : phase === 'settle' ? '荷が届きました' : phase === 'ready' ? '前の板を、上へ引き上げて' : phase === 'charge' ? '光が集まっています' : '光があふれています'}</Text>
       {remaining > 1 && playing && <Text style={S.count}>{index + 1} / {remaining}</Text>}
     </View>
 

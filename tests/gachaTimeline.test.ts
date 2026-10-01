@@ -36,7 +36,10 @@ import {
   pillarAt,
   popAt,
   resolveRelease,
-  rollAt,
+  curtainAt,
+  CURTAIN_MS,
+  INTRO_END_MS,
+  UNLOAD_END_MS,
   ROLL_MS,
   rumbleAt,
   SETTLED_AT_MS,
@@ -48,8 +51,10 @@ import {
 const BURST = CHARGE_MS;
 const FADE_FROM = CHARGE_MS + HOLD_MS;
 
-test('the box rolls and settles by itself, then waits for the player', () => {
-  assert.deepEqual([0, ROLL_MS - 1, ROLL_MS, SETTLED_AT_MS - 1, SETTLED_AT_MS, 60000].map(ms => phaseOf(ms, null)), ['roll', 'roll', 'settle', 'settle', 'ready', 'ready']);
+test('the curtain opens, the box is brought in and lands, then the scene waits for the player', () => {
+  assert.deepEqual([0, CURTAIN_MS - 1, CURTAIN_MS, ROLL_MS - 1, ROLL_MS, SETTLED_AT_MS - 1, SETTLED_AT_MS, 60000].map(ms => phaseOf(ms, null)), ['curtain', 'curtain', 'roll', 'roll', 'settle', 'settle', 'ready', 'ready']);
+  // The carrier leaves after the box has landed, and the player need not wait for that.
+  assert.ok(ROLL_MS < UNLOAD_END_MS && UNLOAD_END_MS < INTRO_END_MS);
 });
 
 test('once the board is up the light charges, bursts and holds, fades, then the scene is revealed', () => {
@@ -61,15 +66,12 @@ test('once the board is up the light charges, bursts and holds, fades, then the 
   assert.ok(AFTER_OPEN_MS >= 6000);
 });
 
-test('the box rolls in from off-screen and comes to rest on the spot', () => {
-  assert.ok(rollAt(0).x < -3);
-  const end = rollAt(ROLL_MS);
-  assert.equal(end.x, 0);
-  assert.equal(end.hop, 0);
-  // Whole turns only, so the box and its front board end the right way up.
-  assert.equal(Math.abs(end.rotate) % 360, 0);
+test('the curtain starts shut, opens smoothly and stays open', () => {
+  assert.equal(curtainAt(0), 0);
+  assert.equal(curtainAt(CURTAIN_MS), 1);
+  assert.equal(curtainAt(CURTAIN_MS * 5), 1);
   let previous = -Infinity;
-  for (let ms = 0; ms <= ROLL_MS; ms += 50) { const { x } = rollAt(ms); assert.ok(x >= previous); previous = x; }
+  for (let ms = 0; ms <= CURTAIN_MS; ms += 25) { const open = curtainAt(ms); assert.ok(open >= previous); previous = open; }
 });
 
 test('the settle squash returns to full size', () => {

@@ -2,15 +2,32 @@
  * The timing of one box opening, as pure functions so the scene can be driven
  * from any clock and checked without a screen.
  *
- * The box rolls in and settles on its own. Then the player lifts the front
+ * The curtain opens, the carrier Mobby pulls the cart in, tips the box down onto the floor and walks off (see
+ * gachaCart.ts for where everything is). The box lands and settles on its own. Then the player lifts the front
  * board by hand: light leaks out as it rises. Once the board is fully up the
  * light is not let go at once. It CHARGES: specks of light are drawn in, the box
  * trembles and the glow beats like a heart, faster and stronger three times.
  * Then it BURSTS (flash, rays, a pillar of light), holds, and FADES slowly while
  * gold dust falls and the Mobby, a white shape inside the light, takes its colour.
  */
-export const ROLL_MS = 1500;
+/** The curtain slides open this long after the cord is pulled. */
+export const CURTAIN_MS = 1100;
+/** The carrier walks in from the left: two walking cycles of eight frames. */
+export const WALK_FRAME_MS = 80;
+export const WALK_START_MS = 350;
+export const WALK_MS = 2 * 8 * WALK_FRAME_MS;
+/** Unloading: eight frames; the box is let go on the sixth and slides to the floor. */
+export const UNLOAD_START_MS = WALK_START_MS + WALK_MS;
+export const UNLOAD_FRAME_MS = 180;
+export const UNLOAD_END_MS = UNLOAD_START_MS + 8 * UNLOAD_FRAME_MS;
+export const SLIDE_START_MS = UNLOAD_START_MS + 5 * UNLOAD_FRAME_MS;
+export const SLIDE_MS = 360;
+/** The box touches the floor. */
+export const ROLL_MS = SLIDE_START_MS + SLIDE_MS;
 export const SETTLE_MS = 350;
+/** The carrier then walks off to the right. */
+export const EXIT_MS = 2 * 8 * WALK_FRAME_MS;
+export const INTRO_END_MS = UNLOAD_END_MS + EXIT_MS;
 /** After the board is fully up the light charges for this long... */
 export const CHARGE_MS = 2600;
 /** ...then bursts and holds at full for this long... */
@@ -23,7 +40,7 @@ export const SETTLED_AT_MS = ROLL_MS + SETTLE_MS;
 /** Lifting the board at least this far (0..1) and letting go finishes the opening. */
 export const OPEN_COMMIT = 0.45;
 
-export type GachaPhase = 'roll' | 'settle' | 'ready' | 'charge' | 'hold' | 'fade' | 'revealed';
+export type GachaPhase = 'curtain' | 'roll' | 'settle' | 'ready' | 'charge' | 'hold' | 'fade' | 'revealed';
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -39,21 +56,14 @@ export function phaseOf(ms: number, openedFor: number | null): GachaPhase {
     if (openedFor < CHARGE_MS) return 'charge';
     return openedFor < CHARGE_MS + HOLD_MS ? 'hold' : openedFor < AFTER_OPEN_MS ? 'fade' : 'revealed';
   }
+  if (ms < CURTAIN_MS) return 'curtain';
   if (ms < ROLL_MS) return 'roll';
   if (ms < SETTLED_AT_MS) return 'settle';
   return 'ready';
 }
 
-/** Rolling in: horizontal position (in box widths, from off-screen to 0), rotation in degrees and a small hop. */
-export function rollAt(ms: number) {
-  const t = clamp01(ms / ROLL_MS);
-  const eased = easeOut(t);
-  const turns = 2;
-  // Whole turns, so the box (and its front board) ends the right way up.
-  const rotate = -360 * turns * eased;
-  const hop = Math.abs(Math.sin((rotate * Math.PI) / 90 / 2)) * 0.09 * (1 - t);
-  return { x: 3.2 * (eased - 1), rotate: Math.round(rotate * 100) / 100, hop };
-}
+/** How far the curtain has opened, 0 (shut) to 1 (fully drawn aside). */
+export const curtainAt = (ms: number) => easeInOut(clamp01(ms / CURTAIN_MS));
 
 /** A small squash as the box comes to rest. */
 export function settleAt(ms: number) {
