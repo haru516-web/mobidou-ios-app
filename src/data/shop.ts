@@ -11,9 +11,15 @@ export type ShopProduct = {
   price: string;
 };
 
+/** The two sections of the shop. Each says in plain words what the buyer gets, so the list can be understood at a glance. */
+export const SHOP_GROUPS: readonly { kind: ShopProduct['kind']; heading: string; summary: string }[] = [
+  { kind: 'pull', heading: 'ガチャ回数を買う', summary: 'ひもを引いて、新しいモビーに出会える回数を追加します。' },
+  { kind: 'plan', heading: '毎月のお得プラン', summary: '巡礼で寺社に着いたとき、ミニチュアがもらえる確率が上がります。月ごとに自動更新。' },
+];
+
 export const SHOP_PRODUCTS: readonly ShopProduct[] = [
-  { id: 'pull1', kind: 'pull', title: 'ご縁を1回', detail: 'モビーを1体、ひもを引いて迎えます', price: '250円' },
-  { id: 'pull5', kind: 'pull', title: 'ご縁を5回', detail: '5回続けて迎えます。25回ごとに、まだ出会っていないモビーが必ず来ます', price: '1,000円' },
-  { id: 'light', kind: 'plan', title: 'ライト', detail: '毎月。ミニチュアが授与される確率が50%に', price: '120円/月' },
-  { id: 'plus', kind: 'plan', title: 'プラス', detail: '毎月。確率50%に加えて、授与札を10枚（繰越なし）', price: '300円/月' },
+  { id: 'pull1', kind: 'pull', title: 'ガチャ1回', detail: 'ひもを引いて、モビーを1体迎えます', price: '250円' },
+  { id: 'pull5', kind: 'pull', title: 'ガチャ5回セット', detail: '5回続けて引けて、1回200円とお得。購入分25回ごとに、まだ出会っていないモビーが必ず1体来ます', price: '1,000円' },
+  { id: 'light', kind: 'plan', title: 'ライトプラン', detail: 'ミニチュアがもらえる確率が、10%から50%に', price: '120円/月' },
+  { id: 'plus', kind: 'plan', title: 'プラスプラン', detail: '確率が10%から50%に。さらにハズレのとき使える交換券が、毎月10枚つきます（翌月へは持ち越せません）', price: '300円/月' },
 ];

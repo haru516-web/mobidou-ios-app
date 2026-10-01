@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { BRUSH, Button, SERIF } from '../components';
-import { SHOP_PRODUCTS, type ShopProduct } from '../data/shop';
+import { SHOP_GROUPS, SHOP_PRODUCTS, type ShopProduct } from '../data/shop';
 import { GACHA_UI_ART, SHOP_PRODUCT_ART } from '../data/gachaUiArt';
 import { SlicedArt } from './SlicedArt';
 
@@ -13,11 +13,12 @@ type Props = {
 
 /** The shop tab of the gacha screen: single and five pulls, and the monthly plans. */
 export function GachaShop({ onBuy }: Props) {
-  const group = (kind: ShopProduct['kind'], heading: string) => <View style={S.group}>
+  const group = ({ kind, heading, summary }: typeof SHOP_GROUPS[number]) => <View key={kind} style={S.group}>
     <View style={S.headingPlate}>
       <SlicedArt art={GACHA_UI_ART.shopHeading} />
       <Text accessibilityRole="header" style={S.heading}>{heading}</Text>
     </View>
+    <Text style={S.summary}>{summary}</Text>
     {SHOP_PRODUCTS.filter(product => product.kind === kind).map(product => <View key={product.id} style={S.card}>
       <SlicedArt art={GACHA_UI_ART.shopCard} corner={22} />
       <Image accessible={false} source={SHOP_PRODUCT_ART[product.id]} contentFit="contain" style={S.art} />
@@ -32,17 +33,17 @@ export function GachaShop({ onBuy }: Props) {
     </View>)}
   </View>;
   return <View style={S.root}>
-    {group('pull', 'ご縁を迎える')}
-    {group('plan', '月ごとのプラン')}
+    {SHOP_GROUPS.map(group)}
   </View>;
 }
 
 const S = StyleSheet.create({
-  root: { gap: 14, width: '100%', maxWidth: 380, alignSelf: 'center' },
-  group: { gap: 8 },
+  root: { gap: 10, width: '100%', maxWidth: 380, alignSelf: 'center' },
+  group: { gap: 6 },
+  summary: { color: '#FFF8E9', fontSize: 12, lineHeight: 17, paddingHorizontal: 4, textShadowColor: '#000000CC', textShadowRadius: 5 },
   headingPlate: { alignSelf: 'flex-start', minHeight: 30, paddingHorizontal: 18, justifyContent: 'center' },
   heading: { color: '#6B3A2A', fontFamily: SERIF, fontSize: 13, letterSpacing: 1 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingLeft: 18, paddingRight: 16 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingLeft: 18, paddingRight: 16 },
   art: { width: 52, height: 52 },
   cardText: { flex: 1, gap: 3 },
   title: { color: '#FFF8E9', fontFamily: BRUSH, fontSize: 18 },
