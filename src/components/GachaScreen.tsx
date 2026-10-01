@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
+import { PanResponder, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
@@ -25,28 +25,27 @@ type Props = {
   onClose: () => void;
 };
 
-/** A part with its art, or a plain stand-in shape while the art has not been added. */
-function Part({ part, style, fallback }: { part: GachaArtPart; style: StyleProp<ViewStyle>; fallback: StyleProp<ViewStyle> }) {
-  const source = GACHA_ART[part] as ImageSourcePropType | null;
-  return source
-    ? <Image accessible={false} source={source} contentFit="fill" transition={0} style={style as never} />
-    : <View style={[style, fallback]} />;
+/** Render supplied artwork without stretching its canvas. */
+function Part({ part, style }: { part: GachaArtPart; style: StyleProp<ViewStyle> }) {
+  return <Image accessible={false} pointerEvents="none" source={GACHA_ART[part]} contentFit={part === 'stage' ? 'cover' : 'contain'} transition={0} style={style as never} />;
 }
 
 export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose }: Props) {
-  const { width, height } = useWindowDimensions();
+  const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
+  const measureScene = useCallback(({ nativeEvent: { layout } }: LayoutChangeEvent) => {
+    setSize(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height });
+  }, []);
   const reduced = useReducedMotion();
-  // A tall box, like a blind box: about one and a half times as high as it is wide. Sized so that the
-  // whole front board, once slid up, still fits on screen above the box.
-  const boxW = Math.round(Math.min(190, width * .5, (height * .34) / 1.45));
-  const boxH = Math.round(boxW * 1.45);
+  // Use the measured modal space, reserving room for the title, lifted panel and result controls.
+  const boxW = Math.round(Math.max(0, Math.min(190, width * .5, (height - 330) / (1280 / 880 * 1.9))));
+  const boxH = Math.round(boxW * 1280 / 880);
   // The front board is the whole front of the box, and the whole board slides up.
   const boardW = boxW;
   const boardH = boxH;
   const boardLeft = 0;
   const boardTop = 0;
   const lift = boxH * .9;
-  const centerY = Math.round(height * .58);
+  const centerY = Math.round(130 + boxH * 1.4);
   const boxLeft = Math.round(width / 2 - boxW / 2);
   const boxTop = Math.round(centerY - boxH / 2);
 
@@ -198,40 +197,28 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const showMobby = opened ? mobbyAfterOpen(openedFor) : 0;
   const pet = result && isPetId(result.petId) ? getPetCharacter(result.petId) : null;
   const remaining = unrevealed.length;
-  // The inside of the box, seen once the front is up: the walls leave a thin frame.
-  const cavityLeft = Math.round(boxW * .05);
-  const cavityTop = Math.round(boxH * .035);
-  const cavityW = boxW - 2 * cavityLeft;
-  const cavityH = boxH - 2 * cavityTop;
-
-  return <View style={S.page}>
-    <Part part="stage" style={StyleSheet.absoluteFillObject} fallback={S.stageFallback} />
+  return <View style={S.page} onLayout={measureScene}>
+    <Part part="stage" style={StyleSheet.absoluteFillObject} />
 
     {playing && <>
-      {/* Light behind the box, centred on the opening. */}
-      <Part part="glowRays" style={[S.abs, { width: boxW * 3.4, height: boxW * 3.4, left: width / 2 - boxW * 1.7, top: boxTop + cavityTop + cavityH / 2 - boxW * 1.7, opacity: glow * .85, transform: [{ rotate: `${(opened ? openedFor : 0) * .02}deg` }] }]} fallback={S.raysFallback} />
-      <Part part="glowCore" style={[S.abs, { width: boxW * 2.4, height: boxW * 2.4, left: width / 2 - boxW * 1.2, top: boxTop + cavityTop + cavityH / 2 - boxW * 1.2, opacity: glow }]} fallback={S.coreFallback} />
-      <Part part="shadow" style={[S.abs, { width: boxW * 1.2, height: boxW * .35, left: boxLeft - boxW * .1 + roll.x * boxW, top: boxTop + boxH - boxW * .12, opacity: .7 }]} fallback={S.shadowFallback} />
+      <Part part="shadow" style={[S.abs, { width: boxW * 1.3, height: boxW * 1.3 * 300 / 1024, left: boxLeft - boxW * .15 + roll.x * boxW, top: boxTop + boxH * .94 - boxW * .19, opacity: .85 }]} />
 
       {/* The box: body, the opening with its light, the Mobby, and the front board. */}
       <View pointerEvents="box-none" style={[S.abs, { width: boxW, height: boxH, left: boxLeft, top: boxTop, transform: [{ translateX: roll.x * boxW }, { translateY: -roll.hop * boxW }, { rotate: `${roll.rotate}deg` }, { scale: settle }] }]}>
-        <Part part="body" style={StyleSheet.absoluteFillObject} fallback={S.bodyFallback} />
-        <View pointerEvents="none" style={[S.cavity, { left: cavityLeft, top: cavityTop, width: cavityW, height: cavityH }]}>
-          <View style={[StyleSheet.absoluteFillObject, S.wash, { opacity: glow }]} />
-        </View>
-        {pet && <Image accessible={false} source={pet.image} contentFit="contain" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: cavityTop + cavityH / 2 - boxW * .39 - (1 - showMobby) * 8, opacity: showMobby }]} />}
+        <Part part="body" style={StyleSheet.absoluteFillObject} />
+        <Part part="glowRays" style={[S.abs, { width: boxW * 2.4, height: boxW * 2.4, left: -boxW * .7, top: boxH / 2 - boxW * 1.2, opacity: glow * .85, transform: [{ rotate: `${(opened ? openedFor : 0) * .02}deg` }] }]} />
+        <Part part="glowCore" style={[S.abs, { width: boxW * 1.8, height: boxW * 1.8, left: -boxW * .4, top: boxH / 2 - boxW * .9, opacity: glow }]} />
+        {pet && <Image accessible={false} pointerEvents="none" source={pet.image} contentFit="contain" style={[S.mobby, { width: boxW * .78, height: boxW * .78, left: boxW * .11, top: boxH / 2 - boxW * .39 - (1 - showMobby) * 8, opacity: showMobby }]} />}
         {/* The whole front board: lifted by hand. */}
         <View {...boardPan.panHandlers} accessible={boardEnabled} accessibilityRole="button" accessibilityLabel="箱の前の板を上へ引き上げる" accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => settleBoard(1)} style={[S.abs, { left: boardLeft, top: boardTop, width: boardW, height: boardH, transform: [{ translateY: -lift * open }] }]}>
-          <Part part="front" style={StyleSheet.absoluteFillObject} fallback={S.boardFallback} />
-          {boardEnabled && <View pointerEvents="none" style={S.grip} />}
+          <Part part="front" style={StyleSheet.absoluteFillObject} />
         </View>
       </View>
     </>}
 
     {/* The cord to pull. */}
-    {!playing && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 40, height: 250 + MAX_PULL }]}>
-      <Part part="rope" style={[S.rope, { transform: [{ translateY: pull }] }]} fallback={S.ropeFallback} />
-      {freePulls > 0 && <View style={[S.tassel, { transform: [{ translateY: pull }] }]} />}
+    {!playing && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + MAX_PULL }]}>
+      <Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + MAX_PULL) / 4, height: Math.min(300, height * .48) + MAX_PULL, top: -MAX_PULL + pull }]} />
     </View>}
 
     <View style={S.top}>
@@ -266,25 +253,14 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 
 const S = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#302D25', overflow: 'hidden', userSelect: 'none' },
-  stageFallback: { backgroundColor: '#2A251E' },
   abs: { position: 'absolute' },
-  raysFallback: { borderRadius: 9999, backgroundColor: 'transparent' },
-  coreFallback: { borderRadius: 9999, backgroundColor: '#FFE7A0', shadowColor: '#FFF3C4', shadowOpacity: 1, shadowRadius: 60, shadowOffset: { width: 0, height: 0 } },
-  shadowFallback: { borderRadius: 9999, backgroundColor: '#00000066' },
-  bodyFallback: { backgroundColor: '#C9A374', borderWidth: 6, borderColor: '#8B6135', borderRadius: 8 },
-  cavity: { position: 'absolute', backgroundColor: '#2B1E14', borderRadius: 4, overflow: 'hidden' },
-  wash: { backgroundColor: '#FFF3C8' },
   mobby: { position: 'absolute' },
-  boardFallback: { backgroundColor: '#D8B884', borderWidth: 4, borderColor: '#8B6135', borderRadius: 6 },
-  grip: { position: 'absolute', left: '50%', marginLeft: -26, top: 10, width: 52, height: 8, borderRadius: 4, backgroundColor: '#8B6135' },
-  ropeArea: { position: 'absolute', top: 0, width: 80, alignItems: 'center' },
+  ropeArea: { position: 'absolute', top: 0, width: 104, alignItems: 'center' },
   rope: { position: 'absolute', top: -20, width: 34, height: 270 },
-  ropeFallback: { width: 6, backgroundColor: '#B23B2E', borderRadius: 3, left: 14 },
-  tassel: { position: 'absolute', top: 236, width: 26, height: 26, borderRadius: 13, backgroundColor: '#B23B2E', borderWidth: 3, borderColor: '#E7C58C' },
-  top: { position: 'absolute', left: 0, right: 0, top: 58, alignItems: 'center', gap: 6, paddingHorizontal: 24 },
+  top: { position: 'absolute', left: 0, right: 0, top: 32, alignItems: 'center', gap: 6, paddingHorizontal: 24 },
   title: { color: '#FFF8E9', fontFamily: BRUSH, fontSize: 23, textAlign: 'center' },
   count: { color: '#D5BD98', fontSize: 12, letterSpacing: 1.5 },
-  bottom: { position: 'absolute', left: 0, right: 0, bottom: 34, alignItems: 'center', gap: 10, paddingHorizontal: 24 },
+  bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 16, backgroundColor: '#211A13D9' },
   prompt: { color: '#FFF8E9', fontSize: 14, lineHeight: 22, textAlign: 'center' },
   small: { color: '#D5BD98', fontSize: 12, lineHeight: 18, textAlign: 'center' },
   name: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 25, textAlign: 'center' },
