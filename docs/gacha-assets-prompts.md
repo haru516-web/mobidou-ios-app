@@ -391,3 +391,56 @@ Avoid: checkerboard, any baked background, bright fringe, colored outline, new o
 > Materials/textures: hand-brushed wood grain, finely textured washi panels, soft layered watercolor edges, subtle plank seams.
 > Constraints: full-bleed opaque scene, exported as RGBA. The scene itself remains fully opaque. No text, letters, numbers, logos, symbols, people, characters, furniture, objects on the floor, gacha box, rope, checkerboard, watermark or artificial UI.
 > Avoid: bright daytime, sunset orange, cluttered floor, central focal object, ornate shrine props, strong perspective distortion, photorealism, heavy contrast, decorative border.
+
+
+---
+
+# 運び屋モビー・荷車素材（2026-10-01）
+
+ブランチ: codex/gacha-cart-assets。ワークツリー: D:/mobby/mobidou-cart。ImageGenは Codex built-in image_gen を使用し、透明背景を指定した。採用したC-1元画像は exec-4c7a4763-2673-49f8-9ed0-8fb1b5fb3808.png（2172×724）、C-2は exec-875c7da5-3302-4a66-9c58-ab37e8c00459.png（2172×724）。参照は assets/mobies/mobibou.webp、漆塗りの箱2点、engawa背景、採用C-1シート。
+
+## C-1 / C-2 の後処理
+
+各生成セル543×362を、1pxの透明区切りを含む3075×1025シートへ正規化した。セル内の絵を706×471へ縮小し、横中央（x=31）へ配置。アルファ値32以上の最下端が接地線 y=464 になるよう縦位置を合わせた。C-2の1コマ目には正規化前のC-1の1コマ目をコピーした。C-2で見つかった少数の孤立した微小エッジ片は連結成分を見て除き、主絵は保持した。RGBA WebP quality 90、method 6、alpha_quality 100で書き出した。最終シートは617,256 bytesと507,988 bytes。PNG原本はリポジトリへ含めていない。
+
+C-1の別ポーズ修正版 exec-711b9220-d987-4109-b186-b1c448f4c038.png も確認したが、歩行差の改善が小さく赤い色縁が強かったため採用しなかった。
+
+## C-1 採用プロンプト
+
+~~~text
+Use case: production mobile game animation sprite sheet.
+Asset type: transparent 8-frame side-view carrier-and-handcart walk atlas for assets/gacha/cart/carrier-walk.webp.
+Input image 1 (assets/mobies/mobibou.webp) is the exact identity reference for Moby only: keep its shaggy black plush body, familiar silhouette, one large cream eye on the viewer's left, the round dark mechanical lens on the viewer's right, and the raised dark gamepad cross on the lower front in the same relative positions. Replace its cap with a white hachimaki, and remove the backpack, star patches and dangling hoodie details. Images 2 and 3 (the lacquered box parts) are material references for restrained antique brown wood, warm upper-left highlights and refined Japanese craft. Image 4 (the engawa stage) is a mood and painted-texture reference only.
+Primary request: one precise 4-column by 2-row animation atlas, eight consecutive equally spaced poses of one complete walk cycle, ordered left-to-right across the top row, then left-to-right across the bottom row. The whole sheet is a wide 3:1 landscape composition with eight equal landscape cells. Each conceptual cell is 768x512; the final atlas will receive 1-pixel transparent separators during processing. No cell outlines, borders or labels.
+Subject: in every cell, Moby walks toward screen-right while pulling an old, empty, two-wheeled Japanese wooden flat handcart behind him on the left. Show the complete Moby and cart in strict side profile. Moby leans forward slightly and grips the two long pull shafts with both hands. Dress him in a short indigo aizome happi coat with a small simple vermilion round crest on the back and a white tied hachimaki. The cart has a flat level upper bed, sturdy dark amber lacquered timber, one clearly visible large wooden spoked wheel and a second far wheel just behind it, both wheels rotating subtly through the cycle. Keep the entire bed completely empty: absolutely no box, load, packages or props on it.
+Style/medium: polished tactile game illustration. Moby retains the source's soft individual black fur strands, cream eye, glassy dark lens and raised cross button; cart wood has the quiet antique lacquer grain of the references. Integrate with the delicate Japanese watercolor atmosphere of the engawa, without flattening or redesigning Moby.
+Composition/framing: identical camera, object scale, horizontal placement and vertical placement in all eight cells. All parts remain fully inside each cell. The group's feet and both wheel bottoms share a perfectly consistent ground line exactly 48 pixels above each cell's bottom (y=464 on a 512px cell). Leave transparent space below the ground line. Keep the cart bed around the middle height with an unobstructed flat top for a separate box image to be placed later.
+Walk-cycle poses: frames 1-8 are eight evenly spaced poses through one natural cycle. Alternate the lead foot and opposite arm swing; show believable passing and lift poses between contacts. Frame 8 must flow naturally into frame 1. The coat hem and fur tips flutter gently. The cart bed bobs only a few pixels (about plus or minus 6) while its wheel spokes advance smoothly around the axle. Moby looks cheerful and effortfully focused.
+Lighting/mood: soft dawn light from upper left; highlights stay on fur and wood only. Gentle grounded illustration, quiet early morning.
+Color palette: black and charcoal fur, warm cream eye, deep indigo coat, muted vermilion crest, pale white headband, antique amber-brown lacquered wood, subdued brass details.
+Materials/textures: tactile plush fur, woven cotton, subtle stitched coat fabric, smooth aged lacquer and visible wooden spokes.
+Constraints: true transparent alpha background; no ground plane, floor, cast shadow, light halo, glow, motion blur, perspective shift, text, letters, numbers, logos, watermark or checkerboard. No chest or cargo on the cart. Keep every cell aligned, complete and the same scale.
+~~~
+
+## C-2 採用プロンプト
+
+~~~text
+Use case: production mobile-game sprite sheet for a single, controlled unload animation.
+Asset type: transparent 8-frame carrier, empty handcart and tipping flatbed atlas.
+Input image 1 is the exact carrier-walk atlas. It defines the character, face, fur, hachimaki, coat, proportions, cart construction, wood finish, camera, scale and transparent look. Reuse that exact design. The cart's rear unloading end is screen-left; its pull handles extend screen-right. Moby always faces right when at the handles. Keep the cart empty; the wooden box will be composited separately.
+Primary request: a very wide 3:1 landscape atlas with exactly four equal columns and two equal rows, eight distinct sequential frames in row-major order. Do not repeat a static pose. No borders, labels or numbers. Each complete object stays inside its own 768x512 conceptual cell.
+Invariants: exact same cart wheel size and axle, bed length, handle length, wood tone and Moby scale from the reference. Side profile, no camera movement. Cart and Moby share the same transparent ground baseline. Feet and wheel bottoms sit 48 pixels above each cell bottom. Soft light from upper left.
+Frame sequence:
+1. Match the reference sheet's first frame exactly: Moby at the right handles, leaning into the pull, bed horizontal.
+2. Moby has stopped; feet planted, both hands lowering the handles, wheel motion visibly ended; bed horizontal.
+3. Moby releases the handles and moves behind the cart to screen-left. Show one Moby only. The cart remains level.
+4. Moby reaches the back-left end and braces with both paws. The bed begins to tip: left/rear end goes down, right/handle end rises slightly.
+5. The left end lowers farther; Moby visibly leans and supports the cart from behind.
+6. Maximum tilt: the bed is a clear straight ramp sloping down toward screen-left by roughly 18 degrees; Moby braces at its low rear end. Keep the ramp unobstructed for a separate box to slide off.
+7. Bed returns horizontal. Moby stands at the rear and wipes sweat from his forehead with one paw.
+8. Level cart. Moby has returned beside the right-hand pull shafts in a relaxed ready-to-depart stance. This pose must visually lead back into frame 1.
+Style: the same tactile Mobibou plush, cream eye, dark lens and chest cross, same indigo happi and white tied hachimaki, same small plain vermilion back crest, same fine amber-brown lacquered cart illustration. Gentle dawn rendering, not a redesign.
+Constraints: true transparent background; no floor, ground plane, contact shadow, halo, glow, motion blur, checkerboard, box, cargo, duplicate or ghost character, extra characters, words, text, numerals, logo, watermark. Keep every figure fully inside its frame; preserve identical scale and camera in all eight cells.
+~~~
+
+---

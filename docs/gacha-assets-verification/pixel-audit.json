@@ -173,5 +173,85 @@
       1170,
       2532
     ]
+  },
+  {
+    "file": "assets/gacha/cart/carrier-walk.webp",
+    "dimensions": [
+      3075,
+      1025
+    ],
+    "bytes": 617256,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      45,
+      106,
+      3029,
+      980
+    ],
+    "atlas": {
+      "columns": 4,
+      "rows": 2,
+      "cell": [
+        768,
+        512
+      ],
+      "gutterColumns": [
+        768,
+        1537,
+        2306
+      ],
+      "gutterRow": 512,
+      "gutterMaxAlpha": 0
+    }
+  },
+  {
+    "file": "assets/gacha/cart/carrier-unload.webp",
+    "dimensions": [
+      3075,
+      1025
+    ],
+    "bytes": 507988,
+    "decodedMode": "RGBA",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alphaBounds": [
+      45,
+      99,
+      3032,
+      981
+    ],
+    "atlas": {
+      "columns": 4,
+      "rows": 2,
+      "cell": [
+        768,
+        512
+      ],
+      "gutterColumns": [
+        768,
+        1537,
+        2306
+      ],
+      "gutterRow": 512,
+      "gutterMaxAlpha": 0
+    }
   }
 ]
