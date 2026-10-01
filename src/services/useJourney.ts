@@ -10,6 +10,7 @@ import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/
 import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
 import { localOmikujiDay } from '../data/omikuji';
+import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
 
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
@@ -197,7 +198,8 @@ export function useJourney() {
   const epoch = useRef(0);
   const change = useCallback((fn: (prev: Saved) => Saved) => {
     if (readOnly.current) return;
-    const next = fn(current.current);
+    const changed = fn(current.current);
+    const next = DEV_UNLOCK_ALL ? devUnlockAll(changed) : changed;
     if (next === current.current) return;
     current.current = next; setData(next);
     writing.current = writing.current.then(() => AsyncStorage.setItem(KEY, JSON.stringify(next))).catch(() => {
@@ -221,6 +223,7 @@ export function useJourney() {
         if (mounted.current) setError('保存した記録を読み込めなかったため、新しく記録を始めます。以前のデータは端末内に退避しました。');
         return;
       }
+      if (DEV_UNLOCK_ALL) loaded = devUnlockAll(loaded);
       current.current = loaded; setData(loaded);
       void AsyncStorage.setItem(KEY, JSON.stringify(loaded));
     }).catch(() => { readOnly.current = true; if (mounted.current) setError('保存した記録を読み込めませんでした。元のデータは上書きせず、アプリを開き直してください。'); })

@@ -14,6 +14,7 @@ import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView } from './src
 import { useJourney } from './src/services/useJourney';
 import { hasStarter, ownsMobby } from './src/services/gacha';
 import { DuplicateMobbies } from './src/components/DuplicateMobbies';
+import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
 import { GachaScreen } from './src/components/GachaScreen';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
@@ -227,6 +228,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const pendingGoshuinOwned = !!pending && (progress.lapBase !== undefined || Object.entries(routeRecords).some(([routeId, record]) => routeId !== activeRoute?.id && record.rewards.some(reward => reward.id === pending.id)));
   const awardVisible = !!pending && data.onboarded && openingHomeReady && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !homePopup && !omikujiModal;
   // Like a UITabBarController, each tab keeps the sub-screen it was left on.
+  // Local testing: closing the omikuji after a draw makes it drawable again (see devUnlock.ts).
+  const omikujiWasOpen = useRef(false);
+  useEffect(() => {
+    if (omikujiModal) { omikujiWasOpen.current = true; return; }
+    if (!omikujiWasOpen.current) return;
+    omikujiWasOpen.current = false;
+    if (DEV_UNLOCK_ALL && omikujiDrawn && firstRunStage === null && !onboardingPreview) journey.resetDailyOmikuji();
+  }, [omikujiModal]); // eslint-disable-line react-hooks/exhaustive-deps
   const move = (value: Tab) => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); scrollY.setValue(0); setTab(value); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setMobbyMenuOpen(false); setHomePopup(kind); setTab('home'); scrollY.setValue(0); };
   const handleTutorialCompanionBond = () => {
