@@ -11,3 +11,4 @@ android/
 *.log
 .DS_Store
 test-results/
+prototype/fur/vendor/
