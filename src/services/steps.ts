@@ -18,13 +18,17 @@ export async function connectSteps(): Promise<StepSource> {
   if (!permission.granted) throw new Error('歩数へのアクセスが許可されていません。iPhoneの設定で「モーションとフィットネス」を確認してください。');
   return 'motion';
 }
+/** Steps between two instants (epoch milliseconds), from whichever source is connected. */
+export async function readStepsBetween(source: StepSource, start: number, end: number): Promise<number> {
+  let steps: number;
+  if (source === 'healthkit' && health) steps = await health.readSteps(start, end);
+  else if (source === 'motion' && Platform.OS === 'ios') steps = (await Pedometer.getStepCountAsync(new Date(start), new Date(end))).steps;
+  else throw new Error('歩数の連携が必要です。設定から接続してください。');
+  if (!Number.isFinite(steps) || steps < 0) throw new Error('歩数を読み取れませんでした。少し待ってから更新してください。');
+  return steps;
+}
 export async function readTodaySteps(source: StepSource): Promise<{ steps: number; at: Date }> {
   const end = new Date();
   const start = new Date(end); start.setHours(0, 0, 0, 0);
-  let steps: number;
-  if (source === 'healthkit' && health) steps = await health.readSteps(start.getTime(), end.getTime());
-  else if (source === 'motion' && Platform.OS === 'ios') steps = (await Pedometer.getStepCountAsync(start, end)).steps;
-  else throw new Error('歩数の連携が必要です。設定から接続してください。');
-  if (!Number.isFinite(steps) || steps < 0) throw new Error('歩数を読み取れませんでした。少し待ってから更新してください。');
-  return { steps, at: end };
+  return { steps: await readStepsBetween(source, start.getTime(), end.getTime()), at: end };
 }
