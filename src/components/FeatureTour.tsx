@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Platform, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { Modal, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { BRUSH, Button, C } from '../components';
 import { buildTourPlan, navSlice, type TourAnchorId, type TourSelection, type TourTab } from '../data/featureTour';
@@ -39,6 +39,8 @@ type Props = {
   /** Space the tab bar takes at the bottom, so a step with nothing to point at keeps its card above it. */
   bottomInset: number;
   onNavigate: (tab: TourTab) => void;
+  /** Called when the step's full-screen scene changes (null = just the tabs). */
+  onScene: (scene: 'gacha' | null) => void;
   onClose: () => void;
 };
 
@@ -46,7 +48,7 @@ type Props = {
  * The replayable tour: dims the screen, cuts a hole around the thing being explained and shows a short card.
  * It only explains; nothing underneath can be tapped while it is open. Each step first moves to the tab it is about.
  */
-export function FeatureTour({ selection, gacha, bottomInset, onNavigate, onClose }: Props) {
+export function FeatureTour({ selection, gacha, bottomInset, onNavigate, onScene, onClose }: Props) {
   const plan = useMemo(() => buildTourPlan(selection, { gacha }), [selection, gacha]);
   const [position, setPosition] = useState(0);
   const step = plan[Math.min(position, plan.length - 1)];
@@ -57,6 +59,8 @@ export function FeatureTour({ selection, gacha, bottomInset, onNavigate, onClose
   const last = position >= plan.length - 1;
 
   useEffect(() => { if (step?.tab) onNavigate(step.tab); }, [step?.tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { onScene(step?.scene ?? null); }, [step?.scene]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Measure after the tab change has rendered; a second pass catches slow layouts (the book and the walk ring settle late).
   useEffect(() => {
@@ -76,12 +80,6 @@ export function FeatureTour({ selection, gacha, bottomInset, onNavigate, onClose
     return () => { cancelled = true; clearTimeout(first); clearTimeout(second); };
   }, [step, gacha]);
 
-  useEffect(() => {
-    if (Platform.OS !== 'android') return undefined;
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; });
-    return () => subscription.remove();
-  }, [onClose]);
-
   const go = useCallback((delta: number) => setPosition(value => Math.max(0, Math.min(plan.length - 1, value + delta))), [plan.length]);
   if (!step) return null;
 
@@ -92,11 +90,14 @@ export function FeatureTour({ selection, gacha, bottomInset, onNavigate, onClose
   const cardWidth = Math.max(240, Math.min(360, width - 28));
   const left = Math.max(14, (width - cardWidth) / 2);
   const bottomLimit = height - cardHeight - 12;
-  const top = hole
+  // Inside a full-screen scene the buttons being explained sit at the bottom, so the card goes in the middle.
+  const top = step.scene ? Math.round(height * .38) : hole
     ? (hole.y + hole.height / 2 < height / 2 ? Math.min(hole.y + hole.height + 14, bottomLimit) : Math.max(12, hole.y - cardHeight - 14))
     : Math.max(12, height - bottomInset - cardHeight - 18);
 
-  return <View ref={frameRef} collapsable={false} accessibilityViewIsModal onLayout={() => frameRef.current?.measureInWindow((x, y, w, h) => setFrame({ x, y, width: w, height: h }))} style={S.overlay}>
+  // A transparent modal, so the tour also sits above the gacha, which is a modal of its own.
+  return <Modal transparent visible animationType="none" presentationStyle="overFullScreen" statusBarTranslucent onRequestClose={onClose}>
+    <View ref={frameRef} collapsable={false} accessibilityViewIsModal onLayout={() => frameRef.current?.measureInWindow((x, y, w, h) => setFrame({ x, y, width: w, height: h }))} style={S.overlay}>
       {/* A touch sink: the screen behind must not react while the tour explains it. */}
       <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="つぎへ" onPress={() => (last ? onClose() : go(1))} style={StyleSheet.absoluteFill} />
       {hole
@@ -120,7 +121,8 @@ export function FeatureTour({ selection, gacha, bottomInset, onNavigate, onClose
           </View>
         </View>
       </View>
-  </View>;
+  </View>
+  </Modal>;
 }
 
 function roundedRectPath(x: number, y: number, width: number, height: number, radius: number) {

@@ -16,6 +16,8 @@ export type TourStep = {
   detail: string;
   /** Spotlight target. Leave out when the thing explained moves around the screen (the floating Mobby). */
   anchor?: TourAnchorId;
+  /** Screen laid over the tabs while this step shows. The gacha is a full-screen scene, so the tour opens it. */
+  scene?: 'gacha';
 };
 
 export type TourSection = {
@@ -52,8 +54,9 @@ export const TOUR_SECTIONS: readonly TourSection[] = [
   {
     id: 'gacha', tab: null, title: 'ガチャ', icon: 'gift-outline', summary: 'モビーとの新しい出会い',
     steps: [
-      { anchor: 'nav-gacha', title: 'ガチャ', detail: '真ん中のボタンで、新しいモビーに会えるよ。巡礼を結願すると、無料でひとつ引けるよ。' },
-      { anchor: 'nav-gacha', title: '「ひく」と「購入」', detail: '「ひく」で板をなぞってひもを引こう。「購入」では、引ける回数やプランを選べるよ。' },
+      { anchor: 'nav-gacha', title: 'ガチャのボタン', detail: 'ナビバーの真ん中のボタンで、ガチャの画面が開くよ。' },
+      { scene: 'gacha', title: 'ご縁を結ぶ', detail: '「ひもを引く」を押して、ひもを引っぱろう。箱が開いて、新しいモビーに会えるよ。' },
+      { scene: 'gacha', title: '引ける回数', detail: '無料で引ける回数は画面に出るよ。巡礼を結願すると、ひとつ引けるよ。「とじる」でもどれるよ。' },
     ],
   },
   {

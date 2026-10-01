@@ -659,7 +659,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="6 / 9" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
     {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="7 / 9" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
     {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="8 / 9" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
-    {tour && <FeatureTour selection={tour} gacha={hasStarter(data.mobbies) && !onboardingPreview} bottomInset={navHeight} onNavigate={move} onClose={() => setTour(null)} />}
+    {tour && <FeatureTour selection={tour} gacha={hasStarter(data.mobbies) && !onboardingPreview} bottomInset={navHeight} onNavigate={move} onScene={scene => setGachaOpen(scene === 'gacha')} onClose={() => { setTour(null); setGachaOpen(false); }} />}
     <Modal transparent visible={omikujiModal} animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => { if (!isFirstRunOmikuji) closeOmikuji(); }}>
       <SafeAreaView style={S.omikujiModal}>
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="おみくじを閉じる" disabled={isFirstRunOmikuji} onPress={closeOmikuji} style={S.omikujiBackdrop} />
