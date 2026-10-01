@@ -47,6 +47,8 @@ export type ReliefController = {
   pointerUp: () => void;
   /** Jump to a turn angle in radians (0 = facing the viewer). */
   setSpin: (radians: number) => void;
+  /** Turn smoothly to an angle (0 front, -PI/2 left side, PI back, PI/2 right side). */
+  turnTo: (radians: number) => void;
   dispose: () => void;
 };
 
@@ -61,6 +63,7 @@ const SEG_X = 90;
 const SEG_Y = 112;
 const CAM_DIST = 8;
 const FIT = 1.18;          // vertical margin around the character
+const MIN_HALF_WIDTH = 1.4;   // world units kept visible either side of the axis
 const NORMAL_STEP = 3;     // texels either side when deriving the surface normal
 
 const VERTEX_SHADER = `
@@ -277,13 +280,15 @@ export function createRelief(gl: GL, options: ReliefOptions): ReliefController {
   const shared = { pullX: 0, pullY: 0, pokeX: 0, pokeY: 0, touchX: 0, touchY: 0, touchZ: 9 };
   let touchAmt = 0, touchTarget = 0;
   let spin = 0, spinVel = 0, lastSpinInput = 0;
+  let spinTarget: number | null = null;
   let drag: null | { mode: 'body' | 'orbit'; x0: number; y0: number; lx: number; ly: number; t0: number; moved: number; qx: number; qy: number } = null;
   let dominant: Layer = layers[0];
   let raf: ReturnType<typeof requestAnimationFrame> | null = null;
   let last = 0;
 
   const aspect = width / height;
-  const tanHalf = (meta.worldHeight * FIT) / 2 / CAM_DIST;
+  // fit the character by height, and always leave room at the sides so there is background to turn it by
+  const tanHalf = Math.max((meta.worldHeight * FIT) / 2 / CAM_DIST, MIN_HALF_WIDTH / CAM_DIST / aspect);
   const proj = new Float32Array(16);
   {
     const f = 1 / tanHalf, near = 0.1, far = 50;
@@ -383,7 +388,12 @@ export function createRelief(gl: GL, options: ReliefOptions): ReliefController {
   // ---- animation ---------------------------------------------------------------------------
   function step(dt: number) {
     spin += spinVel; spinVel *= Math.exp(-6 * dt);
-    if (!drag && Date.now() - lastSpinInput > 350 && Math.abs(spinVel) < 0.01) {
+    if (spinTarget !== null) {
+      const diff = wrapAngle(spinTarget - spin);
+      spin += diff * Math.min(1, dt * 6);
+      if (Math.abs(diff) < 0.002) { spin = spinTarget; spinTarget = null; }
+    }
+    if (!drag && spinTarget === null && Date.now() - lastSpinInput > 350 && Math.abs(spinVel) < 0.01) {
       const nearest = Math.round(spin / (Math.PI / 2)) * (Math.PI / 2);
       spin += (nearest - spin) * Math.min(1, dt * 5);
     }
@@ -399,7 +409,7 @@ export function createRelief(gl: GL, options: ReliefOptions): ReliefController {
 
   function settled() {
     const nearest = Math.round(spin / (Math.PI / 2)) * (Math.PI / 2);
-    return !drag
+    return !drag && spinTarget === null
       && Math.abs(spinVel) < 0.0005 && Math.abs(spin - nearest) < 0.002
       && Math.abs(pull.x) + Math.abs(pull.y) + Math.abs(pull.vx) + Math.abs(pull.vy) < 0.0008
       && Math.abs(poke.v) + Math.abs(poke.vel) < 0.002
@@ -437,6 +447,7 @@ export function createRelief(gl: GL, options: ReliefOptions): ReliefController {
     pointerMove(x, y) {
       if (!drag) return;
       if (drag.mode === 'orbit') {
+        spinTarget = null;
         spinVel += (x - drag.lx) * -0.0045;
         drag.lx = x; drag.ly = y; lastSpinInput = Date.now();
       } else {
@@ -457,7 +468,8 @@ export function createRelief(gl: GL, options: ReliefOptions): ReliefController {
       drag = null; pull.held = false; pull.tx = 0; pull.ty = 0; touchTarget = 0;
       kick();
     },
-    setSpin(radians) { spin = radians; spinVel = 0; kick(); },
+    setSpin(radians) { spin = radians; spinVel = 0; spinTarget = null; kick(); },
+    turnTo(radians) { spinVel = 0; spinTarget = radians; kick(); },
     dispose() {
       disposed = true;
       if (raf !== null) cancelAnimationFrame(raf);

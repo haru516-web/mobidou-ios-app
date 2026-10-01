@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>reliefCore harness</title>
-<style>html,body{margin:0;height:100%;background:#efeeec;overflow:hidden}canvas{display:block;margin:0 auto;touch-action:none;background:transparent}</style>
+<style>html,body{margin:0;height:100%;background:#efeeec;overflow:hidden}canvas{display:block;margin:0 auto;touch-action:none;background:transparent}#bar{display:flex;gap:8px;justify-content:center;padding:10px}#bar button{font:14px sans-serif;padding:8px 14px;border:1px solid #ccc;border-radius:8px;background:#fff}#hint{text-align:center;font:12px sans-serif;color:#888}</style>
 <script type="importmap">{ "imports": { "./build/pullMeshCore": "./build/pullMeshCore.js" } }</script>
-</head><body><canvas id="c"></canvas>
+</head><body><div id="hint">背景を横にドラッグで回転 / 体はドラッグで引っ張る・タップでぷに</div><canvas id="c"></canvas><div id="bar"><button data-a="0">正面</button><button data-a="-1.5708">左</button><button data-a="3.1416">背面</button><button data-a="1.5708">右</button></div>
 <script type="module">
 import { createRelief } from './build/reliefCore.js';
 const meta = await fetch('/src/data/mobibouReliefMeta.json').then((r) => r.json());
 const A = '/assets/mobies/relief/mobibou-';
 const sources = Object.fromEntries(['front', 'side', 'back'].map((v) => [v, { color: A + v + '.png', height: A + v + '-height.png' }]));
-const W = Math.min(innerWidth, 440), H = Math.min(innerHeight, 560), dpr = Math.min(devicePixelRatio || 1, 2);
+const W = Math.min(innerWidth, 440), H = Math.min(innerHeight - 56, 560), dpr = Math.min(devicePixelRatio || 1, 2);
 const canvas = document.getElementById('c');
 canvas.width = W * dpr; canvas.height = H * dpr; canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
 const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });
@@ -27,5 +27,6 @@ const pos = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX
 canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture?.(e.pointerId); ctl.pointerDown(...pos(e)); });
 canvas.addEventListener('pointermove', (e) => ctl.pointerMove(...pos(e)));
 canvas.addEventListener('pointerup', () => ctl.pointerUp());
+document.querySelectorAll('#bar button').forEach((b) => b.addEventListener('click', () => ctl.turnTo(Number(b.dataset.a))));
 window.__ctl = ctl;
 </script></body></html>
