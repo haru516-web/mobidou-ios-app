@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { BRUSH, Button, C, Section } from '../components';
+import { BRUSH, Button, C, Icon, Section } from '../components';
 import { sourceLabel } from '../services/steps';
 import type { useJourney } from '../services/useJourney';
-import { WashiArt } from './Washi';
+import { WashiArt, WashiPressable } from './Washi';
+import { tourPickerSections, type TourSelection } from '../data/featureTour';
 import { WashiSwitch } from './WashiSwitch';
 import { PagedBody } from './PagedBody';
 import { Close, M, Meta } from './ModalParts';
@@ -32,15 +33,20 @@ type Props = {
   onOpenAccount: () => void;
   onEditHome: () => void;
   onToggleDemo: () => void;
+  /** Whether the gacha tab is on the bar; its part of the tour is offered only then. */
+  gacha: boolean;
+  onStartTour: (selection: TourSelection) => void;
 };
 
-export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss, onClose, onOpenAccount, onEditHome, onToggleDemo }: Props) {
+export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss, onClose, onOpenAccount, onEditHome, onToggleDemo, gacha, onStartTour }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const { data } = journey;
   const [info, setInfo] = useState<InfoKind | null>(null);
+  const [tourPicker, setTourPicker] = useState(false);
   const [confirmDiscardBackup, setConfirmDiscardBackup] = useState(false);
 
-  const close = () => { setInfo(null); onClose(); };
+  const close = () => { setInfo(null); setTourPicker(false); onClose(); };
+  const startTour = (selection: TourSelection) => { setTourPicker(false); onStartTour(selection); };
 
   return <Modal visible={visible} onShow={onShow} onDismiss={() => { if (!accountOpen) { setInfo(null); onDismiss(); } }} animationType="slide" onRequestClose={onClose} presentationStyle="pageSheet">
     <SafeAreaView style={M.modal}>
@@ -96,6 +102,11 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
           <Text style={M.settingHelp}>体験用の御朱印帳で、お散歩と授与演出を試せます。本番の記録には影響しません。</Text>
           <Button title={data.demo ? '体験を終えて実記録にもどる' : '体験モードをはじめる'} secondary onPress={onToggleDemo} />
         </View>
+        <View key="tutorial">
+          <Section title="チュートリアル" />
+          <Text style={M.settingHelp}>各画面の使い方を、もう一度ゆっくり見られます。</Text>
+          <Button title="チュートリアルを見る" icon="help-circle-outline" secondary onPress={() => setTourPicker(true)} />
+        </View>
         <View key="about">
           <Section title="このアプリについて" />
           <Button title="プライバシーとデータ" secondary onPress={() => setInfo('privacy')} />
@@ -103,6 +114,25 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
           <Text style={S.footerNote}>{'もび道（もびどう） 1.0.0\n今日の一歩に、小さなご縁を。'}</Text>
         </View>
       </ScrollView>
+      {tourPicker && <View style={S.infoBackdrop}>
+        <View style={S.infoCard}>
+          <WashiArt />
+          <Text style={M.modalTitle}>チュートリアル</Text>
+          <View style={S.tourList}>
+            <WashiPressable artwork={false} accessibilityRole="button" accessibilityLabel="すべて。ホームから順に、すべての機能を見る" onPress={() => startTour('all')} style={S.tourRow}>
+              <Icon name="sparkles-outline" size={24} color={C.red} />
+              <View style={S.tourText}><Text style={S.tourName}>すべて</Text><Text style={S.tourSummary}>ホームから順に、すべての機能</Text></View>
+              <Icon name="chevron-forward" size={18} color="#9A9081" />
+            </WashiPressable>
+            {tourPickerSections({ gacha }).map(section => <WashiPressable key={section.id} artwork={false} accessibilityRole="button" accessibilityLabel={`${section.title}。${section.summary}`} onPress={() => startTour(section.id)} style={S.tourRow}>
+              <Icon name={section.icon as React.ComponentProps<typeof Icon>['name']} size={24} color={C.red} />
+              <View style={S.tourText}><Text style={S.tourName}>{section.title}</Text><Text style={S.tourSummary}>{section.summary}</Text></View>
+              <Icon name="chevron-forward" size={18} color="#9A9081" />
+            </WashiPressable>)}
+          </View>
+          <Button title="とじる" secondary onPress={() => setTourPicker(false)} />
+        </View>
+      </View>}
       {!!info && <View style={S.infoBackdrop}>
         <View style={S.infoCard}>
           <WashiArt />
@@ -127,5 +157,10 @@ const S = StyleSheet.create({
   footerNote: { marginTop: 25, textAlign: 'center', color: '#9A9081', fontSize: 12, lineHeight: 19 },
   infoBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#2B241AB0', justifyContent: 'center', alignItems: 'center', padding: 24 },
   infoCard: { width: '100%', maxWidth: 420, padding: 28, gap: 20 },
+  tourList: { gap: 4 },
+  tourRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9, paddingHorizontal: 6, borderBottomWidth: 1, borderColor: C.line },
+  tourText: { flex: 1 },
+  tourName: { color: C.ink, fontFamily: BRUSH, fontSize: 16 },
+  tourSummary: { color: '#726653', fontSize: 11.5, lineHeight: 17 },
   infoText: { fontSize: 13, lineHeight: 24, color: '#726653' },
 });

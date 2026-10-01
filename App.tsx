@@ -33,6 +33,8 @@ import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork, HomeStepsArtwor
 import { StepProgressRing } from './src/components/StepProgressRing';
 import { FloatingMobby, type MobbyMenuItem, type MobbySpot } from './src/components/FloatingMobby';
 import { PopButton } from './src/components/PopButton';
+import { FeatureTour, TourAnchor } from './src/components/FeatureTour';
+import type { TourSelection } from './src/data/featureTour';
 import { FitToHeight } from './src/components/PagedBody';
 import { countsAsUnread, FriendsSheet, NotificationsSheet, PresentBoxSheet, type AppNotice } from './src/components/SocialSheets';
 import { fetchGifts, markGiftReceived, markNoticesRead, readReadNoticeIds, readReceivedGiftIds, type Gift } from './src/services/social';
@@ -148,6 +150,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     });
   };
   const [settings, setSettings] = useState(false);
+  const [tourRequest, setTourRequest] = useState<TourSelection | null>(null);
+  const [tour, setTour] = useState<TourSelection | null>(null);
   const [accountPage, setAccountPage] = useState<AccountPage | null>(null);
   const [accountEntryVisible, setAccountEntryVisible] = useState(false);
   const [accountEntryPage, setAccountEntryPage] = useState<AccountPage>('welcome');
@@ -503,6 +507,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       openNextRoutePicker();
     }
   }, [openingHomeReady, openingVisible, progress.routeId, view.completedAt, progress.pending.length, promptedCompletedRouteId]);
+  // The tour starts once the settings sheet has finished sliding away.
+  useEffect(() => {
+    if (!tourRequest || settings) return undefined;
+    const timer = setTimeout(() => { setTour(tourRequest); setTourRequest(null); }, 450);
+    return () => clearTimeout(timer);
+  }, [tourRequest, settings]);
   useEffect(() => {
     if (settings || detail || routePicker || openingVisible || homePopup || omikujiModal) { setOverlayBusy(true); return; }
     const timer = setTimeout(() => setOverlayBusy(false), 380);
@@ -547,7 +557,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
         {data.demo && <Pressable plate="pill" artwork={false} accessibilityRole="button" accessibilityLabel="体験モード中。タップで体験を終えて実記録にもどる" onPress={() => journey.enter(false)} style={S.demoBadge}><View style={S.dot} /><Text style={S.demoBadgeText}>体験中</Text><Icon name="close" size={13} color="#8A6950" /></Pressable>}
-        <Pressable plate="round" artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable>
+        <TourAnchor id="header-settings"><Pressable plate="round" artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable></TourAnchor>
       </View>
     </View>
     {!!journey.error && <View style={M.error}><Text style={M.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
@@ -556,19 +566,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         {firstRunStage === 'homeOmikuji'
           ? <View style={S.homeTutorialIntro}><Text style={S.chapter}>つぎは、おみくじを引こう。</Text></View>
           : <>
-            <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? undefined : { transform: [{ translateY: homeCharacterShiftY }] }}>
+            <TourAnchor id="home-companion" onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? undefined : { transform: [{ translateY: homeCharacterShiftY }] }}>
               <TutorialTarget active={firstRunStage === 'homeCompanion'} onRectChange={setTutorialRect}>
                 <View>
                   <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
                   <DuplicateMobbies collection={data.mobbies} />
                 </View>
               </TutorialTarget>
-            </View>
+            </TourAnchor>
           </>}
         <View style={S.homeCardGroup} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCardGroupLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>
-          {firstRunStage !== 'homeOmikuji' && <View style={S.homeStepsSlot} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeStepsSlotLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>{renderHomeStepsCard()}</View>}
+          {firstRunStage !== 'homeOmikuji' && <TourAnchor id="home-steps" style={S.homeStepsSlot} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeStepsSlotLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>{renderHomeStepsCard()}</TourAnchor>}
           <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby' ? true : undefined} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
-            <View style={S.homeWidgetGrid}>{data.homeWidgetOrder.map(renderHomeWidget)}</View>
+            <TourAnchor id="home-widgets" style={S.homeWidgetGrid}>{data.homeWidgetOrder.map(renderHomeWidget)}</TourAnchor>
           </View>
         </View>
       </>}
@@ -579,8 +589,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
             <Text style={S.pageEyebrow}>巡礼中</Text>
             <Text numberOfLines={2} style={S.pageLead}>{activeRoute?.name ?? '巡礼を選びましょう'}</Text>
           </View>
-          <PopButton id="bookIndex" label="目次" icon="list" size={54} phase={0} onPress={() => setBookIndexOpen(true)} />
-          <PopButton id="routeChange" label="巡礼" icon="map" size={54} phase={.45} onPress={() => setRoutePicker(true)} />
+          <TourAnchor id="book-top" style={S.tourPair}>
+            <PopButton id="bookIndex" label="目次" icon="list" size={54} phase={0} onPress={() => setBookIndexOpen(true)} />
+            <PopButton id="routeChange" label="巡礼" icon="map" size={54} phase={.45} onPress={() => setRoutePicker(true)} />
+          </TourAnchor>
         </View>
         {activeRoute && !bookOpen && <GoshuinBookCover route={activeRoute} onOpen={() => setBookOpen(true)} />}
         {bookOpen && <><View style={S.bookWrap}>
@@ -597,17 +609,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
             <Text style={S.pageEyebrow}>{mapOpen ? '巡礼絵図' : '今日の歩数'}</Text>
             <Text numberOfLines={2} style={S.pageLead}>{activeRoute?.name ?? '巡礼を選びましょう'}</Text>
           </View>
-          {activeRoute && <PopButton id="walkMap" label={mapOpen ? '歩数' : '絵図'} icon={mapOpen ? 'footsteps' : 'map'} size={54} phase={0} onPress={() => setMapOpen(open => !open)} />}
+          {activeRoute && <TourAnchor id="walk-top"><PopButton id="walkMap" label={mapOpen ? '歩数' : '絵図'} icon={mapOpen ? 'footsteps' : 'map'} size={54} phase={0} onPress={() => setMapOpen(open => !open)} /></TourAnchor>}
         </View>
         {mapOpen && activeRoute
           ? <View style={S.walkMinimal}>
             <RouteMap route={activeRoute} count={view.rewards.length} progress={view} pet={pet} showSpeech viewportHeight={Math.max(300, scrollViewportHeight - 72)} onStop={(shrine, index) => { setFeatured(index); setDetail(shrine); }} />
           </View>
           : <View style={S.walkMinimal}>
-            <StepProgressRing steps={routeSteps} goal={nextTarget} size={walkRingSize} />
+            <TourAnchor id="walk-ring"><StepProgressRing steps={routeSteps} goal={nextTarget} size={walkRingSize} /></TourAnchor>
             <PillText textStyle={S.walkCaption}>{view.completedAt ? '結願しました。次の巡礼へ出かけましょう。' : next ? `次は ${next.name} · あと ${fmt(stepsLeft)}歩` : 'この巡礼のすべてのご縁を結びました。'}</PillText>
             {/* The companion peeks over the main action, as on the old steps card. */}
-            {activeRoute && <View style={S.nextPilgrimageAction}>
+            {activeRoute && <TourAnchor id="walk-action" style={S.nextPilgrimageAction}>
               {view.completedAt
                 ? <Button title="次の巡礼を選ぶ" icon="map-outline" onPress={openNextRoutePicker} style={S.walkActionButton} />
                 : data.demo
@@ -616,22 +628,22 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               <View pointerEvents="none" accessibilityLabel={`${pet.name}がボタンの上から覗いている`} style={[S.nextPilgrimagePeek, { top: 56 - nextRoutePeekBottom + 6, height: nextRoutePeekHeight }]}>
                 <Image source={PILGRIMAGE_PEEK_IMAGES[pet.id]} contentFit="contain" style={[S.nextPilgrimagePeekImage, { width: nextRoutePeekWidth, height: nextRoutePeekHeight, left: (190 - nextRoutePeekWidth) / 2 }]} />
               </View>
-            </View>}
+            </TourAnchor>}
           </View>}
       </>}
 
       {tab === 'collection' && <>
-        <View style={S.jumpRow}>
+        <TourAnchor id="collection-tabs" style={S.jumpRow}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} />)}
-        </View>
+        </TourAnchor>
         <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} activeRoute={activeRoute} coverOwned={routeBookOwned} selectedCover={routeBookSelected ? 'route' : 'normal'} onSelectCover={journey.selectBookDesign} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={shrine => setDetail(shrine)} onClosePage={() => setCollectionPage('room')} />
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} isOwned={firstRunStage === 'character' || !hasStarter(data.mobbies) ? undefined : (id => ownsMobby(data.mobbies, id))} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') { setTutorialRect(null); setFirstRunStage('homeCompanion'); } }} onClose={() => setHomePopup(null)} />}
-    <View onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
+    <TourAnchor id="nav" onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
       <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} onGacha={hasStarter(data.mobbies) && !onboardingPreview ? () => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); setGachaOpen(true); } : undefined} freePulls={data.mobbies.freePulls} />
-    </View>
+    </TourAnchor>
     {/* Keep the floating Mobby mounted through the fortune-card step so closing its menu cannot cancel an active drag. */}
     {(firstRunStage === null || firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag' || firstRunStage === 'homeOmikuji') && !homePopup && <>
       {(firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag') && <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -647,6 +659,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="6 / 9" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
     {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="7 / 9" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
     {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="8 / 9" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
+    {tour && <FeatureTour selection={tour} gacha={hasStarter(data.mobbies) && !onboardingPreview} bottomInset={navHeight} onNavigate={move} onClose={() => setTour(null)} />}
     <Modal transparent visible={omikujiModal} animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => { if (!isFirstRunOmikuji) closeOmikuji(); }}>
       <SafeAreaView style={S.omikujiModal}>
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="おみくじを閉じる" disabled={isFirstRunOmikuji} onPress={closeOmikuji} style={S.omikujiBackdrop} />
@@ -701,7 +714,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onEditHome={() => { setSettings(false); openHomePopup('custom'); }} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} />
+    <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onEditHome={() => { setSettings(false); openHomePopup('custom'); }} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} gacha={hasStarter(data.mobbies)} onStartTour={selection => { setSettings(false); setTourRequest(selection); }} />
 
 
 
@@ -799,6 +812,7 @@ const S = StyleSheet.create({
   bookWrap: { marginHorizontal: -17, marginTop: 38, paddingHorizontal: 5, paddingVertical: 5, backgroundColor: 'transparent', shadowColor: '#27170F', shadowOffset: { width: 0, height: 15 }, shadowOpacity: .34, shadowRadius: 17, elevation: 12 }, bookCoverEdge: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 8, overflow: 'hidden' }, bookCloth: { ...StyleSheet.absoluteFillObject, opacity: .42 }, bookPaperEdges: { position: 'absolute', top: 2, bottom: 3, left: 3, right: 3, borderRadius: 5, backgroundColor: '#DBCCAD', borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#AF9875' }, bookViewport: { position: 'relative', overflow: 'hidden', borderRadius: 3, minHeight: 340 }, openBook: { flexDirection: 'row', overflow: 'hidden', minHeight: 340, height: 340 }, bookPageArt: { position: 'absolute', top: 0, bottom: 0, width: '50%', overflow: 'hidden' }, bookLeft: { flex: 1, padding: 12, justifyContent: 'center' }, bookRight: { flex: 1.02, padding: 15, paddingLeft: 12, justifyContent: 'center', gap: 9 }, bookReading: { fontSize: 11, color: C.muted, letterSpacing: 1 }, bookName: { fontFamily: BRUSH, fontSize: 21, color: C.ink, lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: BRUSH, fontSize: 12, lineHeight: 21, color: C.red }, bookDescription: { fontFamily: SERIF, fontSize: 11, lineHeight: 20, color: '#6C6050' }, bookLocation: { flex: 1, fontSize: 11, lineHeight: 14, color: '#887B68' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 12, fontFamily: BRUSH },
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 110, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF9EFE6' }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 },
   nextPilgrimageAction: { position: 'relative', alignSelf: 'stretch', alignItems: 'center', paddingTop: 56, marginTop: 58 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
+  tourPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   walkMinimal: { flex: 1, alignItems: 'center', paddingTop: 2, paddingBottom: 6 },
   detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 12, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: BRUSH, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: BRUSH, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 26, color: '#6D6354', textAlign: 'center', marginTop: 8 },   detailModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#241D17A8' }, detailPopupLayout: { ...StyleSheet.absoluteFillObject, zIndex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 }, detailPopupCard: { position: 'relative', width: '90%', maxWidth: 500, height: '88%', maxHeight: 820, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#201810', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .3, shadowRadius: 22, elevation: 16 }, detailPopupScroll: { flex: 1 }, detailPopupContent: { paddingHorizontal: 22, paddingTop: 52, paddingBottom: 18 }, detailPopupClose: { position: 'absolute', top: 12, right: 12, zIndex: 10 }, detailStampTapTarget: { flex: 1, minHeight: 90, aspectRatio: 2 / 3, maxWidth: 290, alignSelf: 'center', marginVertical: 12 }, stampPreviewOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: 24 }, stampPreviewBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#211A16D9' }, stampPreviewFrame: { width: '88%', maxWidth: 360, shadowColor: '#160F0B', shadowOffset: { width: 0, height: 12 }, shadowOpacity: .45, shadowRadius: 20, elevation: 18 }, stampPreviewCard: { width: '100%', aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 9, borderWidth: 1, borderColor: '#E1D3BB', backgroundColor: '#F5EFDF' }, stampPreviewClose: { position: 'absolute', top: 12, right: 12, zIndex: 2 },
   });
