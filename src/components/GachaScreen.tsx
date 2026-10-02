@@ -7,7 +7,7 @@ import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_S
 import { getPetCharacter, isPetId, type PetCharacter } from '../petCatalog';
 import { GachaShop } from './GachaShop';
 import { SlicedArt } from './SlicedArt';
-import { GACHA_UI_ART } from '../data/gachaUiArt';
+import { GACHA_PANEL_ART, GACHA_UI_ART } from '../data/gachaUiArt';
 import type { ShopProduct } from '../data/shop';
 import type { PullResult } from '../services/gacha';
 import { carrierAt, dustFrameAt, placeBox } from './gachaCart';
@@ -471,11 +471,11 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 
     {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: 84 + insets.bottom }]}><GachaShop onBuy={onBuy} /></View>}
 
-    {shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
+    {shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} /><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 
     {!playing && !shopOpen && freePulls <= 0 && companion && waitingSize > 40 && <RNImage accessible={false} source={companion.image} resizeMode="contain" style={{ position: 'absolute', width: waitingSize, height: waitingSize, left: (width - waitingSize) / 2, top: waitingTop }} />}
 
-    {!playing && !shopOpen && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setPanelH(previous => previous === next ? previous : next); }} style={[S.bottom, { bottom: 12 + insets.bottom }]}>
+    {!playing && !shopOpen && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setPanelH(previous => previous === next ? previous : next); }} style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
       {freePulls > 0
         ? <Text style={S.small}>ガチャ木札 {freePulls}枚</Text>
         : <>
@@ -486,12 +486,12 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       {!guided && <Button title="とじる" secondary onPress={onClose} style={S.wide} />}
     </View>}
 
-    {playing && !(done && panelReady) && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}>
+    {playing && !(done && panelReady) && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
       {phase === 'ready' && <Text style={S.small}>板の上を、指で上へなぞってください</Text>}
       <Button title="演出を省略" secondary onPress={skip} style={S.wide} />
     </View>}
 
-    {done && panelReady && result && pet && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}>
+    {done && panelReady && result && pet && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
       <Text style={S.hint}>{zoomed ? 'タップで元に戻る' : 'タップで大きく見る'}</Text>
       <Text style={S.name}>{pet.name}</Text>
       <Text style={S.badge}>{result.isNew ? 'はじめまして！' : 'また会えたね。小さなモビーがそばに来るよ'}</Text>
@@ -522,7 +522,7 @@ const S = StyleSheet.create({
   titleHidden: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   title: { color: '#FFF8E9', fontFamily: BRUSH, fontSize: 23, textAlign: 'center' },
   count: { color: '#D5BD98', fontSize: 12, letterSpacing: 1.5 },
-  bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 16, backgroundColor: '#211A13D9' },
+  bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, alignItems: 'center', gap: 8, paddingHorizontal: 26, paddingVertical: 24 },
   prompt: { color: '#FFF8E9', fontSize: 14, lineHeight: 22, textAlign: 'center' },
   small: { color: '#D5BD98', fontSize: 12, lineHeight: 18, textAlign: 'center' },
   name: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 25, textAlign: 'center' },
