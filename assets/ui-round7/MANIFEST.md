@@ -27,3 +27,4 @@ Common: Production Mobidou raster UI assets. Match existing ivory washi, muted v
 | empty/empty-gifts-v1.webp | 256 x 192 | 12426 | transparent | 空状態・プレゼント | none | 128 x 96 | 閉じた包み紙の贈り物と結び紐、右下方向の接地影。 |
 | empty/empty-friends-v1.webp | 256 x 192 | 12990 | transparent | 空状態・フレンド | none | 128 x 96 | 並ぶ小さい二つの足跡と遠くの灯。人物なし。 |
 | ui/notice-strip-v1.webp | 960 x 120 | 30280 | transparent | オフライン案内 | 48/48 (3-slice) | 350 x 44 | 少し黄みのあるちぎり和紙、左端に小さい麻ひもの結び跡。 |
+| notice/notice-todo-v1.webp | 128 x 128 | 6512 | transparent | やること | none | 38 x 38 | 朱漆の丸と白い短い筆のはね。文字に見える曲線を避ける。 |
