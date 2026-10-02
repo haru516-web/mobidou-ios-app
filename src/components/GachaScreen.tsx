@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
-import { getPetCharacter, isPetId } from '../petCatalog';
+import { getPetCharacter, isPetId, type PetCharacter } from '../petCatalog';
 import { GachaShop } from './GachaShop';
 import { SlicedArt } from './SlicedArt';
 import { GACHA_UI_ART } from '../data/gachaUiArt';
@@ -37,8 +37,8 @@ type Props = {
   onBuy?: (product: ShopProduct) => void;
   /** What to do to earn the next pull, shown when there is nothing to pull. */
   nextHint?: string;
-  /** Leave the gacha for the pilgrimage, where more 木札 are earned. Without it the screen just closes. */
-  onGoPilgrimage?: () => void;
+  /** The Mobby standing by in the middle of the screen while there is no 木札 to pull with. */
+  companion?: PetCharacter;
   /** First-run guide: the screen cannot be closed before the pull is made. */
   guided?: boolean;
   /** Open on the shop tab (the + beside the 木札 or the pass on the home screen). */
@@ -52,7 +52,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, nextHint, onGoPilgrimage, guided = false, startOnShop = false }: Props) {
+export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, nextHint, companion, guided = false, startOnShop = false }: Props) {
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
   // The scene fills the screen edge to edge, but the title, tabs and buttons keep clear of the notch and the home indicator.
   const insets = useSafeAreaInsets();
@@ -466,6 +466,8 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 
     {shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 
+    {!playing && !shopOpen && freePulls <= 0 && companion && <RNImage accessible={false} source={companion.image} resizeMode="contain" style={{ position: 'absolute', width: bigSize * .7, height: bigSize * .7, left: (width - bigSize * .7) / 2, top: bigTop }} />}
+
     {!playing && !shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}>
       {freePulls > 0
         ? <Text style={S.small}>ガチャ木札 {freePulls}枚</Text>
@@ -473,7 +475,6 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
           <Text style={S.prompt}>ガチャ木札がありません。{'\n'}{showShop ? '木札を購入するか、' : ''}巡礼を進めて木札を手に入れましょう。</Text>
           {nextHint ? <Text style={S.small}>{nextHint}</Text> : null}
           {showShop && <Button title="木札を購入する" onPress={() => setTab('shop')} style={S.wide} />}
-          <Button title="巡礼へ向かう" secondary={showShop} onPress={() => onGoPilgrimage ? onGoPilgrimage() : onClose()} style={S.wide} />
         </>}
       {!guided && <Button title="とじる" secondary onPress={onClose} style={S.wide} />}
     </View>}
