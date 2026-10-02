@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, Platform, Pressable as RNPressable, StyleSheet, Text, View, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
 import { Image } from './AppImage';
@@ -11,8 +10,8 @@ import { PopButton } from './PopButton';
 import { layoutMenuSlots } from './mobbyMenuLayout';
 import { UI_ART } from '../data/uiArt';
 
-// v6: positions are remembered per screen (spotKey); the old single spot is dropped.
-const STORAGE_KEY = 'mobidou.floating-mobby-position.v6';
+/** Mobby keeps one position across screens, so the place it was left on is carried over to the next screen. */
+const SHARED_SPOT = 'shared';
 const MOBBY_SIZE = 88;
 const EDGE_GUTTER = 8;
 const TOP_CLEARANCE = 64;
@@ -144,52 +143,31 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
     return () => animation.stop();
   }, [open, menuProgress]);
 
-  useEffect(() => {
-    if (resetPositionOnMount) {
-      savedRatiosRef.current = {};
-      setHydrated(true);
-      return undefined;
-    }
-    let active = true;
-    void AsyncStorage.getItem(STORAGE_KEY).then(raw => {
-      if (!active || !raw) return;
-      try {
-        const stored = JSON.parse(raw) as { spots?: Record<string, { xRatio?: unknown; yRatio?: unknown }> };
-        for (const [key, value] of Object.entries(stored.spots ?? {})) {
-          if (typeof value?.xRatio === 'number' && typeof value?.yRatio === 'number') savedRatiosRef.current[key] = { x: clamp(value.xRatio, 0, 1), y: clamp(value.yRatio, 0, 1) };
-        }
-      } catch {
-        // Ignore malformed saved state and use the default position.
-      }
-    }).catch(() => undefined).finally(() => {
-      if (active) setHydrated(true);
-    });
-    return () => { active = false; };
-  }, [resetPositionOnMount]);
+  // Every launch starts from each screen's resting spot. Where the person parks Mobby is remembered only while the app stays open.
+  useEffect(() => { setHydrated(true); }, []);
 
   const restingPoint = useCallback((): Point => {
-    const saved = resetPositionOnMount ? undefined : savedRatiosRef.current[spotKey];
+    const saved = resetPositionOnMount ? undefined : savedRatiosRef.current[SHARED_SPOT];
     if (saved) return { x: saved.x * layout.width, y: saved.y * layout.height };
     return {
       x: spot.side === 'right' ? layout.width - MOBBY_SIZE - EDGE_GUTTER : EDGE_GUTTER,
       y: spot.from === 'top' ? spot.offset : layout.height - bottomInset - MOBBY_SIZE - spot.offset,
     };
-  }, [layout.width, layout.height, bottomInset, resetPositionOnMount, spot.from, spot.offset, spot.side, spotKey]);
+  }, [layout.width, layout.height, bottomInset, resetPositionOnMount, spot.from, spot.offset, spot.side]);
 
-  // Go to this screen's resting spot (or where the person last parked Mobby
-  // on it), and follow the spot while the layout settles.
+  // Start at the resting spot of the screen the app opened on (following it while the layout settles).
+  // From then on, moving to another screen leaves Mobby where it is.
   useEffect(() => {
     if (!hydrated || !layout.width || !layout.height) return;
     if (draggingRef.current) return;
-    const keyChanged = appliedKeyRef.current !== spotKey;
-    const parked = !!savedRatiosRef.current[spotKey] && !resetPositionOnMount;
-    if (!keyChanged && parked) {
+    if (appliedKeyRef.current === null) appliedKeyRef.current = spotKey;
+    const parked = !!savedRatiosRef.current[SHARED_SPOT] && !resetPositionOnMount;
+    if (initializedRef.current && (parked || spotKey !== appliedKeyRef.current)) {
       const next = clampPosition(positionRef.current, layout, bottomInset);
       positionRef.current = next;
       setPosition(next);
       return;
     }
-    appliedKeyRef.current = spotKey;
     initializedRef.current = true;
     const next = clampPosition(restingPoint(), layout, bottomInset);
     positionRef.current = next;
@@ -198,12 +176,8 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
 
   const persist = useCallback((point: Point) => {
     if (!layout.width || !layout.height) return;
-    savedRatiosRef.current[spotKey] = { x: point.x / layout.width, y: point.y / layout.height };
-    if (resetPositionOnMount) return;
-    const spots: Record<string, { xRatio: number; yRatio: number }> = {};
-    for (const [key, ratio] of Object.entries(savedRatiosRef.current)) spots[key] = { xRatio: ratio.x, yRatio: ratio.y };
-    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, spots })).catch(() => undefined);
-  }, [layout, spotKey, resetPositionOnMount]);
+    savedRatiosRef.current[SHARED_SPOT] = { x: point.x / layout.width, y: point.y / layout.height };
+  }, [layout]);
 
   const updatePosition = useCallback((dx: number, dy: number) => {
     if (dragLockedRef.current) return;

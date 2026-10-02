@@ -25,8 +25,7 @@ const HOME_WIDGET_CARD_HEIGHT = 244;
 const CUSTOM_WIDGET_PREVIEW_SCALE = 0.42;
 const NAV_BACKGROUND = require('../../assets/ui-washi/home/nav-bar.webp');
 const NAV_BOUNDS = { x0: 0, x1: .999, y0: .322, y1: .997 };
-const NAV_TAB_ACTIVE = require('../../assets/ui-washi/home/nav-tab-active.webp');
-const NAV_UNDERLINE = require('../../assets/ui-washi/common/underline-brush.webp');
+const NAV_UNDERLINE = require('../../assets/ui-washi/nav/nav-underline-thick.webp');
 export type PrimaryTab = 'home' | 'book' | 'walk' | 'collection';
 
 const PRIMARY_NAV_ITEMS = [
@@ -68,8 +67,8 @@ export function HomeBottomNavigation({ tab, onNavigate, disabled = false, onGach
 }
 
 /**
- * One tab. The chosen tab is stamped: a vermilion ink seal blooms behind its
- * icon, the icon lifts a little, and the name is underlined with a brush stroke.
+ * One tab. The chosen tab turns vermilion: its icon lifts a little, and the
+ * name is underlined with a thick brush stroke.
  */
 function NavTab({ item, selected, onPress, badge = 0 }: { item: { title: string; icon?: React.ComponentProps<typeof Icon>['name']; /** A drawn icon used instead of `icon`. */ image?: ImageSourcePropType }; selected: boolean; onPress: () => void; badge?: number }) {
   const reduced = useReducedMotion();
@@ -84,14 +83,12 @@ function NavTab({ item, selected, onPress, badge = 0 }: { item: { title: string;
     return () => animation.stop();
   }, [progress, reduced, selected, useNativeDriver]);
   const lift = progress.interpolate({ inputRange: [0, 1], outputRange: [0, -4] });
-  const sealScale = progress.interpolate({ inputRange: [0, 1], outputRange: [.5, 1] });
-  const sealTurn = progress.interpolate({ inputRange: [0, 1], outputRange: ['-24deg', '-6deg'] });
+  const markColor = selected ? C.red : '#6F675B';
   return <Pressable artwork={false} accessibilityRole="tab" accessibilityLabel={badge > 0 ? `${item.title}。無料で引けるのは${badge}回` : item.title} accessibilityState={{ selected }} onPress={onPress} style={S.navItem}>
     <Animated.View style={[S.navIconWrap, { transform: [{ translateY: lift }] }]}>
-      <Animated.Image accessible={false} source={NAV_TAB_ACTIVE} resizeMode="contain" style={[S.navInk, { opacity: progress, transform: [{ scale: sealScale }, { rotate: sealTurn }] }]} />
       {item.image
-        ? <Image accessible={false} source={item.image} contentFit="contain" tintColor={selected ? '#FFF9EF' : '#6F675B'} style={S.navImage} />
-        : <Icon name={item.icon ?? 'help-outline'} size={22} color={selected ? '#FFF9EF' : '#6F675B'} />}
+        ? <Image accessible={false} source={item.image} contentFit="contain" tintColor={markColor} style={S.navImage} />
+        : <Icon name={item.icon ?? 'help-outline'} size={22} color={markColor} />}
       {badge > 0 && <View style={S.navBadge}><Text style={S.navBadgeText}>{badge > 9 ? '9+' : badge}</Text></View>}
     </Animated.View>
     <View style={S.navLabelWrap}>
@@ -323,11 +320,10 @@ const S = StyleSheet.create({
   navBadge: { position: 'absolute', top: -2, right: -4, minWidth: 16, height: 16, paddingHorizontal: 3, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: C.red },
   navBadgeText: { color: '#FFF9EF', fontSize: 10, fontWeight: '700', lineHeight: 12 },
   navImage: { width: 30, height: 30 },
-  navInk: { position: 'absolute', width: 42, height: 42 },
   navLabelWrap: { alignItems: 'center', marginTop: 1 },
   navLabel: { fontFamily: BRUSH, fontSize: 11, letterSpacing: .4, color: '#6F675B' },
   navLabelSelected: { color: C.red },
-  navUnderline: { width: 34, height: 6, marginTop: -1 },
+  navUnderline: { width: 50, height: 7, marginTop: -1 },
   popupRoot: { position: 'absolute', left: 0, right: 0, top: 86, bottom: 77, zIndex: 30, alignItems: 'center' },
   customRoot: { justifyContent: 'flex-start', zIndex: 90 },
   mobyCardOptionLocked: { opacity: .55 },
