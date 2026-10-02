@@ -326,8 +326,10 @@ export function useJourney() {
       return ownsMobby(p.mobbies, pet) && p.pet !== pet ? { ...p, pet } : p;
     }),
     /** Use one free pull (earned by the first clear of a route). Paid pulls are decided by the server. */
-    drawFreeMobby: () => change(p => {
-      const mobbies = pullOnce(p.mobbies, PET_CHARACTERS.map(character => character.id), 'free');
+    drawFreeMobby: (count = 1) => change(p => {
+      const pool = PET_CHARACTERS.map(character => character.id);
+      let mobbies = p.mobbies;
+      for (let pull = 0; pull < count; pull++) mobbies = pullOnce(mobbies, pool, 'free');
       return mobbies === p.mobbies ? p : { ...p, mobbies };
     }),
     /** 木札 from a gift or a purchase. */

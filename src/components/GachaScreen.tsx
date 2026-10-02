@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image as RNImage, PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, Image as RNImage, PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
-import { getPetCharacter, isPetId, type PetCharacter } from '../petCatalog';
+import { PET_CHARACTERS, getPetCharacter, isPetId, type PetCharacter } from '../petCatalog';
 import { GachaShop } from './GachaShop';
+import { WashiPressable } from './Washi';
 import { SlicedArt } from './SlicedArt';
 import { GACHA_PANEL_ART, GACHA_UI_ART } from '../data/gachaUiArt';
 import type { ShopProduct } from '../data/shop';
-import type { PullResult } from '../services/gacha';
+import { gachaOdds, type PullResult } from '../services/gacha';
 import { carrierAt, dustFrameAt, placeBox } from './gachaCart';
 import { AFTER_OPEN_MS, CONFETTI_COLORS, MAX_DIM, bloomAt, confettiAt, blossomsAt, burstAt, fallAt, lightTintAt, motesAt, seasonRateAt, canOpen, dimAt, dustAt, flashAt, gatherAt, curtainAt, INTRO_END_MS, glowAfterOpen, glowWhileLifting, HAPTIC_BEATS, landingShake, mobbyAfterOpen, phaseOf, pillarAt, popAt, resolveRelease, ROLL_MS, rumbleAt, seamGlow, SETTLED_AT_MS, settleAt, shimmerAt, silhouetteAt, sparklesAt, tempoAt } from './gachaTimeline';
 
@@ -18,6 +19,47 @@ const MAX_PULL = 110;
 const OPEN_TWEEN_MS = 260;
 /** The idle cord bobs down this far and back, once per BOB_MS. */
 const BOB_PX = 14;
+
+/** What the player can learn before drawing: the pool and its odds, and how 木札 work. */
+function GachaDetail({ onClose, freePulls }: { onClose: () => void; freePulls: number }) {
+  const odds = gachaOdds(PET_CHARACTERS.map(pet => pet.id));
+  const percent = odds.length ? Math.round(odds[0].rate * 1000) / 10 : 0;
+  return <View accessibilityViewIsModal style={S.detailRoot}>
+    <Pressable accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000000AA' }]} />
+    <View style={S.detailCard}>
+      <SlicedArt art={GACHA_PANEL_ART} corner={34} />
+      <Text accessibilityRole="header" style={S.detailTitle}>ガチャの詳細</Text>
+      <Text style={S.detailHead}>提供割合</Text>
+      <Text style={S.detailBody}>全{odds.length}種のモビーが、すべて同じ確率（それぞれ {percent}％）で出ます。持っているモビーも、また出ます。</Text>
+      <View style={S.detailGrid}>
+        {PET_CHARACTERS.map(pet => <RNImage key={pet.id} accessible accessibilityLabel={pet.name} source={pet.image} resizeMode="contain" style={S.detailPet} />)}
+      </View>
+      <Text style={S.detailHead}>木札について</Text>
+      <Text style={S.detailBody}>・木札1枚で、1回引けます。10回は、木札10枚を使って続けて引きます。{'\n'}・新しい巡礼を初めて結願すると、木札が1枚もらえます。{'\n'}・同じモビーが出たときは、小さなモビーとしてそばに来ます。</Text>
+      <Text style={S.detailNote}>いまの木札：{freePulls}枚</Text>
+      <Button title="とじる" secondary onPress={onClose} style={S.wide} />
+    </View>
+  </View>;
+}
+
+/** Three chevrons that keep moving in one direction, to show which way to pull. */
+function MotionArrow({ direction, size = 44 }: { direction: 'up' | 'down'; size?: number }) {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(t, { toValue: 1, duration: 1100, easing: Easing.linear, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [t]);
+  const sign = direction === 'down' ? 1 : -1;
+  return <View pointerEvents="none" accessible={false} style={{ alignItems: 'center', height: size * 2.2, justifyContent: 'center' }}>
+    {[0, 1, 2].map(index => {
+      const phase = Animated.modulo(Animated.add(t, index / 3), 1);
+      return <Animated.View key={index} style={{ position: 'absolute', opacity: phase.interpolate({ inputRange: [0, .25, .75, 1], outputRange: [0, 1, 1, 0] }), transform: [{ translateY: phase.interpolate({ inputRange: [0, 1], outputRange: [-sign * size * .8, sign * size * .8] }) }] }}>
+        <RNImage accessible={false} source={GACHA_STAGE_ART.guideArrow} resizeMode="contain" style={{ width: size * 2, height: size * 2, transform: [{ rotate: direction === 'down' ? '0deg' : '180deg' }] }} />
+      </Animated.View>;
+    })}
+  </View>;
+}
 const BOB_MS = 1700;
 
 type Props = {
@@ -27,7 +69,9 @@ type Props = {
   unrevealed: readonly PullResult[];
   haptics: boolean;
   /** Draw one free pull. The new result arrives through `unrevealed`. */
-  onDraw: () => void;
+  onDraw: (count: number) => void;
+  /** The app's bottom navigation, shown while the player is choosing how to draw and hidden once the cord is up. */
+  nav?: React.ReactNode;
   /** Every waiting result has been shown. */
   onFinished: () => void;
   onClose: () => void;
@@ -52,8 +96,14 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, nextHint, companion, guided = false, startOnShop = false }: Props) {
+export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, nextHint, companion, guided = false, startOnShop = false }: Props) {
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
+  // The lobby is where the player picks how many to draw; the cord only works once a draw has been chosen. The first-run guide goes straight to the cord.
+  const [stage, setStage] = useState<'lobby' | 'rope'>(guided ? 'rope' : 'lobby');
+  const [batch, setBatch] = useState(1);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [navH, setNavH] = useState(72);
+  const ropeReady = stage === 'rope';
   // The scene fills the screen edge to edge, but the title, tabs and buttons keep clear of the notch and the home indicator.
   const insets = useSafeAreaInsets();
   const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
@@ -79,7 +129,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const bigTop = Math.round(76 + Math.max(0, height - 76 - 220 - bigSize) / 2);
 
   const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(unrevealed.length > 0);
+  const [playing, setPlaying] = useState(guided && unrevealed.length > 0);
   const [ms, setMs] = useState(0);
   /** How far the front board has been lifted, 0..1. */
   const [open, setOpen] = useState(0);
@@ -92,7 +142,10 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const [panelH, setPanelH] = useState(260);
   // Between the end of the rope and the top of the bottom panel, so the Mobby touches neither.
   const waitingFrom = Math.min(300, height * .48) + BOB_PX + 12;
-  const waitingTo = height - panelH - 12 - insets.bottom - 8;
+  // Panels stand above the navigation bar while it is shown.
+  const navShown = !!nav && !ropeReady;
+  const lobbyBottom = navShown ? navH + insets.bottom + 6 : 12 + insets.bottom;
+  const waitingTo = height - panelH - lobbyBottom - 8;
   const waitingSize = Math.round(Math.min(width * .6, waitingTo - waitingFrom));
   const waitingTop = Math.round(waitingFrom + (waitingTo - waitingFrom - waitingSize) / 2);
   const [zoomT, setZoomT] = useState(0);
@@ -110,6 +163,10 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const startedAt = useRef<number | null>(null);
   const openedAt = useRef<number | null>(null);
   const drawRequested = useRef(false);
+  /** From the second Mobby of a batch on, the box is already in place and the show starts at the board. */
+  const skipIntro = useRef(false);
+  /** The player skipped this Mobby's show; the running timers must not play it again. */
+  const skipped = useRef(false);
   const lastPhase = useRef<string>('');
   const dragStart = useRef(0);
   const openRef = useRef(0);
@@ -121,6 +178,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 
   const resetScene = useCallback(() => {
     cancelAnimationFrame(tween.current);
+    skipped.current = false;
     startedAt.current = null;
     openedAt.current = null;
     lastPhase.current = '';
@@ -149,9 +207,10 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   // The box rolls in and settles by itself.
   useEffect(() => {
     if (!playing || !result) return;
-    if (reduced) { setMs(INTRO_END_MS); return; }
+    if (reduced || skipIntro.current) { skipIntro.current = false; setMs(INTRO_END_MS); return; }
     let frame = 0;
     const tick = (now: number) => {
+      if (skipped.current) return;
       if (startedAt.current === null) startedAt.current = now;
       const elapsed = Math.min(INTRO_END_MS, now - startedAt.current);
       setMs(elapsed);
@@ -166,7 +225,9 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     if (!opened) return;
     if (reduced) { setOpenedFor(AFTER_OPEN_MS); return; }
     let frame = 0;
+    if (skipped.current) { setOpenedFor(AFTER_OPEN_MS); return; }
     const tick = (now: number) => {
+      if (skipped.current) return;
       if (openedAt.current === null) openedAt.current = now;
       const elapsed = Math.min(AFTER_OPEN_MS, now - openedAt.current);
       setOpenedFor(elapsed);
@@ -280,32 +341,35 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   }), [boardEnabled, lift, settleBoard]);
 
   const requestDraw = useCallback(() => {
-    if (playing || freePulls <= 0 || drawRequested.current) return;
+    if (playing || freePulls < batch || drawRequested.current) return;
     drawRequested.current = true;
-    onDraw();
-  }, [playing, freePulls, onDraw]);
+    onDraw(batch);
+  }, [playing, freePulls, batch, onDraw]);
 
   const ropePan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => !playing && freePulls > 0,
-    onMoveShouldSetPanResponder: () => !playing && freePulls > 0,
+    onStartShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady,
+    onMoveShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady,
     onPanResponderMove: (_, gesture) => setPull(Math.max(0, Math.min(MAX_PULL, gesture.dy))),
     onPanResponderRelease: (_, gesture) => { setPull(0); if (gesture.dy >= PULL_TO_DRAW) requestDraw(); },
     onPanResponderTerminate: () => setPull(0),
-  }), [playing, freePulls, requestDraw]);
+  }), [playing, freePulls, ropeReady, requestDraw]);
 
   const next = () => {
     if (index + 1 < unrevealed.length) {
+      skipIntro.current = true;
       setIndex(index + 1);
       resetScene();
+      setMs(INTRO_END_MS);
       return;
     }
     setPlaying(false);
     setIndex(0);
     resetScene();
+    if (!guided) setStage('lobby');
     onFinished();
   };
 
-  const skip = () => { cancelAnimationFrame(tween.current); openRef.current = 1; setMs(INTRO_END_MS); setOpen(1); setOpened(true); setOpenedFor(AFTER_OPEN_MS); };
+  const skip = () => { skipped.current = true; cancelAnimationFrame(tween.current); openRef.current = 1; setMs(INTRO_END_MS); setOpen(1); setOpened(true); setOpenedFor(AFTER_OPEN_MS); };
 
   // The carrier's sheet pixels, scaled so the box on the cart is the box on the floor. The cell is placed so the box slides to the spot where it is opened.
   const cart = GACHA_CART_ANCHORS;
@@ -440,7 +504,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     {/* The curtain: shut while the cord waits, drawn aside when it is pulled. The valance and its ring stay. */}
     {!shopOpen && <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
       {curtainOpen < 1 && <>
-        <View style={[S.abs, { left: 0, top: 0, width: curtainHalf, height, overflow: 'hidden', transform: [{ translateX: -curtainOpen * (curtainHalf + 8) }] }]}><RNImage accessible={false} source={GACHA_STAGE_ART.curtainLeft} resizeMode="cover" style={{ width: '100%', height: '100%' }} /></View>
+        <View style={[S.abs, { left: 0, top: 0, width: curtainHalf, height, overflow: 'hidden', transform: [{ translateX: -curtainOpen * (curtainHalf + 8) }] }]}><RNImage accessible={false} source={GACHA_STAGE_ART.curtainLeft} resizeMode="cover" style={{ position: 'absolute', left: '-4%', width: '104%', height: '100%' }} /></View>
         <View style={[S.abs, { left: width - curtainHalf, top: 0, width: curtainHalf, height, overflow: 'hidden', transform: [{ translateX: curtainOpen * (curtainHalf + 8) }] }]}><RNImage accessible={false} source={GACHA_STAGE_ART.curtainRight} resizeMode="cover" style={{ width: '100%', height: '100%' }} /></View>
       </>}
       <RNImage accessible={false} source={GACHA_STAGE_ART.valance} resizeMode="stretch" style={[S.abs, { left: 0, top: 0, width, height: width * GACHA_CURTAIN.valanceHeight / GACHA_CURTAIN.valanceWidth }]} />
@@ -450,10 +514,10 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     {!playing && !shopOpen && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + MAX_PULL }]}>
       <Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + MAX_PULL) / 4, height: Math.min(300, height * .48) + MAX_PULL, top: -MAX_PULL + (pull > 0 ? pull : bob) }]} />
     </View>}
-    {!playing && !shopOpen && freePulls > 0 && <Text pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 14, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}>下にひっぱってね</Text>}
+    {!playing && !shopOpen && freePulls > 0 && ropeReady && <View pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 90, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}><Text style={S.ropeHintText}>下にひっぱってね</Text><MotionArrow direction="down" /></View>}
 
     <View style={[S.top, { top: 32 + insets.top }]}>
-      <Text accessibilityRole="header" style={[S.title, !playing && !shopOpen && S.titleHidden]}>{shopOpen ? '購入' : !playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'curtain' ? '幕が開きます' : phase === 'roll' ? 'モビーが荷を運んできました' : phase === 'settle' ? '荷が届きました' : phase === 'ready' ? '前の板を、上へ引き上げて' : phase === 'charge' ? '光が集まっています' : '光があふれています'}</Text>
+      <Text accessibilityRole="header" style={[S.title, ((!playing && !shopOpen) || (playing && !done && phase === 'ready')) && S.titleHidden]}>{shopOpen ? '購入' : !playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'curtain' ? '幕が開きます' : phase === 'roll' ? 'モビーが荷を運んできました' : phase === 'settle' ? '荷が届きました' : phase === 'ready' ? '前の板を、上へ引き上げて' : phase === 'charge' ? '光が集まっています' : '光があふれています'}</Text>
       {remaining > 1 && playing && <Text style={S.count}>{index + 1} / {remaining}</Text>}
     </View>
 
@@ -469,27 +533,49 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       {zoomT > 0 && <RNImage accessible={false} source={pet.image} resizeMode="contain" style={{ position: 'absolute', width: bigSize, height: bigSize, left: (width - bigSize) / 2, top: bigTop, opacity: Math.min(1, zoomT * 1.6), transform: [{ scale: .55 + .45 * zoomT + .08 * Math.sin(Math.min(1, zoomT) * Math.PI) }] }} />}
     </Pressable>}
 
-    {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: 84 + insets.bottom }]}><GachaShop onBuy={onBuy} /></View>}
+    {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: navShown ? lobbyBottom + 8 : 84 + insets.bottom }]}><GachaShop onBuy={onBuy} /></View>}
 
-    {shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} /><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
+    {shopOpen && !navShown && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} /><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 
     {!playing && !shopOpen && freePulls <= 0 && companion && waitingSize > 40 && <RNImage accessible={false} source={companion.image} resizeMode="contain" style={{ position: 'absolute', width: waitingSize, height: waitingSize, left: (width - waitingSize) / 2, top: waitingTop }} />}
 
-    {!playing && !shopOpen && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setPanelH(previous => previous === next ? previous : next); }} style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
-      {freePulls > 0
-        ? <Text style={S.small}>ガチャ木札 {freePulls}枚</Text>
+    {!playing && !shopOpen && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setPanelH(previous => previous === next ? previous : next); }} style={[S.bottom, { bottom: lobbyBottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
+      {unrevealed.length > 0 && !guided
+        ? <>
+          <Text style={S.prompt}>まだ見ていないモビーが{unrevealed.length}体います。</Text>
+          <Button title="開ける" onPress={() => { setIndex(0); resetScene(); setPlaying(true); }} style={S.wide} />
+        </>
+        : freePulls > 0
+        ? <>
+          <Text style={S.small}>ガチャ木札 {freePulls}枚</Text>
+          {!ropeReady && <>
+            <View style={S.drawRow}>
+              <Button title="詳細" secondary onPress={() => setDetailOpen(true)} style={S.drawDetail} />
+              <Button title="1回引く" onPress={() => { setBatch(1); setStage('rope'); }} style={S.drawOne} />
+              <Button title="10回引く" disabled={freePulls < 10} onPress={() => { setBatch(10); setStage('rope'); }} style={S.drawOne} />
+            </View>
+            {freePulls < 10 && <Text style={S.small}>10回は、木札が10枚そろうと引けます。</Text>}
+          </>}
+          {ropeReady && !guided && <Button title="もどる" secondary onPress={() => setStage('lobby')} style={S.wide} />}
+        </>
         : <>
           <Text style={S.prompt}>ガチャ木札がありません。{'\n'}{showShop ? '木札を購入するか、' : ''}巡礼を進めて木札を手に入れましょう。</Text>
           {nextHint ? <Text style={S.small}>{nextHint}</Text> : null}
           {showShop && <Button title="木札を購入する" onPress={() => setTab('shop')} style={S.wide} />}
         </>}
-      {!guided && <Button title="とじる" secondary onPress={onClose} style={S.wide} />}
+      {!guided && !nav && <Button title="とじる" secondary onPress={onClose} style={S.wide} />}
     </View>}
 
-    {playing && !(done && panelReady) && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
-      {phase === 'ready' && <Text style={S.small}>板の上を、指で上へなぞってください</Text>}
-      <Button title="演出を省略" secondary onPress={skip} style={S.wide} />
-    </View>}
+    {navShown && !playing && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setNavH(previous => previous === next ? previous : next); }} style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom }}>{nav}</View>}
+
+    {detailOpen && <GachaDetail onClose={() => setDetailOpen(false)} freePulls={freePulls} />}
+
+    {/* Swiping up anywhere on the screen lifts the board, not just on the board itself. */}
+    {boardEnabled && <View {...boardPan.panHandlers} style={StyleSheet.absoluteFillObject} />}
+
+    {playing && !done && phase === 'ready' && <View pointerEvents="none" style={[S.ropeHint, { top: place.top + boxH + 18 }]}><MotionArrow direction="up" /><Text style={S.ropeHintText}>前の板を、上へ引き上げて</Text></View>}
+
+    {playing && !(done && panelReady) && <WashiPressable plate="pill" accessibilityRole="button" accessibilityLabel="演出を省略" onPress={skip} hitSlop={10} style={[S.skip, { bottom: 16 + insets.bottom }]}><Text style={S.skipText}>スキップ</Text></WashiPressable>}
 
     {done && panelReady && result && pet && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
       <Text style={S.hint}>{zoomed ? 'タップで元に戻る' : 'タップで大きく見る'}</Text>
@@ -510,7 +596,10 @@ const S = StyleSheet.create({
   petal: { position: 'absolute' },
   ropeArea: { position: 'absolute', top: 0, width: 104, alignItems: 'center' },
   rope: { position: 'absolute', top: -20, width: 34, height: 270 },
-  ropeHint: { position: 'absolute', left: 0, right: 0, textAlign: 'center', color: '#FFF8E9', fontFamily: BRUSH, fontSize: 18, letterSpacing: 1, textShadowColor: '#000000AA', textShadowRadius: 6 },
+  ropeHint: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 6 },
+  ropeHintText: { textAlign: 'center', color: '#FFF8E9', fontFamily: BRUSH, fontSize: 30, letterSpacing: 2, textShadowColor: '#000000CC', textShadowRadius: 8 },
+  skip: { position: 'absolute', right: 16, minWidth: 96, minHeight: 36, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
+  skipText: { color: '#8F3F36', fontFamily: BRUSH, fontSize: 14, letterSpacing: 1 },
   tabs: { position: 'absolute', left: 0, right: 0, top: 76, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   tabGap: { width: 56 },
   tab: { minWidth: 104, minHeight: 40, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
@@ -529,6 +618,17 @@ const S = StyleSheet.create({
   hint: { color: '#BFA982', fontSize: 11, letterSpacing: 1.5, textAlign: 'center' },
   badge: { color: '#F6D9A3', fontFamily: SERIF, fontSize: 13, letterSpacing: 1, textAlign: 'center' },
   wide: { width: '100%', maxWidth: 350 },
+  drawRow: { flexDirection: 'row', gap: 8, width: '100%', maxWidth: 350 },
+  drawDetail: { flex: 0.8 },
+  drawOne: { flex: 1 },
+  detailRoot: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: 16 },
+  detailCard: { width: '100%', maxWidth: 380, alignItems: 'center', gap: 8, paddingHorizontal: 26, paddingVertical: 28 },
+  detailTitle: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 24, textAlign: 'center' },
+  detailHead: { alignSelf: 'flex-start', color: '#F6D9A3', fontFamily: SERIF, fontSize: 14, letterSpacing: 1, marginTop: 4 },
+  detailBody: { alignSelf: 'stretch', color: '#FFF8E9', fontSize: 12.5, lineHeight: 20 },
+  detailNote: { color: '#D5BD98', fontSize: 12, marginVertical: 4 },
+  detailGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 4 },
+  detailPet: { width: 44, height: 44 },
   roster: { position: 'absolute', left: 16, right: 16, padding: 14, borderRadius: 16, backgroundColor: '#211A13E6', alignItems: 'center', gap: 10 },
   rosterTitle: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 18 },
   rosterGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },

@@ -111,6 +111,7 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
         {__DEV__ && <View key="dev">
           <Section title="開発用" />
           <Text style={M.settingHelp}>開発ビルドだけの項目です。端末の記録をすべて消して、最初から始め直します。</Text>
+          <Button title="ガチャ木札を5枚もらう" secondary onPress={() => journey.grantTickets(5)} style={{ marginBottom: 10 }} />
           {confirmDevReset
             ? <>
               <Text style={M.settingHelp}>この端末の記録がすべて消えます。よろしいですか？</Text>

@@ -47,14 +47,16 @@ type HomeBottomNavigationProps = {
   onGacha?: () => void;
   /** Free pulls waiting; shown as a small count on the gacha tab. */
   freePulls?: number;
+  /** The gacha scene is open: its tab is the chosen one and no other tab is. */
+  gachaActive?: boolean;
 };
 
 // The washi tab frame. The separate menu button that used to sit to its right
 // is gone (every screen is reachable from the tabs and segmented controls), so
 // the frame now spans the full width.
-export function HomeBottomNavigation({ tab, onNavigate, disabled = false, onGacha, freePulls = 0 }: HomeBottomNavigationProps) {
-  const gacha = <NavTab key="gacha" item={GACHA_NAV_ITEM} selected={false} badge={freePulls} onPress={() => onGacha?.()} />;
-  const items = PRIMARY_NAV_ITEMS.map(item => <NavTab key={item.id} item={item} selected={tab === item.id} onPress={() => onNavigate(item.id)} />);
+export function HomeBottomNavigation({ tab, onNavigate, disabled = false, onGacha, freePulls = 0, gachaActive = false }: HomeBottomNavigationProps) {
+  const gacha = <NavTab key="gacha" item={GACHA_NAV_ITEM} selected={gachaActive} badge={freePulls} onPress={() => onGacha?.()} />;
+  const items = PRIMARY_NAV_ITEMS.map(item => <NavTab key={item.id} item={item} selected={!gachaActive && tab === item.id} onPress={() => onNavigate(item.id)} />);
   return <View style={S.navShell} pointerEvents={disabled ? 'none' : 'auto'} accessibilityElementsHidden={disabled} aria-hidden={disabled ? true : undefined} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
     <View style={[S.primaryNavFrame, CONTINUOUS_CORNER]}>
       <CroppedArt source={NAV_BACKGROUND} bounds={NAV_BOUNDS} />

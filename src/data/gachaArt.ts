@@ -18,6 +18,7 @@ export const GACHA_STAGE_ART = {
   curtainLeft: require('../../assets/gacha/curtain-left.webp'),
   curtainRight: require('../../assets/gacha/curtain-right.webp'),
   valance: require('../../assets/gacha/curtain-valance.webp'),
+  guideArrow: require('../../assets/gacha/guide-arrow-down.webp'),
   carrierWalk: require('../../assets/gacha/cart/carrier-walk.webp'),
   carrierUnload: require('../../assets/gacha/cart/carrier-unload.webp'),
   dust: require('../../assets/gacha/cart/dust.webp'),
