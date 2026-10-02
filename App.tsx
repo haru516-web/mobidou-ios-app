@@ -33,6 +33,7 @@ import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork, HomeStepsArtwor
 import { StepProgressRing } from './src/components/StepProgressRing';
 import { FloatingMobby, type MobbyMenuItem, type MobbySpot } from './src/components/FloatingMobby';
 import { PopButton } from './src/components/PopButton';
+import { HomeStatusBar } from './src/components/HomeStatusBar';
 import { FeatureTour, TourAnchor } from './src/components/FeatureTour';
 import type { TourSelection } from './src/data/featureTour';
 import { FitToHeight } from './src/components/PagedBody';
@@ -64,7 +65,6 @@ const COLLECTION_PAGES: readonly { id: CollectionPage; label: string; icon: Reac
   { id: 'room', label: '展示室', icon: 'albums' },
   { id: 'goshuin', label: '御朱印', icon: 'flower' },
   { id: 'miniatures', label: 'ミニチュア', icon: 'key' },
-  { id: 'passes', label: '授与品', icon: 'ticket' },
 ];
 type SocialSheet = 'notifications' | 'presents' | 'friends' | null;
 const TAB_TITLES: Record<Tab, string> = { home: 'ホーム', book: '御朱印帳', walk: 'おでかけ', collection: 'コレクション' };
@@ -215,8 +215,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const openDetail = (shrine: Shrine) => { if (collectionRewardIds.includes(shrine.id) || progress.rewards.some(reward => reward.id === shrine.id)) setDetail(shrine); };
   const ownedMiniatureIds = Object.keys(journey.special.keychains).filter(id => (journey.special.keychains[id] ?? 0) > 0);
   const collectionRewardDates = Object.fromEntries(collectionRewards.map(reward => [reward.id, displayDate(reward.date)]));
-  const routeBookOwned = !!activeRoute && data.bookDesigns.owned[activeRoute.id] === true;
-  const routeBookSelected = !!activeRoute && data.bookDesigns.selected[activeRoute.id] === 'route' && routeBookOwned;
   const pointTargets = expandPointTargets(activeShrines.length, activeRoute?.targets ?? DAILY_TARGETS);
   const nextIndex = activeShrines.findIndex((shrine, index) => !view.rewards.some(r => r.id === (activeRoute?.ids[index] ?? shrine.id)));
   const next = nextIndex >= 0 ? activeShrines[nextIndex] : undefined;
@@ -575,6 +573,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
         : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
+        {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} miniaturePasses={journey.special.passes.keychainDrop} onPressTickets={() => { setMobbyMenuOpen(false); setGachaOpen(true); }} />}
         {data.demo && <Pressable plate="pill" artwork={false} accessibilityRole="button" accessibilityLabel="体験モード中。タップで体験を終えて実記録にもどる" onPress={() => journey.enter(false)} style={S.demoBadge}><View style={S.dot} /><Text style={S.demoBadgeText}>体験中</Text><Icon name="close" size={13} color="#8A6950" /></Pressable>}
         <TourAnchor id="header-settings"><Pressable plate="round" artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable></TourAnchor>
       </View>
@@ -658,7 +657,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <TourAnchor id="collection-tabs" style={S.jumpRow}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} />)}
         </TourAnchor>
-        <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} activeRoute={activeRoute} coverOwned={routeBookOwned} selectedCover={routeBookSelected ? 'route' : 'normal'} onSelectCover={journey.selectBookDesign} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={openDetail} onClosePage={() => setCollectionPage('room')} />
+        <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={openDetail} onClosePage={() => setCollectionPage('room')} />
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
