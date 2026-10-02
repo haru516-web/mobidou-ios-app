@@ -567,3 +567,17 @@ Text (verbatim): none.
 Constraints: genuine transparency outside the valance; full-width valance; quiet solid lower band from y=220 to y=320 with no ornament; exact centered small ring; no separate rope. No family crest, kamon, logo, letters, numbers, symbols, watermark, embroidery, tassels, fringe, gold trim, scalloped drapery or Western theater ornaments.
 Avoid: velvet, silk gloss, elaborate valance, flags, heraldic details, busy fabric folds in the lower band, background, wall, floor, cast shadow, white/black edge fringe, checkerboard.
 ~~~
+# 2026-10-02 guide-arrow-down.webp
+
+- 保存先: `assets/gacha/guide-arrow-down.webp`
+- 生成: built-in image_gen（transparent_background: true）
+- 仕様: 256×256、アルファ付き lossless WebP、11,194 bytes（50KB以下）。
+- 後処理: 生成アルファを保持し、アルファ外接矩形を切り出して縦横比を維持して縮小。透明な256×256キャンバスの中央へ配置。
+- 四隅のアルファ: すべて0。非透明領域の外接矩形は `[47, 88, 204, 180]`、余白は左47・上88・右52・下76px。
+- 暗色 `#302D25` と明色 `#C79A62` に重ね、暖白のV字と細い焦げ茶の縁が両方で読めることを目視確認。軸、文字、追加記号、描き込んだ影、背景色、市松模様はなし。
+- 検証記録: `docs/gacha-assets-verification/guide-arrow-down-audit.json`、`guide-arrow-down-overlay.webp`。
+- 指定資料はこの古いチェックアウトに存在しなかったため、`D:/mobby/mobidou-claude/docs/codex-gacha-arrow-asset.md` と共通ルールを参照。同チェックアウトの既存プロンプト記録を引き継いで本項を追加。既存の箱・紐素材を目視して作風を確認。
+- `scripts/audit-image-assets.cjs` はこのチェックアウトには存在しない。参照先の同スクリプトは画像参照を検査するもので、アルファ検査はPillowで保存後のWebPを再読込して実施。
+
+プロンプト:
+> Use case: stylized-concept. Create one isolated production Japanese game UI asset, guide-arrow-down, on genuinely transparent alpha background. Square canvas. Exactly one downward V-shaped chevron, bilaterally symmetric, no shaft. Thick hand-painted Japanese brush strokes, warm ivory white near #FFF8E9, with subtle dry-brush grain and slight washi-like pigment bleeding confined to the strokes. A very fine faint dark burnt-brown contour gives legibility against dark #302D25 and light tan #C79A62. Rounded lower point and softly rounded stroke ends. Center the chevron, occupy about 76 percent of canvas width and 45 percent height, keep at least 10 percent fully transparent margin on every side. Refined tactile restrained handmade finish matching Japanese watercolor game props, natural wood and vermilion aesthetic, but the arrow itself stays warm white. Flat pigment, no lighting effects. No text, letters, numbers, additional symbols, shaft, cast shadow, drop shadow, glow, background color, paper rectangle, checkerboard, border, watermark. Transparent empty space everywhere outside the single chevron.

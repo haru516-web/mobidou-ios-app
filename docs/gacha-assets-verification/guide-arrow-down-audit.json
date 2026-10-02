@@ -1,0 +1,30 @@
+{
+  "file": "assets\\gacha\\guide-arrow-down.webp",
+  "format": "WEBP",
+  "size": [
+    256,
+    256
+  ],
+  "bytes": 11194,
+  "corners_alpha": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "alpha_bounds": [
+    47,
+    88,
+    204,
+    180
+  ],
+  "margins": [
+    47,
+    88,
+    52,
+    76
+  ],
+  "source": "C:\\Users\\User\\.codex\\generated_images\\01a0fc9f-cc21-7b40-bad4-da5fe021ecd9\\exec-b04a751d-b18d-41fa-8b3f-696d0d1d18a4.png",
+  "encoding": "lossless WebP, method 6",
+  "processing": "Alpha bounding-box crop, proportional Lanczos downscale to fit 208x160, centered on transparent 256x256 canvas."
+}
