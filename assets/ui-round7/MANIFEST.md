@@ -34,3 +34,4 @@ Common: Production Mobidou raster UI assets. Match existing ivory washi, muted v
 | ui/button-small-v1.webp | 320 x 96 | 12706 | transparent | 小ボタン・通常 | 40/40 (3-slice) | 107 x 32 | 淡い和紙と細い朱の縁。中央は文字を重ねられる空白。 |
 | ui/button-small-pressed-v1.webp | 320 x 96 | 12474 | transparent | 小ボタン・押下 | 40/40 (3-slice) | 107 x 32 | 通常版の輪郭を参照して少し濃く沈んだ状態。 |
 | gift/gift-header-v1.webp | 128 x 128 | 8434 | transparent | ギフト | none | 28 x 28 | 生成り包み紙の贈り物と縮小して見える朱の結び目。 |
+| gift/item-row-v1.webp | 960 x 128 | 27170 | transparent | 中身の行 | 48/48 (3-slice) | 310 x 44 | 淡い生成りの敷き紙、左端24pxは少し濃い。 |
