@@ -41,6 +41,8 @@ type Props = {
   onGoPilgrimage?: () => void;
   /** First-run guide: the screen cannot be closed before the pull is made. */
   guided?: boolean;
+  /** Open on the shop tab (the + beside the 木札 or the pass on the home screen). */
+  startOnShop?: boolean;
 };
 
 /** Render supplied artwork without stretching its canvas. */
@@ -50,8 +52,8 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, nextHint, onGoPilgrimage, guided = false }: Props) {
-  const [tab, setTab] = useState<'draw' | 'shop'>('draw');
+export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, nextHint, onGoPilgrimage, guided = false, startOnShop = false }: Props) {
+  const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
   // The scene fills the screen edge to edge, but the title, tabs and buttons keep clear of the notch and the home indicator.
   const insets = useSafeAreaInsets();
   const [{ width, height }, setSize] = useState({ width: 0, height: 0 });

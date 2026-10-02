@@ -163,6 +163,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [openingVisible, setOpeningVisible] = useState(true);
   const [openingHomeReady, setOpeningHomeReady] = useState(false);
   const [gachaOpen, setGachaOpen] = useState(false);
+  const [gachaOnShop, setGachaOnShop] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
   const [bookIndexOpen, setBookIndexOpen] = useState(false);
   const [petSelectionReaction, setPetSelectionReaction] = useState(0);
@@ -241,6 +242,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     omikujiWasOpen.current = false;
     if (DEV_UNLOCK_ALL && omikujiDrawn && firstRunStage === null && !onboardingPreview) journey.resetDailyOmikuji();
   }, [omikujiModal]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openGachaShop = () => { setMobbyMenuOpen(false); setGachaOnShop(true); setGachaOpen(true); };
+  useEffect(() => { if (!gachaOpen) setGachaOnShop(false); }, [gachaOpen]);
   const move = (value: Tab) => {  setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); scrollY.setValue(0); setTab(value); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setMobbyMenuOpen(false); setHomePopup(kind); setTab('home'); scrollY.setValue(0); };
   const handleTutorialCompanionBond = () => {
@@ -573,7 +576,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
         : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
-        {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} miniaturePasses={journey.special.passes.keychainDrop} onPressTickets={() => { setMobbyMenuOpen(false); setGachaOpen(true); }} />}
+        {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} miniaturePasses={journey.special.passes.keychainDrop} onAddTickets={openGachaShop} onAddPasses={openGachaShop} />}
         {data.demo && <Pressable plate="pill" artwork={false} accessibilityRole="button" accessibilityLabel="体験モード中。タップで体験を終えて実記録にもどる" onPress={() => journey.enter(false)} style={S.demoBadge}><View style={S.dot} /><Text style={S.demoBadgeText}>体験中</Text><Icon name="close" size={13} color="#8A6950" /></Pressable>}
         <TourAnchor id="header-settings"><Pressable plate="round" artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable></TourAnchor>
       </View>
@@ -785,7 +788,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
 
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
-    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} onGoPilgrimage={() => { setGachaOpen(false); move('walk'); }} showShop={__DEV__ && firstRunStage !== 'gacha'} />}</Modal>
+    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} onGoPilgrimage={() => { setGachaOpen(false); move('walk'); }} showShop={(__DEV__ || gachaOnShop) && firstRunStage !== 'gacha'} startOnShop={gachaOnShop} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
   </SafeAreaView></View>;
 }
