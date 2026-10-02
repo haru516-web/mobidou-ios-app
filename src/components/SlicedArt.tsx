@@ -46,13 +46,13 @@ export function SlicedArt({ name, art: given, corner, style }: { name?: UiArtNam
   const frac = (px: number, total: number) => px / total;
   const columns = [
     { from: 0, to: leftWidth, a: box.x0, b: box.x0 + edges.left },
-    { from: leftWidth - 0.5, to: size.width - rightWidth + 0.5, a: box.x0 + edges.left, b: box.x1 - edges.right },
+    { from: leftWidth - 1.5, to: size.width - rightWidth + 1.5, a: box.x0 + edges.left, b: box.x1 - edges.right },
     { from: size.width - rightWidth, to: size.width, a: box.x1 - edges.right, b: box.x1 },
   ];
   const rows = nine
     ? [
       { from: 0, to: topHeight, a: box.y0, b: box.y0 + edges.top },
-      { from: topHeight - 0.5, to: size.height - bottomHeight + 0.5, a: box.y0 + edges.top, b: box.y1 - edges.bottom },
+      { from: topHeight - 1.5, to: size.height - bottomHeight + 1.5, a: box.y0 + edges.top, b: box.y1 - edges.bottom },
       { from: size.height - bottomHeight, to: size.height, a: box.y1 - edges.bottom, b: box.y1 },
     ]
     : [{ from: 0, to: size.height, a: box.y0, b: box.y1 }];

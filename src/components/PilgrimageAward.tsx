@@ -8,9 +8,12 @@ import type { Shrine } from '../data/shrines';
 import type { Pilgrimage } from '../data/pilgrimages';
 import { PRAYER_ACTION_ORDER, PRAYER_ATLASES } from '../data/prayerAtlasesV2';
 import rawMetrics from '../data/pilgrimageSpriteMetrics.json';
-import { BRUSH, Button, C, SERIF, Stamp, useReducedMotion } from '../components';
+import { BRUSH, Button, C, SERIF, useReducedMotion } from '../components';
 import { WashiArt } from './Washi';
 import { FitToHeight } from './PagedBody';
+import { STAMP_IMAGES } from '../data/shrines';
+import { AwardFx, BURST_AT } from './AwardFx';
+import { InkReveal } from './InkReveal';
 import type { SpecialCollection } from '../services/specialRewards';
 
 const PHASES = [
@@ -35,25 +38,15 @@ type Metric = { columns: number; width: number; height: number; cellWidth: numbe
 const metrics = rawMetrics as Record<string, Metric>;
 const STAGE = require('../../assets/ui-round3/pilgrimage/ceremony-stage.webp');
 const GATE = require('../../assets/ui-round3/pilgrimage/ceremony-gate.webp');
-const REVEAL_PARTICLES = [
-  { glyph: '✦', angle: -92, distance: 122, size: 18, color: '#D7B77F', delay: .12 },
-  { glyph: '✧', angle: -56, distance: 108, size: 16, color: '#C98E72', delay: .18 },
-  { glyph: '❀', angle: -28, distance: 126, size: 17, color: '#D8A6A0', delay: .23 },
-  { glyph: '·', angle: 4, distance: 118, size: 25, color: '#E1C78F', delay: .2 },
-  { glyph: '✦', angle: 38, distance: 132, size: 16, color: '#C98E72', delay: .28 },
-  { glyph: '✧', angle: 74, distance: 112, size: 18, color: '#D7B77F', delay: .16 },
-  { glyph: '❀', angle: 108, distance: 128, size: 17, color: '#D8A6A0', delay: .25 },
-  { glyph: '·', angle: 143, distance: 116, size: 25, color: '#E1C78F', delay: .3 },
-  { glyph: '✦', angle: 176, distance: 126, size: 17, color: '#D7B77F', delay: .21 },
-  { glyph: '✧', angle: 214, distance: 112, size: 16, color: '#C98E72', delay: .27 },
-  { glyph: '❀', angle: 250, distance: 124, size: 17, color: '#D8A6A0', delay: .15 },
-  { glyph: '✦', angle: 286, distance: 108, size: 16, color: '#E1C78F', delay: .24 },
-] as const;
 
 function Sprite({ source, metric, frame, size, onLoad }: { source: ImageSourcePropType; metric: Metric; frame: number; size: number; onLoad: () => void }) {
   const scale = size / metric.cropHeight;
+  // Stable callback: the core Image restarts loading whenever onLoad changes.
+  const loadRef = React.useRef(onLoad);
+  loadRef.current = onLoad;
+  const handleLoad = React.useCallback(() => loadRef.current(), []);
   return <View style={{ width: metric.cropWidth * scale, height: size, overflow: 'hidden' }}>
-    <RNImage source={source} onLoad={onLoad} resizeMode="stretch" style={{ position: 'absolute', left: -(metric.cellWidth * frame + metric.left) * scale, top: -metric.top * scale, width: metric.width * scale, height: metric.height * scale }} />
+    <RNImage source={source} onLoad={handleLoad} resizeMode="stretch" style={{ position: 'absolute', left: -(metric.cellWidth * frame + metric.left) * scale, top: -metric.top * scale, width: metric.width * scale, height: metric.height * scale }} />
   </View>;
 }
 
@@ -68,6 +61,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const [loaded, setLoaded] = useState<Record<string, boolean>>({});
   const [revealDone, setRevealDone] = useState(false);
   const reveal = useRef(new Animated.Value(0)).current;
+  const paint = useRef(new Animated.Value(0)).current;
   const revealHapticSent = useRef(false);
   const phase = useMemo(() => locate(frame), [frame]);
   const prayer = PRAYER_ATLASES[pet.id];
@@ -94,17 +88,20 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   useEffect(() => {
     if (phase.key !== 'reveal') return;
     reveal.setValue(0);
+    paint.setValue(0);
+    const painting = Animated.timing(paint, { toValue: 1, duration: 1800, delay: BURST_AT - 50, easing: Easing.inOut(Easing.quad), useNativeDriver: false });
+    painting.start();
     setRevealDone(false);
     const animation = Animated.timing(reveal, {
       toValue: 1,
-      duration: revealReducedMotion ? 0 : 1700,
+      duration: revealReducedMotion ? 0 : 3800,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     });
     if (revealReducedMotion) setRevealDone(true);
     animation.start(({ finished }) => { if (finished) setRevealDone(true); });
-    return () => animation.stop();
-  }, [phase.key, reveal, revealReducedMotion]);
+    return () => { animation.stop(); painting.stop(); };
+  }, [phase.key, reveal, paint, revealReducedMotion]);
   useEffect(() => {
     if (phase.key !== 'reveal') return;
     const timer = setTimeout(() => {
@@ -112,7 +109,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
         revealHapticSent.current = true;
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
-    }, revealReducedMotion ? 0 : 520);
+    }, revealReducedMotion ? 0 : BURST_AT);
     return () => clearTimeout(timer);
   }, [haptics, phase.key, revealReducedMotion]);
   const t = phase.progress;
@@ -135,24 +132,14 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const keychainStatus = arrival?.outcome === 'owned' ? 'もう持ってるよ' : arrival?.outcome === 'won' ? '獲得しました' : arrival?.outcome === 'ticket' ? '券で獲得しました' : 'ドロップなし';
   const keychainInstruction = arrival?.outcome === 'owned' ? 'このミニチュアは、もう持っています。' : arrival?.outcome === 'won' ? 'ミニチュアキーホルダーを授かりました。' : arrival?.outcome === 'ticket' ? '交換券を使って授かりました。' : ticketCount > 0 ? '外れました。この場で交換券を使って受け取れます。' : '今回はご縁がありませんでした。次の参拝でまた挑戦できます。';
   const useTicket = () => { if (canUseTicket) onRedeemKeychainTicket(shrine.id); };
-  const rewardCardOpacity = reveal.interpolate({ inputRange: [0, .12, .35, 1], outputRange: [0, .25, 1, 1], extrapolate: 'clamp' });
-  const rewardCardLift = reveal.interpolate({ inputRange: [0, .24, .55, 1], outputRange: [42, 18, 0, 0], extrapolate: 'clamp' });
-  const rewardCardScale = reveal.interpolate({ inputRange: [0, .24, .46, .62, 1], outputRange: [.88, .95, 1.035, 1, 1], extrapolate: 'clamp' });
-  const rewardCardRotate = reveal.interpolate({ inputRange: [0, .24, .55, 1], outputRange: ['-3deg', '-1deg', '0deg', '0deg'], extrapolate: 'clamp' });
-  const stampOpacity = reveal.interpolate({ inputRange: [0, .22, .38, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
-  const stampScale = reveal.interpolate({ inputRange: [0, .28, .42, .52, 1], outputRange: [.72, .72, 1.1, .98, 1], extrapolate: 'clamp' });
-  const inkRingOpacity = reveal.interpolate({ inputRange: [0, .28, .42, .62, 1], outputRange: [0, 0, .85, .24, 0], extrapolate: 'clamp' });
-  const inkRingScale = reveal.interpolate({ inputRange: [0, .28, .48, 1], outputRange: [.45, .68, 1.04, 1.32], extrapolate: 'clamp' });
-  const haloOpacity = reveal.interpolate({ inputRange: [0, .16, .42, .8, 1], outputRange: [0, .55, .4, .14, .06], extrapolate: 'clamp' });
-  const haloScale = reveal.interpolate({ inputRange: [0, .24, .62, 1], outputRange: [.7, 1.02, 1.12, 1.22], extrapolate: 'clamp' });
-  const sealOpacity = reveal.interpolate({ inputRange: [0, .52, .7, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
-  const sealScale = reveal.interpolate({ inputRange: [0, .5, .66, .78, 1], outputRange: [.7, .7, 1.14, .98, 1], extrapolate: 'clamp' });
-  const copyOpacity = reveal.interpolate({ inputRange: [0, .48, .66, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
-  const copyLift = reveal.interpolate({ inputRange: [0, .48, .68, 1], outputRange: [10, 10, 0, 0], extrapolate: 'clamp' });
-  const guaranteeOpacity = reveal.interpolate({ inputRange: [0, .56, .72, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
-  const guaranteeLift = reveal.interpolate({ inputRange: [0, .56, .74, 1], outputRange: [8, 8, 0, 0], extrapolate: 'clamp' });
-  const specialOpacity = reveal.interpolate({ inputRange: [0, .68, .86, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
-  const specialLift = reveal.interpolate({ inputRange: [0, .68, .88, 1], outputRange: [12, 12, 0, 0], extrapolate: 'clamp' });
+  const rewardCardOpacity = reveal.interpolate({ inputRange: [0, .03, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' });
+  const sealOpacity = paint.interpolate({ inputRange: [0, .94, 1], outputRange: [0, 0, 1], extrapolate: 'clamp' });
+  const copyOpacity = reveal.interpolate({ inputRange: [0, .66, .78, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
+  const copyLift = reveal.interpolate({ inputRange: [0, .66, .8, 1], outputRange: [10, 10, 0, 0], extrapolate: 'clamp' });
+  const guaranteeOpacity = reveal.interpolate({ inputRange: [0, .7, .82, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
+  const guaranteeLift = reveal.interpolate({ inputRange: [0, .7, .84, 1], outputRange: [8, 8, 0, 0], extrapolate: 'clamp' });
+  const specialOpacity = reveal.interpolate({ inputRange: [0, .78, .92, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
+  const specialLift = reveal.interpolate({ inputRange: [0, .78, .94, 1], outputRange: [12, 12, 0, 0], extrapolate: 'clamp' });
   const sprites = [
     { id: 'walk', source: walkSource, frame: phase.local % 4, visible: walking },
     { id: 'rei', source: prayer?.rei, frame: prayerFrame % 8, visible: !walking && action === 'rei' },
@@ -161,7 +148,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   return <SafeAreaView style={S.page}><FitToHeight key={showAward ? 'award' : 'walk'} style={S.fit}><View style={S.content}>
     <Text style={S.eyebrow}>{demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>
     <Text accessibilityRole="header" style={S.title}>{showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>
-    <View style={[S.stage, { height: width * 2 / 3 }]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
+    <View style={[S.stage, { height: width * 2 / 3 }, showAward && S.stageHidden]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
       <Image source={STAGE} contentFit="fill" style={StyleSheet.absoluteFillObject} onLoad={() => markLoaded('stage')} />
       <View style={{ position: 'absolute', left: 0, top: 0, width: 600, height: 400, transformOrigin: 'top left', transform: [{ scale: k }] }}>
         <Image source={GATE} onLoad={() => markLoaded('gate')} contentFit="contain" style={{ position: 'absolute', left: 126, bottom: 42, width: 154, height: 194, zIndex: 3 }} />
@@ -178,27 +165,18 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     {!showAward && <><View style={S.phaseTrack}>{PHASES.map(p => <View key={p.key} style={[S.phaseDot, { backgroundColor: phase.key === p.key ? '#D4B387' : '#685C49' }]} />)}</View><Button title="演出を省略して御朱印をみる" secondary onPress={() => setFrame(TOTAL_FRAMES)} style={S.skip} /></>}
     {showAward && <>
       <View style={S.rewardScene}>
-        <Animated.View pointerEvents="none" style={[S.rewardHalo, { opacity: haloOpacity, transform: [{ scale: haloScale }] }]} />
-        {!revealReducedMotion && REVEAL_PARTICLES.map((particle, index) => {
-          const end = Math.min(1, particle.delay + .36);
-          const travel = reveal.interpolate({ inputRange: [0, particle.delay, end, 1], outputRange: [0, 0, particle.distance, particle.distance], extrapolate: 'clamp' });
-          const opacity = reveal.interpolate({ inputRange: [0, particle.delay, Math.min(1, particle.delay + .08), end, 1], outputRange: [0, 0, 1, 0, 0], extrapolate: 'clamp' });
-          const xParticle = travel.interpolate({ inputRange: [0, particle.distance], outputRange: [0, Math.cos(particle.angle * Math.PI / 180) * particle.distance], extrapolate: 'clamp' });
-          const yParticle = travel.interpolate({ inputRange: [0, particle.distance], outputRange: [0, Math.sin(particle.angle * Math.PI / 180) * particle.distance], extrapolate: 'clamp' });
-          return <Animated.Text key={`${particle.glyph}-${index}`} pointerEvents="none" style={[S.particle, { color: particle.color, fontSize: particle.size, opacity, transform: [{ translateX: xParticle }, { translateY: yParticle }, { rotate: `${particle.angle + 24}deg` }] }]}>{particle.glyph}</Animated.Text>;
-        })}
-        <Animated.View style={[S.reward, { opacity: rewardCardOpacity, transform: [{ translateY: rewardCardLift }, { scale: rewardCardScale }, { rotate: rewardCardRotate }] }]}>
-          <WashiArt />
+        <AwardFx />
+        <Animated.View style={[S.reward, { opacity: rewardCardOpacity, }]}>
           <View style={S.stampFrame}>
-            <Animated.View style={{ opacity: stampOpacity, transform: [{ scale: stampScale }] }}><Stamp shrine={shrine} style={{ width: 145 }} /></Animated.View>
-            <Animated.View pointerEvents="none" style={[S.inkRing, { opacity: inkRingOpacity, transform: [{ scale: inkRingScale }] }]} />
+            <InkReveal source={STAMP_IMAGES[shrine.id]} progress={paint} />
           </View>
-          <Animated.View style={[S.seal, { opacity: sealOpacity, transform: [{ rotate: '-10deg' }, { scale: sealScale }] }]}><Text style={S.sealText}>{complete ? '結願' : '結縁'}</Text></Animated.View>
+          <Animated.View style={[S.seal, { opacity: sealOpacity, transform: [{ rotate: '-10deg' }] }]}><Text style={S.sealText}>{complete ? '結願' : '結縁'}</Text></Animated.View>
         </Animated.View>
       </View>
       <Animated.View style={[S.copyGroup, { opacity: copyOpacity, transform: [{ translateY: copyLift }] }]}><Text style={S.name}>{shrine.name}</Text><Text style={S.theme}>{route?.chapters[stopIndex] ?? shrine.theme}</Text></Animated.View>
       <Animated.View style={[S.guaranteeBadge, { opacity: guaranteeOpacity, transform: [{ translateY: guaranteeLift }] }]}><Text style={S.guaranteeText}>{goshuinOwned ? 'この御朱印は、もう持っています' : '御朱印は100%授与'}</Text></Animated.View>
-      <Animated.View style={[S.specialCard, { opacity: specialOpacity, transform: [{ translateY: specialLift }] }]}><WashiArt />
+      <Animated.View style={[S.specialCard, { opacity: specialOpacity, transform: [{ translateY: specialLift }] }]}>
+        <WashiArt />
         <Text style={S.specialEyebrow}>{arrival ? `特別なご縁 · ドロップ率 ${Math.round(arrival.rate * 100)}%` : '特別なご縁'}</Text>
         <Text style={S.specialTitle}>今回のドロップ</Text>
         {arrival ? <View style={S.specialRows}>
@@ -217,9 +195,10 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   </SafeAreaView>;
 }
 const S = StyleSheet.create({
+  stageHidden: { display: 'none' },
   fit: { flex: 1 }, closeBar: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, minHeight: 76 },
   page: { flex: 1, backgroundColor: '#302D25' }, content: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 24, gap: 15 },
   eyebrow: { color: '#D5BD98', fontSize: 11, letterSpacing: 2 }, title: { color: '#FFF8E9', fontFamily: BRUSH, fontSize: 23, textAlign: 'center', minHeight: 32 }, stage: { width: '100%', maxWidth: 520, overflow: 'hidden', borderRadius: 14, backgroundColor: '#D9CAB2' },
-  phaseTrack: { flexDirection: 'row', gap: 9, padding: 7 }, phaseDot: { height: 4, width: 18, borderRadius: 2 }, skip: { backgroundColor: '#FFF5E8', maxWidth: 350, minHeight: 44 }, rewardScene: { width: '100%', maxWidth: 350, minHeight: 292, alignItems: 'center', justifyContent: 'center', position: 'relative' }, rewardHalo: { position: 'absolute', width: 254, height: 254, borderRadius: 127, borderWidth: 1.5, borderColor: '#D8B98A', backgroundColor: '#D8B98A18' }, particle: { position: 'absolute', left: '50%', top: '50%', width: 30, height: 30, marginLeft: -15, marginTop: -15, textAlign: 'center', fontWeight: '700' }, reward: { width: 204, alignItems: 'center', padding: 13, borderRadius: 10, backgroundColor: '#FFF8E9', overflow: 'hidden', zIndex: 2, shadowColor: '#17130F', shadowOffset: { width: 0, height: 8 }, shadowOpacity: .22, shadowRadius: 16, elevation: 8 }, stampFrame: { width: 180, height: 232, alignItems: 'center', justifyContent: 'center' }, inkRing: { position: 'absolute', alignSelf: 'center', top: 31, width: 170, height: 170, borderRadius: 85, borderWidth: 2, borderColor: C.red }, seal: { position: 'absolute', right: 4, bottom: 9, borderWidth: 3, borderColor: C.red, padding: 6, transform: [{ rotate: '-10deg' }], backgroundColor: '#FFF6E8DD' }, sealText: { color: C.red, fontFamily: BRUSH, fontSize: 19 }, copyGroup: { alignItems: 'center', gap: 2 }, name: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 21, textAlign: 'center' }, theme: { color: '#E6D8C5', fontSize: 12, lineHeight: 22, textAlign: 'center' }, guaranteeBadge: { borderWidth: 1, borderColor: '#C69B72', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 5, backgroundColor: '#5C493B', marginTop: 2 }, guaranteeText: { color: '#F6D9A3', fontFamily: SERIF, fontSize: 11, letterSpacing: 1 }, completion: { padding: 18, alignItems: 'center', overflow: 'hidden', width: '100%', maxWidth: 350, gap: 8 }, completionTitle: { fontFamily: BRUSH, fontSize: 20, color: C.red }, completionText: { fontSize: 12, color: C.ink },
-  specialCard: { width: '100%', maxWidth: 350, padding: 15, overflow: 'hidden' }, specialEyebrow: { color: '#9a6851', fontSize: 11, letterSpacing: 1.2 }, specialTitle: { color: C.ink, fontFamily: BRUSH, fontSize: 17, marginTop: 3, marginBottom: 9 }, specialRows: { gap: 7 }, specialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, specialLabel: { color: '#6b5d4b', fontSize: 12, flex: 1 }, specialStatus: { color: '#918576', fontSize: 12 }, specialWon: { color: '#a24c3e', fontFamily: SERIF }, specialWaiting: { color: '#806f5b', fontSize: 12, lineHeight: 17, textAlign: 'center', paddingVertical: 5 }, specialInstruction: { color: '#806f5b', fontSize: 12, lineHeight: 15, marginTop: 7, textAlign: 'center' }, passOwned: { color: '#776957', fontSize: 11, lineHeight: 15, marginTop: 11, textAlign: 'center' }, exchangeActions: { gap: 7, marginTop: 10 }, specialButton: { minHeight: 42 }, noPass: { color: '#806f5b', fontSize: 11, lineHeight: 16, marginTop: 10, textAlign: 'center' }, purchaseActions: { gap: 6, marginTop: 8 }, purchaseButton: { minHeight: 40 }, fakePurchase: { color: '#998a76', fontSize: 11, textAlign: 'center', marginTop: 7 },
+  phaseTrack: { flexDirection: 'row', gap: 9, padding: 7 }, phaseDot: { height: 4, width: 18, borderRadius: 2 }, skip: { backgroundColor: '#FFF5E8', maxWidth: 350, minHeight: 44 }, rewardScene: { width: '100%', maxWidth: 350, minHeight: 420, alignItems: 'center', justifyContent: 'center', position: 'relative' }, particle: { position: 'absolute', left: '50%', top: '50%', width: 30, height: 30, marginLeft: -15, marginTop: -15, textAlign: 'center', fontWeight: '700' }, reward: { width: 264, alignItems: 'center', zIndex: 2 }, rewardRays: { position: 'absolute', pointerEvents: 'none', width: 340, height: 340 }, shineClip: { position: 'absolute', width: 212, aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 5 }, shine: { position: 'absolute', top: -60, bottom: -60, left: '50%', width: 46, marginLeft: -23, backgroundColor: '#FFF4D2AA' }, stampFrame: { width: 264, height: 340, alignItems: 'center', justifyContent: 'center' }, inkRing: { position: 'absolute', alignSelf: 'center', top: 44, width: 250, height: 250, borderRadius: 125, borderWidth: 2, borderColor: C.red }, seal: { position: 'absolute', right: 4, bottom: 9, borderWidth: 3, borderColor: C.red, padding: 6, transform: [{ rotate: '-10deg' }], backgroundColor: '#FFF6E8DD' }, sealText: { color: C.red, fontFamily: BRUSH, fontSize: 19 }, copyGroup: { alignItems: 'center', gap: 2 }, name: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 21, textAlign: 'center' }, theme: { color: '#E6D8C5', fontSize: 12, lineHeight: 22, textAlign: 'center' }, guaranteeBadge: { borderWidth: 1, borderColor: '#C69B72', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 5, backgroundColor: '#5C493B', marginTop: 2 }, guaranteeText: { color: '#F6D9A3', fontFamily: SERIF, fontSize: 11, letterSpacing: 1 }, completion: { paddingVertical: 26, paddingHorizontal: 24, alignItems: 'center', overflow: 'hidden', width: '100%', maxWidth: 350, gap: 8 }, completionTitle: { fontFamily: BRUSH, fontSize: 24, letterSpacing: 2, color: C.red }, completionText: { fontFamily: SERIF, fontSize: 13, lineHeight: 21, letterSpacing: .6, color: C.ink, textAlign: 'center' },
+  specialCard: { width: '100%', maxWidth: 350, paddingVertical: 24, paddingHorizontal: 26, overflow: 'hidden' }, specialEyebrow: { color: '#9a6851', fontFamily: SERIF, fontSize: 11, letterSpacing: 1.4, textAlign: 'center' }, specialTitle: { color: C.ink, fontFamily: BRUSH, fontSize: 22, letterSpacing: 2, marginTop: 4, marginBottom: 12, textAlign: 'center' }, specialRows: { gap: 7 }, specialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, specialLabel: { color: '#5f503e', fontFamily: SERIF, fontSize: 13, flex: 1 }, specialStatus: { color: '#8a7e6e', fontFamily: SERIF, fontSize: 13 }, specialWon: { color: '#a24c3e', fontFamily: SERIF }, specialWaiting: { color: '#806f5b', fontFamily: SERIF, fontSize: 12, lineHeight: 17, textAlign: 'center', paddingVertical: 5 }, specialInstruction: { color: '#6f5f4b', fontFamily: SERIF, fontSize: 12, lineHeight: 19, marginTop: 7, textAlign: 'center' }, passOwned: { color: '#776957', fontFamily: SERIF, fontSize: 11, lineHeight: 15, marginTop: 11, textAlign: 'center' }, exchangeActions: { gap: 7, marginTop: 10 }, specialButton: { minHeight: 42 }, noPass: { color: '#806f5b', fontSize: 11, lineHeight: 16, marginTop: 10, textAlign: 'center' }, purchaseActions: { gap: 6, marginTop: 8 }, purchaseButton: { minHeight: 40 }, fakePurchase: { color: '#998a76', fontSize: 11, textAlign: 'center', marginTop: 7 },
 });
