@@ -702,8 +702,8 @@ const styles = StyleSheet.create({
   // A hand-torn washi bubble; the tail is part of the picture, so text sits above its bottom fifth.
   bubble: { width: 300, maxWidth: '92%', minHeight: 76, paddingHorizontal: 30, paddingTop: 9, paddingBottom: 23, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   bubbleText: { fontFamily: 'Shippori', fontSize: 13, color: '#5D554A', textAlign: 'center' },
-  stage: { width: 270, height: 218, justifyContent: 'center', alignItems: 'center', marginTop: 7 },
-  characterMotion: { width: 210, height: 210, alignItems: 'center', justifyContent: 'center' },
+  stage: { width: 270, height: 218, justifyContent: 'center', alignItems: 'center', marginTop: 7, zIndex: 3 },
+  characterMotion: { width: 210, height: 210, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   characterSlot: { width: 210, height: 210, alignItems: 'center', justifyContent: 'center' },
   pet: { width: 210, height: 210 },
   fixedParts: { ...StyleSheet.absoluteFillObject },
@@ -716,6 +716,6 @@ const styles = StyleSheet.create({
   overlayImage: { ...StyleSheet.absoluteFillObject, width: 210, height: 210 },
   pullSpark: { position: 'absolute', top: -24, right: -15, alignItems: 'center', justifyContent: 'center' },
   pullSparkText: { color: C.gold, fontSize: 42, fontWeight: '700' },
-  pullStatus: { position: 'absolute', bottom: 2, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: '#FFF9EFDD', borderWidth: 1, borderColor: C.line },
+  pullStatus: { position: 'absolute', bottom: 2, zIndex: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: '#FFF9EFDD', borderWidth: 1, borderColor: C.line },
   pullStatusText: { color: C.red, fontSize: 11, fontFamily: 'Shippori' },
 });
