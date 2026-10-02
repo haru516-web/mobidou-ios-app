@@ -11,9 +11,12 @@ import { answerFriendRequest, fetchFriendRequests, fetchFriends, getMyFriendCode
 
 const TICKET_IMAGES: Record<GiftItem['kind'], number> = {
   keychainDrop: require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp'),
+  // TODO: replace with dedicated 木札 artwork.
+  gachaTicket: require('../../assets/gacha/box-front.webp'),
 };
 const TICKET_NAMES: Record<GiftItem['kind'], string> = {
   keychainDrop: 'ミニチュアキーホルダー引換券',
+  gachaTicket: 'ガチャ木札',
 };
 
 /** Page sheet shared by the social screens and the book index. */
@@ -111,10 +114,11 @@ function GiftCard({ gift, received, onReceive }: { gift: Gift; received: boolean
   </View>;
 }
 
-export function PresentBoxSheet({ visible, gifts, receivedIds, demo, onReceive, onClose }: { visible: boolean; gifts: readonly Gift[]; receivedIds: ReadonlySet<string>; demo: boolean; onReceive: (gift: Gift) => void; onClose: () => void }) {
+export function PresentBoxSheet({ visible, gifts, receivedIds, demo, onReceive, onClose, guide }: { guide?: string; visible: boolean; gifts: readonly Gift[]; receivedIds: ReadonlySet<string>; demo: boolean; onReceive: (gift: Gift) => void; onClose: () => void }) {
   const waiting = gifts.filter(gift => !receivedIds.has(gift.id));
   const received = gifts.filter(gift => receivedIds.has(gift.id));
   return <Sheet visible={visible} title="プレゼントボックス" onClose={onClose}>
+    {!!guide && <Text accessibilityLiveRegion="polite" style={S.sheetGuide}>{guide}</Text>}
     {!SOCIAL_ONLINE && <OfflineBanner text={demo ? 'プレゼントの配信は準備中です。体験モードではサンプルを受け取れます。' : 'プレゼントの配信は準備中です。配信が始まると、ここに届きます。'} />}
     {titled('waiting', '受け取れるプレゼント', waiting.length ? `${waiting.length}件` : undefined, waiting.map(gift => <GiftCard key={gift.id} gift={gift} received={false} onReceive={() => onReceive(gift)} />), <Empty icon="gift-outline" text="いま受け取れるプレゼントはありません" />)}
     {received.length > 0 && titled('received', '受け取り済み', undefined, received.map(gift => <GiftCard key={gift.id} gift={gift} received />), <View />)}
@@ -229,6 +233,7 @@ const S = StyleSheet.create({
   giftItems: { marginTop: 10, gap: 8 },
   giftItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, borderRadius: 12, backgroundColor: '#F6EDDF' },
   giftTicket: { width: 30, height: 44 },
+  sheetGuide: { color: C.ink, fontFamily: BRUSH, fontSize: 15, textAlign: 'center', paddingVertical: 8 },
   giftItemName: { flex: 1, color: C.ink, fontFamily: BRUSH, fontSize: 13 },
   giftItemCount: { color: C.red, fontFamily: 'ShipporiBold', fontSize: 15 },
   giftFooter: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },

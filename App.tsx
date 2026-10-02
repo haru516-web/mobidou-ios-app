@@ -9,7 +9,7 @@ import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500
 import { ShipporiMincho_700Bold } from '@expo-google-fonts/shippori-mincho/700Bold';
 import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku/400Regular';
 import { BRUSH, Button, C, Clouds, Companion, Icon, SERIF, Stamp, Torii } from './src/components';
-import { getPetCharacter, type PetId } from './src/petCatalog';
+import { getPetCharacter, isPetId, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
@@ -51,7 +51,9 @@ import { CollectionBackdrop, getHomeBackgroundMetrics, HomeAnchoredBackground } 
 
 type Tab = PrimaryTab;
 type HomePopup = 'custom' | 'moby' | null;
-type FirstRunStage = 'route' | 'character' | 'homeCompanion' | 'floatingMenu' | 'floatingDrag' | 'homeOmikuji' | 'drawOmikuji' | null;
+// Guide order: tour of the home → omikuji → the present box hands over a 木札 → the first Mobby comes from the gacha.
+type FirstRunStage = 'route' | 'homeCompanion' | 'floatingMenu' | 'floatingDrag' | 'homeOmikuji' | 'drawOmikuji' | 'presentBox' | 'gacha' | null;
+const TUTORIAL_GIFT: Gift = { id: 'tutorial-first-ticket', title: 'はじめての木札', message: 'ようこそ、もび道へ。この木札で、最初のモビーに出会えます。', from: 'もび道', items: [{ kind: 'gachaTicket', quantity: 1 }], sentAt: '2026-01-01T00:00:00.000Z' };
 const FIRST_RUN_ROUTE_ID = 'sanctuary';
 const OMIKUJI_PROMPT_KEY = '@mobidou/omikuji-prompt-day';
 // 御朱印帳 = the current pilgrimage; コレクション = everything collected so far.
@@ -233,6 +235,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const awardVisible = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal;
   // Like a UITabBarController, each tab keeps the sub-screen it was left on.
   // Local testing: closing the omikuji after a draw makes it drawable again (see devUnlock.ts).
+  useEffect(() => { if (firstRunStage === 'presentBox') { setOmikujiModal(false); setMobbyMenuOpen(false); setSocialSheet('presents'); } }, [firstRunStage]);
   const omikujiWasOpen = useRef(false);
   useEffect(() => {
     if (omikujiModal) { omikujiWasOpen.current = true; return; }
@@ -268,11 +271,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     if (firstRun) {
       setOpeningHomeReady(true);
       if (onboardingPreview) {
-        setFirstRunStage('character');
-        setHomePopup('moby');
+        setFirstRunStage('homeCompanion');
       } else if (progress.routeId) {
-        setFirstRunStage('character');
-        setHomePopup('moby');
+        setFirstRunStage('homeCompanion');
       } else {
         setFirstRunStage('route');
       }
@@ -380,19 +381,18 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   };
   const selectPilgrimageRoute = (routeId: string) => {
     const beginningFirstRun = firstRunStage === 'route';
-    if (beginningFirstRun) setFirstRunStage('character');
+    if (beginningFirstRun) setFirstRunStage('homeCompanion');
     if (!onboardingPreview) journey.selectRoute(routeId);
     setFeatured(0);
     setBookOpen(false);
     move('home');
-    if (beginningFirstRun) setHomePopup('moby');
   };
   const closeOmikuji = () => {
     if (isFirstRunOmikuji && !firstRunOmikujiComplete) return;
     setOmikujiModal(false);
     if (isFirstRunOmikuji) {
-      if (!onboardingPreview) { journey.enter(false); journey.grantWelcomePull(); }
-      setFirstRunStage(null);
+      setTutorialRect(null);
+      setFirstRunStage('presentBox');
     }
   };
   const cardInteractionPropsFor = (locked: boolean) => ({
@@ -457,8 +457,20 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     void markNoticesRead(seen).then(() => setReadNoticeIds(previous => new Set([...previous, ...seen])));
   };
   const receiveGift = (gift: Gift) => {
+    if (gift.id === TUTORIAL_GIFT.id) {
+      // The guide's own present: not saved as received, so an interrupted guide can hand it over again.
+      setSocialSheet(null);
+      if (onboardingPreview) { setFirstRunStage(null); return; }
+      journey.grantWelcomePull();
+      setFirstRunStage('gacha');
+      setGachaOpen(true);
+      return;
+    }
     if (receivedGiftIds.has(gift.id)) return;
-    gift.items.forEach(item => { for (let count = 0; count < item.quantity; count++) journey.grantPass(item.kind); });
+    gift.items.forEach(item => {
+      if (item.kind === 'gachaTicket') journey.grantTickets(item.quantity);
+      else for (let count = 0; count < item.quantity; count++) journey.grantPass(item.kind);
+    });
     setReceivedGiftIds(previous => new Set([...previous, gift.id]));
     void markGiftReceived(gift.id);
   };
@@ -650,7 +662,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
-    {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} isOwned={firstRunStage === 'character' || !hasStarter(data.mobbies) ? undefined : (id => ownsMobby(data.mobbies, id))} guided={firstRunStage === 'character'} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); if (firstRunStage === 'character') { setTutorialRect(null); setFirstRunStage('homeCompanion'); } }} onClose={() => setHomePopup(null)} />}
+    {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} isOwned={!hasStarter(data.mobbies) ? undefined : (id => ownsMobby(data.mobbies, id))} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     <TourAnchor id="nav" onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
       <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} onGacha={hasStarter(data.mobbies) && !onboardingPreview ? () => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); setGachaOpen(true); } : undefined} freePulls={data.mobbies.freePulls} />
     </TourAnchor>
@@ -662,13 +674,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} items={mobbyMenu} badge={unreadNotices + giftsWaiting} open={mobbyMenuOpen} onOpenChange={handleMobbyOpenChange} bottomInset={navHeight} spotKey={mobbySpotKey} spot={mobbySpot} resetPositionOnMount={onboardingPreview} dragLocked={firstRunStage === 'floatingMenu'} />
     </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
-    <PresentBoxSheet visible={socialSheet === 'presents'} gifts={gifts} receivedIds={receivedGiftIds} demo={data.demo} onReceive={receiveGift} onClose={() => setSocialSheet(null)} />
+    <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} onClose={() => setSocialSheet(null)} />
     <BookIndexPopup visible={bookIndexOpen} title="目次" subtitle={activeRoute?.name} shrines={activeShrines} ownedIds={collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
-    {firstRunStage === 'homeCompanion' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="5 / 9" title="ホームのモビーとふれあおう" detail="ほっぺを引っぱると伸びるよ。タップで二礼二拍手一礼。" />}
-    {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="6 / 9" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
-    {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="7 / 9" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
-    {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="8 / 9" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
+    {firstRunStage === 'homeCompanion' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="1 / 7" title="ホームのモビーとふれあおう" detail="ほっぺを引っぱると伸びるよ。タップで二礼二拍手一礼。" />}
+    {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="2 / 7" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
+    {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="3 / 7" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
+    {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="4 / 7" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
     {tour && <FeatureTour selection={tour} gacha={hasStarter(data.mobbies) && !onboardingPreview} bottomInset={navHeight} onNavigate={move} onScene={scene => setGachaOpen(scene === 'gacha')} onClose={() => { setTour(null); setGachaOpen(false); }} />}
     <Modal transparent visible={omikujiModal} animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => { if (!isFirstRunOmikuji) closeOmikuji(); }}>
       <SafeAreaView style={S.omikujiModal}>
@@ -681,7 +693,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
             {firstRunOmikujiComplete && <Button title="ホームへ進む" onPress={closeOmikuji} style={{ width: '90%', maxWidth: 330, alignSelf: 'center', marginTop: 8 }} />}
           </View>
         </View></FitToHeight>
-        {firstRunStage === 'drawOmikuji' && !omikujiDrawn && !omikujiAnimating && <TutorialSpotlightOverlay targetRect={tutorialRect} step="9 / 9" title="今日のおみくじを引こう" detail="金色の枠の「今日のおみくじを引く」をタップ" />}
+        {firstRunStage === 'drawOmikuji' && !omikujiDrawn && !omikujiAnimating && <TutorialSpotlightOverlay targetRect={tutorialRect} step="5 / 7" title="今日のおみくじを引こう" detail="金色の枠の「今日のおみくじを引く」をタップ" />}
       </SafeAreaView>
     </Modal>
 
@@ -774,7 +786,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
 
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
-    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => setGachaOpen(false)}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} owned={data.mobbies.owned} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} onFinished={journey.acknowledgeMobbyPulls} onClose={() => setGachaOpen(false)} onGoPilgrimage={() => { setGachaOpen(false); move('walk'); }} showShop={__DEV__} />}</Modal>
+    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} owned={data.mobbies.owned} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} onGoPilgrimage={() => { setGachaOpen(false); move('walk'); }} showShop={__DEV__ && firstRunStage !== 'gacha'} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
   </SafeAreaView></View>;
 }

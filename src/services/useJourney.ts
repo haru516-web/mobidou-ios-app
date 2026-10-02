@@ -5,7 +5,7 @@ import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, start
 import { getPilgrimage } from '../data/pilgrimages';
 import { connectSteps, readTodaySteps, type StepSource } from './steps';
 import { isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
-import { acknowledgePulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, type MobbyCollection } from './gacha';
+import { acknowledgePulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, type MobbyCollection } from './gacha';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
 import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
@@ -330,7 +330,12 @@ export function useJourney() {
       const mobbies = pullOnce(p.mobbies, PET_CHARACTERS.map(character => character.id), 'free');
       return mobbies === p.mobbies ? p : { ...p, mobbies };
     }),
-    /** A welcome pull when the first-run guide ends; given once per save. */
+    /** 木札 from a gift or a purchase. */
+    grantTickets: (amount: number) => change(p => {
+      const mobbies = grantTickets(p.mobbies, amount);
+      return mobbies === p.mobbies ? p : { ...p, mobbies };
+    }),
+    /** The welcome 木札 from the first-run present box; given once per save. */
     grantWelcomePull: () => change(p => {
       const mobbies = grantFreePullForClear(p.mobbies, 'welcome-gift');
       return mobbies === p.mobbies ? p : { ...p, mobbies };

@@ -85,6 +85,11 @@ export function grantFreePullForClear(collection: MobbyCollection, routeId: stri
   return { ...collection, freePulls: collection.freePulls + 1, freePullRoutes: [...collection.freePullRoutes, routeId] };
 }
 
+/** 木札 from a gift or a purchase: each one is a pull. */
+export function grantTickets(collection: MobbyCollection, amount: number): MobbyCollection {
+  return count(amount) > 0 ? { ...collection, freePulls: collection.freePulls + count(amount) } : collection;
+}
+
 /** Uniform odds for the pool, for the "提供割合" screen. */
 export const gachaOdds = (pool: readonly string[]) => pool.map(petId => ({ petId, rate: 1 / pool.length }));
 

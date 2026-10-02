@@ -15,7 +15,8 @@ import type { PassKind } from './specialRewards';
 
 export const SOCIAL_ONLINE = false;
 
-export type GiftItem = { kind: PassKind; quantity: number };
+/** `gachaTicket` is a 木札: one pull of the gacha. */
+export type GiftItem = { kind: PassKind | 'gachaTicket'; quantity: number };
 export type Gift = { id: string; title: string; message: string; from: string; items: readonly GiftItem[]; sentAt: string; expiresAt?: string };
 
 export type Friend = { id: string; name: string; petId: PetId; goshuinCount: number; routeName: string; lastActive: string };
