@@ -1,0 +1,94 @@
+[
+  {
+    "file": "nav-plate-vermilion.webp",
+    "size": [
+      192,
+      176
+    ],
+    "bytes": 41108,
+    "format": "WEBP",
+    "corner_alpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alpha_bounds": [
+      6,
+      6,
+      186,
+      170
+    ],
+    "source_crop_alpha_threshold": 16,
+    "encoding": "lossless WebP method 6"
+  },
+  {
+    "file": "nav-ema-selected.webp",
+    "size": [
+      176,
+      200
+    ],
+    "bytes": 11750,
+    "format": "WEBP",
+    "corner_alpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alpha_bounds": [
+      19,
+      4,
+      156,
+      96
+    ],
+    "source_crop_alpha_threshold": 16,
+    "encoding": "lossless WebP method 6"
+  },
+  {
+    "file": "nav-brush-top.webp",
+    "size": [
+      256,
+      40
+    ],
+    "bytes": 10150,
+    "format": "WEBP",
+    "corner_alpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alpha_bounds": [
+      6,
+      6,
+      250,
+      34
+    ],
+    "source_crop_alpha_threshold": 16,
+    "encoding": "lossless WebP method 6"
+  },
+  {
+    "file": "nav-underline-thick.webp",
+    "size": [
+      256,
+      36
+    ],
+    "bytes": 10894,
+    "format": "WEBP",
+    "corner_alpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "alpha_bounds": [
+      6,
+      5,
+      250,
+      31
+    ],
+    "source_crop_alpha_threshold": 16,
+    "encoding": "lossless WebP method 6"
+  }
+]
