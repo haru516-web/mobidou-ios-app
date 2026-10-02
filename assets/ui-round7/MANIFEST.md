@@ -36,3 +36,4 @@ Common: Production Mobidou raster UI assets. Match existing ivory washi, muted v
 | gift/gift-header-v1.webp | 128 x 128 | 8434 | transparent | ギフト | none | 28 x 28 | 生成り包み紙の贈り物と縮小して見える朱の結び目。 |
 | gift/item-row-v1.webp | 960 x 128 | 27170 | transparent | 中身の行 | 48/48 (3-slice) | 310 x 44 | 淡い生成りの敷き紙、左端24pxは少し濃い。 |
 | gift/stamp-received-v1.webp | 256 x 256 | 24252 | transparent | 受け取り済み印 | none | 64 x 64 | 中央が空いた朱の二重輪の判子。かすれと少しの傾き。 |
+| friend/avatar-ring-v1.webp | 192 x 192 | 13464 | transparent | アバター縁 | none | 64 x 64 | 墨の細い輪と外側の淡い和紙縁。中央穴154px（80%を整数pxに丸める）。 |
