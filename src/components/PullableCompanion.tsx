@@ -698,7 +698,7 @@ export function PullableCompanion({
 }
 
 const styles = StyleSheet.create({
-  companion: { alignItems: 'center', paddingTop: 12, marginHorizontal: -24, overflow: 'hidden', paddingBottom: 18 },
+  companion: { alignItems: 'center', paddingTop: 12, marginHorizontal: -24, paddingBottom: 18, zIndex: 10 },
   // A hand-torn washi bubble; the tail is part of the picture, so text sits above its bottom fifth.
   bubble: { width: 300, maxWidth: '92%', minHeight: 76, paddingHorizontal: 30, paddingTop: 9, paddingBottom: 23, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   bubbleText: { fontFamily: 'Shippori', fontSize: 13, color: '#5D554A', textAlign: 'center' },

@@ -588,7 +588,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         {firstRunStage === 'homeOmikuji'
           ? <View style={S.homeTutorialIntro}><Text style={S.chapter}>つぎは、おみくじを引こう。</Text></View>
           : <>
-            <TourAnchor id="home-companion" onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? undefined : { transform: [{ translateY: homeCharacterShiftY }] }}>
+            <TourAnchor id="home-companion" onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? { zIndex: 20 } : { zIndex: 20, transform: [{ translateY: homeCharacterShiftY }] }}>
               <TutorialTarget active={firstRunStage === 'homeCompanion'} onRectChange={setTutorialRect}>
                 <View>
                   <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
