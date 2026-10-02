@@ -23,3 +23,4 @@ Common: Production Mobidou raster UI assets. Match existing ivory washi, muted v
 | sheet/sheet-bg-v1.webp | 1170 x 2532 | 223092 | opaque | シート背景 | none | 390 x 844 | 明るい中央と少し濃い左右縁の静かな和紙面。 |
 | sheet/sheet-header-v1.webp | 1536 x 192 | 33902 | opaque | ヘッダー | 96/96 (3-slice) | 390 x 76 | 全面生成り和紙、まっすぐな上端、下端に細い墨のかすれ線。 |
 | sheet/section-plate-v1.webp | 480 x 72 | 15810 | transparent | 見出し | 36/36 (3-slice) | 240 x 36 | 淡い和紙短冊と左端の小さい朱点。 |
+| empty/empty-notices-v1.webp | 256 x 192 | 12496 | transparent | 空状態・通知 | none | 128 x 96 | 静かな鈴、右下方向の薄い輪郭接地影。 |
