@@ -20,7 +20,7 @@ export function HomeStatusBar({ tickets, miniaturePasses, onAddTickets, onAddPas
   const badge = (label: string, count: number, icon: React.ReactNode, onAdd?: () => void) => <View accessible={false} style={S.badge}>
     <SlicedArt name="buttonSecondary" />
     <View style={S.content}>
-      {onAdd && <WashiPressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel={label + 'を購入する'} onPress={onAdd} hitSlop={6} style={S.plus}><Icon name="add" size={14} color="#7f302d" /></WashiPressable>}
+      {onAdd && <WashiPressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel={label + 'を購入する'} onPress={onAdd} hitSlop={6} style={S.plus}><Icon name="add" size={13} color="#7f302d" /></WashiPressable>}
       <View accessible accessibilityRole="text" accessibilityLabel={label + ' ' + count + '枚'} style={S.value}>{icon}<Text style={S.count}>{count}</Text></View>
     </View>
   </View>;
@@ -31,11 +31,11 @@ export function HomeStatusBar({ tickets, miniaturePasses, onAddTickets, onAddPas
 }
 
 const S = StyleSheet.create({
-  bar: { flexDirection: 'row', gap: 4, height: 40, flexShrink: 1 },
-  badge: { width: 82, height: 40, justifyContent: 'center' },
-  content: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 6, paddingRight: 8 },
-  plus: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  bar: { flexDirection: 'row', gap: 3, height: 40, flexShrink: 1 },
+  badge: { width: 68, height: 40, justifyContent: 'center' },
+  content: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingLeft: 5, paddingRight: 5 },
+  plus: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
   value: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
-  icon: { width: 20, height: 22 },
+  icon: { width: 18, height: 20 },
   count: { color: C.ink, fontSize: 13, fontVariant: ['tabular-nums'] },
 });
