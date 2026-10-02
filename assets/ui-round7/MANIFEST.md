@@ -30,3 +30,4 @@ Common: Production Mobidou raster UI assets. Match existing ivory washi, muted v
 | notice/notice-todo-v1.webp | 128 x 128 | 6512 | transparent | やること | none | 38 x 38 | 朱漆の丸と白い短い筆のはね。文字に見える曲線を避ける。 |
 | notice/notice-status-v1.webp | 128 x 128 | 7232 | transparent | いまの旅 | none | 38 x 38 | 藍墨の丸と白い小さい足跡。 |
 | notice/notice-event-v1.webp | 128 x 128 | 7366 | transparent | できごと | none | 38 x 38 | 生成り和紙の丸と小さい朱の花。 |
+| notice/unread-dot-v1.webp | 64 x 64 | 2770 | transparent | 未読点 | none | 10 x 10 | 少し輪郭が揺れる朱の墨点。 |
