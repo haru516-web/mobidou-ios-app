@@ -30,8 +30,16 @@ const hasRoundedCorners = (style: ViewStyle) => Object.keys(style).some(key => /
 export function Image({ source, style, contentFit = 'cover', tintColor, transition: _transition, contentPosition: _position, onLoad, onError, ...view }: AppImageProps) {
   const flat = (StyleSheet.flatten(style) ?? {}) as ViewStyle & { tintColor?: string };
   const tint = tintColor ?? flat.tintColor;
+  // The core Image restarts its load whenever its callbacks change. Callers pass inline handlers that set state, so
+  // forwarding them directly made every load re-render the parent, restart the load and loop without end.
+  const loadRef = React.useRef(onLoad);
+  const errorRef = React.useRef(onError);
+  loadRef.current = onLoad;
+  errorRef.current = onError;
+  const handleLoad = React.useCallback(() => loadRef.current?.(), []);
+  const handleError = React.useCallback(() => errorRef.current?.(), []);
   return <View {...view} style={[style, hasRoundedCorners(flat) ? { overflow: 'hidden' } : null]}>
-    <CoreImage accessible={false} source={source} resizeMode={RESIZE_MODE[contentFit]} onLoad={onLoad ? () => onLoad() : undefined} onError={onError ? () => onError() : undefined} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} />
+    <CoreImage accessible={false} source={source} resizeMode={RESIZE_MODE[contentFit]} onLoad={onLoad ? handleLoad : undefined} onError={onError ? handleError : undefined} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} />
   </View>;
 }
 

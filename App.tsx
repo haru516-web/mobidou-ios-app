@@ -3,6 +3,7 @@ import { ActivityIndicator, Animated, Easing, Modal, Platform, StyleSheet, Text,
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from './src/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500Medium';
 import { ShipporiMincho_700Bold } from '@expo-google-fonts/shippori-mincho/700Bold';
@@ -42,6 +43,7 @@ import type { CustomHomeWidgetId } from './src/services/homePreferences';
 import { OmikujiExperience } from './src/components/OmikujiExperience';
 import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './src/components/TutorialSpotlight';
 import { fortuneForDay, localOmikujiDay } from './src/data/omikuji';
+import { milestoneCount, milestoneLine, milestoneMessage } from './src/services/milestones';
 import { AccountCenter, type AccountPage } from './src/components/AccountCenter';
 import { Close, M } from './src/components/ModalParts';
 import { SettingsModal } from './src/components/SettingsModal';
@@ -52,6 +54,7 @@ type Tab = PrimaryTab;
 type HomePopup = 'custom' | 'moby' | null;
 type FirstRunStage = 'route' | 'character' | 'homeCompanion' | 'floatingMenu' | 'floatingDrag' | 'homeOmikuji' | 'drawOmikuji' | null;
 const FIRST_RUN_ROUTE_ID = 'sanctuary';
+const OMIKUJI_PROMPT_KEY = '@mobidou/omikuji-prompt-day';
 // 御朱印帳 = the current pilgrimage; コレクション = everything collected so far.
 // Each tab is one integrated page; pop buttons jump to a section instead of
 // switching views (no segmented tabs).
@@ -163,7 +166,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [guidedRoutePresented, setGuidedRoutePresented] = useState(false);
   const [routePickerAfterCompletion, setRoutePickerAfterCompletion] = useState(false);
   const [promptedCompletedRouteId, setPromptedCompletedRouteId] = useState<string | null>(null);
-  const promptedOmikujiHomeEntry = useRef(false);
   const [bookOpen, setBookOpen] = useState(false);
   const [bookIndexOpen, setBookIndexOpen] = useState(false);
   const [petSelectionReaction, setPetSelectionReaction] = useState(0);
@@ -342,6 +344,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const previousPointSteps = nextIndex >= 0
     ? (nextIndex === 0 ? 0 : (pointTargets[nextIndex - 1] ?? 0))
     : (pointTargets.at(-1) ?? 0);
+  const previousPointName = (nextIndex === 0 || activeShrines.length === 0) ? '出発' : (activeShrines[(nextIndex < 0 ? activeShrines.length : nextIndex) - 1]?.name ?? '出発');
   const homeStepProgress = homeNextPointSteps === null
     ? 1
     : (routeSteps - previousPointSteps) / Math.max(1, nextTarget - previousPointSteps);
@@ -367,7 +370,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     : homeCushionContentY + HOME_CHARACTER_CUSHION_FOOT_INSET - (homeCompanionLayout.y + homeStageLayout.y + homeStageLayout.height);
   // Mobby rests where it covers the least on each screen; the person can still
   // park it elsewhere, and that is remembered per screen.
-  const walkRingSize = Math.max(150, Math.min(248, scrollViewportHeight - 330));
+  const walkRingSize = Math.max(120, Math.min(248, scrollViewportHeight - 392));
   const mobbySpotKey = tab === 'walk' ? (mapOpen ? 'walk-map' : 'walk') : tab === 'collection' ? `collection-${collectionPage}` : tab;
   const contentTop = homeScrollLayout?.y ?? 64;
   const mobbySpot: MobbySpot = tab === 'home'
@@ -395,7 +398,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     if (isFirstRunOmikuji && !firstRunOmikujiComplete) return;
     setOmikujiModal(false);
     if (isFirstRunOmikuji) {
-      if (!onboardingPreview) journey.enter(false);
+      if (!onboardingPreview) { journey.enter(false); journey.grantWelcomePull(); }
       setFirstRunStage(null);
     }
   };
@@ -432,7 +435,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const renderHomeWidget = (widget: CustomHomeWidgetId, slot: number) => {
     const selectedShrine = COLLECTION_SHRINES.find(shrine => shrine.id === data.homeWidgetItems[slot]) ?? latest;
     if (widget === 'goshuin') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-goshuin-${slot}`} artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${selectedShrine.name}の御朱印。詳しく見る`} onPress={() => setDetail(selectedShrine)} style={[S.homeWidgetCard, { height: homeCardHeight }, S.homeGoshuinOnlyCard, homeDropTarget === slot && S.homeWidgetDropTarget]}>
-      <HomeGoshuinArtwork source={STAMP_IMAGES[selectedShrine.id]} background={currentBackground.image} />
+      <HomeGoshuinArtwork source={STAMP_IMAGES[selectedShrine.id]} owned={collectionRewardIds.includes(selectedShrine.id)} background={currentBackground.image} />
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
     if (widget === 'miniature') return <TutorialTarget key={`${widget}-${slot}`} active={firstRunStage === 'homeOmikuji'} onRectChange={setTutorialRect} style={[S.homeOmikujiTargetWrapper, { height: homeCardHeight }]}>
@@ -448,7 +451,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     return null;
   };
   const renderHomeStepsCard = () => <Pressable nativeID="home-widget-steps" artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`歩数。今日${fmt(todaySteps)}歩。累計${fmt(totalSteps)}歩。${homeNextPointLabel ? `${homeNextPointLabel}。` : ''}おでかけをひらく`} onPress={() => openSection('walk')} style={S.homeStepsCard}>
-    <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} nextPointSteps={homeNextPointSteps} />
+    <HomeStepsArtwork horizontal petId={pet.id} petImage={pet.image} progress={homeStepProgress} steps={routeSteps} todaySteps={todaySteps} totalSteps={totalSteps} previousPointSteps={previousPointSteps} previousPointName={previousPointName} nextPointSteps={homeNextPointSteps} />
   </Pressable>;
   useEffect(() => () => { if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current); }, []);
   // 通知: things to do now, where the journey stands, and what happened.
@@ -459,6 +462,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     ...(!activeRoute ? [{ id: 'todo:route', kind: 'todo' as const, icon: 'map-outline' as const, title: '巡礼を選ぼう', body: 'これから辿る巡礼を選ぶと、旅が始まります。', actionLabel: '巡礼を選ぶ', onAction: () => setRoutePicker(true) }] : []),
     ...(activeRoute && progress.completedAt ? [{ id: `todo:complete:${activeRoute.id}:${progress.completedAt}`, kind: 'todo' as const, icon: 'ribbon-outline' as const, title: `${activeRoute.name}を結願しました`, body: '次の巡礼へ出かけましょう。', actionLabel: '次の巡礼を選ぶ', onAction: openNextRoutePicker }] : []),
     ...(!omikujiDrawn ? [{ id: `todo:omikuji:${omikujiDay}`, kind: 'todo' as const, icon: 'document-text-outline' as const, title: '今日のおみくじを引こう', body: '一日一度のご縁です。', actionLabel: 'おみくじを引く', onAction: () => { move('home'); setOmikujiModal(true); } }] : []),
+    ...(hasStarter(data.mobbies) && data.mobbies.freePulls > 0 ? [{ id: `todo:gacha:${data.mobbies.freePulls}`, kind: 'todo' as const, icon: 'gift-outline' as const, title: 'ガチャを引けます', body: `無料で引けるのは${data.mobbies.freePulls}回です。新しいモビーに出会えます。`, actionLabel: 'ガチャをひらく', onAction: () => setGachaOpen(true) }] : []),
     ...(data.source === 'none' && !data.demo ? [{ id: 'todo:steps', kind: 'todo' as const, icon: 'footsteps-outline' as const, title: '歩数を連携しよう', body: '歩いた分だけ、巡礼が進みます。', actionLabel: '歩数を連携する', onAction: () => void journey.connect() }] : []),
     ...(activeRoute && next ? [{ id: 'status:next', kind: 'status' as const, icon: 'navigate-outline' as const, title: `次は${next.name}まで あと${fmt(stepsLeft)}歩`, body: activeRoute.name, actionLabel: '巡礼絵図を見る', onAction: () => openSection('walk', 'walkMap') }] : []),
     ...collected.map((shrine, index) => ({ shrine, index, reward: view.rewards[index] })).reverse().map(({ shrine, index, reward }) => ({ id: `event:reward:${recordPrefix}:${activeRoute?.id ?? ''}:${reward?.id ?? shrine.id}`, kind: 'event' as const, icon: 'flower-outline' as const, title: `${shrine.name}の御朱印を授かりました`, date: reward ? displayDate(reward.date) : undefined, actionLabel: '御朱印を見る', onAction: () => { setFeatured(index); setDetail(shrine); } })),
@@ -493,15 +497,41 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     setAccountEntryVisible(true);
   }, [accountPreview, journey.ready]);
   useEffect(() => { if (openingHomeReady && journey.ready && !settings && !accountEntryVisible && !progress.routeId && (firstRunStage === null || firstRunStage === 'route')) setRoutePicker(true); }, [openingHomeReady, journey.ready, settings, accountEntryVisible, progress.routeId, data.demo, firstRunStage]);
+  // 道しるべ: a marker every 1,000 steps. The last one seen is kept per route, so steps walked while the app was closed are announced too.
+  const [milestoneToast, setMilestoneToast] = useState<string | null>(null);
+  const milestoneKey = `@mobidou/milestone/${routePrefix}${progress.routeId ?? ''}`;
+  const currentMilestones = milestoneCount(routeSteps);
   useEffect(() => {
-    if (tab !== 'home') {
-      promptedOmikujiHomeEntry.current = false;
-      return;
-    }
-    if (promptedOmikujiHomeEntry.current || !openingHomeReady || openingVisible || !journey.ready || routePicker || !progress.routeId || firstRunStage !== null) return;
-    promptedOmikujiHomeEntry.current = true;
-    if (!omikujiDrawn) setOmikujiModal(true);
-  }, [tab, openingHomeReady, openingVisible, journey.ready, routePicker, progress.routeId, omikujiDrawn, firstRunStage]);
+    if (!journey.ready || !progress.routeId || !data.onboarded || firstRunStage !== null) return undefined;
+    let active = true;
+    void AsyncStorage.getItem(milestoneKey).then(raw => {
+      if (!active) return;
+      const last = raw === null ? null : Number(raw);
+      if (last === currentMilestones) return;
+      void AsyncStorage.setItem(milestoneKey, String(currentMilestones)).catch(() => undefined);
+      // The first reading, a restart of the route, or a shrine arrival (its own ceremony) is not announced.
+      if (last === null || !Number.isFinite(last) || currentMilestones < last || progress.pending.length > 0 || homeNextPointSteps === null) return;
+      setMilestoneToast(`${milestoneMessage(currentMilestones, homeNextPointSteps)}\n${pet.name}「${milestoneLine(currentMilestones)}」`);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [journey.ready, milestoneKey, currentMilestones, progress.routeId, progress.pending.length, data.onboarded, firstRunStage]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!milestoneToast) return undefined;
+    const timer = setTimeout(() => setMilestoneToast(null), 6000);
+    return () => clearTimeout(timer);
+  }, [milestoneToast]);
+  // The first launch on each new day opens the omikuji once; after that it is only drawn from its card or a notice.
+  const omikujiDayChecked = useRef(false);
+  useEffect(() => {
+    if (omikujiDayChecked.current || tab !== 'home' || !openingHomeReady || openingVisible || !journey.ready || routePicker || !progress.routeId || firstRunStage !== null || !data.onboarded) return;
+    omikujiDayChecked.current = true;
+    if (omikujiDrawn) return;
+    void AsyncStorage.getItem(OMIKUJI_PROMPT_KEY).then(last => {
+      if (last === omikujiDay) return;
+      void AsyncStorage.setItem(OMIKUJI_PROMPT_KEY, omikujiDay).catch(() => undefined);
+      setOmikujiModal(true);
+    }).catch(() => undefined);
+  }, [tab, openingHomeReady, openingVisible, journey.ready, routePicker, progress.routeId, omikujiDrawn, omikujiDay, firstRunStage, data.onboarded]);
   useEffect(() => {
     if (!(openingHomeReady && !openingVisible && !omikujiModal && progress.routeId && view.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId)) return undefined;
     // Wait for the omikuji (opened on entering the home) and the award screen to finish closing: iOS silently drops a modal that is presented in the
@@ -562,6 +592,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <TourAnchor id="header-settings"><Pressable plate="round" artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable></TourAnchor>
       </View>
     </View>
+    {!!milestoneToast && <Pressable artwork={false} accessibilityRole="alert" accessibilityLabel={milestoneToast.replace('\n', '。')} onPress={() => setMilestoneToast(null)} style={S.milestoneToast}><Text style={S.milestoneTitle}>{milestoneToast.split('\n')[0]}</Text><Text style={S.milestoneLine}>{milestoneToast.split('\n')[1]}</Text></Pressable>}
     {!!journey.error && <View style={M.error}><Text style={M.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
     <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={[S.content, tab === 'home' && S.homeContent]}>
       {tab === 'home' && <>
@@ -620,6 +651,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           : <View style={S.walkMinimal}>
             <TourAnchor id="walk-ring"><StepProgressRing steps={routeSteps} goal={nextTarget} size={walkRingSize} /></TourAnchor>
             <PillText textStyle={S.walkCaption}>{view.completedAt ? '結願しました。次の巡礼へ出かけましょう。' : next ? `次は ${next.name} · あと ${fmt(stepsLeft)}歩` : 'この巡礼のすべてのご縁を結びました。'}</PillText>
+            <View accessibilityLabel={`今日の足あと。${[3000, 5000, 8000].filter(goal => todaySteps >= goal).length}/3`} style={S.footprintRow}>
+              {[3000, 5000, 8000].map(goal => <View key={goal} style={[S.footprint, todaySteps >= goal && S.footprintDone]}><Text style={[S.footprintMark, todaySteps >= goal && S.footprintMarkDone]}>{todaySteps >= goal ? '❀' : '○'}</Text><Text style={S.footprintText}>{fmt(goal)}歩</Text></View>)}
+            </View>
             {/* The companion peeks over the main action, as on the old steps card. */}
             {activeRoute && <TourAnchor id="walk-action" style={S.nextPilgrimageAction}>
               {view.completedAt
@@ -769,12 +803,21 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
 
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
-    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => setGachaOpen(false)}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} haptics={data.haptics} onDraw={journey.drawFreeMobby} onFinished={journey.acknowledgeMobbyPulls} onClose={() => setGachaOpen(false)} showShop={__DEV__} />}</Modal>
+    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => setGachaOpen(false)}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} owned={data.mobbies.owned} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} onFinished={journey.acknowledgeMobbyPulls} onClose={() => setGachaOpen(false)} showShop={__DEV__} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
   </SafeAreaView></View>;
 }
 
 const S = StyleSheet.create({
+  milestoneToast: { position: 'absolute', top: 64, left: 16, right: 16, zIndex: 80, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#FFF9EFF2', borderWidth: 1, borderColor: '#C7A98A', alignItems: 'center', gap: 3, shadowColor: '#2A1D14', shadowOpacity: .2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 },
+  milestoneTitle: { color: C.red, fontFamily: BRUSH, fontSize: 14, textAlign: 'center' },
+  milestoneLine: { color: '#4E4034', fontSize: 12, textAlign: 'center' },
+  footprintRow: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  footprint: { alignItems: 'center', minWidth: 58, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, backgroundColor: '#FFF9EFE0', borderWidth: 1, borderColor: '#D9C7AE' },
+  footprintDone: { backgroundColor: '#F4E1D6', borderColor: '#B84C3D' },
+  footprintMark: { fontSize: 15, color: '#B7A58F' },
+  footprintMarkDone: { color: '#B84C3D' },
+  footprintText: { fontSize: 10, color: '#6F675B' },
   pageTop: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -4, marginBottom: 8 },
   pageTopText: { flex: 1, paddingRight: 4 },
   pageEyebrow: { color: C.red, fontSize: 12, fontWeight: '700', letterSpacing: 1, textShadowColor: '#FFF9EF', textShadowRadius: 6 },

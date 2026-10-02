@@ -330,6 +330,11 @@ export function useJourney() {
       const mobbies = pullOnce(p.mobbies, PET_CHARACTERS.map(character => character.id), 'free');
       return mobbies === p.mobbies ? p : { ...p, mobbies };
     }),
+    /** A welcome pull when the first-run guide ends; given once per save. */
+    grantWelcomePull: () => change(p => {
+      const mobbies = grantFreePullForClear(p.mobbies, 'welcome-gift');
+      return mobbies === p.mobbies ? p : { ...p, mobbies };
+    }),
     /** The reveal is over. */
     acknowledgeMobbyPulls: () => change(p => { const mobbies = acknowledgePulls(p.mobbies); return mobbies === p.mobbies ? p : { ...p, mobbies }; }),
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),

@@ -6,9 +6,9 @@ import type { PetId } from '../petCatalog';
 import type { OmikujiFortune } from '../data/omikuji';
 import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_FRAME_WIDTH, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
-import { OmikujiResultContent } from './OmikujiResultCard';
 import { CroppedArt } from './CroppedArt';
 import { SlicedArt } from './SlicedArt';
+import { LockTag } from './LockTag';
 import { UI_ART } from '../data/uiArt';
 
 // Hand-torn washi plates the home cards sit on (bounds are the paper's share of each picture).
@@ -21,24 +21,27 @@ const PLATE_OMIKUJI_BOUNDS = { x0: .02, x1: .975, y0: .013, y1: .986 };
 
 const OMIKUJI_DRAW_CYLINDER = require('../../assets/ui-round3/omikuji/omikuji-draw-cylinder-v1.webp');
 
-export function HomeGoshuinArtwork({ source }: { source: ImageSourcePropType; background?: ImageSourcePropType }) {
+export function HomeGoshuinArtwork({ source, owned = true }: { source: ImageSourcePropType; owned?: boolean; background?: ImageSourcePropType }) {
   return <View pointerEvents="none" style={S.artworkStage}>
     <CroppedArt source={PLATE_GOSHUIN} bounds={PLATE_GOSHUIN_BOUNDS} />
-    <View style={S.goshuinOnPlate}><Image accessible={false} source={source} contentFit="contain" style={S.goshuinStamp} /></View>
+    <View style={S.goshuinOnPlate}><Image accessible={false} source={source} contentFit="contain" style={[S.goshuinStamp, !owned && S.goshuinLocked]} /></View>
+    {!owned && <LockTag size={40} style={S.goshuinLock} />}
   </View>;
 }
 
 export function HomeOmikujiArtwork({ fortune }: { fortune: OmikujiFortune | null; petName: string }) {
   return <View pointerEvents="none" style={S.omikujiStage}>
     <CroppedArt source={PLATE_OMIKUJI} bounds={PLATE_OMIKUJI_BOUNDS} />
-    {fortune
-      ? <View style={S.omikujiResultContentViewport}><View style={S.omikujiResultContentScale}><OmikujiResultContent fortune={fortune} /></View></View>
-      : <View style={S.omikujiContent}>
-        <Text style={S.omikujiMessage}>おみくじを引けるよ</Text>
-        <View style={S.omikujiPreDrawHero}>
-          <Image accessible={false} source={OMIKUJI_DRAW_CYLINDER} contentFit="contain" style={S.omikujiDrawCylinder} />
-        </View>
+    <View style={S.omikujiContent}>
+      <Text style={S.omikujiMessage}>{fortune ? '本日のご縁みくじ' : 'おみくじを引けるよ'}</Text>
+      <View style={S.omikujiPreDrawHero}>
+        <Image accessible={false} source={OMIKUJI_DRAW_CYLINDER} contentFit="contain" style={S.omikujiDrawCylinder} />
+      </View>
+      {fortune && <View style={S.omikujiRankBox}>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={S.omikujiRank}>{fortune.rank}</Text>
+        <Text numberOfLines={1} style={S.omikujiRankTitle}>{fortune.title}</Text>
       </View>}
+    </View>
   </View>;
 }
 
@@ -84,7 +87,7 @@ function NeutralWalkingSprite({ source }: { source: ImageSourcePropType }) {
   </Animated.View>;
 }
 
-export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps = steps, totalSteps = steps, previousPointSteps = 0, nextPointSteps, horizontal = false }: { petId: PetId; petImage: ImageSourcePropType; progress: number; steps: number; todaySteps?: number; totalSteps?: number; previousPointSteps?: number; nextPointSteps: number | null; horizontal?: boolean }) {
+export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps = steps, totalSteps = steps, previousPointSteps = 0, previousPointName = '出発', nextPointSteps, horizontal = false }: { previousPointName?: string; petId: PetId; petImage: ImageSourcePropType; progress: number; steps: number; todaySteps?: number; totalSteps?: number; previousPointSteps?: number; nextPointSteps: number | null; horizontal?: boolean }) {
   const [frame, setFrame] = useState(0);
   const walkSource = PILGRIMAGE_WALK_ATLASES[petId];
   const ratio = Math.max(0, Math.min(1, progress));
@@ -104,7 +107,7 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
         <View style={S.stepsLine}><SlicedArt name="progressTrack" /></View>
         <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]}><SlicedArt name="progressFill" /></View>
         <Image accessible={false} source={UI_ART.progressPoint.source} contentFit="contain" style={[S.stepsPoint, { left: `${ratio * 100}%` }]} />
-        <Text style={S.stepsPreviousLabel}>前回地点 {previousPointSteps.toLocaleString('ja-JP')}歩</Text>
+        <Text numberOfLines={1} style={S.stepsPreviousLabel}>{previousPointName} {previousPointSteps.toLocaleString('ja-JP')}歩</Text>
         {nextPointSteps !== null && <Text style={S.stepsNextLabel}>次まで あと{nextPointSteps.toLocaleString('ja-JP')}歩</Text>}
         <View style={[S.stepsSpriteAnchor, { left: `${spriteRatio * 100}%` }]}>
           {walkSource ? <WalkSprite source={walkSource} frame={frame} /> : <NeutralWalkingSprite source={petImage} />}
@@ -132,6 +135,8 @@ const S = StyleSheet.create({
   artworkStage: { flex: 1, width: '100%', position: 'relative' },
   goshuinOnPlate: { flex: 1, paddingHorizontal: '13%', paddingVertical: '9%' },
   goshuinStamp: { width: '100%', height: '100%' },
+  goshuinLocked: { opacity: .28 },
+  goshuinLock: { position: 'absolute', right: '14%', bottom: '10%' },
   omikujiStage: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', paddingHorizontal: '5%', paddingVertical: '3%' },
   omikujiResultContentViewport: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   omikujiResultContentScale: { width: '189%', transform: [{ scale: 0.53 }] },
@@ -139,6 +144,9 @@ const S = StyleSheet.create({
   omikujiPreDrawHero: { flex: 1, minHeight: 0, width: '100%', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   omikujiDrawCylinder: { width: '100%', height: '100%' },
   omikujiMessage: { width: '100%', color: '#5E5045', fontFamily: BRUSH, textAlign: 'center', fontSize: 11, lineHeight: 15, marginTop: 2 },
+  omikujiRankBox: { alignItems: 'center', width: '100%', paddingBottom: 2 },
+  omikujiRank: { color: '#A54E42', fontFamily: BRUSH, fontSize: 34, lineHeight: 40 },
+  omikujiRankTitle: { color: '#3D3028', fontFamily: BRUSH, fontSize: 11, marginTop: 1 },
   omikujiLucky: { color: '#79685A', fontSize: 9, lineHeight: 8, marginTop: 1 },
   artworkImage: { ...StyleSheet.absoluteFillObject },
   cardBackground: { ...StyleSheet.absoluteFillObject },
@@ -148,7 +156,7 @@ const S = StyleSheet.create({
   stepsStageHorizontal: { minHeight: 126 },
   stepsHorizontalContent: { flex: 1, position: 'relative', zIndex: 1 },
   stepsTrack: { position: 'absolute', left: 22, right: 22, top: 58, height: 62 },
-  stepsPreviousLabel: { position: 'absolute', left: 0, top: -6, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 10 },
+  stepsPreviousLabel: { position: 'absolute', left: 0, top: -6, maxWidth: '48%', color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 10 },
   stepsPreviousValue: { position: 'absolute', left: 0, top: 38, color: '#766452', fontSize: 10 },
   stepsNextLabel: { position: 'absolute', right: 0, top: -6, color: '#5D493B', fontFamily: 'ShipporiBold', fontSize: 10, textAlign: 'right' },
   stepsNextValue: { position: 'absolute', right: 0, top: 38, color: '#766452', fontSize: 10, textAlign: 'right' },

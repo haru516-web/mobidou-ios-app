@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
-import { getPetCharacter, isPetId } from '../petCatalog';
+import { getPetCharacter, isPetId, PET_CHARACTERS } from '../petCatalog';
+import { Image as GachaImage } from './AppImage';
 import { GachaShop } from './GachaShop';
 import { SlicedArt } from './SlicedArt';
 import { GACHA_UI_ART } from '../data/gachaUiArt';
@@ -35,6 +36,10 @@ type Props = {
   showShop?: boolean;
   /** Start a purchase from the shop tab; without it the shop's buttons are inactive. */
   onBuy?: (product: ShopProduct) => void;
+  /** Copies held of each Mobby; when given, the empty state shows who has been met. */
+  owned?: Record<string, number>;
+  /** What to do to earn the next pull, shown when there is nothing to pull. */
+  nextHint?: string;
 };
 
 /** Render supplied artwork without stretching its canvas. */
@@ -44,7 +49,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy }: Props) {
+export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, owned, nextHint }: Props) {
   const [tab, setTab] = useState<'draw' | 'shop'>('draw');
   // The scene fills the screen edge to edge, but the title, tabs and buttons keep clear of the notch and the home indicator.
   const insets = useSafeAreaInsets();
@@ -454,7 +459,22 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       {zoomT > 0 && <RNImage accessible={false} source={pet.image} resizeMode="contain" style={{ position: 'absolute', width: bigSize, height: bigSize, left: (width - bigSize) / 2, top: bigTop, opacity: Math.min(1, zoomT * 1.6), transform: [{ scale: .55 + .45 * zoomT + .08 * Math.sin(Math.min(1, zoomT) * Math.PI) }] }} />}
     </Pressable>}
 
-    {shopOpen && <View style={[S.shop, { top: 128 + insets.top, bottom: 84 + insets.bottom }]}><GachaShop onBuy={onBuy} /></View>}
+    {/* With nothing to pull, show who has been met and the odds instead of an empty curtain. */}
+    {!playing && !shopOpen && freePulls <= 0 && owned && <View style={[S.roster, { top: 112 + insets.top, bottom: 190 + insets.bottom }]}>
+      <Text accessibilityRole="header" style={S.rosterTitle}>出会ったモビー　{PET_CHARACTERS.filter(pet => (owned[pet.id] ?? 0) > 0).length} / {PET_CHARACTERS.length}</Text>
+      <View style={S.rosterGrid}>
+        {PET_CHARACTERS.map(pet => {
+          const copies = owned[pet.id] ?? 0;
+          return <View key={pet.id} accessible accessibilityLabel={copies > 0 ? `${pet.name}。${copies}体` : 'まだ出会っていません'} style={S.rosterCell}>
+            <GachaImage accessible={false} source={pet.image} contentFit="contain" tintColor={copies > 0 ? undefined : '#8A7660'} style={[S.rosterImage, copies === 0 && { opacity: .6 }]} />
+            {copies > 1 && <Text style={S.rosterCount}>×{copies}</Text>}
+          </View>;
+        })}
+      </View>
+      <Text style={S.rosterOdds}>どのモビーも同じ確率（{PET_CHARACTERS.length}分の1）で出会えます</Text>
+    </View>}
+
+    {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: 84 + insets.bottom }]}><GachaShop onBuy={onBuy} /></View>}
 
     {shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 
@@ -464,7 +484,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
           <Text style={S.small}>無料で引ける回数 {freePulls}回</Text>
           <Button title="ひもを引く" onPress={requestDraw} style={S.wide} />
         </>
-        : <Text style={S.prompt}>いま引けるご縁はありません。{'\n'}巡礼を結願すると、ひとつ引けます。</Text>}
+        : <Text style={S.prompt}>いま引けるご縁はありません。{'\n'}{nextHint ?? '巡礼を結願すると、ひとつ引けます。'}</Text>}
       <Button title="とじる" secondary onPress={onClose} style={S.wide} />
     </View>}
 
@@ -511,4 +531,11 @@ const S = StyleSheet.create({
   hint: { color: '#BFA982', fontSize: 11, letterSpacing: 1.5, textAlign: 'center' },
   badge: { color: '#F6D9A3', fontFamily: SERIF, fontSize: 13, letterSpacing: 1, textAlign: 'center' },
   wide: { width: '100%', maxWidth: 350 },
+  roster: { position: 'absolute', left: 16, right: 16, padding: 14, borderRadius: 16, backgroundColor: '#211A13E6', alignItems: 'center', gap: 10 },
+  rosterTitle: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 18 },
+  rosterGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+  rosterCell: { width: 52, height: 52 },
+  rosterImage: { width: 52, height: 52 },
+  rosterCount: { position: 'absolute', right: 0, bottom: 0, color: '#FFF5E2', fontSize: 10, fontWeight: '700', backgroundColor: '#A54E42', borderRadius: 8, paddingHorizontal: 4 },
+  rosterOdds: { color: '#D5BD98', fontSize: 11, textAlign: 'center' },
 });
