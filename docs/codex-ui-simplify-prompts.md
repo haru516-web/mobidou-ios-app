@@ -20,7 +20,12 @@
 
 ## 作業ルール(最初に渡す)
 
-- ワークツリー: `D:/mobby/mobidou-ui-codex`(ブランチ `codex/ui-simplify`)。基点は `claude/ui-navigation-overhaul` の最新。
+- **ワークツリーとブランチは Codex 自身が作る**(最初の作業)。
+  1. `D:/mobby/mobidou-claude` で `git worktree add D:/mobby/mobidou-ui-codex -b codex/ui-simplify claude/ui-navigation-overhaul` を実行する(基点は `claude/ui-navigation-overhaul` の最新コミット)。同名のワークツリー・ブランチがすでにあれば、中身を確認してから再利用する。
+  2. 依存は新規インストールせず、`D:/mobby/mobidou-claude/node_modules` へのジャンクションを `D:/mobby/mobidou-ui-codex/node_modules` に作って共有する(PowerShell: `New-Item -ItemType Junction -Path D:mobbymobidou-ui-codex
+ode_modules -Target D:mobbymobidou-claude
+ode_modules`)。
+  3. 以降の作業・コミットはすべて `D:/mobby/mobidou-ui-codex` で行う。`D:/mobby/mobidou-claude` のファイルは編集しない(Claude の作業場所)。
 - **触ってはいけないファイル**(Claude が同時に書き換える)
   - `App.tsx`
   - `src/components/GachaScreen.tsx`、`GachaShop.tsx`、`HomeNavigation.tsx`、`FeatureTour.tsx`
@@ -118,8 +123,8 @@ export function HomeStatusBar(props: {
 # 簡易プロンプト(Codex にそのまま貼る用)
 
 ```
-ワークツリー D:/mobby/mobidou-ui-codex(ブランチ codex/ui-simplify)で作業してください。
-詳しい指示は docs/codex-ui-simplify-prompts.md にあります。最初に読み、C0〜C3 を順にやってください(タスクごとに1コミット)。
+まず D:/mobby/mobidou-claude で、ワークツリー D:/mobby/mobidou-ui-codex をブランチ codex/ui-simplify(基点 claude/ui-navigation-overhaul)として自分で作成し、node_modules はジャンクションで共有してください(手順は下記ファイルの「作業ルール」)。以降の作業はそのワークツリーだけで行い、D:/mobby/mobidou-claude は編集しないでください。
+詳しい指示は docs/codex-ui-simplify-prompts.md にあります(claude/ui-navigation-overhaul 上のファイルです。`git show claude/ui-navigation-overhaul:docs/codex-ui-simplify-prompts.md` でも読めます)。最初に読み、C0〜C3 を順にやってください(タスクごとに1コミット)。
 
 C0: OpeningExperience.tsx の下部ヒントを「タップしてね」に変更。
 C1: ホーム上部用に、木札とミニチュアパスの所持数を出す小さなバッジ部品 src/components/HomeStatusBar.tsx を新規作成(画面への組み込みはしない)。
