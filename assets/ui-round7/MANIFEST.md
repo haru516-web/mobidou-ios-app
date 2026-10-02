@@ -29,3 +29,4 @@ Common: Production Mobidou raster UI assets. Match existing ivory washi, muted v
 | ui/notice-strip-v1.webp | 960 x 120 | 30280 | transparent | オフライン案内 | 48/48 (3-slice) | 350 x 44 | 少し黄みのあるちぎり和紙、左端に小さい麻ひもの結び跡。 |
 | notice/notice-todo-v1.webp | 128 x 128 | 6512 | transparent | やること | none | 38 x 38 | 朱漆の丸と白い短い筆のはね。文字に見える曲線を避ける。 |
 | notice/notice-status-v1.webp | 128 x 128 | 7232 | transparent | いまの旅 | none | 38 x 38 | 藍墨の丸と白い小さい足跡。 |
+| notice/notice-event-v1.webp | 128 x 128 | 7366 | transparent | できごと | none | 38 x 38 | 生成り和紙の丸と小さい朱の花。 |
