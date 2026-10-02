@@ -21,3 +21,4 @@ Common: Production Mobidou raster UI assets. Match existing ivory washi, muted v
 | File (relative to assets/ui-round7/) | Dimensions px | Bytes | Alpha | Use | Slice source px (L/R) | Review display px | Per-asset prompt details |
 |---|---:|---:|---|---|---|---:|---|
 | sheet/sheet-bg-v1.webp | 1170 x 2532 | 223092 | opaque | シート背景 | none | 390 x 844 | 明るい中央と少し濃い左右縁の静かな和紙面。 |
+| sheet/sheet-header-v1.webp | 1536 x 192 | 33902 | opaque | ヘッダー | 96/96 (3-slice) | 390 x 76 | 全面生成り和紙、まっすぐな上端、下端に細い墨のかすれ線。 |
