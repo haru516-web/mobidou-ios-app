@@ -137,7 +137,7 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
   }), [finishGesture, frameProgress, startAutoJourney, width]);
 
   return <SafeAreaView
-    accessibilityLabel="オープニング。画面をタップ、または上下左右にスライドして開始"
+    accessibilityLabel="オープニング。タップしてね"
     accessibilityHint="どの方向にスライドしても、16枚の背景が時間の流れに沿って切り替わり、その後アプリを開始します"
     style={[S.opening, Platform.OS === 'web' ? ({ touchAction: 'none', userSelect: 'none' } as any) : null]}
     onLayout={event => setWidth(event.nativeEvent.layout.width)}
@@ -163,7 +163,7 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
       <SwipeCue />
       <View style={S.openingHintPlate}>
         <OpeningArt name="openingHintPlate" />
-        <Text style={S.openingSwipeHint}>画面をタップ、またはスライドしてね</Text>
+        <Text style={S.openingSwipeHint}>タップしてね</Text>
       </View>
     </View>
   </SafeAreaView>;
