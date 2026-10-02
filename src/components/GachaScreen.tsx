@@ -88,6 +88,13 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
   const [pull, setPull] = useState(0);
   /** The revealed Mobby is shown large (tap to toggle), and how far that has grown, 0..1. */
   const [zoomed, setZoomed] = useState(false);
+  /** Height of the bottom panel while there is nothing to pull with; the waiting Mobby stands in the space above it. */
+  const [panelH, setPanelH] = useState(260);
+  // Between the end of the rope and the top of the bottom panel, so the Mobby touches neither.
+  const waitingFrom = Math.min(300, height * .48) + BOB_PX + 12;
+  const waitingTo = height - panelH - 12 - insets.bottom - 8;
+  const waitingSize = Math.round(Math.min(width * .6, waitingTo - waitingFrom));
+  const waitingTop = Math.round(waitingFrom + (waitingTo - waitingFrom - waitingSize) / 2);
   const [zoomT, setZoomT] = useState(0);
   const zoomRef = useRef(0);
   /** The name and the 終わる button wait until the Mobby has been shown large. */
@@ -466,9 +473,9 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 
     {shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 
-    {!playing && !shopOpen && freePulls <= 0 && companion && <RNImage accessible={false} source={companion.image} resizeMode="contain" style={{ position: 'absolute', width: bigSize * .7, height: bigSize * .7, left: (width - bigSize * .7) / 2, top: bigTop }} />}
+    {!playing && !shopOpen && freePulls <= 0 && companion && waitingSize > 40 && <RNImage accessible={false} source={companion.image} resizeMode="contain" style={{ position: 'absolute', width: waitingSize, height: waitingSize, left: (width - waitingSize) / 2, top: waitingTop }} />}
 
-    {!playing && !shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}>
+    {!playing && !shopOpen && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setPanelH(previous => previous === next ? previous : next); }} style={[S.bottom, { bottom: 12 + insets.bottom }]}>
       {freePulls > 0
         ? <Text style={S.small}>ガチャ木札 {freePulls}枚</Text>
         : <>
