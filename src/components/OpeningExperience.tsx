@@ -2,10 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Easing, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from './AppImage';
-import { PillText } from './Washi';
 import { CroppedArt } from './CroppedArt';
 import { UI_ART } from '../data/uiArt';
-import { BRUSH, C, SERIF } from '../components';
+import { BRUSH, C } from '../components';
 
 const OPENING_WORDMARK = require('../../assets/mobidou-wordmark-brush.webp');
 const OPENING_EMBLEM = require('../../assets/mobidou-opening-emblem.webp');
@@ -47,7 +46,7 @@ function OpeningScene({ scene, width, frameIndex, progress }: { scene: (typeof O
 
 export function OpeningExperience({ onEnter, error }: { onEnter: () => void; error?: string | null }) {
   const [width, setWidth] = useState(0);
-  const [index, setIndex] = useState(0);
+  const [, setIndex] = useState(0);
   const indexRef = useRef(0);
   const frameProgress = useRef(new Animated.Value(0)).current;
   const enteringRef = useRef(false);
@@ -157,7 +156,6 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
           <Text style={S.openingTagline}>歩くたび、小さな旅。</Text>
           <Text style={S.openingSubline}>モビーと歩いて、もびの世界へ。</Text>
         </View>
-        <PillText textStyle={S.openingStage}>{OPENING_TIMELINE[index].time}  {OPENING_TIMELINE[index].label}</PillText>
      </View>
      {!!error && <Text style={[S.errorText, S.openingError]}>{error}</Text>}
       <SwipeCue />
@@ -198,7 +196,6 @@ const S = StyleSheet.create({
   openingPlate: { width: 330, minHeight: 112, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 16 },
   openingTagline: { fontFamily: BRUSH, fontSize: 22, letterSpacing: 2, color: C.ink, textAlign: 'center' },
   openingSubline: { fontSize: 12, letterSpacing: 1.2, color: '#5E4636', marginTop: 8, textAlign: 'center' },
-  openingStage: { fontFamily: SERIF, fontSize: 12, letterSpacing: 2.5, color: '#5E4a3b', marginTop: 10, textAlign: 'center' },
   openingError: { marginBottom: 10, textAlign: 'center' },
   openingHintPlate: { width: 300, height: 52, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   openingSwipeHint: { fontFamily: BRUSH, fontSize: 15, color: '#FFF9EF', letterSpacing: 1.2 },

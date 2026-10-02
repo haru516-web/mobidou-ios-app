@@ -27,7 +27,7 @@ export function HomeStatusBar({ tickets, miniaturePasses, onAddTickets, onAddPas
   </View>;
   return <View pointerEvents="box-none" style={S.bar}>
     {badge('木札', tickets, <Icon name={STATUS_ICONS.tickets} size={16} color={C.ink} />, onAddTickets)}
-    {badge('ミニチュアパス', miniaturePasses, <Image accessible={false} source={STATUS_ICONS.miniaturePasses} contentFit="contain" style={S.icon} />, onAddPasses)}
+    {badge('交換券', miniaturePasses, <Image accessible={false} source={STATUS_ICONS.miniaturePasses} contentFit="contain" style={S.icon} />, onAddPasses)}
   </View>;
 }
 
