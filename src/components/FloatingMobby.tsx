@@ -102,7 +102,9 @@ function WalkFrame({ source, petId, frame }: { source: ImageSourcePropType; petI
  * tap opens a small guide: what to do next, with shortcuts. Navigation itself
  * lives in the tab bar and segmented controls, so Mobby is never required.
  */
-export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOpenChange, bottomInset, spotKey, spot, resetPositionOnMount = false }: { image: ImageSourcePropType; name: string; petId: PetId; items: readonly MobbyMenuItem[]; badge?: number; open: boolean; onOpenChange: (open: boolean) => void; bottomInset: number; spotKey: string; spot: MobbySpot; resetPositionOnMount?: boolean }) {
+export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOpenChange, bottomInset, spotKey, spot, resetPositionOnMount = false, dragLocked = false }: { image: ImageSourcePropType; name: string; petId: PetId; items: readonly MobbyMenuItem[]; badge?: number; open: boolean; onOpenChange: (open: boolean) => void; bottomInset: number; spotKey: string; spot: MobbySpot; resetPositionOnMount?: boolean; /** Keep the Mobby where it is (taps still work), e.g. while a tutorial asks for a tap. */ dragLocked?: boolean }) {
+  const dragLockedRef = useRef(dragLocked);
+  dragLockedRef.current = dragLocked;
   const [layout, setLayout] = useState<LayoutSize>({ width: 0, height: 0 });
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [hydrated, setHydrated] = useState(false);
@@ -204,6 +206,7 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
   }, [layout, spotKey, resetPositionOnMount]);
 
   const updatePosition = useCallback((dx: number, dy: number) => {
+    if (dragLockedRef.current) return;
     const next = clampPosition({ x: dragStartRef.current.x + dx, y: dragStartRef.current.y + dy }, layout, bottomInset);
     positionRef.current = next;
     setPosition(next);
@@ -222,7 +225,7 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
   }, []);
 
   const markMoved = useCallback(() => {
-    if (movedRef.current) return;
+    if (movedRef.current || dragLockedRef.current) return;
     movedRef.current = true;
     setWalking(true);
     // Dragging and a guide pinned to the old spot don't mix.
