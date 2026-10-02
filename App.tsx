@@ -19,7 +19,7 @@ import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
 import { GachaScreen } from './src/components/GachaScreen';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
-import { pilgrimageShrines, PilgrimagePicker, RouteMap } from './src/components/PilgrimageScreen';
+import { pilgrimageShrines, RouteMap } from './src/components/PilgrimageScreen';
 import { PillText, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
@@ -29,7 +29,6 @@ import { BookPageTurn, type BookPageTurnHandle } from './src/components/BookPage
 import { HomeBottomNavigation, HomeCustomizationPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
 import { BookIndexPopup, GoshuinBookCover } from './src/components/GoshuinBook';
 import { CroppedArt } from './src/components/CroppedArt';
-import { ScrollPopup } from './src/components/ScrollPopup';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
 import { StepProgressRing } from './src/components/StepProgressRing';
 import { FloatingMobby, type MobbyMenuItem, type MobbySpot } from './src/components/FloatingMobby';
@@ -161,11 +160,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [overlayBusy, setOverlayBusy] = useState(false);
   const [openingVisible, setOpeningVisible] = useState(true);
   const [openingHomeReady, setOpeningHomeReady] = useState(false);
-  const [routePicker, setRoutePicker] = useState(false);
   const [gachaOpen, setGachaOpen] = useState(false);
-  const [guidedRoutePresented, setGuidedRoutePresented] = useState(false);
-  const [routePickerAfterCompletion, setRoutePickerAfterCompletion] = useState(false);
-  const [promptedCompletedRouteId, setPromptedCompletedRouteId] = useState<string | null>(null);
   const [bookOpen, setBookOpen] = useState(false);
   const [bookIndexOpen, setBookIndexOpen] = useState(false);
   const [petSelectionReaction, setPetSelectionReaction] = useState(0);
@@ -214,6 +209,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const collectionProgresses = PILGRIMAGES.map(route => activeRoute?.id === route.id ? progress : data.routes?.[`${routePrefix}${route.id}`]).filter((record): record is typeof progress => !!record);
   const collectionRewards = collectionProgresses.flatMap(record => record.rewards);
   const collectionRewardIds = collectionRewards.map(reward => reward.id);
+  // A goshuin that has not been received yet never opens its detail, wherever it is tapped.
+  const openDetail = (shrine: Shrine) => { if (collectionRewardIds.includes(shrine.id) || progress.rewards.some(reward => reward.id === shrine.id)) setDetail(shrine); };
   const ownedMiniatureIds = Object.keys(journey.special.keychains).filter(id => (journey.special.keychains[id] ?? 0) > 0);
   const collectionRewardDates = Object.fromEntries(collectionRewards.map(reward => [reward.id, displayDate(reward.date)]));
   const routeBookOwned = !!activeRoute && data.bookDesigns.owned[activeRoute.id] === true;
@@ -233,7 +230,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Already holding this goshuin (another lap, or the same shrine in another route) makes the visit short.
   const pendingGoshuinOwned = !!pending && (progress.lapBase !== undefined || Object.entries(routeRecords).some(([routeId, record]) => routeId !== activeRoute?.id && record.rewards.some(reward => reward.id === pending.id)));
   // Not while the first-run tutorial is guiding the player: closing the award jumps to the book, which would strand the tutorial on the wrong screen.
-  const awardVisible = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !routePicker && !overlayBusy && !openingVisible && !homePopup && !omikujiModal;
+  const awardVisible = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal;
   // Like a UITabBarController, each tab keeps the sub-screen it was left on.
   // Local testing: closing the omikuji after a draw makes it drawable again (see devUnlock.ts).
   const omikujiWasOpen = useRef(false);
@@ -267,19 +264,16 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     move('home');
     setOpeningVisible(false);
     setAccountEntryVisible(false);
-    setRoutePicker(false);
     setFirstRunStage(null);
     if (firstRun) {
       setOpeningHomeReady(true);
       if (onboardingPreview) {
-        setGuidedRoutePresented(false);
-        setFirstRunStage('route');
-        setRoutePicker(true);
+        setFirstRunStage('character');
+        setHomePopup('moby');
       } else if (progress.routeId) {
         setFirstRunStage('character');
         setHomePopup('moby');
       } else {
-        setGuidedRoutePresented(false);
         setFirstRunStage('route');
       }
       return;
@@ -336,7 +330,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       <View style={S.bookRight}>
         <Text style={S.bookReading}>{book.reading}</Text><Text style={S.bookName}>{book.name}</Text><View style={S.shortRule} /><Text style={S.bookTheme}>{book.theme}</Text><Text numberOfLines={4} style={S.bookDescription}>{book.description}</Text>
         <View style={S.inline}><Torii size={16} color={C.muted} /><Text style={S.bookLocation}>{book.place}</Text></View>
-        <Pressable plate="primary" accessibilityRole="button" onPress={() => setDetail(book)} style={S.bookDetail}><Text style={S.bookDetailText}>{reward ? 'このご縁をみる' : 'まだ見ぬご縁をみる'}</Text><Icon name="chevron-forward" color="#FFF9EE" size={13} /></Pressable>
+        {reward && <Pressable plate="primary" accessibilityRole="button" onPress={() => setDetail(book)} style={S.bookDetail}><Text style={S.bookDetailText}>このご縁をみる</Text><Icon name="chevron-forward" color="#FFF9EE" size={13} /></Pressable>}
       </View>
     </View>;
   };
@@ -378,18 +372,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     : tab === 'walk'
       ? (mapOpen ? { side: 'left', from: 'bottom', offset: 44 } : { side: 'right', from: 'top', offset: contentTop + 72 + walkRingSize / 2 - 44 })
       : { side: 'right', from: 'bottom', offset: 4 };
-  const openNextRoutePicker = () => { setRoutePickerAfterCompletion(true); setRoutePicker(true); };
+  // Routes run in a fixed order: there is no picker, one tap moves on to the next unfinished route.
+  const advanceToNextRoute = () => {
+    const completedIds = Object.entries(routeRecords).filter(([, record]) => !!record.completedAt).map(([routeId]) => routeId);
+    const nextRouteId = activeRoute ? getNextPilgrimageId(activeRoute.id, completedIds) : FIRST_RUN_ROUTE_ID;
+    if (nextRouteId) selectPilgrimageRoute(nextRouteId);
+  };
   const selectPilgrimageRoute = (routeId: string) => {
     const beginningFirstRun = firstRunStage === 'route';
     if (beginningFirstRun) setFirstRunStage('character');
     if (!onboardingPreview) journey.selectRoute(routeId);
     setFeatured(0);
-    setRoutePicker(false);
-    setRoutePickerAfterCompletion(false);
-    // A completed route can be revisited (and is also the fallback after every
-    // route has been completed). Mark it as already prompted so its picker does
-    // not immediately reopen in a loop.
-    setPromptedCompletedRouteId(routeRecords[routeId]?.completedAt ? routeId : null);
     setBookOpen(false);
     move('home');
     if (beginningFirstRun) setHomePopup('moby');
@@ -401,16 +394,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       if (!onboardingPreview) { journey.enter(false); journey.grantWelcomePull(); }
       setFirstRunStage(null);
     }
-  };
-  const closeRoutePicker = () => {
-    if (!activeRoute) return;
-    if (routePickerAfterCompletion && view.completedAt) {
-      const completedIds = Object.entries(routeRecords).filter(([, record]) => !!record.completedAt).map(([routeId]) => routeId);
-      const nextRouteId = getNextPilgrimageId(activeRoute.id, completedIds);
-      if (nextRouteId) { selectPilgrimageRoute(nextRouteId); return; }
-    }
-    setRoutePicker(false);
-    setRoutePickerAfterCompletion(false);
   };
   const cardInteractionPropsFor = (locked: boolean) => ({
     disabled: locked,
@@ -434,7 +417,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // of a second, smaller copy of it.
   const renderHomeWidget = (widget: CustomHomeWidgetId, slot: number) => {
     const selectedShrine = COLLECTION_SHRINES.find(shrine => shrine.id === data.homeWidgetItems[slot]) ?? latest;
-    if (widget === 'goshuin') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-goshuin-${slot}`} artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${selectedShrine.name}の御朱印。詳しく見る`} onPress={() => setDetail(selectedShrine)} style={[S.homeWidgetCard, { height: homeCardHeight }, S.homeGoshuinOnlyCard, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+    if (widget === 'goshuin') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-goshuin-${slot}`} artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${selectedShrine.name}の御朱印。詳しく見る`} onPress={() => openDetail(selectedShrine)} style={[S.homeWidgetCard, { height: homeCardHeight }, S.homeGoshuinOnlyCard, homeDropTarget === slot && S.homeWidgetDropTarget]}>
       <HomeGoshuinArtwork source={STAMP_IMAGES[selectedShrine.id]} owned={collectionRewardIds.includes(selectedShrine.id)} background={currentBackground.image} />
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
@@ -459,8 +442,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const stepsLeft = next ? Math.max(0, nextTarget - routeSteps) : 0;
   const recordPrefix = data.demo ? 'trial' : 'real';
   const notices: AppNotice[] = [
-    ...(!activeRoute ? [{ id: 'todo:route', kind: 'todo' as const, icon: 'map-outline' as const, title: '巡礼を選ぼう', body: 'これから辿る巡礼を選ぶと、旅が始まります。', actionLabel: '巡礼を選ぶ', onAction: () => setRoutePicker(true) }] : []),
-    ...(activeRoute && progress.completedAt ? [{ id: `todo:complete:${activeRoute.id}:${progress.completedAt}`, kind: 'todo' as const, icon: 'ribbon-outline' as const, title: `${activeRoute.name}を結願しました`, body: '次の巡礼へ出かけましょう。', actionLabel: '次の巡礼を選ぶ', onAction: openNextRoutePicker }] : []),
+    ...(activeRoute && progress.completedAt ? [{ id: `todo:complete:${activeRoute.id}:${progress.completedAt}`, kind: 'todo' as const, icon: 'ribbon-outline' as const, title: `${activeRoute.name}を結願しました`, body: '次の巡礼へ出かけましょう。', actionLabel: '次の巡礼へ進む', onAction: advanceToNextRoute }] : []),
     ...(!omikujiDrawn ? [{ id: `todo:omikuji:${omikujiDay}`, kind: 'todo' as const, icon: 'document-text-outline' as const, title: '今日のおみくじを引こう', body: '一日一度のご縁です。', actionLabel: 'おみくじを引く', onAction: () => { move('home'); setOmikujiModal(true); } }] : []),
     ...(hasStarter(data.mobbies) && data.mobbies.freePulls > 0 ? [{ id: `todo:gacha:${data.mobbies.freePulls}`, kind: 'todo' as const, icon: 'gift-outline' as const, title: 'ガチャを引けます', body: `無料で引けるのは${data.mobbies.freePulls}回です。新しいモビーに出会えます。`, actionLabel: 'ガチャをひらく', onAction: () => setGachaOpen(true) }] : []),
     ...(data.source === 'none' && !data.demo ? [{ id: 'todo:steps', kind: 'todo' as const, icon: 'footsteps-outline' as const, title: '歩数を連携しよう', body: '歩いた分だけ、巡礼が進みます。', actionLabel: '歩数を連携する', onAction: () => void journey.connect() }] : []),
@@ -496,7 +478,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     setAccountEntryPage('welcome');
     setAccountEntryVisible(true);
   }, [accountPreview, journey.ready]);
-  useEffect(() => { if (openingHomeReady && journey.ready && !settings && !accountEntryVisible && !progress.routeId && (firstRunStage === null || firstRunStage === 'route')) setRoutePicker(true); }, [openingHomeReady, journey.ready, settings, accountEntryVisible, progress.routeId, data.demo, firstRunStage]);
+  useEffect(() => { if (openingHomeReady && journey.ready && !settings && !accountEntryVisible && !progress.routeId && (firstRunStage === null || firstRunStage === 'route')) selectPilgrimageRoute(FIRST_RUN_ROUTE_ID); }, [openingHomeReady, journey.ready, settings, accountEntryVisible, progress.routeId, data.demo, firstRunStage]);
   // 道しるべ: a marker every 1,000 steps. The last one seen is kept per route, so steps walked while the app was closed are announced too.
   const [milestoneToast, setMilestoneToast] = useState<string | null>(null);
   const milestoneKey = `@mobidou/milestone/${routePrefix}${progress.routeId ?? ''}`;
@@ -523,7 +505,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // The first launch on each new day opens the omikuji once; after that it is only drawn from its card or a notice.
   const omikujiDayChecked = useRef(false);
   useEffect(() => {
-    if (omikujiDayChecked.current || tab !== 'home' || !openingHomeReady || openingVisible || !journey.ready || routePicker || !progress.routeId || firstRunStage !== null || !data.onboarded) return;
+    if (omikujiDayChecked.current || tab !== 'home' || !openingHomeReady || openingVisible || !journey.ready || !progress.routeId || firstRunStage !== null || !data.onboarded) return;
     omikujiDayChecked.current = true;
     if (omikujiDrawn) return;
     void AsyncStorage.getItem(OMIKUJI_PROMPT_KEY).then(last => {
@@ -531,14 +513,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       void AsyncStorage.setItem(OMIKUJI_PROMPT_KEY, omikujiDay).catch(() => undefined);
       setOmikujiModal(true);
     }).catch(() => undefined);
-  }, [tab, openingHomeReady, openingVisible, journey.ready, routePicker, progress.routeId, omikujiDrawn, omikujiDay, firstRunStage, data.onboarded]);
-  useEffect(() => {
-    if (!(openingHomeReady && !openingVisible && !omikujiModal && progress.routeId && view.completedAt && progress.pending.length === 0 && promptedCompletedRouteId !== progress.routeId)) return undefined;
-    // Wait for the omikuji (opened on entering the home) and the award screen to finish closing: iOS silently drops a modal that is presented in the
-    // same moment another one is dismissed, which left this picker "open" but invisible and blocking the whole screen.
-    const timer = setTimeout(() => { setPromptedCompletedRouteId(progress.routeId ?? null); openNextRoutePicker(); }, 900);
-    return () => clearTimeout(timer);
-  }, [openingHomeReady, openingVisible, omikujiModal, progress.routeId, view.completedAt, progress.pending.length, promptedCompletedRouteId]);
+  }, [tab, openingHomeReady, openingVisible, journey.ready, progress.routeId, omikujiDrawn, omikujiDay, firstRunStage, data.onboarded]);
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
     if (!tourRequest || settings) return undefined;
@@ -546,10 +521,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     return () => clearTimeout(timer);
   }, [tourRequest, settings]);
   useEffect(() => {
-    if (settings || detail || routePicker || openingVisible || homePopup || omikujiModal) { setOverlayBusy(true); return; }
+    if (settings || detail || openingVisible || homePopup || omikujiModal) { setOverlayBusy(true); return; }
     const timer = setTimeout(() => setOverlayBusy(false), 380);
     return () => clearTimeout(timer);
-  }, [settings, detail, routePicker, openingVisible, homePopup, omikujiModal]);
+  }, [settings, detail, openingVisible, homePopup, omikujiModal]);
   useEffect(() => {
     if (Platform.OS !== 'web' || !detail || typeof document === 'undefined') return;
     const body = document.body;
@@ -624,13 +599,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           </View>
           <TourAnchor id="book-top" style={S.tourPair}>
             <PopButton id="bookIndex" label="目次" icon="list" size={54} phase={0} onPress={() => setBookIndexOpen(true)} />
-            <PopButton id="routeChange" label="巡礼" icon="map" size={54} phase={.45} onPress={() => setRoutePicker(true)} />
           </TourAnchor>
         </View>
         {activeRoute && !bookOpen && <GoshuinBookCover route={activeRoute} onOpen={() => setBookOpen(true)} />}
         {bookOpen && <><View style={S.bookWrap}>
           <View pointerEvents="none" style={[S.bookCoverEdge, activeRoute ? { backgroundColor: activeRoute.color } : null]}><Image accessible={false} source={BOOK_CLOTH} contentFit="cover" style={S.bookCloth} /></View>
-          <BookPageTurn key={activeRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={selectedIndex} itemCount={activeShrines.length} contentKey={activeRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={setFeatured} onBusyChange={setTurning} onOpenDetail={index => setDetail(activeShrines[index])} nativePages={nativeBookPages} style={S.bookViewport} />
+          <BookPageTurn key={activeRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={selectedIndex} itemCount={activeShrines.length} contentKey={activeRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={setFeatured} onBusyChange={setTurning} onOpenDetail={index => openDetail(activeShrines[index])} nativePages={nativeBookPages} style={S.bookViewport} />
         </View>
         <View style={S.pager}><Pressable plate="round" accessibilityRole="button" accessibilityLabel="前の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><PillText textStyle={S.pageCounterText}>{String(selectedIndex + 1).padStart(2, '0')} / {String(activeShrines.length).padStart(2, '0')}</PillText><Pressable plate="round" accessibilityRole="button" accessibilityLabel="次の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
         </>}
@@ -646,7 +620,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         </View>
         {mapOpen && activeRoute
           ? <View style={S.walkMinimal}>
-            <RouteMap route={activeRoute} count={view.rewards.length} progress={view} pet={pet} showSpeech viewportHeight={Math.max(300, scrollViewportHeight - 72)} onStop={(shrine, index) => { setFeatured(index); setDetail(shrine); }} />
+            <RouteMap route={activeRoute} count={view.rewards.length} progress={view} pet={pet} showSpeech viewportHeight={Math.max(300, scrollViewportHeight - 72)} onStop={(shrine, index) => { setFeatured(index); openDetail(shrine); }} />
           </View>
           : <View style={S.walkMinimal}>
             <TourAnchor id="walk-ring"><StepProgressRing steps={routeSteps} goal={nextTarget} size={walkRingSize} /></TourAnchor>
@@ -657,7 +631,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
             {/* The companion peeks over the main action, as on the old steps card. */}
             {activeRoute && <TourAnchor id="walk-action" style={S.nextPilgrimageAction}>
               {view.completedAt
-                ? <Button title="次の巡礼を選ぶ" icon="map-outline" onPress={openNextRoutePicker} style={S.walkActionButton} />
+                ? <Button title="次の巡礼へ進む" icon="map-outline" onPress={advanceToNextRoute} style={S.walkActionButton} />
                 : data.demo
                   ? <Button title="体験で1,000歩あるく" icon="footsteps-outline" onPress={journey.demoWalk} style={S.walkActionButton} />
                   : <Button title={data.source === 'none' ? '歩数を連携する' : journey.busy ? '歩数を更新しています…' : '今日の歩数を更新'} icon="refresh" disabled={journey.busy} onPress={() => void (data.source === 'none' ? journey.connect() : journey.refresh())} style={S.walkActionButton} />}
@@ -672,7 +646,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <TourAnchor id="collection-tabs" style={S.jumpRow}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} />)}
         </TourAnchor>
-        <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} activeRoute={activeRoute} coverOwned={routeBookOwned} selectedCover={routeBookSelected ? 'route' : 'normal'} onSelectCover={journey.selectBookDesign} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={shrine => setDetail(shrine)} onClosePage={() => setCollectionPage('room')} />
+        <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} activeRoute={activeRoute} coverOwned={routeBookOwned} selectedCover={routeBookSelected ? 'route' : 'normal'} onSelectCover={journey.selectBookDesign} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={openDetail} onClosePage={() => setCollectionPage('room')} />
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
@@ -712,9 +686,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
 
 
-    <ScrollPopup variant="wide" visible={routePicker} title="巡礼を選ぶ" onShow={() => { if (firstRunStage === 'route') setGuidedRoutePresented(true); }} onClose={closeRoutePicker}>
-      {() => <PilgrimagePicker bare key={firstRunStage === 'route' ? `guided-${FIRST_RUN_ROUTE_ID}` : 'route-picker'} activeId={activeRoute?.id} records={routeRecords} pet={pet} onClose={closeRoutePicker} onSelect={selectPilgrimageRoute} guidedRouteId={firstRunStage === 'route' ? FIRST_RUN_ROUTE_ID : undefined} guidedRoutePresented={guidedRoutePresented} />}
-    </ScrollPopup>
 
     <Modal visible={!!detail} transparent onShow={() => { setOverlayBusy(true); openDetailPopup(); }} onDismiss={() => { detailPopupProgress.stopAnimation(); detailPopupProgress.setValue(0); detailStampPreviewProgress.stopAnimation(); detailStampPreviewProgress.setValue(0); setDetail(null); setDetailStampPreview(false); setOverlayBusy(false); }} animationType="none" onRequestClose={() => { if (detailStampPreview) closeDetailStampPreview(); else closeDetailPopup(); }} presentationStyle="overFullScreen">
       <SafeAreaView style={[M.modal, { backgroundColor: 'transparent' }]}>
@@ -803,7 +774,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
 
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
-    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => setGachaOpen(false)}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} owned={data.mobbies.owned} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} onFinished={journey.acknowledgeMobbyPulls} onClose={() => setGachaOpen(false)} showShop={__DEV__} />}</Modal>
+    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => setGachaOpen(false)}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} owned={data.mobbies.owned} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} onFinished={journey.acknowledgeMobbyPulls} onClose={() => setGachaOpen(false)} onGoPilgrimage={() => { setGachaOpen(false); move('walk'); }} showShop={__DEV__} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
   </SafeAreaView></View>;
 }

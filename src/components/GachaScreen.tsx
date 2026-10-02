@@ -40,6 +40,8 @@ type Props = {
   owned?: Record<string, number>;
   /** What to do to earn the next pull, shown when there is nothing to pull. */
   nextHint?: string;
+  /** Leave the gacha for the pilgrimage, where more 木札 are earned. Without it the screen just closes. */
+  onGoPilgrimage?: () => void;
 };
 
 /** Render supplied artwork without stretching its canvas. */
@@ -49,7 +51,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, owned, nextHint }: Props) {
+export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, owned, nextHint, onGoPilgrimage }: Props) {
   const [tab, setTab] = useState<'draw' | 'shop'>('draw');
   // The scene fills the screen edge to edge, but the title, tabs and buttons keep clear of the notch and the home indicator.
   const insets = useSafeAreaInsets();
@@ -460,7 +462,7 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
     </Pressable>}
 
     {/* With nothing to pull, show who has been met and the odds instead of an empty curtain. */}
-    {!playing && !shopOpen && freePulls <= 0 && owned && <View style={[S.roster, { top: 112 + insets.top, bottom: 190 + insets.bottom }]}>
+    {!playing && !shopOpen && freePulls <= 0 && owned && <View style={[S.roster, { top: 112 + insets.top, bottom: 270 + insets.bottom }]}>
       <Text accessibilityRole="header" style={S.rosterTitle}>出会ったモビー　{PET_CHARACTERS.filter(pet => (owned[pet.id] ?? 0) > 0).length} / {PET_CHARACTERS.length}</Text>
       <View style={S.rosterGrid}>
         {PET_CHARACTERS.map(pet => {
@@ -480,11 +482,13 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
 
     {!playing && !shopOpen && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}>
       {freePulls > 0
-        ? <>
-          <Text style={S.small}>無料で引ける回数 {freePulls}回</Text>
-          <Button title="ひもを引く" onPress={requestDraw} style={S.wide} />
-        </>
-        : <Text style={S.prompt}>いま引けるご縁はありません。{'\n'}{nextHint ?? '巡礼を結願すると、ひとつ引けます。'}</Text>}
+        ? <Text style={S.small}>ガチャ木札 {freePulls}枚</Text>
+        : <>
+          <Text style={S.prompt}>ガチャ木札がありません。{'\n'}{showShop ? '木札を購入するか、' : ''}巡礼を進めて木札を手に入れましょう。</Text>
+          {nextHint ? <Text style={S.small}>{nextHint}</Text> : null}
+          {showShop && <Button title="木札を購入する" onPress={() => setTab('shop')} style={S.wide} />}
+          <Button title="巡礼へ向かう" secondary={showShop} onPress={() => onGoPilgrimage ? onGoPilgrimage() : onClose()} style={S.wide} />
+        </>}
       <Button title="とじる" secondary onPress={onClose} style={S.wide} />
     </View>}
 
