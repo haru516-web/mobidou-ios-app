@@ -38,6 +38,7 @@
         "projectId": "bfdcaf4d-9b6e-4016-a0ae-be4d6dbdf2ed"
       }
     },
-    "owner": "obana.h"
+    "owner": "obana.h",
+    "icon": "./assets/icon.png"
   }
 }
