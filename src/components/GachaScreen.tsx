@@ -4,8 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
-import { getPetCharacter, isPetId, PET_CHARACTERS } from '../petCatalog';
-import { Image as GachaImage } from './AppImage';
+import { getPetCharacter, isPetId } from '../petCatalog';
 import { GachaShop } from './GachaShop';
 import { SlicedArt } from './SlicedArt';
 import { GACHA_UI_ART } from '../data/gachaUiArt';
@@ -36,8 +35,6 @@ type Props = {
   showShop?: boolean;
   /** Start a purchase from the shop tab; without it the shop's buttons are inactive. */
   onBuy?: (product: ShopProduct) => void;
-  /** Copies held of each Mobby; when given, the empty state shows who has been met. */
-  owned?: Record<string, number>;
   /** What to do to earn the next pull, shown when there is nothing to pull. */
   nextHint?: string;
   /** Leave the gacha for the pilgrimage, where more 木札 are earned. Without it the screen just closes. */
@@ -53,7 +50,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, owned, nextHint, onGoPilgrimage, guided = false }: Props) {
+export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished, onClose, showShop = false, onBuy, nextHint, onGoPilgrimage, guided = false }: Props) {
   const [tab, setTab] = useState<'draw' | 'shop'>('draw');
   // The scene fills the screen edge to edge, but the title, tabs and buttons keep clear of the notch and the home indicator.
   const insets = useSafeAreaInsets();
@@ -462,21 +459,6 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, onFinished
       <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#05030A', opacity: .78 * zoomT }]} />
       {zoomT > 0 && <RNImage accessible={false} source={pet.image} resizeMode="contain" style={{ position: 'absolute', width: bigSize, height: bigSize, left: (width - bigSize) / 2, top: bigTop, opacity: Math.min(1, zoomT * 1.6), transform: [{ scale: .55 + .45 * zoomT + .08 * Math.sin(Math.min(1, zoomT) * Math.PI) }] }} />}
     </Pressable>}
-
-    {/* With nothing to pull, show who has been met and the odds instead of an empty curtain. */}
-    {!playing && !shopOpen && freePulls <= 0 && owned && <View style={[S.roster, { top: 112 + insets.top, bottom: 270 + insets.bottom }]}>
-      <Text accessibilityRole="header" style={S.rosterTitle}>出会ったモビー　{PET_CHARACTERS.filter(pet => (owned[pet.id] ?? 0) > 0).length} / {PET_CHARACTERS.length}</Text>
-      <View style={S.rosterGrid}>
-        {PET_CHARACTERS.map(pet => {
-          const copies = owned[pet.id] ?? 0;
-          return <View key={pet.id} accessible accessibilityLabel={copies > 0 ? `${pet.name}。${copies}体` : 'まだ出会っていません'} style={S.rosterCell}>
-            <GachaImage accessible={false} source={pet.image} contentFit="contain" tintColor={copies > 0 ? undefined : '#8A7660'} style={[S.rosterImage, copies === 0 && { opacity: .6 }]} />
-            {copies > 1 && <Text style={S.rosterCount}>×{copies}</Text>}
-          </View>;
-        })}
-      </View>
-      <Text style={S.rosterOdds}>どのモビーも同じ確率（{PET_CHARACTERS.length}分の1）で出会えます</Text>
-    </View>}
 
     {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: 84 + insets.bottom }]}><GachaShop onBuy={onBuy} /></View>}
 

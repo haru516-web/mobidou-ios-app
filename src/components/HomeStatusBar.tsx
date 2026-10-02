@@ -18,7 +18,7 @@ export function HomeStatusBar({ tickets, miniaturePasses, onPressTickets, onPres
   onPressPasses?: () => void;
 }): React.JSX.Element {
   const badge = (label: string, count: number, icon: React.ReactNode, onPress?: () => void, wide = false) => {
-    const content = <View pointerEvents="none" style={S.content}>{icon}<Text numberOfLines={1} style={S.label}>{label}</Text><Text style={S.count}>{count}</Text></View>;
+    const content = <View pointerEvents="none" style={S.content}>{icon}<Text style={S.count}>{count}</Text></View>;
     const style = [S.badge, wide && S.wide];
     return onPress
       ? <WashiPressable plate="secondary" style={style} accessibilityRole="button" accessibilityLabel={label + ' ' + count + '枚'} onPress={onPress}>{content}</WashiPressable>
@@ -31,9 +31,9 @@ export function HomeStatusBar({ tickets, miniaturePasses, onPressTickets, onPres
 }
 
 const S = StyleSheet.create({
-  bar: { flexDirection: 'row', gap: 4, width: 220, height: 40 },
-  badge: { width: 78, height: 40, justifyContent: 'center' },
-  wide: { width: 138 },
+  bar: { flexDirection: 'row', gap: 4, height: 40, flexShrink: 1 },
+  badge: { width: 64, height: 40, justifyContent: 'center' },
+  wide: { width: 64 },
   content: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingHorizontal: 5 },
   icon: { width: 18, height: 22 },
   label: { color: C.ink, fontFamily: 'Shippori', fontSize: 10, flexShrink: 1 },
