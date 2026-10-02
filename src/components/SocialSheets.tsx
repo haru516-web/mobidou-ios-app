@@ -11,8 +11,7 @@ import { answerFriendRequest, fetchFriendRequests, fetchFriends, getMyFriendCode
 
 const TICKET_IMAGES: Record<GiftItem['kind'], number> = {
   keychainDrop: require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp'),
-  // TODO: replace with dedicated 木札 artwork.
-  gachaTicket: require('../../assets/gacha/box-front.webp'),
+  gachaTicket: require('../../assets/ui-round6/tickets/ticket-gacha-tag-v1.webp'),
 };
 const TICKET_NAMES: Record<GiftItem['kind'], string> = {
   keychainDrop: 'ミニチュアキーホルダー引換券',

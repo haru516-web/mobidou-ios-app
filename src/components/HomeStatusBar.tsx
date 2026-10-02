@@ -5,9 +5,8 @@ import { Image } from './AppImage';
 import { WashiPressable } from './Washi';
 import { SlicedArt } from './SlicedArt';
 
-// Replace these placeholders here when the dedicated ticket artwork is ready.
 const STATUS_ICONS = {
-  tickets: 'pricetag-outline' as const,
+  tickets: require('../../assets/ui-round6/icons/icon-gacha-tag.webp'),
   miniaturePasses: require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp'),
 };
 
@@ -26,7 +25,7 @@ export function HomeStatusBar({ tickets, miniaturePasses, onAddTickets, onAddPas
     </View>
   </View>;
   return <View pointerEvents="box-none" style={S.bar}>
-    {badge('木札', tickets, <Icon name={STATUS_ICONS.tickets} size={16} color={C.ink} />, onAddTickets)}
+    {badge('木札', tickets, <Image accessible={false} source={STATUS_ICONS.tickets} contentFit="contain" style={S.icon} />, onAddTickets)}
     {badge('交換券', miniaturePasses, <Image accessible={false} source={STATUS_ICONS.miniaturePasses} contentFit="contain" style={S.icon} />, onAddPasses)}
   </View>;
 }
@@ -37,6 +36,6 @@ const S = StyleSheet.create({
   content: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 6, paddingRight: 8 },
   plus: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   value: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
-  icon: { width: 18, height: 22 },
+  icon: { width: 20, height: 22 },
   count: { color: C.ink, fontSize: 13, fontVariant: ['tabular-nums'] },
 });
