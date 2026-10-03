@@ -114,6 +114,16 @@ class MemoryStore {
   async friends(userId) {
     return [...this.friendRows].filter((row) => row.startsWith(`${userId}:`)).map((row) => this.users.get(row.split(":")[1]));
   }
+  appleLinks = new Map();
+  async linkApple(userId, sub) {
+    if (this.appleLinks.has(sub)) return this.appleLinks.get(sub) === userId ? "already_linked" : "apple_in_use";
+    if ([...this.appleLinks.values()].includes(userId)) return "account_has_other_apple";
+    this.appleLinks.set(sub, userId);
+    return "linked";
+  }
+  async userByApple(sub) { return this.appleLinks.get(sub) ?? null; }
+  async appleLinked(userId) { return [...this.appleLinks.values()].includes(userId); }
+  async rotateSecret(userId, hash) { this.hashes.set(userId, hash); }
   async updateProfile(userId, name, petId) { Object.assign(this.users.get(userId), { name, petId }); }
   async friendshipExists(userId, friendId) { return this.friendRows.has(`${userId}:${friendId}`); }
   async pendingRequestExists(fromId, toId) { return [...this.requests.values()].some((row) => row.fromId === fromId && row.toId === toId && row.status === "pending"); }
@@ -597,7 +607,7 @@ test("profile: a short name and a known main Mobby are saved and read back; bad 
   assert.equal((await call(context, "POST", "/profile", { name: "bad" + String.fromCharCode(7), petId: pet }, account.userId)).status, 400);
   assert.equal((await call(context, "POST", "/profile", { name: "はる", petId: "not-a-pet" }, account.userId)).status, 400);
   assert.equal((await call(context, "POST", "/profile", { name: "  はる  ", petId: pet }, account.userId)).status, 200);
-  assert.deepEqual(await (await call(context, "GET", "/profile", undefined, account.userId)).json(), { name: "はる", petId: pet, friendCode: account.friendCode });
+  assert.deepEqual(await (await call(context, "GET", "/profile", undefined, account.userId)).json(), { name: "はる", petId: pet, friendCode: account.friendCode, appleLinked: false });
   assert.equal((await call(context, "GET", "/profile")).status, 401);
 });
 
@@ -637,4 +647,61 @@ test("the invite link page shows only the code, and only for a well-formed code"
   assert.equal((await call(context, "GET", "/f/short")).status, 401);
   assert.equal((await call(context, "GET", "/f/abcdefgh23")).status, 401);
   assert.equal((await call(context, "GET", "/f/ABCDEFGH23" + "<script>")).status, 401);
+});
+
+async function appleFixture() {
+  const pair = await webcrypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
+  const jwk = { ...(await webcrypto.subtle.exportKey("jwk", pair.publicKey)), kid: "test-key", alg: "RS256", use: "sig" };
+  const b64 = (value) => Buffer.from(typeof value === "string" ? value : JSON.stringify(value)).toString("base64url");
+  const token = async (claims = {}, options = {}) => {
+    const header = b64({ alg: options.alg ?? "RS256", kid: options.kid ?? "test-key" });
+    const payload = b64({ iss: "https://appleid.apple.com", aud: env.APPLE_BUNDLE_ID, exp: Math.floor(Date.now() / 1000) + 600, sub: "apple-person-1", ...claims });
+    const signature = Buffer.from(await webcrypto.subtle.sign("RSASSA-PKCS1-v1_5", options.signWith ?? pair.privateKey, Buffer.from(header + "." + payload))).toString("base64url");
+    return header + "." + payload + "." + signature;
+  };
+  return { token, appleEnv: { ...env, APPLE_JWKS_JSON: JSON.stringify({ keys: [jwk] }) }, otherPair: await webcrypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]) };
+}
+
+test("Apple identity tokens: only a genuine, current token addressed to this app is accepted", async () => {
+  const { verifyAppleIdentityToken } = await import("../src/crypto.ts");
+  const { token, appleEnv, otherPair } = await appleFixture();
+  assert.deepEqual(await verifyAppleIdentityToken(await token(), appleEnv), { sub: "apple-person-1" });
+  await assert.rejects(verifyAppleIdentityToken(await token({ aud: "com.other.app" }), appleEnv), /another app/);
+  await assert.rejects(verifyAppleIdentityToken(await token({ iss: "https://evil.example" }), appleEnv), /issuer/);
+  await assert.rejects(verifyAppleIdentityToken(await token({ exp: Math.floor(Date.now() / 1000) - 3600 }), appleEnv), /expired/);
+  await assert.rejects(verifyAppleIdentityToken(await token({}, { signWith: otherPair.privateKey }), appleEnv), /signature/);
+  await assert.rejects(verifyAppleIdentityToken(await token({}, { kid: "unknown" }), appleEnv), /Unknown signing key/);
+  await assert.rejects(verifyAppleIdentityToken(await token({}, { alg: "HS256" }), appleEnv), /Unsupported/);
+  await assert.rejects(verifyAppleIdentityToken("not.a", appleEnv), /Malformed/);
+});
+
+test("Apple sign-in: link once, then a new device takes the account over and the old device is signed out", async () => {
+  const context = createContext();
+  const { token, appleEnv } = await appleFixture();
+  const withApple = (path, body, user) => handleWithStore(new Request("https://server.test" + path, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(user ? { authorization: "Bearer " + context.credentials.get(user) } : {}) },
+    body: JSON.stringify(body)
+  }), appleEnv, context.store);
+
+  const first = await register(context);
+  assert.equal((await withApple("/account/apple/link", { identityToken: "garbage" }, first.userId)).status, 401);
+  assert.equal((await withApple("/account/apple/link", { identityToken: await token() }, first.userId)).status, 200);
+  assert.equal((await (await withApple("/account/apple/link", { identityToken: await token() }, first.userId)).json()).status, "already_linked");
+  assert.equal((await (await call(context, "GET", "/profile", undefined, first.userId)).json()).appleLinked, true);
+
+  // Another anonymous account cannot claim the same Apple ID, and this account cannot take a second one.
+  const stranger = await register(context);
+  assert.equal((await withApple("/account/apple/link", { identityToken: await token() }, stranger.userId)).status, 409);
+  assert.equal((await withApple("/account/apple/link", { identityToken: await token({ sub: "apple-person-2" }) }, first.userId)).status, 409);
+
+  // A new device signs in with Apple and receives the same account with a fresh secret.
+  assert.equal((await withApple("/auth/apple", { identityToken: await token({ sub: "nobody" }) })).status, 404);
+  assert.equal((await withApple("/auth/apple", { identityToken: "garbage" })).status, 401);
+  const restored = await (await withApple("/auth/apple", { identityToken: await token() })).json();
+  assert.equal(restored.userId, first.userId);
+  assert.equal(restored.friendCode, first.friendCode);
+  context.credentials.set("new-device", restored.userId + "." + restored.secret);
+  assert.equal((await call(context, "GET", "/profile", undefined, "new-device")).status, 200);
+  assert.equal((await call(context, "GET", "/profile", undefined, first.userId)).status, 401, "the old device is signed out");
 });

@@ -172,6 +172,12 @@ CREATE TABLE IF NOT EXISTS user_limits (
   set_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS apple_links (
+  apple_sub TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  linked_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS rate_limits (
   key TEXT NOT NULL,
   window INTEGER NOT NULL,

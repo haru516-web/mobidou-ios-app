@@ -1,4 +1,4 @@
-import type { AgeGroup, D1Database, Draw, EventRecord, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+import type { AgeGroup, AppleLinkResult, D1Database, Draw, EventRecord, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 import { randomToken } from "./crypto.ts";
 
 const nowIso = (): string => new Date().toISOString();
@@ -18,6 +18,27 @@ export class D1Store implements Store {
 
   async pendingRequestExists(fromId: string, toId: string): Promise<boolean> {
     return !!(await this.db.prepare("SELECT 1 AS found FROM friend_requests WHERE from_id = ? AND to_id = ? AND status = 'pending'").bind(fromId, toId).first());
+  }
+
+  async linkApple(userId: string, appleSub: string): Promise<AppleLinkResult> {
+    const bySub = await this.db.prepare("SELECT user_id FROM apple_links WHERE apple_sub = ?").bind(appleSub).first<{ user_id: string }>();
+    if (bySub) return bySub.user_id === userId ? "already_linked" : "apple_in_use";
+    if (await this.db.prepare("SELECT 1 AS found FROM apple_links WHERE user_id = ?").bind(userId).first()) return "account_has_other_apple";
+    await this.db.prepare("INSERT INTO apple_links (apple_sub, user_id, linked_at) VALUES (?, ?, ?)").bind(appleSub, userId, nowIso()).run();
+    return "linked";
+  }
+
+  async userByApple(appleSub: string): Promise<string | null> {
+    const row = await this.db.prepare("SELECT user_id FROM apple_links WHERE apple_sub = ?").bind(appleSub).first<{ user_id: string }>();
+    return row?.user_id ?? null;
+  }
+
+  async appleLinked(userId: string): Promise<boolean> {
+    return !!(await this.db.prepare("SELECT 1 AS found FROM apple_links WHERE user_id = ?").bind(userId).first());
+  }
+
+  async rotateSecret(userId: string, secretHash: string): Promise<void> {
+    await this.db.prepare("UPDATE users SET secret_hash = ? WHERE id = ?").bind(secretHash, userId).run();
   }
 
   async ageGroup(userId: string): Promise<AgeGroup | null> {

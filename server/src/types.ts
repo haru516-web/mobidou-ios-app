@@ -21,6 +21,8 @@ export interface Env {
   DB: D1Database;
   APPLE_ROOT_CERTIFICATES?: string;
   APPLE_BUNDLE_ID?: string;
+  /** Apple's identity-token signing keys as JSON; when set, they are used instead of downloading Apple's. */
+  APPLE_JWKS_JSON?: string;
   PRODUCT_CATALOG_JSON?: string;
   GIFTS_JSON?: string;
   CATALOG_JSON?: string;
@@ -81,7 +83,14 @@ export interface EventRecord {
 
 export type AgeGroup = "under16" | "16to19" | "adult";
 
+export type AppleLinkResult = "linked" | "already_linked" | "apple_in_use" | "account_has_other_apple";
+
 export interface Store {
+  linkApple(userId: string, appleSub: string): Promise<AppleLinkResult>;
+  userByApple(appleSub: string): Promise<string | null>;
+  appleLinked(userId: string): Promise<boolean>;
+  /** Replace the account's secret, so a sign-in on a new device takes over. */
+  rotateSecret(userId: string, secretHash: string): Promise<void>;
   /** Name and main Mobby shown to friends. */
   updateProfile(userId: string, name: string, petId: string | null): Promise<void>;
   friendshipExists(userId: string, friendId: string): Promise<boolean>;

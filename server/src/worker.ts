@@ -1,5 +1,5 @@
 import { GACHA_PET_IDS, PAID_PITY_INTERVAL, validateGachaPetIds } from "./config/gacha.ts";
-import { equalSecretHash, hashSecret, randomToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
+import { equalSecretHash, hashSecret, randomToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
 import type { AgeGroup, Env, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 
@@ -165,6 +165,24 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     return json({ userId: id, secret, friendCode: user.friendCode }, 201);
   }
 
+  if (method === "POST" && path === "/auth/apple") {
+    const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+    const perMinute = await store.hitRateLimit(`apple:minute:${ip}`, Math.floor(now.getTime() / 60_000));
+    if (perMinute > REGISTER_PER_MINUTE) throw new HttpError(429, "rate_limited");
+    const input = await body(request);
+    const token = requireString(input.identityToken, "missing_identity_token", 8000);
+    let appleSub: string;
+    try { appleSub = (await verifyAppleIdentityToken(token, env, now.getTime())).sub; }
+    catch { throw new HttpError(401, "invalid_apple_token"); }
+    const userId = await store.userByApple(appleSub);
+    if (!userId) throw new HttpError(404, "no_linked_account");
+    // A new device takes the account over: the old device's secret stops working.
+    const secret = randomToken(32);
+    await store.rotateSecret(userId, await hashSecret(secret));
+    const user = await store.user(userId);
+    return json({ userId, secret, friendCode: user?.friendCode ?? "" });
+  }
+
   if (method === "POST" && path === "/apple/notifications") {
     const input = await body(request);
     const signedPayload = requireString(input.signedPayload, "missing_signed_payload", 200_000);
@@ -199,7 +217,18 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   if (method === "GET" && path === "/profile") {
     const me = await store.user(userId);
     if (!me) throw new HttpError(401, "unauthorized");
-    return json({ name: me.name, petId: me.petId, friendCode: me.friendCode });
+    return json({ name: me.name, petId: me.petId, friendCode: me.friendCode, appleLinked: await store.appleLinked(userId) });
+  }
+
+  if (method === "POST" && path === "/account/apple/link") {
+    const input = await body(request);
+    const token = requireString(input.identityToken, "missing_identity_token", 8000);
+    let appleSub: string;
+    try { appleSub = (await verifyAppleIdentityToken(token, env, now.getTime())).sub; }
+    catch { throw new HttpError(401, "invalid_apple_token"); }
+    const result = await store.linkApple(userId, appleSub);
+    if (result === "apple_in_use" || result === "account_has_other_apple") throw new HttpError(409, result);
+    return json({ status: result });
   }
 
   if (method === "POST" && path === "/profile") {

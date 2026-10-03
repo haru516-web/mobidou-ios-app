@@ -317,3 +317,41 @@ export async function verifySignedTransaction(jws: string, env: Pick<Env, "APPLE
     ...(typeof payload.appAccountToken === "string" ? { appAccountToken: payload.appAccountToken } : {})
   };
 }
+
+const APPLE_KEYS_URL = "https://appleid.apple.com/auth/keys";
+type AppleKey = JsonWebKey & { kid?: string };
+let appleKeyCache: { keys: AppleKey[]; fetchedAt: number } | null = null;
+
+/** Apple's public signing keys for "Sign in with Apple", kept for an hour. `APPLE_JWKS_JSON` replaces the download (tests, offline use). */
+async function appleSigningKeys(env: Pick<Env, "APPLE_JWKS_JSON">, now: number): Promise<AppleKey[]> {
+  if (env.APPLE_JWKS_JSON) return (JSON.parse(env.APPLE_JWKS_JSON) as { keys: AppleKey[] }).keys;
+  if (appleKeyCache && now - appleKeyCache.fetchedAt < 3_600_000) return appleKeyCache.keys;
+  const response = await fetch(APPLE_KEYS_URL);
+  if (!response.ok) throw new Error("Apple signing keys are unavailable");
+  const keys = ((await response.json()) as { keys?: AppleKey[] }).keys;
+  if (!Array.isArray(keys) || keys.length === 0) throw new Error("Apple signing keys are malformed");
+  appleKeyCache = { keys, fetchedAt: now };
+  return keys;
+}
+
+/**
+ * Checks a "Sign in with Apple" identity token: signed by one of Apple's keys (RS256), issued by Apple,
+ * addressed to this app, not expired. Returns Apple's stable id for the person (`sub`).
+ */
+export async function verifyAppleIdentityToken(token: string, env: Pick<Env, "APPLE_JWKS_JSON" | "APPLE_BUNDLE_ID">, now = Date.now()): Promise<{ sub: string }> {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Malformed identity token");
+  const header = JSON.parse(new TextDecoder().decode(fromBase64Url(parts[0]))) as { alg?: string; kid?: string };
+  if (header.alg !== "RS256" || !header.kid) throw new Error("Unsupported identity token");
+  const jwk = (await appleSigningKeys(env, now)).find((key) => key.kid === header.kid && key.kty === "RSA");
+  if (!jwk) throw new Error("Unknown signing key");
+  const publicKey = await crypto.subtle.importKey("jwk", { kty: "RSA", n: jwk.n, e: jwk.e, alg: "RS256", ext: true }, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+  const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, asArrayBuffer(fromBase64Url(parts[2])), encoder.encode(`${parts[0]}.${parts[1]}`));
+  if (!valid) throw new Error("Identity token signature is invalid");
+  const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(parts[1]))) as { iss?: unknown; aud?: unknown; exp?: unknown; sub?: unknown };
+  if (payload.iss !== "https://appleid.apple.com") throw new Error("Unexpected issuer");
+  if (!env.APPLE_BUNDLE_ID || payload.aud !== env.APPLE_BUNDLE_ID) throw new Error("Identity token is for another app");
+  if (typeof payload.exp !== "number" || payload.exp * 1000 < now - 60_000) throw new Error("Identity token has expired");
+  if (typeof payload.sub !== "string" || !payload.sub) throw new Error("Identity token has no subject");
+  return { sub: payload.sub };
+}
