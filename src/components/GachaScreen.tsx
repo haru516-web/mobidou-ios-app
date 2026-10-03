@@ -215,6 +215,13 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, nav, onFin
     setPanelReady(false);
   }, []);
 
+  // Pulls that arrive while the shop is open (a purchase) are opened from the draw tab.
+  const seenUnrevealed = useRef(unrevealed.length);
+  useEffect(() => {
+    if (unrevealed.length > seenUnrevealed.current && tab === 'shop') setTab('draw');
+    seenUnrevealed.current = unrevealed.length;
+  }, [unrevealed.length, tab]);
+
   // A pull the player just asked for arrives as a waiting result; start showing it.
   useEffect(() => {
     if (!playing && drawRequested.current && unrevealed.length > 0) {

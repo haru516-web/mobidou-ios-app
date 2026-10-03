@@ -82,6 +82,11 @@ class MemoryStore {
     this.owned.set(userId, { [petId]: 1 });
     return true;
   }
+  async mergeOwnedPets(userId, owned) {
+    const current = this.owned.get(userId) ?? {};
+    for (const [petId, copies] of Object.entries(owned)) current[petId] = Math.max(current[petId] ?? 0, copies);
+    this.owned.set(userId, current);
+  }
   async claimFreePull(userId, routeId) {
     const key = `${userId}:${routeId}`;
     if (this.freePullClaims.has(key)) return false;
@@ -523,4 +528,27 @@ test("CORS: preflight is answered and every response allows cross-origin callers
   const refused = await handleWithStore(new Request("https://server.test/nope"), env, store);
   assert.equal(refused.status, 401);
   assert.equal(refused.headers.get("access-control-allow-origin"), "*");
+});
+
+test("pets/sync raises owned copies without lowering them, ignores unknown pets, and feeds the paid-pull guarantee", async () => {
+  const context = createContext();
+  const account = await register(context);
+  const [first, second] = GACHA_PET_IDS;
+  const synced = await call(context, "POST", "/pets/sync", { owned: { [first]: 2, "not-a-pet": 5 } }, account.userId);
+  assert.equal(synced.status, 200);
+  assert.deepEqual((await synced.json()).owned, { [first]: 2 });
+  const lowered = await call(context, "POST", "/pets/sync", { owned: { [first]: 1, [second]: 1 } }, account.userId);
+  assert.deepEqual((await lowered.json()).owned, { [first]: 2, [second]: 1 });
+  assert.equal((await call(context, "POST", "/pets/sync", { owned: { [first]: 0 } }, account.userId)).status, 400);
+  assert.equal((await call(context, "POST", "/pets/sync", { owned: [] }, account.userId)).status, 400);
+  assert.equal((await call(context, "POST", "/pets/sync", { owned: {} })).status, 401);
+});
+
+test("GET /wallet reports the balances of the signed-in user", async () => {
+  const context = createContext();
+  const account = await register(context);
+  context.store.walletRows.get(account.userId).paid = 3;
+  const response = await call(context, "GET", "/wallet", undefined, account.userId);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { paid: 3, free: 0, paidPulls: 0 });
 });

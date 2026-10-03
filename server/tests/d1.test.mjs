@@ -112,3 +112,14 @@ test("D1 rate limit counts within a window and drops older windows of the same k
     { key: "register:minute:b", window: 100, count: 1 }
   ]);
 });
+
+test("D1 mergeOwnedPets only raises copy counts", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  await store.registerUser({ id: "carol", friendCode: "CAROL12345", name: "Carol", petId: null, goshuinCount: 0, routeName: null }, "hash-c");
+  await store.mergeOwnedPets("carol", { a: 2, b: 1 });
+  await store.mergeOwnedPets("carol", { a: 1, c: 3 });
+  await store.mergeOwnedPets("carol", {});
+  assert.deepEqual(await store.ownedPets("carol"), { a: 2, b: 1, c: 3 });
+});

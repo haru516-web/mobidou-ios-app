@@ -93,6 +93,8 @@ export interface Store {
   wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number }>;
   ownedPets(userId: string): Promise<Record<string, number>>;
   chooseStarter(userId: string, petId: string): Promise<boolean>;
+  /** Raise each pet's copy count to at least the given number (never lowers it). */
+  mergeOwnedPets(userId: string, owned: Record<string, number>): Promise<void>;
   claimFreePull(userId: string, routeId: string): Promise<boolean>;
   commitDraws(userId: string, draws: Draw[], kind: "free" | "paid", paidPulls: number): Promise<void>;
   friends(userId: string): Promise<unknown[]>;

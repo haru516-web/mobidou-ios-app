@@ -242,6 +242,23 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     return json({ petId, copies: 1 }, 201);
   }
 
+  if (method === "POST" && path === "/pets/sync") {
+    const input = await body(request);
+    const sent = input.owned && typeof input.owned === "object" && !Array.isArray(input.owned) ? input.owned as Record<string, unknown> : null;
+    if (!sent) throw new HttpError(400, "invalid_owned");
+    const pool = gachaPetIds();
+    const owned: Record<string, number> = {};
+    for (const [petId, copies] of Object.entries(sent)) {
+      if (!pool.includes(petId as typeof GACHA_PET_IDS[number])) continue;
+      if (typeof copies !== "number" || !Number.isSafeInteger(copies) || copies < 1 || copies > 999) throw new HttpError(400, "invalid_owned");
+      owned[petId] = copies;
+    }
+    await store.mergeOwnedPets(userId, owned);
+    return json({ owned: await store.ownedPets(userId) });
+  }
+
+  if (method === "GET" && path === "/wallet") return json(await store.wallet(userId));
+
   if (method === "POST" && path === "/free-pulls/claim") {
     const input = await body(request);
     const routeId = requireString(input.routeId, "invalid_route_id", 160);

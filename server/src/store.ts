@@ -130,6 +130,13 @@ export class D1Store implements Store {
     return (result.meta?.changes ?? 0) > 0;
   }
 
+  async mergeOwnedPets(userId: string, owned: Record<string, number>): Promise<void> {
+    const statements = Object.entries(owned).map(([petId, copies]) =>
+      this.db.prepare(`INSERT INTO user_pets (user_id, pet_id, copies) VALUES (?, ?, ?)
+        ON CONFLICT(user_id, pet_id) DO UPDATE SET copies = MAX(copies, excluded.copies)`).bind(userId, petId, copies));
+    if (statements.length) await this.db.batch(statements);
+  }
+
   async claimFreePull(userId: string, routeId: string): Promise<boolean> {
     const result = await this.db.prepare("INSERT OR IGNORE INTO free_pull_claims (user_id, route_id, claimed_at) VALUES (?, ?, ?)")
       .bind(userId, routeId, nowIso()).run();

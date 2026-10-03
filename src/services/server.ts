@@ -47,7 +47,7 @@ export function planServerOps(mobbies: MobbyCollection, state: ServerState): { o
   return { ops, starterUnknown };
 }
 
-async function request(path: string, init: { method?: string; body?: unknown; account?: ServerAccount | null }) {
+export async function request(path: string, init: { method?: string; body?: unknown; account?: ServerAccount | null }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -67,6 +67,38 @@ async function loadState() {
   try { return normalizeServerState(JSON.parse(await AsyncStorage.getItem(STATE_KEY) ?? 'null')); } catch { return emptyServerState(); }
 }
 const saveState = (state: ServerState) => AsyncStorage.setItem(STATE_KEY, JSON.stringify(state)).catch(() => undefined);
+
+/** Everything that reads and rewrites the saved state goes through here, one at a time. */
+let chain: Promise<unknown> = Promise.resolve();
+function exclusive<T>(job: () => Promise<T>): Promise<T> {
+  const next = chain.then(job, job);
+  chain = next.catch(() => undefined);
+  return next;
+}
+
+/** The anonymous account, registered on first use. `null` while the server cannot be reached. */
+export function ensureAccount(): Promise<ServerAccount | null> {
+  if (!SERVER_URL) return Promise.resolve(null);
+  return exclusive(async () => {
+    const state = await loadState();
+    if (state.account) return state.account;
+    const registered = await request('/auth/register', { body: {} });
+    const data = registered?.data;
+    if (registered?.status !== 201 || !data || typeof data.userId !== 'string' || typeof data.secret !== 'string') return null;
+    const account = { userId: data.userId, secret: data.secret };
+    await saveState({ ...state, account });
+    return account;
+  });
+}
+
+/** A signed-in call. If the server no longer knows the account, it is dropped so the next call registers again. */
+export async function authedRequest(path: string, init: { method?: string; body?: unknown } = {}) {
+  const account = await ensureAccount();
+  if (!account) return null;
+  const result = await request(path, { ...init, account });
+  if (result?.status === 401) await exclusive(async () => { const state = await loadState(); if (state.account?.userId === account.userId) await saveState({ ...state, account: null }); });
+  return result;
+}
 
 let running: Promise<void> | null = null;
 let latest: MobbyCollection | null = null;
@@ -110,7 +142,7 @@ export function syncServer(mobbies: MobbyCollection): Promise<void> {
       while (latest) {
         const next = latest;
         latest = null;
-        await runOnce(next).catch(() => undefined);
+        await exclusive(() => runOnce(next)).catch(() => undefined);
       }
     } finally { running = null; }
   })();

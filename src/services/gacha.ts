@@ -122,6 +122,22 @@ export function pullFive(collection: MobbyCollection, pool: readonly string[], r
   return next;
 }
 
+/**
+ * Record pulls the server decided (paid pulls). The server's own `isNew` is
+ * ignored: it is recomputed here from what this device owns, so the reveal
+ * always matches the collection the player sees. `paidPulls` is the server's
+ * running count, which drives the guarantee.
+ */
+export function applyServerPulls(collection: MobbyCollection, results: readonly PullResult[], paidPulls: number, isKnownPet: (id: string) => boolean): MobbyCollection {
+  let next = collection;
+  for (const result of results) {
+    if (!isKnownPet(result.petId)) continue;
+    const entry: PullResult = { petId: result.petId, isNew: !ownsMobby(next, result.petId), guaranteed: result.guaranteed === true, kind: result.kind === 'free' ? 'free' : 'paid' };
+    next = { ...next, owned: { ...next.owned, [result.petId]: (next.owned[result.petId] ?? 0) + 1 }, unrevealed: [...next.unrevealed, entry] };
+  }
+  return { ...next, paidPulls: Math.max(next.paidPulls, count(paidPulls)) };
+}
+
 /** The reveal ceremony is over. */
 export function acknowledgePulls(collection: MobbyCollection): MobbyCollection {
   return collection.unrevealed.length ? { ...collection, unrevealed: [] } : collection;
