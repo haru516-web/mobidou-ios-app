@@ -107,6 +107,17 @@ export async function saveProfile(name: string, petId: string): Promise<{ ok: tr
   return { ok: false, reason: reply.status === 400 ? 'invalid' : 'offline' };
 }
 
+/** The name saved on this device, or '' when none was. */
+export async function savedProfileName() {
+  try { return (JSON.parse(await AsyncStorage.getItem(PROFILE_KEY) ?? 'null') as { name?: string } | null)?.name ?? ''; } catch { return ''; }
+}
+
+/** The main Mobby was changed: let friends see the new one. Does nothing until a name has been registered. */
+export async function syncProfilePet(petId: string) {
+  const name = await savedProfileName();
+  if (SOCIAL_ONLINE && name) await saveProfile(name, petId);
+}
+
 /** Whether a name was saved on this device (so the guide to register one is not shown again). */
 export async function hasSavedProfileName() {
   try { return !!(JSON.parse(await AsyncStorage.getItem(PROFILE_KEY) ?? 'null') as { name?: string } | null)?.name; } catch { return false; }

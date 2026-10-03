@@ -143,7 +143,7 @@ function PetAvatar({ petId, size = 52 }: { petId: PetCharacter['id']; size?: num
   </View>;
 }
 
-export function FriendsSheet({ visible, demo, pet, initialCode, onClose }: { visible: boolean; demo: boolean; pet: PetCharacter; /** A code that came with an invite link; it is put in the box, not sent. */ initialCode?: string; onClose: () => void }) {
+export function FriendsSheet({ visible, demo, pet, initialCode, onChangePet, onClose }: { visible: boolean; demo: boolean; pet: PetCharacter; /** A code that came with an invite link; it is put in the box, not sent. */ initialCode?: string; /** Opens the picker for the main Mobby (the Mobbies the player owns). */ onChangePet?: () => void; onClose: () => void }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [savedName, setSavedName] = useState('');
@@ -208,7 +208,10 @@ export function FriendsSheet({ visible, demo, pet, initialCode, onClose }: { vis
       <WashiInput value={name} onChangeText={setName} maxLength={12} placeholder="なまえ（12文字まで）" placeholderTextColor="#B7A58F" autoCorrect={false} accessibilityLabel="プロフィールの名前" style={S.codeInput} />
       <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={!name.trim() || name.trim() === savedName} onPress={() => void register()} style={[S.primarySmall, (!name.trim() || name.trim() === savedName) && S.disabled]}><Text style={S.primarySmallText}>{savedName ? '変更' : '登録'}</Text></Pressable>
     </View>
-    <Text style={S.profileNote}>フレンドに見えるのは、名前と、いまのメインモビー（{pet.name}）だけです。メインモビーは、持っているモビーから選べます。</Text></View>}
+    <View style={S.profileFooter}>
+      <Text style={S.profileNote}>フレンドに見えるのは、名前と、いまのメインモビー（{pet.name}）だけです。</Text>
+      {onChangePet && <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="メインモビーを変える" onPress={onChangePet} style={S.secondarySmall}><Text style={S.secondarySmallText}>メインモビーを変える</Text></Pressable>}
+    </View></View>}
 
     <View style={[S.card, S.myCard]}>
       <WashiArt />
@@ -301,7 +304,8 @@ const S = StyleSheet.create({
   codeInput: { flex: 1, minHeight: 42, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFFFF', color: C.ink, fontSize: 16, letterSpacing: 1 },
   personRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  profileNote: { color: C.muted, fontSize: 12, lineHeight: 18, paddingHorizontal: 16, paddingTop: 6 },
+  profileNote: { flex: 1, color: C.muted, fontSize: 12, lineHeight: 18 },
+  profileFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 6 },
   personName: { fontFamily: BRUSH, fontSize: 16, color: C.ink },
   personMeta: { marginTop: 2, color: C.muted, fontSize: 12 },
 });

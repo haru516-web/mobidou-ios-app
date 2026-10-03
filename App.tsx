@@ -19,7 +19,7 @@ import { GachaScreen } from './src/components/GachaScreen';
 import { buyPulls, drawPaidTickets, setAgeGroup, settleCredits, type AgeGroup, type BuyOutcome, type PullProductId } from './src/services/purchase';
 import { createAppStore } from './src/services/appStore';
 import { friendCodeFromUrl } from './src/services/friends';
-import { hasSavedProfileName, markProfileGuideShown, SOCIAL_ONLINE, wasProfileGuideShown } from './src/services/social';
+import { hasSavedProfileName, markProfileGuideShown, SOCIAL_ONLINE, syncProfilePet, wasProfileGuideShown } from './src/services/social';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { pilgrimageShrines, RouteMap } from './src/components/PilgrimageScreen';
@@ -642,6 +642,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const timer = setTimeout(() => setWeeklyOpen(true), 1200);
     return () => clearTimeout(timer);
   }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet]);
+  // Friends see the main Mobby, so a change of Mobby is passed on right away.
+  useEffect(() => {
+    if (journey.ready && !data.demo && data.onboarded) void syncProfilePet(data.pet);
+  }, [journey.ready, data.demo, data.onboarded, data.pet]);
   // A friend link (mobidou://friend?code=… or the invite page) opens the friends sheet with the code filled in.
   const [inviteCode, setInviteCode] = useState('');
   useEffect(() => {
@@ -823,7 +827,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
-    <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
+    <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
     <BookIndexPopup visible={bookIndexOpen} title="目次" subtitle={activeRoute?.name} shrines={activeShrines} ownedIds={collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
     {firstRunStage === 'homeCompanion' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="1 / 7" title="ホームのモビーとふれあおう" detail="ほっぺを引っぱると伸びるよ。タップで二礼二拍手一礼。" />}
     {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="2 / 7" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
