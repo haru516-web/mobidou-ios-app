@@ -98,3 +98,17 @@ test("D1 schema and ledger operations enforce idempotency and wallet constraints
   assert.equal((await store.friends(alice.id)).length, 1);
   database.close();
 });
+
+test("D1 rate limit counts within a window and drops older windows of the same key", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  assert.equal(await store.hitRateLimit("register:minute:a", 100), 1);
+  assert.equal(await store.hitRateLimit("register:minute:a", 100), 2);
+  assert.equal(await store.hitRateLimit("register:minute:b", 100), 1);
+  assert.equal(await store.hitRateLimit("register:minute:a", 101), 1);
+  assert.deepEqual(database.prepare("SELECT key, window, count FROM rate_limits ORDER BY key, window").all().map((row) => ({ ...row })), [
+    { key: "register:minute:a", window: 101, count: 1 },
+    { key: "register:minute:b", window: 100, count: 1 }
+  ]);
+});

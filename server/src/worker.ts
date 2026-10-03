@@ -3,6 +3,10 @@ import { equalSecretHash, hashSecret, randomToken, verifySignedPayload, verifySi
 import { D1Store } from "./store.ts";
 import type { Env, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 
+/** Anonymous sign-ups allowed from one source address. */
+const REGISTER_PER_MINUTE = 5;
+const REGISTER_PER_DAY = 30;
+
 class HttpError extends Error {
   readonly status: number;
   readonly code: string;
@@ -123,10 +127,10 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   }
 
   if (method === "POST" && path === "/auth/register") {
-    if (env.REGISTER_LIMITER) {
-      const { success } = await env.REGISTER_LIMITER.limit({ key: request.headers.get("CF-Connecting-IP") ?? "unknown" });
-      if (!success) throw new HttpError(429, "rate_limited");
-    }
+    const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+    const perMinute = await store.hitRateLimit(`register:minute:${ip}`, Math.floor(now.getTime() / 60_000));
+    const perDay = await store.hitRateLimit(`register:day:${ip}`, Math.floor(now.getTime() / 86_400_000));
+    if (perMinute > REGISTER_PER_MINUTE || perDay > REGISTER_PER_DAY) throw new HttpError(429, "rate_limited");
     const input = await body(request);
     const id = crypto.randomUUID();
     const secret = randomToken(32);

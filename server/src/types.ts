@@ -16,13 +16,9 @@ export interface D1Database {
   batch<T = Record<string, unknown>>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]>;
 }
 
-export interface RateLimiter {
-  limit(options: { key: string }): Promise<{ success: boolean }>;
-}
 
 export interface Env {
   DB: D1Database;
-  REGISTER_LIMITER?: RateLimiter;
   APPLE_ROOT_CERTIFICATES?: string;
   APPLE_BUNDLE_ID?: string;
   PRODUCT_CATALOG_JSON?: string;
@@ -82,6 +78,8 @@ export interface EventRecord {
 }
 
 export interface Store {
+  /** Count one hit against `key` in the fixed window numbered `window`; returns the count including this hit. */
+  hitRateLimit(key: string, window: number): Promise<number>;
   registerUser(user: User, secretHash: string): Promise<void>;
   credentialHash(userId: string): Promise<string | null>;
   user(userId: string): Promise<User | null>;

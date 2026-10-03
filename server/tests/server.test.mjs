@@ -24,6 +24,12 @@ class MemoryStore {
   paidPullCounts = new Map();
   failNextCommit = false;
 
+  hits = new Map();
+  async hitRateLimit(key, window) {
+    const id = `${key}:${window}`;
+    this.hits.set(id, (this.hits.get(id) ?? 0) + 1);
+    return this.hits.get(id);
+  }
   async registerUser(user, secretHash) {
     this.users.set(user.id, user);
     this.hashes.set(user.id, secretHash);
@@ -490,10 +496,21 @@ test("Apple notification grants by the transaction appAccountToken, not a top-le
   assert.equal(await context.store.ticketBalance(wrong.userId), 0);
 });
 
-test("registration is refused with 429 once the rate limiter says no", async () => {
+test("registration allows five per minute from one address, then 429, and other addresses are unaffected", async () => {
   const store = new MemoryStore();
-  const limited = { ...env, REGISTER_LIMITER: { limit: async () => ({ success: false }) } };
-  const response = await handleWithStore(new Request("https://server.test/auth/register", { method: "POST", body: "{}" }), limited, store);
-  assert.equal(response.status, 429);
-  assert.equal(store.users.size, 0);
+  const register = (ip, now) => handleWithStore(new Request("https://server.test/auth/register", { method: "POST", body: "{}", headers: { "CF-Connecting-IP": ip } }), env, store, now);
+  const start = new Date("2026-10-03T12:00:10Z");
+  for (let i = 0; i < 5; i++) assert.equal((await register("1.1.1.1", start)).status, 201);
+  assert.equal((await register("1.1.1.1", start)).status, 429);
+  assert.equal(store.users.size, 5);
+  assert.equal((await register("2.2.2.2", start)).status, 201);
+  assert.equal((await register("1.1.1.1", new Date("2026-10-03T12:01:10Z"))).status, 201);
+});
+
+test("registration is capped at 30 per day per address", async () => {
+  const store = new MemoryStore();
+  const register = (now) => handleWithStore(new Request("https://server.test/auth/register", { method: "POST", body: "{}", headers: { "CF-Connecting-IP": "3.3.3.3" } }), env, store, now);
+  let refused = 0;
+  for (let i = 0; i < 40; i++) if ((await register(new Date(Date.parse("2026-10-03T00:00:00Z") + i * 120_000))).status === 429) refused++;
+  assert.equal(refused, 10);
 });

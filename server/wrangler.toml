@@ -11,10 +11,3 @@ database_id = "00000000-0000-0000-0000-000000000000"
 [vars]
 EVENT_STEPS_WINDOW_START = "20:00"
 EVENT_STEPS_DAILY_MAX = "100000"
-
-[[ratelimits]]
-name = "REGISTER_LIMITER"
-namespace_id = "1001"
-  [ratelimits.simple]
-  limit = 5
-  period = 60

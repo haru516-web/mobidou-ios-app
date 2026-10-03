@@ -165,3 +165,10 @@ BEGIN
   INSERT INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at)
   VALUES ('free:' || NEW.user_id || ':' || NEW.route_id, NEW.user_id, 'free', 1, 'first_route_clear', NEW.route_id, NEW.claimed_at);
 END;
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT NOT NULL,
+  window INTEGER NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (key, window)
+);
