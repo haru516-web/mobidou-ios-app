@@ -8,6 +8,7 @@ import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
 import { PET_CHARACTERS, getPetCharacter, isPetId, type PetCharacter } from '../petCatalog';
 import { GachaShop } from './GachaShop';
+import { HomeStatusBar } from './HomeStatusBar';
 import { WashiPressable } from './Washi';
 import { SlicedArt } from './SlicedArt';
 import { GACHA_PANEL_ART, GACHA_UI_ART } from '../data/gachaUiArt';
@@ -71,6 +72,8 @@ type Props = {
   unrevealed: readonly PullResult[];
   haptics: boolean;
   /** Draw one free pull. The new result arrives through `unrevealed`. */
+  /** 交換券 held, shown beside the 木札 count like on the home screen. */
+  passes?: number;
   /** Draw `count` pulls. May answer later; `false` means nothing was drawn and no 木札 was spent. */
   onDraw: (count: number) => void | Promise<boolean>;
   /** The app's bottom navigation, shown while the player is choosing how to draw and hidden once the cord is up. */
@@ -99,7 +102,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, nextHint, companion, guided = false, startOnShop = false }: Props) {
+export function GachaScreen({ freePulls, passes = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, nextHint, companion, guided = false, startOnShop = false }: Props) {
   useSceneBgm('bgm_gacha', true, 20);
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
   // The lobby is where the player picks how many to draw; the cord only works once a draw has been chosen. The first-run guide goes straight to the cord.
@@ -560,6 +563,8 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, nav, onFin
       <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={S.tab}><SlicedArt art={shopOpen ? GACHA_UI_ART.tabOn : GACHA_UI_ART.tabOff} /><Text style={[S.tabText, shopOpen && S.tabTextOn]}>購入</Text></Pressable>
     </View>}
 
+    {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={freePulls} miniaturePasses={passes} onAddTickets={showShop && !shopOpen ? () => setTab('shop') : undefined} /></View>}
+
     {/* Once the Mobby has been revealed, one tap shows it large and another tap puts it back. */}
     {canZoom && <Pressable accessibilityRole="button" accessibilityLabel={zoomed ? 'モビーを小さく戻す' : 'モビーを大きく見る'} onPress={() => setZoomed(value => !value)} style={StyleSheet.absoluteFillObject}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#05030A', opacity: .78 * zoomT }]} />
@@ -633,6 +638,7 @@ const S = StyleSheet.create({
   ropeHintText: { textAlign: 'center', color: '#FFF8E9', fontFamily: BRUSH, fontSize: 30, letterSpacing: 2, textShadowColor: '#000000CC', textShadowRadius: 8 },
   skip: { position: 'absolute', right: 16, minWidth: 96, minHeight: 36, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
   skipText: { color: '#8F3F36', fontFamily: BRUSH, fontSize: 14, letterSpacing: 1 },
+  status: { position: 'absolute', right: 12, zIndex: 5 },
   tabs: { position: 'absolute', left: 0, right: 0, top: 76, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   tabGap: { width: 56 },
   tab: { minWidth: 104, minHeight: 40, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
