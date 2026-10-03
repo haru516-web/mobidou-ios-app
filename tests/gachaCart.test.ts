@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { carrierAt, dustFrameAt, placeBox, type CartAnchors } from '../src/components/gachaCart.ts';
+import { BOX_SINK, carrierAt, dustFrameAt, placeBox, type CartAnchors } from '../src/components/gachaCart.ts';
 import { INTRO_END_MS, ROLL_MS, SLIDE_START_MS, UNLOAD_END_MS, UNLOAD_START_MS, WALK_START_MS } from '../src/components/gachaTimeline.ts';
 
 const anchors: CartAnchors = JSON.parse(readFileSync('assets/gacha/cart/anchors.json', 'utf8'));
@@ -25,7 +25,7 @@ test('the carrier comes in from the left, stops, and ends up at the stopping pla
 test('the unload starts from the walk pose and the box rides on the bed until it is let go', () => {
   const walkStart = carrierAt(WALK_START_MS, anchors, ENTRY, EXIT);
   assert.equal(walkStart.frame, 0);
-  assert.deepEqual(carrierAt(UNLOAD_START_MS, anchors, ENTRY, EXIT).box, { x: anchors.unload[0].bedX, y: anchors.unload[0].bedY, angle: 0 });
+  assert.deepEqual(carrierAt(UNLOAD_START_MS, anchors, ENTRY, EXIT).box, { x: anchors.unload[0].bedX, y: anchors.unload[0].bedY + BOX_SINK, angle: 0 });
   assert.equal(carrierAt(SLIDE_START_MS - 1, anchors, ENTRY, EXIT).landed, false);
 });
 

@@ -696,7 +696,6 @@ export function PullableCompanion({
             </Animated.View>
           ) : null}
         </Animated.View>
-        {status !== 'idle' && !isPrayer ? <View pointerEvents="none" style={styles.pullStatus}><Text style={styles.pullStatusText}>{status === 'pulling' ? 'のびてる……' : specialReaction ? '10回目のスペシャル反応！' : 'びよーん！'}</Text></View> : null}
       </View>
     </View>
   );
@@ -721,6 +720,4 @@ const styles = StyleSheet.create({
   overlayImage: { ...StyleSheet.absoluteFillObject, width: 210, height: 210 },
   pullSpark: { position: 'absolute', top: -24, right: -15, alignItems: 'center', justifyContent: 'center' },
   pullSparkText: { color: C.gold, fontSize: 42, fontWeight: '700' },
-  pullStatus: { position: 'absolute', bottom: 2, zIndex: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: '#FFF9EFDD', borderWidth: 1, borderColor: C.line },
-  pullStatusText: { color: C.red, fontSize: 11, fontFamily: 'Shippori' },
 });

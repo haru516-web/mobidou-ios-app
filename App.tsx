@@ -14,19 +14,18 @@ import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView, localDay } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
 import { hasStarter, ownsMobby } from './src/services/gacha';
-import { DuplicateMobbies } from './src/components/DuplicateMobbies';
 import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
 import { GachaScreen } from './src/components/GachaScreen';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { pilgrimageShrines, RouteMap } from './src/components/PilgrimageScreen';
-import { PillText, WashiPressable as Pressable } from './src/components/Washi';
+import { PillText, WashiArt, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from './src/data/pilgrimagePeekImages';
 import { COLLECTION_SHRINES, CollectionGallery, type CollectionPage, type CollectionZoom } from './src/components/CollectionGallery';
 import { BookPageTurn, type BookPageTurnHandle } from './src/components/BookPageTurn';
-import { HomeBottomNavigation, HomeCustomizationPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
+import { HomeBottomNavigation, HomeCustomizationPopup, HomeGoshuinPickPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
 import { BookIndexPopup, GoshuinBookCover } from './src/components/GoshuinBook';
 import { CroppedArt } from './src/components/CroppedArt';
 import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork, HomeStepsArtwork } from './src/components/HomeWidgetArtwork';
@@ -39,7 +38,7 @@ import type { TourSelection } from './src/data/featureTour';
 import { FitToHeight } from './src/components/PagedBody';
 import { countsAsUnread, FriendsSheet, NotificationsSheet, PresentBoxSheet, type AppNotice } from './src/components/SocialSheets';
 import { fetchGifts, markGiftReceived, markNoticesRead, readReadNoticeIds, readReceivedGiftIds, type Gift } from './src/services/social';
-import type { CustomHomeWidgetId } from './src/services/homePreferences';
+import type { CustomHomeWidgetId, HomeWidgetItems } from './src/services/homePreferences';
 import { OmikujiExperience } from './src/components/OmikujiExperience';
 import { affinityStageFor, type ReactionContext } from './src/data/reactions';
 import { ConnectStepsPrompt } from './src/components/ConnectStepsPrompt';
@@ -55,7 +54,7 @@ import { OpeningExperience } from './src/components/OpeningExperience';
 import { CollectionBackdrop, getHomeBackgroundMetrics, HomeAnchoredBackground } from './src/components/HomeBackdrops';
 
 type Tab = PrimaryTab;
-type HomePopup = 'custom' | 'moby' | null;
+type HomePopup = 'custom' | 'moby' | 'goshuinPick' | null;
 // Guide order: tour of the home → omikuji → the present box hands over a 木札 → the first Mobby comes from the gacha.
 type FirstRunStage = 'route' | 'homeCompanion' | 'floatingMenu' | 'floatingDrag' | 'homeOmikuji' | 'drawOmikuji' | 'presentBox' | 'gacha' | 'connectSteps' | null;
 const TUTORIAL_GIFT: Gift = { id: 'tutorial-first-ticket', title: 'はじめての木札', message: 'ようこそ、もび道へ。この木札で、最初のモビーに出会えます。', from: 'もび道', items: [{ kind: 'gachaTicket', quantity: 1 }], sentAt: '2026-01-01T00:00:00.000Z' };
@@ -88,6 +87,15 @@ const HOME_SHORT_WINDOW = 740;
 const HOME_SHORT_COMPANION_SCALE = .72;
 const HOME_CARD_CHROME_HEIGHT = 124;
 function displayDate(day: string) { const [y, m, d] = day.split('-'); return `${y}年${Number(m)}月${Number(d)}日`; }
+/** One line that always fits: the font shrinks (never below `min`) until the whole text fits the measured width. */
+function FitLine({ text, style, base, min = 9, spacing = 0, flex = false, wrap = false }: { text: string; style: object; base: number; min?: number; spacing?: number; flex?: boolean; wrap?: boolean }) {
+  const [width, setWidth] = useState(0);
+  const fitted = width > 0 ? Math.min(base, Math.floor((width - 1) / Math.max(1, text.length) - spacing)) : base;
+  const size = Math.max(min, fitted);
+  return <View onLayout={({ nativeEvent }) => setWidth(previous => Math.abs(previous - nativeEvent.layout.width) < 1 ? previous : nativeEvent.layout.width)} style={flex ? { flex: 1 } : { alignSelf: 'stretch' }}>
+    <Text numberOfLines={wrap && fitted < min ? 2 : 1} style={[style, { fontSize: size, lineHeight: Math.round(size * 1.45), letterSpacing: spacing }]}>{text}</Text>
+  </View>;
+}
 
 type HomeLayout = { y: number; height: number };
 
@@ -337,8 +345,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       <BookPageArt side="right" />
       <View style={S.bookLeft}><Stamp shrine={book} locked={!reward} /></View>
       <View style={S.bookRight}>
-        <Text style={S.bookReading}>{book.reading}</Text><Text style={S.bookName}>{book.name}</Text><View style={S.shortRule} /><Text style={S.bookTheme}>{book.theme}</Text><Text numberOfLines={4} style={S.bookDescription}>{book.description}</Text>
-        <View style={S.inline}><Torii size={16} color={C.muted} /><Text style={S.bookLocation}>{book.place}</Text></View>
+        <FitLine text={book.reading} style={S.bookReading} base={11} spacing={1} /><FitLine text={book.name} style={S.bookName} base={21} min={12} /><View style={S.shortRule} /><FitLine text={book.theme} style={S.bookTheme} base={12} min={10} wrap /><Text style={S.bookDescription}>{book.description.split('\n').slice(1).join('\n')}</Text>
+        <View style={S.inline}><Torii size={16} color={C.muted} /><FitLine text={book.place} style={S.bookLocation} base={11} flex /></View>
         {reward && <Pressable plate="primary" accessibilityRole="button" onPress={() => setDetail(book)} style={S.bookDetail}><Text style={S.bookDetailText}>このご縁をみる</Text><Icon name="chevron-forward" color="#FFF9EE" size={13} /></Pressable>}
       </View>
     </View>;
@@ -633,7 +641,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               <TutorialTarget active={firstRunStage === 'homeCompanion'} onRectChange={setTutorialRect}>
                 <View onLayout={({ nativeEvent }) => { const { height } = nativeEvent.layout; setHomeCompanionNaturalHeight(previous => previous === height ? previous : height); }} style={homeCompanionScale === 1 || !homeCompanionNaturalHeight ? undefined : { marginBottom: -homeCompanionNaturalHeight * (1 - homeCompanionScale), transform: [{ scale: homeCompanionScale }], transformOrigin: 'top' }}>
                   <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} reactionContext={reactionContext} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
-                  <DuplicateMobbies collection={data.mobbies} />
                 </View>
               </TutorialTarget>
             </TourAnchor>
@@ -647,17 +654,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
 
       {tab === 'book' && <>
-        <View style={S.pageTop}>
-          <View style={S.pageTopText}>
-            <Text style={S.pageEyebrow}>巡礼中</Text>
-            <Text numberOfLines={2} style={S.pageLead}>{activeRoute?.name ?? '巡礼を選びましょう'}</Text>
-          </View>
+        <View style={[S.pageTop, S.bookTop]}>
           <TourAnchor id="book-top" style={S.tourPair}>
             <PopButton id="bookIndex" label="目次" icon="list" size={54} phase={0} onPress={() => setBookIndexOpen(true)} />
           </TourAnchor>
         </View>
+        <View style={S.bookTitlePlate}><WashiArt />
+          <Text style={S.pageEyebrow}>巡礼中</Text>
+          <FitLine text={activeRoute?.name ?? '巡礼を選びましょう'} style={S.pageLead} base={18} min={12} />
+        </View>
         {activeRoute && !bookOpen && <GoshuinBookCover route={activeRoute} onOpen={() => setBookOpen(true)} />}
-        {bookOpen && <><View style={S.bookWrap}>
+        {bookOpen && <><View style={[S.bookWrap, { marginTop: 14 }]}>
           <View pointerEvents="none" style={[S.bookCoverEdge, activeRoute ? { backgroundColor: activeRoute.color } : null]}><Image accessible={false} source={BOOK_CLOTH} contentFit="cover" style={S.bookCloth} /></View>
           <BookPageTurn key={activeRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={selectedIndex} itemCount={activeShrines.length} contentKey={activeRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={setFeatured} onBusyChange={setTurning} onOpenDetail={index => openDetail(activeShrines[index])} nativePages={nativeBookPages} style={S.bookViewport} />
         </View>
@@ -667,7 +674,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
       {tab === 'walk' && <>
         <View style={S.pageTop}>
-          <View style={S.pageTopText}>
+          <View style={[S.pageTopText, S.pageTopPlate]}><WashiArt />
             <Text style={S.pageEyebrow}>{mapOpen ? '巡礼絵図' : '今日の歩数'}</Text>
             <Text numberOfLines={2} style={S.pageLead}>{activeRoute?.name ?? '巡礼を選びましょう'}</Text>
           </View>
@@ -705,6 +712,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
+    {homePopup === 'goshuinPick' && <HomeGoshuinPickPopup shrines={COLLECTION_SHRINES} ownedIds={collectionRewardIds} selectedId={latest.id} onConfirm={shrineId => { journey.saveHomeWidgetItems(data.homeWidgetItems.map((item, slot) => data.homeWidgetOrder[slot] === 'goshuin' ? shrineId : item) as HomeWidgetItems); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} isOwned={!hasStarter(data.mobbies) ? undefined : (id => ownsMobby(data.mobbies, id))} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     <TourAnchor id="nav" onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
       <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} onGacha={hasStarter(data.mobbies) && !onboardingPreview ? () => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); setGachaOpen(true); } : undefined} freePulls={data.mobbies.freePulls} />
@@ -832,7 +840,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {weeklyOpen && <WeeklyReview visible summary={weeklySummary} petName={pet.name} petImage={pet.image} places={weeklyPlaces} onClose={() => { journey.markWeekSeen(weekStartDay()); setWeeklyOpen(false); }} />}
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} quick={journey.ready && data.onboarded && !onboardingPreview} /></Modal>
     <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={data.mobbies.freePulls} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={(__DEV__ || gachaOnShop) && firstRunStage !== 'gacha'} startOnShop={gachaOnShop} />}</Modal>
-    <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
+    <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); openBookPage(index); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
   </SafeAreaView></View>;
 }
 
@@ -847,7 +855,7 @@ const S = StyleSheet.create({
   footprintMarkDone: { color: '#B84C3D' },
   footprintText: { fontSize: 10, color: '#6F675B' },
   pageTop: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -4, marginBottom: 8 },
-  pageTopText: { flex: 1, paddingRight: 4 },
+  pageTopText: { flex: 1, paddingRight: 4 }, pageTopPlate: { paddingHorizontal: 18, paddingVertical: 9, overflow: 'hidden' }, bookTop: { justifyContent: 'flex-end', marginBottom: -54, zIndex: 2 }, bookTitlePlate: { alignSelf: 'center', maxWidth: '62%', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8, overflow: 'hidden', marginBottom: 4 },
   pageEyebrow: { color: C.red, fontSize: 12, fontWeight: '700', letterSpacing: 1, textShadowColor: '#FFF9EF', textShadowRadius: 6 },
   pageLead: { marginTop: 3, fontFamily: BRUSH, fontSize: 18, lineHeight: 25, color: C.ink, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
   walkActionButton: { width: '100%', marginTop: 0 },
@@ -882,7 +890,7 @@ const S = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 24, paddingBottom: 12, overflow: 'hidden' }, homeContent: { paddingBottom: 0 }, chapter: { fontFamily: BRUSH, color: '#766452', fontSize: 14, letterSpacing: 2 },
   dot: { height: 4, width: 4, backgroundColor: C.red, borderRadius: 5 },   homeWidgetsHidden: { opacity: 0 }, homeCardGroup: { marginTop: 'auto' }, homeWidgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'space-between', marginTop: 5, marginBottom: 8 }, homeWidgetCard: { width: '48%', height: 244, borderRadius: 17, borderWidth: 1, borderColor: '#D9C7AE', backgroundColor: '#FFF9EF', padding: 11, overflow: 'hidden', alignItems: 'stretch' },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 6 }, footerNote: { marginTop: 25, textAlign: 'center', color: '#9A9081', fontSize: 12, lineHeight: 19 },
-  bookWrap: { marginHorizontal: -17, marginTop: 38, paddingHorizontal: 5, paddingVertical: 5, backgroundColor: 'transparent', shadowColor: '#27170F', shadowOffset: { width: 0, height: 15 }, shadowOpacity: .34, shadowRadius: 17, elevation: 12 }, bookCoverEdge: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 8, overflow: 'hidden' }, bookCloth: { ...StyleSheet.absoluteFillObject, opacity: .42 }, bookPaperEdges: { position: 'absolute', top: 2, bottom: 3, left: 3, right: 3, borderRadius: 5, backgroundColor: '#DBCCAD', borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#AF9875' }, bookViewport: { position: 'relative', overflow: 'hidden', borderRadius: 3, minHeight: 340 }, openBook: { flexDirection: 'row', overflow: 'hidden', minHeight: 340, height: 340 }, bookPageArt: { position: 'absolute', top: 0, bottom: 0, width: '50%', overflow: 'hidden' }, bookLeft: { flex: 1, padding: 12, justifyContent: 'center' }, bookRight: { flex: 1.02, padding: 15, paddingLeft: 12, justifyContent: 'center', gap: 9 }, bookReading: { fontSize: 11, color: C.muted, letterSpacing: 1 }, bookName: { fontFamily: BRUSH, fontSize: 21, color: C.ink, lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: BRUSH, fontSize: 12, lineHeight: 21, color: C.red }, bookDescription: { fontFamily: SERIF, fontSize: 11, lineHeight: 20, color: '#6C6050' }, bookLocation: { flex: 1, fontSize: 11, lineHeight: 14, color: '#887B68' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 12, fontFamily: BRUSH },
+  bookWrap: { marginHorizontal: -17, marginTop: 38, paddingHorizontal: 5, paddingVertical: 5, backgroundColor: 'transparent', shadowColor: '#27170F', shadowOffset: { width: 0, height: 15 }, shadowOpacity: .34, shadowRadius: 17, elevation: 12 }, bookCoverEdge: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 8, overflow: 'hidden' }, bookCloth: { ...StyleSheet.absoluteFillObject, opacity: .42 }, bookPaperEdges: { position: 'absolute', top: 2, bottom: 3, left: 3, right: 3, borderRadius: 5, backgroundColor: '#DBCCAD', borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#AF9875' }, bookViewport: { position: 'relative', overflow: 'hidden', borderRadius: 3, minHeight: 340 }, openBook: { flexDirection: 'row', overflow: 'hidden', minHeight: 340, height: 340 }, bookPageArt: { position: 'absolute', top: 0, bottom: 0, width: '50%', overflow: 'hidden' }, bookLeft: { flex: 1, padding: 12, justifyContent: 'center' }, bookRight: { flex: 1.02, padding: 15, paddingLeft: 26, justifyContent: 'center', gap: 9 }, bookReading: { fontSize: 11, color: '#6B6153', letterSpacing: 1 }, bookName: { fontFamily: BRUSH, fontSize: 21, color: '#17110B', lineHeight: 31 }, shortRule: { height: 1, width: 25, backgroundColor: C.red, marginVertical: 2 }, bookTheme: { fontFamily: BRUSH, fontSize: 12, lineHeight: 21, color: '#A63A2C', fontWeight: '600' }, bookDescription: { fontFamily: SERIF, fontSize: 11, lineHeight: 20, color: '#4A3F32', fontWeight: '600' }, bookLocation: { flex: 1, fontSize: 11, lineHeight: 14, color: '#5C5143' }, bookDetail: { backgroundColor: C.red, borderRadius: 9, minHeight: 35, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 }, bookDetailText: { color: '#FFF8EB', fontSize: 12, fontFamily: BRUSH },
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 110, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF9EFE6' }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 },
   nextPilgrimageAction: { position: 'relative', alignSelf: 'stretch', alignItems: 'center', paddingTop: 56, marginTop: 58 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
   tourPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },

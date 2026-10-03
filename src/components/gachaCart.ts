@@ -6,6 +6,9 @@
  */
 import { EXIT_MS, SLIDE_MS, SLIDE_START_MS, UNLOAD_END_MS, UNLOAD_FRAME_MS, UNLOAD_START_MS, WALK_FRAME_MS, WALK_MS, WALK_START_MS } from './gachaTimeline.ts';
 
+/** The box rides this many cell pixels lower than the bed anchor, so it sits on the cart instead of hovering. */
+export const BOX_SINK = 28;
+
 export type Bed = { bedX: number; bedY: number; bedAngle: number };
 export type CartAnchors = {
   cell: { width: number; height: number };
@@ -41,7 +44,7 @@ const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
  */
 export function carrierAt(ms: number, anchors: CartAnchors, entryDx: number, exitDx: number): CarrierState {
   const { walk, unload, slideEnd } = anchors;
-  const onBed = (bed: Bed, dx: number) => ({ x: bed.bedX + dx, y: bed.bedY, angle: bed.bedAngle });
+  const onBed = (bed: Bed, dx: number) => ({ x: bed.bedX + dx, y: bed.bedY + BOX_SINK, angle: bed.bedAngle });
   const floor = { x: slideEnd.x, y: slideEnd.y, angle: 0 };
 
   if (ms < WALK_START_MS + WALK_MS) {
@@ -58,7 +61,7 @@ export function carrierAt(ms: number, anchors: CartAnchors, entryDx: number, exi
     const letGo = unload[5];
     const box = ms < SLIDE_START_MS
       ? onBed(unload[frame], 0)
-      : { x: lerp(letGo.bedX, floor.x, easeIn(slide)), y: lerp(letGo.bedY, floor.y, easeIn(slide)), angle: lerp(letGo.bedAngle, 0, easeIn(slide)) };
+      : { x: lerp(letGo.bedX, floor.x, easeIn(slide)), y: lerp(letGo.bedY + BOX_SINK, floor.y, easeIn(slide)), angle: lerp(letGo.bedAngle, 0, easeIn(slide)) };
     return { sheet: 'unload', frame, dx, bedX: unload[frame].bedX + dx, box, landed: slide >= 1 };
   }
 

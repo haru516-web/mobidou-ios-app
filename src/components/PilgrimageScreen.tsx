@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from './AppImage';
-import Svg, { Path, Image as SvgImage } from 'react-native-svg';
+import Svg, { Circle, Ellipse, G, Path, Image as SvgImage } from 'react-native-svg';
 import { UI_ART } from '../data/uiArt';
 import { PILGRIMAGES, type Pilgrimage } from '../data/pilgrimages';
 import { EventSlot } from './EventSlot';
@@ -35,6 +35,35 @@ export function routeMapPosition(route: Pilgrimage, progress?: Progress, count =
   const previousTarget = targetIndex === 0 ? 0 : targets[targetIndex - 1] ?? 0;
   const ratio = Math.max(0, Math.min(1, (steps - previousTarget) / Math.max(1, nextTarget - previousTarget)));
   return { start: completed, end: Math.min(completed + 1, route.ids.length - 1), ratio, steps, previousTarget, nextTarget };
+}
+
+type MapPoint = { x: number; y: number };
+
+/** Little paw prints laid along the way the Mobby has already walked, alternating left and right of the road. */
+function walkedFootprints(path: MapPoint[]) {
+  const prints: React.ReactElement[] = [];
+  const STRIDE = 20;
+  let travelled = 0;
+  let nextAt = STRIDE / 2;
+  let side = 1;
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i], b = path[i + 1];
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length < 1) continue;
+    const ux = (b.x - a.x) / length, uy = (b.y - a.y) / length;
+    const angle = Math.atan2(uy, ux) * 180 / Math.PI + 90;
+    for (; nextAt < travelled + length; nextAt += STRIDE) {
+      const d = nextAt - travelled;
+      const x = a.x + ux * d - uy * 4.5 * side, y = a.y + uy * d + ux * 4.5 * side;
+      prints.push(<G key={`fp-${i}-${Math.round(d)}`} transform={`translate(${x} ${y}) rotate(${angle}) scale(1.5)`}>
+        <Ellipse cx={0} cy={1.6} rx={2.6} ry={3} fill="#B5432F" stroke="#FFF4DE" strokeWidth={.7} />
+        <Circle cx={-2.7} cy={-2.2} r={1.1} fill="#B5432F" stroke="#FFF4DE" strokeWidth={.7} /><Circle cx={0} cy={-3.4} r={1.1} fill="#B5432F" stroke="#FFF4DE" strokeWidth={.7} /><Circle cx={2.7} cy={-2.2} r={1.1} fill="#B5432F" stroke="#FFF4DE" strokeWidth={.7} />
+      </G>);
+      side = -side;
+    }
+    travelled += length;
+  }
+  return prints;
 }
 
 export function RouteMap({ route, count, progress, pet, onStop, showSpeech = false, viewportHeight }: { route: Pilgrimage; count: number; progress?: Progress; pet?: Pick<PetCharacter, 'id' | 'image' | 'name'>; onStop?: (shrine: Shrine, index: number) => void; showSpeech?: boolean; viewportHeight?: number }) {
@@ -75,7 +104,8 @@ export function RouteMap({ route, count, progress, pet, onStop, showSpeech = fal
       <Image source={PILGRIMAGE_MAP_IMAGE} contentFit="cover" style={StyleSheet.absoluteFillObject} />
       <View style={S.mapHeader}><Text style={S.mapTitle}>巡礼絵図</Text><Text style={S.mapSubtitle}>{legend}</Text></View>
       <Svg width="100%" height={height} viewBox={`0 0 310 ${height}`} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-        {points.slice(0, Math.max(1, Math.min(points.length, count + 1))).map((p, i, visible) => i < visible.length - 1 ? <Path key={`done-${i}`} d={`M ${p.x} ${p.y} Q ${visible[i + 1].x} ${visible[i + 1].y} ${visible[i + 1].x} ${visible[i + 1].y}`} fill="none" stroke={route.color} strokeWidth={5} opacity={.72} /> : null)}
+        {points.slice(0, Math.max(1, Math.min(points.length, count + 1))).map((p, i, visible) => i < visible.length - 1 ? <Path key={`done-${i}`} d={`M ${p.x} ${p.y} Q ${visible[i + 1].x} ${visible[i + 1].y} ${visible[i + 1].x} ${visible[i + 1].y}`} fill="none" stroke={route.color} strokeWidth={4} opacity={.3} strokeDasharray="2 7" strokeLinecap="round" /> : null)}
+        {walkedFootprints([...points.slice(0, Math.min(points.length, count + 1)), ...(count < points.length - 1 ? [{ x: currentX, y: currentY }] : [])])}
         {points.map((p, i) => <SvgImage key={`node-${i}`} href={(i < count ? UI_ART.routeNodeDone : UI_ART.routeNodeTodo).source} x={p.x - 15} y={p.y - 15} width={30} height={30} preserveAspectRatio="xMidYMid meet" />)}
       </Svg>
       {pet && <View pointerEvents="none" accessibilityLabel={`${pet.name}の現在地。${position.steps.toLocaleString()}歩`} style={[S.mapPet, { left: `${Math.max(2, Math.min(88, currentX / 310 * 100 - 5.5))}%`, top: Math.max(8, Math.min(height - 52, currentY - 38)) }]}><Image source={pet.image} contentFit="contain" style={S.mapPetImage} /></View>}
