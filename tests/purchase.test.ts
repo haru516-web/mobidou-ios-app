@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buyPulls, drawPaidTickets, fetchPaidTickets, settleCredits, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
+import { buyPulls, drawPaidTickets, fetchLimits, fetchPaidTickets, setAgeGroup, settleCredits, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
 import { applyServerPulls, emptyMobbyCollection, setPaidTickets, ticketCount } from '../src/services/gacha.ts';
 
 const SINGLE = 'jp.mobby.mobidou.gacha.single';
@@ -25,7 +25,12 @@ function fakeApi(overrides: Record<string, () => Reply> = {}, wallet = { paid: 0
       }
       return reply(404);
     },
-    get: async path => { calls.push('GET ' + path); return path === '/wallet' ? reply(200, { paid: wallet.paid, free: 0, paidPulls: 0 }) : reply(404); },
+    get: async path => {
+      calls.push('GET ' + path);
+      if (overrides['GET ' + path]) return overrides['GET ' + path]();
+      if (path === '/limits') return reply(200, { ageGroup: 'adult', capYen: null, spentYen: 0, remainingYen: null });
+      return path === '/wallet' ? reply(200, { paid: wallet.paid, free: 0, paidPulls: 0 }) : reply(404);
+    },
   };
   return { api, calls, wallet };
 }
@@ -73,7 +78,7 @@ test('cancelling the App Store sheet stops quietly', async () => {
   const { api, calls } = fakeApi();
   const { store } = fakeStore({ cancel: true });
   assert.deepEqual(await buyPulls('pull1', store, api), { ok: false, reason: 'cancelled' });
-  assert.deepEqual(calls, []);
+  assert.deepEqual(calls, ['GET /limits']);
 });
 
 test('if the server cannot verify the receipt, the transaction stays unfinished so the App Store replays it', async () => {
@@ -86,7 +91,7 @@ test('if the server cannot verify the receipt, the transaction stays unfinished 
 test('if the balance cannot be read after a verified purchase, the purchase still counts', async () => {
   const { api } = fakeApi();
   const { store } = fakeStore();
-  const noWallet: PurchaseApi = { ...api, get: async () => null };
+  const noWallet: PurchaseApi = { ...api, get: async path => (path === '/wallet' ? null : api.get(path)) };
   assert.deepEqual(await buyPulls('pull1', store, noWallet), { ok: true, paidTickets: null });
 });
 
@@ -153,4 +158,44 @@ test('the ticket count is free plus bought, and the stored balance follows the s
   assert.equal(setPaidTickets(held, 3), held);
   assert.equal(ticketCount(setPaidTickets(held, 0)), 2);
   assert.equal(setPaidTickets(held, -4).paidTickets, 0);
+});
+
+const limitsReply = (ageGroup: string | null, capYen: number | null, remainingYen: number | null) => () => reply(200, { ageGroup, capYen, spentYen: 0, remainingYen });
+
+test('nothing is charged until the player has said which age group they are in', async () => {
+  const { api } = fakeApi({ 'GET /limits': limitsReply(null, 5000, 5000) });
+  const { store, events } = fakeStore();
+  assert.deepEqual(await buyPulls('pull1', store, api), { ok: false, reason: 'age_needed' });
+  assert.deepEqual(events, []);
+});
+
+test('a purchase that would go over the monthly cap is refused before the App Store is touched', async () => {
+  const { api } = fakeApi({ 'GET /limits': limitsReply('under16', 5000, 1000) });
+  const { store, events } = fakeStore();
+  assert.deepEqual(await buyPulls('pull5', store, api), { ok: false, reason: 'limit', capYen: 5000, remainingYen: 1000 });
+  assert.deepEqual(events, []);
+  // The 300 yen single still fits in what is left.
+  assert.equal((await buyPulls('pull1', store, api)).ok, true);
+});
+
+test('an exact fit is allowed, and an adult has no cap', async () => {
+  const { store } = fakeStore();
+  assert.equal((await buyPulls('pull5', store, fakeApi({ 'GET /limits': limitsReply('16to19', 10000, 1200) }).api)).ok, true);
+  assert.equal((await buyPulls('pull5', store, fakeApi({ 'GET /limits': limitsReply('adult', null, null) }).api)).ok, true);
+});
+
+test('if the limits cannot be read, nothing is charged', async () => {
+  const { api } = fakeApi({ 'GET /limits': () => null as unknown as Reply });
+  const { store, events } = fakeStore();
+  assert.deepEqual(await buyPulls('pull1', store, api), { ok: false, reason: 'offline' });
+  assert.deepEqual(events, []);
+});
+
+test('limits and the age group are read and written through the server', async () => {
+  const { api, calls } = fakeApi({ 'GET /limits': limitsReply('16to19', 10000, 8800), '/profile/age-group': () => reply(200, { ageGroup: '16to19' }) });
+  assert.deepEqual(await fetchLimits(api), { ageGroup: '16to19', capYen: 10000, remainingYen: 8800 });
+  assert.equal(await setAgeGroup('16to19', api), true);
+  assert.deepEqual(calls, ['GET /limits', '/profile/age-group']);
+  assert.equal(await setAgeGroup('adult', fakeApi({ '/profile/age-group': () => reply(409, { error: 'age_group_cannot_be_raised' }) }).api), false);
+  assert.equal(await fetchLimits(fakeApi({ 'GET /limits': () => reply(500, null) }).api), null);
 });

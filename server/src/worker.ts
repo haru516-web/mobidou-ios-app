@@ -1,7 +1,21 @@
 import { GACHA_PET_IDS, PAID_PITY_INTERVAL, validateGachaPetIds } from "./config/gacha.ts";
 import { equalSecretHash, hashSecret, randomToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
-import type { Env, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+import type { AgeGroup, Env, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+
+/** Monthly spending caps in yen by self-declared age group, following the Japanese online-game industry guideline. null means no cap. */
+const MONTHLY_CAP_YEN: Record<AgeGroup, number | null> = { under16: 5000, "16to19": 10000, adult: null };
+const AGE_RANK: Record<AgeGroup, number> = { under16: 0, "16to19": 1, adult: 2 };
+const isAgeGroup = (value: unknown): value is AgeGroup => value === "under16" || value === "16to19" || value === "adult";
+
+/** The current calendar month in Tokyo, as UTC instants [from, to). */
+function tokyoMonthRange(now: Date): { from: string; to: string } {
+  const hour = 3_600_000;
+  const shifted = new Date(now.getTime() + 9 * hour);
+  const year = shifted.getUTCFullYear();
+  const month = shifted.getUTCMonth();
+  return { from: new Date(Date.UTC(year, month, 1) - 9 * hour).toISOString(), to: new Date(Date.UTC(year, month + 1, 1) - 9 * hour).toISOString() };
+}
 
 /** Anonymous sign-ups allowed from one source address. */
 const REGISTER_PER_MINUTE = 5;
@@ -38,7 +52,7 @@ function configuredProducts(env: Env): Record<string, ProductDefinition> {
   for (const [id, product] of Object.entries(products)) {
     const validAmount = (amount: number | undefined): boolean => amount === undefined || (Number.isSafeInteger(amount) && amount >= 0);
     if (!id || !product || (product.plan !== undefined && typeof product.plan !== "string") ||
-        !validAmount(product.monthlyTickets) || !validAmount(product.paidPulls)) {
+        !validAmount(product.monthlyTickets) || !validAmount(product.paidPulls) || !validAmount(product.priceYen)) {
       throw new HttpError(500, "invalid_product_configuration");
     }
   }
@@ -255,6 +269,26 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     }
     await store.mergeOwnedPets(userId, owned);
     return json({ owned: await store.ownedPets(userId) });
+  }
+
+  if (method === "POST" && path === "/profile/age-group") {
+    const input = await body(request);
+    if (!isAgeGroup(input.ageGroup)) throw new HttpError(400, "invalid_age_group");
+    const current = await store.ageGroup(userId);
+    // A mistaken choice can be lowered at any time; raising it would lift the cap, so it is not allowed from the app.
+    if (current && AGE_RANK[input.ageGroup] > AGE_RANK[current]) throw new HttpError(409, "age_group_cannot_be_raised");
+    await store.setAgeGroup(userId, input.ageGroup);
+    return json({ ageGroup: input.ageGroup });
+  }
+
+  if (method === "GET" && path === "/limits") {
+    const ageGroup = await store.ageGroup(userId);
+    const { from, to } = tokyoMonthRange(now);
+    const products = configuredProducts(env);
+    const spentYen = (await store.purchasedProducts(userId, from, to)).reduce((sum, productId) => sum + (products[productId]?.priceYen ?? 0), 0);
+    // Until an age group is chosen the strictest cap applies.
+    const capYen = MONTHLY_CAP_YEN[ageGroup ?? "under16"];
+    return json({ ageGroup, capYen, spentYen, remainingYen: capYen === null ? null : Math.max(0, capYen - spentYen) });
   }
 
   if (method === "GET" && path === "/wallet") return json(await store.wallet(userId));

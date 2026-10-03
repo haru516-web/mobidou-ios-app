@@ -49,6 +49,8 @@ export interface ProductDefinition {
   plan?: string;
   monthlyTickets?: number;
   paidPulls?: number;
+  /** Price in yen, used for the monthly spending cap of younger players. */
+  priceYen?: number;
 }
 
 export interface VerifiedTransaction {
@@ -77,7 +79,13 @@ export interface EventRecord {
   mapId: string;
 }
 
+export type AgeGroup = "under16" | "16to19" | "adult";
+
 export interface Store {
+  ageGroup(userId: string): Promise<AgeGroup | null>;
+  setAgeGroup(userId: string, group: AgeGroup): Promise<void>;
+  /** Product ids of this user's purchases (not revoked) granted in [from, to). */
+  purchasedProducts(userId: string, from: string, to: string): Promise<string[]>;
   /** Count one hit against `key` in the fixed window numbered `window`; returns the count including this hit. */
   hitRateLimit(key: string, window: number): Promise<number>;
   registerUser(user: User, secretHash: string): Promise<void>;

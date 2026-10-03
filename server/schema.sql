@@ -166,6 +166,12 @@ BEGIN
   VALUES ('free:' || NEW.user_id || ':' || NEW.route_id, NEW.user_id, 'free', 1, 'first_route_clear', NEW.route_id, NEW.claimed_at);
 END;
 
+CREATE TABLE IF NOT EXISTS user_limits (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  age_group TEXT NOT NULL CHECK (age_group IN ('under16', '16to19', 'adult')),
+  set_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS rate_limits (
   key TEXT NOT NULL,
   window INTEGER NOT NULL,

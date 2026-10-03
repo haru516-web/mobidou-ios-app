@@ -16,15 +16,22 @@ import type { MobbyCollection, PullResult } from './gacha';
  */
 
 export const PULL_PRODUCTS = {
-  pull1: { sku: 'jp.mobby.mobidou.gacha.single', count: 1 },
-  pull5: { sku: 'jp.mobby.mobidou.gacha.five', count: 5 },
+  pull1: { sku: 'jp.mobby.mobidou.gacha.single', count: 1, priceYen: 300 },
+  pull5: { sku: 'jp.mobby.mobidou.gacha.five', count: 5, priceYen: 1200 },
 } as const;
 export type PullProductId = keyof typeof PULL_PRODUCTS;
 
 export type BuyOutcome =
   /** `paidTickets` is the server's balance now, or null when it could not be read (it is read again at the next start). */
   | { ok: true; paidTickets: number | null }
-  | { ok: false; reason: 'cancelled' | 'offline' | 'unavailable' | 'verify_failed'; detail?: string };
+  | { ok: false; reason: 'cancelled' | 'offline' | 'unavailable' | 'verify_failed'; detail?: string }
+  /** The player has not said which age group they are in yet; ask, call `setAgeGroup`, then buy again. */
+  | { ok: false; reason: 'age_needed' }
+  /** This purchase would go over the monthly cap for the player's age group. */
+  | { ok: false; reason: 'limit'; capYen: number; remainingYen: number };
+
+export type AgeGroup = 'under16' | '16to19' | 'adult';
+export type Limits = { ageGroup: AgeGroup | null; capYen: number | null; remainingYen: number | null };
 
 export type PurchasedItem = { sku: string; jws: string; finish: () => Promise<void> };
 export interface PurchaseStore {
@@ -54,6 +61,21 @@ export async function fetchPaidTickets(api: PurchaseApi = serverApi): Promise<nu
   return ok(wallet) && typeof paid === 'number' && Number.isFinite(paid) && paid >= 0 ? paid : null;
 }
 
+/** The spending cap and what is left of it this month, or null when the server cannot say. */
+export async function fetchLimits(api: PurchaseApi = serverApi): Promise<Limits | null> {
+  const reply = await api.get('/limits');
+  const data = reply?.data;
+  if (!ok(reply) || !data) return null;
+  const group = data.ageGroup;
+  const number = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null;
+  return { ageGroup: group === 'under16' || group === '16to19' || group === 'adult' ? group : null, capYen: number(data.capYen), remainingYen: number(data.remainingYen) };
+}
+
+/** Record which age group the player is in. A mistaken choice may be lowered later but not raised. */
+export async function setAgeGroup(group: AgeGroup, api: PurchaseApi = serverApi): Promise<boolean> {
+  return ok(await api.post('/profile/age-group', { ageGroup: group }));
+}
+
 const verify = async (api: PurchaseApi, jws: string) => ok(await api.post('/purchases/verify', { signedTransactionInfo: jws }));
 
 export async function buyPulls(productId: PullProductId, store: PurchaseStore | null, api: PurchaseApi = serverApi): Promise<BuyOutcome> {
@@ -61,6 +83,11 @@ export async function buyPulls(productId: PullProductId, store: PurchaseStore | 
   const product = PULL_PRODUCTS[productId];
   const account = await api.account();
   if (!account) return { ok: false, reason: 'offline' };
+
+  const limits = await fetchLimits(api);
+  if (!limits) return { ok: false, reason: 'offline' };
+  if (limits.ageGroup === null) return { ok: false, reason: 'age_needed' };
+  if (limits.capYen !== null && limits.remainingYen !== null && product.priceYen > limits.remainingYen) return { ok: false, reason: 'limit', capYen: limits.capYen, remainingYen: limits.remainingYen };
 
   let bought: PurchasedItem | 'cancelled';
   try { bought = await store.purchase(product.sku, account.userId); } catch (error) { return { ok: false, reason: 'unavailable', detail: error instanceof Error ? error.message : String(error) }; }

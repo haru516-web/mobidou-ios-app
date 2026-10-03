@@ -123,3 +123,20 @@ test("D1 mergeOwnedPets only raises copy counts", async () => {
   await store.mergeOwnedPets("carol", {});
   assert.deepEqual(await store.ownedPets("carol"), { a: 2, b: 1, c: 3 });
 });
+
+test("D1 age group and monthly purchases", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  await store.registerUser({ id: "dave", friendCode: "DAVE123456", name: "Dave", petId: null, goshuinCount: 0, routeName: null }, "hash-d");
+  assert.equal(await store.ageGroup("dave"), null);
+  await store.setAgeGroup("dave", "adult");
+  await store.setAgeGroup("dave", "under16");
+  assert.equal(await store.ageGroup("dave"), "under16");
+  const insert = database.prepare("INSERT INTO purchases (apple_transaction_id, user_id, product_id, original_transaction_id, granted_at, revoked_at) VALUES (?, ?, ?, NULL, ?, ?)");
+  insert.run("a", "dave", "five", "2026-10-02T00:00:00.000Z", null);
+  insert.run("b", "dave", "single", "2026-10-31T14:59:59.000Z", null);
+  insert.run("c", "dave", "single", "2026-10-03T00:00:00.000Z", "2026-10-04T00:00:00.000Z");
+  insert.run("d", "dave", "five", "2026-09-30T14:59:00.000Z", null);
+  assert.deepEqual((await store.purchasedProducts("dave", "2026-09-30T15:00:00.000Z", "2026-10-31T15:00:00.000Z")).sort(), ["five", "single"]);
+});

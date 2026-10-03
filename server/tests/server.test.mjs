@@ -64,6 +64,7 @@ class MemoryStore {
   async recordPurchase(userId, transaction, product) {
     if (this.purchases.has(transaction.transactionId)) return false;
     this.purchases.set(transaction.transactionId, userId);
+    this.purchaseLog.push({ id: transaction.transactionId, userId, productId: transaction.productId, at: new Date(transaction.purchaseDate).toISOString() });
     const wallet = this.walletRows.get(userId);
     wallet.paid += product.paidPulls ?? 0;
     if (product.plan && product.monthlyTickets && transaction.expiresDate) {
@@ -73,7 +74,12 @@ class MemoryStore {
     }
     return true;
   }
-  async revokePurchase(transactionId) { this.purchases.delete(transactionId); }
+  async revokePurchase(transactionId) { this.purchases.delete(transactionId); this.purchaseLog = this.purchaseLog.filter((entry) => entry.id !== transactionId); }
+  purchaseLog = [];
+  ageGroups = new Map();
+  async ageGroup(userId) { return this.ageGroups.get(userId) ?? null; }
+  async setAgeGroup(userId, group) { this.ageGroups.set(userId, group); }
+  async purchasedProducts(userId, from, to) { return this.purchaseLog.filter((entry) => entry.userId === userId && entry.at >= from && entry.at < to).map((entry) => entry.productId); }
   async wallet(userId) { return { ...this.walletRows.get(userId), paidPulls: this.paidPullCounts.get(userId) ?? 0 }; }
   async ownedPets(userId) { return { ...(this.owned.get(userId) ?? {}) }; }
   async chooseStarter(userId, petId) {
@@ -551,4 +557,30 @@ test("GET /wallet reports the balances of the signed-in user", async () => {
   const response = await call(context, "GET", "/wallet", undefined, account.userId);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { paid: 3, free: 0, paidPulls: 0 });
+});
+
+test("monthly spending cap by age group: set once, can be lowered but not raised, counted per Tokyo month", async () => {
+  const context = createContext();
+  const account = await register(context);
+  const priced = { ...env, PRODUCT_CATALOG_JSON: JSON.stringify({ "gacha.ticket": { paidPulls: 1, priceYen: 300 }, "gacha.five": { paidPulls: 5, priceYen: 1200 } }) };
+  const limits = async (now) => (await handleWithStore(new Request("https://server.test/limits", { headers: { authorization: "Bearer " + context.credentials.get(account.userId) } }), priced, context.store, now)).json();
+  const setGroup = (ageGroup) => call(context, "POST", "/profile/age-group", { ageGroup }, account.userId);
+  const october = new Date("2026-10-15T03:00:00Z");
+
+  assert.deepEqual(await limits(october), { ageGroup: null, capYen: 5000, spentYen: 0, remainingYen: 5000 });
+  assert.equal((await setGroup("teenager")).status, 400);
+  assert.equal((await setGroup("16to19")).status, 200);
+  assert.equal((await limits(october)).capYen, 10000);
+  assert.equal((await setGroup("adult")).status, 409);
+  assert.equal((await setGroup("under16")).status, 200);
+
+  for (const [id, productId, purchaseDate] of [["t1", "gacha.five", "2026-10-02T00:00:00Z"], ["t2", "gacha.ticket", "2026-10-10T00:00:00Z"], ["t3", "gacha.five", "2026-09-30T14:59:00Z"], ["t4", "gacha.five", "2026-11-01T00:00:00Z"]]) {
+    await context.store.recordPurchase(account.userId, { transactionId: id, productId, purchaseDate: Date.parse(purchaseDate) }, { paidPulls: 1 });
+  }
+  // 2026-09-30T14:59Z is 23:59 on 30 September in Tokyo; 2026-11-01T00:00Z is 09:00 on 1 November.
+  assert.deepEqual(await limits(october), { ageGroup: "under16", capYen: 5000, spentYen: 1500, remainingYen: 3500 });
+
+  assert.equal((await setGroup("adult")).status, 409);
+  context.store.ageGroups.set(account.userId, "adult");
+  assert.deepEqual(await limits(october), { ageGroup: "adult", capYen: null, spentYen: 1500, remainingYen: null });
 });

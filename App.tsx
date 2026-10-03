@@ -16,7 +16,7 @@ import { useJourney } from './src/services/useJourney';
 import { hasStarter, ownsMobby, ticketCount } from './src/services/gacha';
 import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
 import { GachaScreen } from './src/components/GachaScreen';
-import { buyPulls, drawPaidTickets, settleCredits, type BuyOutcome, type PullProductId } from './src/services/purchase';
+import { buyPulls, drawPaidTickets, setAgeGroup, settleCredits, type AgeGroup, type BuyOutcome, type PullProductId } from './src/services/purchase';
 import { createAppStore } from './src/services/appStore';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
@@ -190,19 +190,37 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     if (product.kind !== 'pull') { Alert.alert('準備中です', '毎月のプランは、もうしばらくお待ちください。'); return; }
     if (purchasing.current) return;
     purchasing.current = true;
+    let askAge = false;
     try {
       const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore);
       if (outcome.ok) { if (outcome.paidTickets !== null) journey.setPaidTickets(outcome.paidTickets); return; }
+      if (outcome.reason === 'age_needed') { askAge = true; return; }
+      if (outcome.reason === 'limit') {
+        Alert.alert('購入', `今月の購入の上限（${outcome.capYen.toLocaleString('ja-JP')}円）まで、あと${outcome.remainingYen.toLocaleString('ja-JP')}円です。この商品は上限を超えるため、購入できません。\n上限は、毎月1日にリセットされます。`);
+        return;
+      }
       const message = {
         cancelled: '',
         offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。購入はされていません。',
         unavailable: 'この環境では購入できません。',
         verify_failed: '購入の確認ができませんでした。課金は保留されています。アプリを開き直すと、自動でやり直します。',
       }[outcome.reason];
-      if (message) Alert.alert('購入', __DEV__ && outcome.detail ? `${message}
-
-(開発用の詳細: ${outcome.detail})` : message);
+      if (message) Alert.alert('購入', __DEV__ && outcome.detail ? `${message}\n\n(開発用の詳細: ${outcome.detail})` : message);
     } finally { purchasing.current = false; }
+    if (askAge) askAgeGroup(product);
+  };
+  // The monthly cap depends on age, so the first purchase asks once. The choice can be lowered later but not raised.
+  const askAgeGroup = (product: { id: string; kind: 'pull' | 'plan' }) => {
+    const choose = (group: AgeGroup) => async () => {
+      if (await setAgeGroup(group)) void buyProduct(product);
+      else Alert.alert('購入', '年齢の区分を保存できませんでした。電波のよいところで、もう一度お試しください。');
+    };
+    Alert.alert('年齢を教えてください', '毎月の購入の上限を決めるために使います。名前や生年月日は送りません。\n\n15歳以下: 月5,000円まで\n16〜19歳: 月10,000円まで\n20歳以上: 上限なし', [
+      { text: '15歳以下', onPress: choose('under16') },
+      { text: '16〜19歳', onPress: choose('16to19') },
+      { text: '20歳以上', onPress: choose('adult') },
+      { text: 'やめる', style: 'cancel' },
+    ]);
   };
   // Finish a purchase an earlier run left half done, and take the server's 木札 balance.
   useEffect(() => {

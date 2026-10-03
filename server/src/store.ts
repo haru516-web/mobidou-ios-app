@@ -1,4 +1,4 @@
-import type { D1Database, Draw, EventRecord, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+import type { AgeGroup, D1Database, Draw, EventRecord, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 import { randomToken } from "./crypto.ts";
 
 const nowIso = (): string => new Date().toISOString();
@@ -7,6 +7,22 @@ const ledgerId = (): string => crypto.randomUUID();
 export class D1Store implements Store {
   private readonly db: D1Database;
   constructor(db: D1Database) { this.db = db; }
+
+  async ageGroup(userId: string): Promise<AgeGroup | null> {
+    const row = await this.db.prepare("SELECT age_group FROM user_limits WHERE user_id = ?").bind(userId).first<{ age_group: AgeGroup }>();
+    return row?.age_group ?? null;
+  }
+
+  async setAgeGroup(userId: string, group: AgeGroup): Promise<void> {
+    await this.db.prepare("INSERT INTO user_limits (user_id, age_group, set_at) VALUES (?, ?, ?) ON CONFLICT (user_id) DO UPDATE SET age_group = excluded.age_group, set_at = excluded.set_at")
+      .bind(userId, group, nowIso()).run();
+  }
+
+  async purchasedProducts(userId: string, from: string, to: string): Promise<string[]> {
+    const rows = await this.db.prepare("SELECT product_id FROM purchases WHERE user_id = ? AND revoked_at IS NULL AND granted_at >= ? AND granted_at < ?")
+      .bind(userId, from, to).all<{ product_id: string }>();
+    return (rows.results ?? []).map((row) => row.product_id);
+  }
 
   async hitRateLimit(key: string, window: number): Promise<number> {
     const row = await this.db.prepare("INSERT INTO rate_limits (key, window, count) VALUES (?, ?, 1) ON CONFLICT (key, window) DO UPDATE SET count = count + 1 RETURNING count")
