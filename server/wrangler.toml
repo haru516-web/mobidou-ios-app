@@ -11,3 +11,5 @@ database_id = "00000000-0000-0000-0000-000000000000"
 [vars]
 EVENT_STEPS_WINDOW_START = "20:00"
 EVENT_STEPS_DAILY_MAX = "100000"
+APPLE_BUNDLE_ID = "jp.mobby.mobidou"
+PRODUCT_CATALOG_JSON = '{"jp.mobby.mobidou.gacha.single":{"paidPulls":1},"jp.mobby.mobidou.gacha.five":{"paidPulls":5}}'
