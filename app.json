@@ -29,6 +29,7 @@
       ],
       "expo-asset",
       "expo-iap",
+      "expo-apple-authentication",
       ["expo-audio", { "microphonePermission": false, "recordAudioAndroid": false }]
     ],
     "web": {

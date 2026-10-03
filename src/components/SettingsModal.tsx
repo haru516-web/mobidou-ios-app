@@ -87,7 +87,7 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
             <WashiArt />
             <Meta icon="footsteps-outline" text={sourceLabel[data.source]} />
             <Text style={M.settingHelp}>{data.source === 'healthkit' ? 'ヘルスケアの当日歩数を読み取ります。0歩のままの場合は、ヘルスケアの共有設定をご確認ください。読み取り権限の拒否はアプリから判別できません。' : data.source === 'motion' ? 'Expo Goではモーションとフィットネスから読み取ります。HealthKitはiOSの開発ビルドで利用できます。' : 'iPhoneで歩数を連携すると、今日の歩数で御朱印を集められます。'}</Text>
-            <Button title="歩数を連携する" disabled={journey.busy} onPress={() => void journey.connect()} />
+            {data.source === 'none' && <Button title="歩数を連携する" disabled={journey.busy} onPress={() => void journey.connect()} />}
             {Platform.OS === 'ios' && <Button title="iPhoneの設定をひらく" secondary onPress={() => void Linking.openSettings().catch(() => {})} style={{ marginTop: 10 }} />}
           </View>
         </View>

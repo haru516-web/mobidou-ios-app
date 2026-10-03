@@ -6,6 +6,7 @@ import { BRUSH, Button, C, Icon, SERIF, Section } from '../components';
 import { getPilgrimage } from '../data/pilgrimages';
 import { getPetCharacter, type PetId } from '../petCatalog';
 import { WashiArt } from './Washi';
+import { appleMessages, type AppleOutcome } from '../services/appleOutcome';
 
 export type AccountPage = 'welcome' | 'manage' | 'login' | 'transfer';
 export type AccountTransferSummary = {
@@ -26,6 +27,14 @@ type Props = {
   onPreviewTransfer: (value: string) => AccountTransferSummary;
   onImportTransfer: (value: string) => Promise<void>;
   onFinishImport: () => void;
+  /** Whether this device's account is tied to an Apple ID (null while unknown). */
+  appleLinked?: boolean | null;
+  /** Ask the app to read the Apple link state again (called when the screen opens). */
+  onAppleStatus?: () => void;
+  /** Tie this device's account to the Apple ID. */
+  onAppleLink: () => Promise<AppleOutcome>;
+  /** On a new device: take over the account tied to the Apple ID. */
+  onAppleRestore: () => Promise<AppleOutcome>;
 };
 
 export function AccountCenter({
@@ -39,7 +48,13 @@ export function AccountCenter({
   onPreviewTransfer,
   onImportTransfer,
   onFinishImport,
+  appleLinked = null,
+  onAppleStatus,
+  onAppleLink,
+  onAppleRestore,
 }: Props) {
+  const [appleBusy, setAppleBusy] = useState(false);
+  const [appleMessage, setAppleMessage] = useState('');
   const [exportCode, setExportCode] = useState('');
   const [importCode, setImportCode] = useState('');
   const [preview, setPreview] = useState<AccountTransferSummary | null>(null);
@@ -53,7 +68,20 @@ export function AccountCenter({
     setPreview(null);
     setConfirmReplace(false);
     setImported(false);
+    setAppleMessage('');
+    if (page === 'login' || page === 'manage') onAppleStatus?.();
   }, [page]);
+
+  // First launch (a new device) takes the Apple ID's account over; later, the account here is tied to the Apple ID.
+  const signInWithApple = async () => {
+    setAppleBusy(true);
+    setAppleMessage('');
+    const outcome = await (isFirstLaunch ? onAppleRestore() : onAppleLink());
+    setAppleBusy(false);
+    setAppleMessage(outcome.ok
+      ? outcome.status === 'restored' ? '前の端末の木札・フレンド・プロフィールを呼び戻しました。' : outcome.status === 'already_linked' ? 'すでにこのApple IDとつながっています。' : 'Apple IDとつながりました。機種変更のときも、このApple IDで木札を引き継げます。'
+      : appleMessages[outcome.reason]);
+  };
 
   const makeExportCode = async () => {
     setBusy(true);
@@ -101,8 +129,8 @@ export function AccountCenter({
       <Text style={S.body}>アカウントなしでも、この端末ですぐに始められます。あとから設定でデータを引き継いだり、アカウントを確認できます。</Text>
       <Button title="はじめて使う" icon="arrow-forward" onPress={onStart} style={S.primary} />
       <Button title="データを引き継ぐ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
-      <Button title="ログイン" icon="person-circle-outline" secondary onPress={() => onNavigate('login')} style={S.secondaryButton} />
-      <Text style={S.footnote}>ログイン機能は認証サービスの接続後に利用できます。</Text>
+      <Button title="Appleでサインイン" icon="logo-apple" secondary onPress={() => onNavigate('login')} style={S.secondaryButton} />
+      <Text style={S.footnote}>機種変更のときは、前の端末でつないだApple IDでサインインすると、木札・フレンド・プロフィールが戻ります。</Text>
     </PagedBody>;
   }
 
@@ -110,13 +138,18 @@ export function AccountCenter({
     return <PagedBody style={S.content} gap={12}>
       <View style={S.statusCard}>
         <WashiArt />
-        <View style={S.statusIcon}><Icon name="lock-closed-outline" size={22} color={C.red} /></View>
-        <Text style={S.statusTitle}>ログイン機能は未接続です</Text>
-        <Text style={S.body}>このアプリには現在、認証サーバーやクラウド保存先がありません。ログインと自動同期を使うには、認証サービスの設定が必要です。</Text>
+        <View style={S.statusIcon}><Icon name="logo-apple" size={22} color={C.red} /></View>
+        <Text style={S.statusTitle}>Appleでサインイン</Text>
+        <Text style={S.body}>{isFirstLaunch
+          ? '前の端末でApple IDとつないでいれば、ここでサインインして、木札・フレンド・プロフィールを呼び戻せます。'
+          : appleLinked ? 'この端末のアカウントは、Apple IDとつながっています。機種変更のときは、新しい端末でサインインしてください。'
+          : 'Apple IDとつなぐと、機種変更のときも、木札・フレンド・プロフィールを引き継げます。名前やメールアドレスは、もび道には送りません。'}</Text>
       </View>
-      <Section title="いま使える方法" />
-      <Text style={S.body}>別の端末へ記録を移す場合は、引き継ぎコードを作成して、その端末で読み込んでください。</Text>
-      <Button title="データ引き継ぎへ" icon="swap-horizontal-outline" onPress={() => onNavigate('transfer')} style={S.primary} />
+      {!!appleMessage && <Text accessibilityLiveRegion="polite" style={S.body}>{appleMessage}</Text>}
+      {(isFirstLaunch || !appleLinked) && <Button title={appleBusy ? 'サインイン中…' : isFirstLaunch ? 'Appleでサインインして引き継ぐ' : 'Apple IDとつなぐ'} icon="logo-apple" disabled={appleBusy} onPress={() => void signInWithApple()} style={S.primary} />}
+      <Section title="そのほかの記録" />
+      <Text style={S.body}>御朱印・歩数・集めたモビーは、iCloudバックアップから戻るか、「引き継ぎコード」で移せます。</Text>
+      <Button title="データ引き継ぎへ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
       <Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} />
     </PagedBody>;
   }
@@ -178,7 +211,7 @@ export function AccountCenter({
       <View style={S.statusIcon}><Icon name="phone-portrait-outline" size={22} color={C.red} /></View>
       <Text style={S.kicker}>アカウントの状態</Text>
       <Text style={S.statusTitle}>この端末で利用中</Text>
-      <Text style={S.body}>記録はこの端末に保存されています。ログインやクラウド同期はまだ設定されていません。</Text>
+      <Text style={S.body}>記録はこの端末に保存されています。{appleLinked ? 'Apple IDとつながっています。' : 'Apple IDとつなぐと、木札・フレンド・プロフィールを機種変更で引き継げます。'}</Text>
       <View style={S.statsRow}>
         <View style={S.stat}><Text style={S.statValue}>{localSummary.rewardCount}</Text><Text style={S.statLabel}>御朱印</Text></View>
         <View style={S.statDivider} />
@@ -186,10 +219,10 @@ export function AccountCenter({
       </View>
     </View>
     <Section title="アカウントとデータ" />
-    <Button title="ログイン" icon="person-circle-outline" secondary onPress={() => onNavigate('login')} />
+    <Button title={appleLinked ? 'Apple IDの連携状況' : 'Appleでサインイン'} icon="logo-apple" secondary onPress={() => onNavigate('login')} />
     <Button title="データ引き継ぎ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
     <View style={S.petLine}><Icon name="paw-outline" size={18} color={C.gold} /><Text style={S.summaryText}>現在の相棒: {getPetCharacter(localSummary.petId).name}</Text></View>
-    <Text style={S.footnote}>アカウントを連携すると、複数端末で記録を使えるようになります。連携機能は認証サービスの設定後に利用できます。</Text>
+    <Text style={S.footnote}>Apple IDとつなぐと、木札・フレンド・プロフィールを機種変更で引き継げます。御朱印・歩数・モビーは、iCloudバックアップか「引き継ぎコード」で移せます。</Text>
   </PagedBody>;
 }
 

@@ -19,7 +19,9 @@ import { GachaScreen } from './src/components/GachaScreen';
 import { buyPulls, drawPaidTickets, setAgeGroup, settleCredits, type AgeGroup, type BuyOutcome, type PullProductId } from './src/services/purchase';
 import { createAppStore } from './src/services/appStore';
 import { friendCodeFromUrl } from './src/services/friends';
-import { hasSavedProfileName, markProfileGuideShown, SOCIAL_ONLINE, syncProfilePet, wasProfileGuideShown } from './src/services/social';
+import { isAppleLinked, linkApple, restoreWithApple } from './src/services/appleAccount';
+import { fetchPaidTickets } from './src/services/purchase';
+import { fetchProfile, hasSavedProfileName, markProfileGuideShown, SOCIAL_ONLINE, syncProfilePet, wasProfileGuideShown } from './src/services/social';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { pilgrimageShrines, RouteMap } from './src/components/PilgrimageScreen';
@@ -179,6 +181,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [tourRequest, setTourRequest] = useState<TourSelection | null>(null);
   const [tour, setTour] = useState<TourSelection | null>(null);
   const [accountPage, setAccountPage] = useState<AccountPage | null>(null);
+  const [appleLinked, setAppleLinked] = useState<boolean | null>(null);
   const [accountEntryVisible, setAccountEntryVisible] = useState(false);
   const [accountEntryPage, setAccountEntryPage] = useState<AccountPage>('welcome');
   const [overlayBusy, setOverlayBusy] = useState(false);
@@ -933,6 +936,20 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           onPreviewTransfer={journey.previewTransfer}
           onImportTransfer={journey.importTransfer}
           onFinishImport={finishAccountImport}
+          appleLinked={appleLinked}
+          onAppleStatus={() => { void isAppleLinked().then(setAppleLinked); }}
+          onAppleLink={async () => { const outcome = await linkApple(); if (outcome.ok) setAppleLinked(true); return outcome; }}
+          onAppleRestore={async () => {
+            const outcome = await restoreWithApple();
+            if (outcome.ok) {
+              // The account that came back holds the 木札 and the profile.
+              const paid = await fetchPaidTickets();
+              if (paid !== null) journey.setPaidTickets(paid);
+              void fetchProfile();
+              setAppleLinked(true);
+            }
+            return outcome;
+          }}
         />
       </SafeAreaView>
     </Modal>
