@@ -108,13 +108,13 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
         <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]}><SlicedArt name="progressFill" /></View>
         <Image accessible={false} source={UI_ART.progressPoint.source} contentFit="contain" style={[S.stepsPoint, { left: `${ratio * 100}%` }]} />
         <Text numberOfLines={1} style={S.stepsPreviousLabel}>{previousPointName} {previousPointSteps.toLocaleString('ja-JP')}歩</Text>
-        {nextPointSteps !== null && <Text style={S.stepsNextLabel}>次まで あと{nextPointSteps.toLocaleString('ja-JP')}歩</Text>}
+        {nextPointSteps !== null && <Text style={S.stepsNextLabel}>次の御朱印まで あと{nextPointSteps.toLocaleString('ja-JP')}歩</Text>}
         <View style={[S.stepsSpriteAnchor, { left: `${spriteRatio * 100}%` }]}>
           {walkSource ? <WalkSprite source={walkSource} frame={frame} /> : <NeutralWalkingSprite source={petImage} />}
         </View>
       </View>
       <View style={S.stepsCurrent}><Text style={S.stepsCurrentLabel}>今日の歩数</Text><Text style={S.stepsCurrentValue}>{todaySteps.toLocaleString('ja-JP')}歩</Text></View>
-      <View style={S.stepsTotal}><Text style={S.stepsTotalLabel}>累計歩数</Text><Text style={S.stepsTotalValue}>{totalSteps.toLocaleString('ja-JP')}歩</Text></View>
+      <View style={S.stepsTotal}><Text style={S.stepsTotalLabel}>この旅で</Text><Text style={S.stepsTotalValue}>{totalSteps.toLocaleString('ja-JP')}歩</Text></View>
     </View> : <View style={S.stepsContent}>
       <View style={S.stepsCopy}>
         <View style={S.stepsValueRow}><Text style={S.stepsValue}>{steps.toLocaleString('ja-JP')}</Text><Text style={S.stepsUnit}>歩</Text></View>

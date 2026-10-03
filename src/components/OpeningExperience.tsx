@@ -44,7 +44,8 @@ function OpeningScene({ scene, width, frameIndex, progress }: { scene: (typeof O
   </Animated.View>;
 }
 
-export function OpeningExperience({ onEnter, error }: { onEnter: () => void; error?: string | null }) {
+/** `quick` is for people who have used the app before: the title plays by itself and finishes in about a second. */
+export function OpeningExperience({ onEnter, error, quick = false }: { onEnter: () => void; error?: string | null; quick?: boolean }) {
   const [width, setWidth] = useState(0);
   const [, setIndex] = useState(0);
   const indexRef = useRef(0);
@@ -88,7 +89,7 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
     setIndex(startIndex);
     const animation = Animated.timing(frameProgress, {
       toValue: finalIndex,
-      duration: 4000,
+      duration: quick ? 1100 : 4000,
       easing: Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     });
@@ -101,6 +102,8 @@ export function OpeningExperience({ onEnter, error }: { onEnter: () => void; err
       complete();
     });
   }, [complete, frameProgress, width]);
+
+  useEffect(() => { if (quick) startAutoJourney(); }, [quick, startAutoJourney]);
 
   const finishGesture = useCallback(() => {
     if (width <= 0 || autoRunningRef.current) return;

@@ -3,6 +3,7 @@ import { AppState, DevSettings } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { creditMissedDays, freshProgress, isSyncMark, localDay, normalizeProgress, rollDay, updateSteps, startRoute, startReplay, resumeRoute, type Progress, type SyncMark } from './progress';
 import { getPilgrimage } from '../data/pilgrimages';
+import { normalizeDayLog, recordDay, type DayLog } from './weekly';
 import { connectSteps, readMissedDays, readTodaySteps, type StepSource } from './steps';
 import { isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
 import { acknowledgePulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, type MobbyCollection } from './gacha';
@@ -15,7 +16,7 @@ import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
 export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
-type Saved = { routes?: Record<string, Progress>; /** Last credited real step reading; the start of any catch-up for days the app was closed. */ lastSync?: SyncMark; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; keychainPlan: KeychainPlan; mobbies: MobbyCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
+type Saved = { routes?: Record<string, Progress>; /** Last credited real step reading; the start of any catch-up for days the app was closed. */ lastSync?: SyncMark; /** Steps per local day, for the weekly look-back. */ dayLog?: DayLog; /** Start day of the week whose look-back was last shown or dismissed. */ weekSeen?: string; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; keychainPlan: KeychainPlan; mobbies: MobbyCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
 export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
 export type BookDesignState = { bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns };
 
@@ -85,10 +86,16 @@ function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: numbe
   const next = updateSteps(base, steps, date);
   const mark: SyncMark | undefined = field === 'real' ? { day: localDay(date), steps: next.highWater ?? next.steps } : undefined;
   const markChanged = !!mark && (saved.lastSync?.day !== mark.day || saved.lastSync.steps !== mark.steps);
+  let dayLog = saved.dayLog;
+  if (field === 'real') {
+    for (const reading of missed) dayLog = recordDay(dayLog, reading.day, reading.steps, date);
+    dayLog = recordDay(dayLog, localDay(date), next.highWater ?? next.steps, date);
+  }
+  const logChanged = field === 'real' && JSON.stringify(dayLog) !== JSON.stringify(saved.dayLog);
   // Periodic refreshes usually read the same count; skip the no-op so it
   // neither re-renders the app nor rewrites storage.
-  if (JSON.stringify(next) === JSON.stringify(previous) && !markChanged) return saved;
-  return rewardFirstClear({ ...saved, [field]: next, ...(markChanged ? { lastSync: mark } : {}) }, field, previous, next);
+  if (JSON.stringify(next) === JSON.stringify(previous) && !markChanged && !logChanged) return saved;
+  return rewardFirstClear({ ...saved, [field]: next, ...(markChanged ? { lastSync: mark } : {}), ...(logChanged ? { dayLog } : {}) }, field, previous, next);
 }
 
 export function normalizeSaved(value: unknown): Saved {
@@ -122,6 +129,8 @@ export function normalizeSaved(value: unknown): Saved {
       try { return [[key, normalizeProgress(progress)] as const]; } catch { return []; }
     })),
     affection: Object.fromEntries(Object.entries(p.affection && typeof p.affection === 'object' ? p.affection : {}).filter(([key, count]) => isPetId(key) && Number.isFinite(count) && count >= 0)),
+    dayLog: normalizeDayLog(p.dayLog),
+    ...(typeof p.weekSeen === 'string' && /^d{4}-d{2}-d{2}$/.test(p.weekSeen) ? { weekSeen: p.weekSeen } : {}),
     ...(isSyncMark(p.lastSync) ? { lastSync: { day: p.lastSync.day, steps: p.lastSync.steps } } : {}),
     omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null,
     omikujiPetId: isPetId(p.omikujiPetId) ? p.omikujiPetId : null,
@@ -318,6 +327,7 @@ export function useJourney() {
     demoWalk: () => change(p => updateSavedProgress(p, 'trial', rollDay(p.trial).steps + 1000)),
     demoTomorrow: () => change(p => ({ ...p, trial: { ...p.trial, steps: 0, baseline: 0, highWater: 0, dayStart: p.trial.rewards.length, day: localDay() } })),
     acknowledge: () => change(p => p.demo ? { ...p, trial: { ...p.trial, pending: p.trial.pending.slice(1) }, trialSpecial: finishArrival(p.trialSpecial) } : { ...p, real: { ...p.real, pending: p.real.pending.slice(1) }, realSpecial: finishArrival(p.realSpecial) }),
+    markWeekSeen: (start: string) => change(p => p.weekSeen === start ? p : { ...p, weekSeen: start }),
     selectRoute: (routeId: string) => change(p => {
       if (!getPilgrimage(routeId)) return p;
       const field = p.demo ? 'trial' : 'real';
