@@ -25,7 +25,7 @@ export type PullProductId = keyof typeof PULL_PRODUCTS;
 export type DrawnPulls = { results: PullResult[]; paidPulls: number };
 export type BuyOutcome =
   | ({ ok: true } & DrawnPulls)
-  | { ok: false; reason: 'cancelled' | 'offline' | 'unavailable' | 'verify_failed' | 'pull_failed' };
+  | { ok: false; reason: 'cancelled' | 'offline' | 'unavailable' | 'verify_failed' | 'pull_failed'; detail?: string };
 
 export type PurchasedItem = { sku: string; jws: string; finish: () => Promise<void> };
 export interface PurchaseStore {
@@ -68,13 +68,13 @@ const verify = async (api: PurchaseApi, jws: string) => ok(await api.post('/purc
 const syncOwned = async (api: PurchaseApi, mobbies: MobbyCollection) => ok(await api.post('/pets/sync', { owned: mobbies.owned }));
 
 export async function buyPulls(productId: PullProductId, mobbies: MobbyCollection, store: PurchaseStore | null, api: PurchaseApi = serverApi): Promise<BuyOutcome> {
-  if (!store) return { ok: false, reason: 'unavailable' };
+  if (!store) return { ok: false, reason: 'unavailable', detail: 'store_module_missing' };
   const product = PULL_PRODUCTS[productId];
   const account = await api.account();
   if (!account || !(await syncOwned(api, mobbies))) return { ok: false, reason: 'offline' };
 
   let bought: PurchasedItem | 'cancelled';
-  try { bought = await store.purchase(product.sku, account.userId); } catch { return { ok: false, reason: 'unavailable' }; }
+  try { bought = await store.purchase(product.sku, account.userId); } catch (error) { return { ok: false, reason: 'unavailable', detail: error instanceof Error ? error.message : String(error) }; }
   if (bought === 'cancelled') return { ok: false, reason: 'cancelled' };
 
   if (!(await verify(api, bought.jws))) return { ok: false, reason: 'verify_failed' };

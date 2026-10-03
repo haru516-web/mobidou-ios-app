@@ -66,7 +66,7 @@ test('without a server connection nothing is charged', async () => {
   const offline = fakeApi({ '/pets/sync': () => null as unknown as Reply });
   assert.deepEqual(await buyPulls('pull1', mobbies, store, offline.api), { ok: false, reason: 'offline' });
   assert.deepEqual(events, []);
-  assert.deepEqual(await buyPulls('pull1', mobbies, null, fakeApi().api), { ok: false, reason: 'unavailable' });
+  assert.deepEqual(await buyPulls('pull1', mobbies, null, fakeApi().api), { ok: false, reason: 'unavailable', detail: 'store_module_missing' });
 });
 
 test('cancelling the App Store sheet stops quietly', async () => {

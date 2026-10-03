@@ -16,7 +16,8 @@ export function createAppStore(): PurchaseStore | null {
   return {
     async purchase(sku, accountToken) {
       await connect();
-      await iap.fetchProducts({ skus: [sku], type: 'in-app' });
+      const products = await iap.fetchProducts({ skus: [sku], type: 'in-app' });
+      if (!products || products.length === 0) throw new Error(`product_not_found: ${sku}`);
       return new Promise<PurchasedItem | 'cancelled'>((resolve, reject) => {
         const done = () => { updated.remove(); failed.remove(); };
         const updated = iap.purchaseUpdatedListener(purchase => {
