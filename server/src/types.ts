@@ -16,8 +16,13 @@ export interface D1Database {
   batch<T = Record<string, unknown>>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]>;
 }
 
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
 export interface Env {
   DB: D1Database;
+  REGISTER_LIMITER?: RateLimiter;
   APPLE_ROOT_CERTIFICATES?: string;
   APPLE_BUNDLE_ID?: string;
   PRODUCT_CATALOG_JSON?: string;

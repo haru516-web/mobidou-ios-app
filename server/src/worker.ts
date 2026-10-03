@@ -123,6 +123,10 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   }
 
   if (method === "POST" && path === "/auth/register") {
+    if (env.REGISTER_LIMITER) {
+      const { success } = await env.REGISTER_LIMITER.limit({ key: request.headers.get("CF-Connecting-IP") ?? "unknown" });
+      if (!success) throw new HttpError(429, "rate_limited");
+    }
     const input = await body(request);
     const id = crypto.randomUUID();
     const secret = randomToken(32);

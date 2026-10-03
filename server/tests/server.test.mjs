@@ -489,3 +489,11 @@ test("Apple notification grants by the transaction appAccountToken, not a top-le
   assert.equal(await context.store.ticketBalance(correct.userId), 10);
   assert.equal(await context.store.ticketBalance(wrong.userId), 0);
 });
+
+test("registration is refused with 429 once the rate limiter says no", async () => {
+  const store = new MemoryStore();
+  const limited = { ...env, REGISTER_LIMITER: { limit: async () => ({ success: false }) } };
+  const response = await handleWithStore(new Request("https://server.test/auth/register", { method: "POST", body: "{}" }), limited, store);
+  assert.equal(response.status, 429);
+  assert.equal(store.users.size, 0);
+});

@@ -12,6 +12,7 @@ import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, norma
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
 import { localOmikujiDay } from '../data/omikuji';
 import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
+import { syncServer } from './server';
 
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
@@ -272,6 +273,10 @@ export function useJourney() {
     const subscription = AppState.addEventListener('change', value => { if (value === 'active') void refresh(); });
     return () => { clearInterval(timer); subscription.remove(); };
   }, [ready, data.demo, data.source, refresh]);
+  // Report the first Mobby and first route clears to the server; the app works the same offline or in 体験モード.
+  useEffect(() => {
+    if (ready && !data.demo && !DEV_UNLOCK_ALL) void syncServer(data.mobbies);
+  }, [ready, data.demo, data.mobbies]);
   const connect = async () => {
     if (syncLock.current || readOnly.current) return;
     syncLock.current = true; setBusy(true); setError('');
