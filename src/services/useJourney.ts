@@ -12,7 +12,8 @@ import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, norma
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
 import { localOmikujiDay } from '../data/omikuji';
 import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
-import { syncServer } from './server';
+import { adoptServerAccount, readServerAccount, syncServer, type ServerAccount } from './server';
+import { fetchPaidTickets } from './purchase';
 
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
@@ -165,8 +166,17 @@ function transferChecksum(data: unknown): string {
   return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
 }
 
-export function createTransferCode(saved: Saved): string {
-  return JSON.stringify({ format: 'mobidou-transfer', version: 1, checksum: transferChecksum(saved), data: saved });
+/** `server` is the anonymous account that owns the bought 木札; without it a new device would start with none. */
+export function createTransferCode(saved: Saved, server?: ServerAccount | null): string {
+  return JSON.stringify({ format: 'mobidou-transfer', version: 1, checksum: transferChecksum(saved), data: saved, ...(server ? { server: { userId: server.userId, secret: server.secret } } : {}) });
+}
+
+/** The account carried by a code, or null for codes made before this existed. */
+export function readTransferServerAccount(raw: string): ServerAccount | null {
+  try {
+    const server = (JSON.parse(raw) as { server?: { userId?: unknown; secret?: unknown } }).server;
+    return server && typeof server.userId === 'string' && typeof server.secret === 'string' && server.userId && server.secret ? { userId: server.userId, secret: server.secret } : null;
+  } catch { return null; }
 }
 
 export function readTransferData(raw: string): Saved {
@@ -292,7 +302,7 @@ export function useJourney() {
   };
   const exportTransfer = useCallback(async () => {
     await writing.current;
-    return createTransferCode(current.current);
+    return createTransferCode(current.current, await readServerAccount());
   }, []);
   const previewTransfer = useCallback((raw: string) => transferSummary(readTransferData(raw)), []);
   const importTransfer = useCallback(async (raw: string) => {
@@ -305,6 +315,8 @@ export function useJourney() {
     try {
       await writing.current;
       await AsyncStorage.setItem(KEY, JSON.stringify(imported));
+      const account = readTransferServerAccount(raw);
+      if (account) await adoptServerAccount(account);
       epoch.current++;
       current.current = imported;
       setData(imported);
@@ -312,6 +324,8 @@ export function useJourney() {
       setSynced('');
       setError('');
       writing.current = Promise.resolve();
+      // The 木札 balance belongs to the account that came with the code.
+      if (account) void fetchPaidTickets().then(paid => { if (paid !== null) change(p => { const mobbies = setPaidTickets(p.mobbies, paid); return mobbies === p.mobbies ? p : { ...p, mobbies }; }); });
     } catch {
       throw new Error('引き継いだ記録を保存できませんでした。端末の空き容量を確認してください。');
     } finally {

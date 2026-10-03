@@ -100,6 +100,19 @@ export async function authedRequest(path: string, init: { method?: string; body?
   return result;
 }
 
+/** The anonymous account saved on this device, for the 引き継ぎコード. */
+export async function readServerAccount(): Promise<ServerAccount | null> {
+  return exclusive(async () => (await loadState()).account);
+}
+
+/**
+ * Take over an account from a 引き継ぎコード. What the server already knows (first Mobby, route clears) is
+ * reported again on the next sync, which the server treats as already done.
+ */
+export function adoptServerAccount(account: ServerAccount): Promise<void> {
+  return exclusive(async () => { await saveState({ ...emptyServerState(), account }); });
+}
+
 let running: Promise<void> | null = null;
 let latest: MobbyCollection | null = null;
 
