@@ -6,7 +6,7 @@ import type { WeekSummary } from '../services/weekly';
 
 const fmt = (value: number) => value.toLocaleString('ja-JP');
 const monthDay = (day: string) => { const [, month, date] = day.split('-').map(Number); return `${month}/${date}`; };
-const lead = (days: number) => days >= 5 ? 'よく歩いた一週間でした。' : days >= 2 ? 'ほどよい歩みの一週間でした。' : '一歩ずつで大丈夫。また歩こう。';
+const lead = (days: number) => days >= 5 ? 'よく歩いた一週間' : days >= 2 ? 'ほどよい歩みの一週間' : '一歩ずつで大丈夫';
 
 /** Once-a-week look back at the week that just ended. Fits one screen, no scrolling. */
 export function WeeklyReview({ visible, summary, petName, petImage, places, onClose }: { visible: boolean; summary: WeekSummary; petName: string; petImage: React.ComponentProps<typeof Image>['source']; places: string[]; onClose: () => void }) {
