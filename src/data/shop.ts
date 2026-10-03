@@ -18,8 +18,8 @@ export const SHOP_GROUPS: readonly { kind: ShopProduct['kind']; heading: string;
 ];
 
 export const SHOP_PRODUCTS: readonly ShopProduct[] = [
-  { id: 'pull1', kind: 'pull', title: '木札1枚', detail: 'ひもを1回引いて、モビーを1体迎えます', price: '250円' },
-  { id: 'pull5', kind: 'pull', title: '木札5枚セット', detail: '5回続けて引けて、1回200円とお得。購入分25回ごとに、まだ出会っていないモビーが必ず1体来ます', price: '1,000円' },
+  { id: 'pull1', kind: 'pull', title: '木札1枚', detail: 'ひもを1回引いて、モビーを1体迎えます', price: '300円' },
+  { id: 'pull5', kind: 'pull', title: '木札5枚セット', detail: '5回続けて引けて、1回240円とお得。購入分25回ごとに、まだ出会っていないモビーが必ず1体来ます', price: '1,200円' },
   { id: 'light', kind: 'plan', title: 'ライトプラン', detail: 'ミニチュアがもらえる確率が、10%から50%に', price: '120円/月' },
   { id: 'plus', kind: 'plan', title: 'プラスプラン', detail: '確率が10%から50%に。さらにハズレのとき使える交換券が、毎月10枚つきます（翌月へは持ち越せません）', price: '300円/月' },
 ];
