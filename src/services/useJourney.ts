@@ -6,7 +6,7 @@ import { getPilgrimage } from '../data/pilgrimages';
 import { normalizeDayLog, recordDay, type DayLog } from './weekly';
 import { connectSteps, readMissedDays, readTodaySteps, type StepSource } from './steps';
 import { isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
-import { acknowledgePulls, applyServerPulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, type MobbyCollection, type PullResult } from './gacha';
+import { acknowledgePulls, applyServerPulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, setPaidTickets, type MobbyCollection, type PullResult } from './gacha';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
 import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
@@ -356,8 +356,10 @@ export function useJourney() {
       for (let pull = 0; pull < count; pull++) mobbies = pullOnce(mobbies, pool, 'free');
       return mobbies === p.mobbies ? p : { ...p, mobbies };
     }),
-    /** Paid pulls the server has drawn; they wait in `unrevealed` for the reveal. */
-    applyPaidPulls: (results: readonly PullResult[], paidPulls: number) => change(p => ({ ...p, mobbies: applyServerPulls(p.mobbies, results, paidPulls, isPetId) })),
+    /** Pulls the server drew with bought 木札; they wait in `unrevealed` for the reveal. `paidTickets` is what is left. */
+    applyPaidPulls: (results: readonly PullResult[], paidPulls: number, paidTickets: number) => change(p => ({ ...p, mobbies: applyServerPulls(p.mobbies, results, paidPulls, isPetId, paidTickets) })),
+    /** The server's balance of bought 木札. */
+    setPaidTickets: (amount: number) => change(p => { const mobbies = setPaidTickets(p.mobbies, amount); return mobbies === p.mobbies ? p : { ...p, mobbies }; }),
     /** 木札 from a gift or a purchase. */
     grantTickets: (amount: number) => change(p => {
       const mobbies = grantTickets(p.mobbies, amount);

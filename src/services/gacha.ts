@@ -30,13 +30,15 @@ export type MobbyCollection = {
   paidPulls: number;
   /** Free pulls waiting to be used. */
   freePulls: number;
+  /** 木札 bought with money. The server's wallet is the truth; this is the last balance seen, so the count can be shown offline. */
+  paidTickets: number;
   /** Routes whose first clear already gave a free pull. */
   freePullRoutes: string[];
   /** Results waiting for the reveal ceremony; persisted so closing the app cannot lose a pull. */
   unrevealed: PullResult[];
 };
 
-export const emptyMobbyCollection = (): MobbyCollection => ({ owned: {}, paidPulls: 0, freePulls: 0, freePullRoutes: [], unrevealed: [] });
+export const emptyMobbyCollection = (): MobbyCollection => ({ owned: {}, paidPulls: 0, freePulls: 0, paidTickets: 0, freePullRoutes: [], unrevealed: [] });
 
 const count = (value: unknown) => Number.isInteger(value) && Number(value) > 0 ? Number(value) : 0;
 
@@ -63,6 +65,7 @@ export function normalizeMobbyCollection(value: unknown, isKnownPet: (id: string
     owned,
     paidPulls: count(source.paidPulls),
     freePulls: count(source.freePulls),
+    paidTickets: count(source.paidTickets),
     freePullRoutes: Array.isArray(source.freePullRoutes) ? [...new Set(source.freePullRoutes.filter((id): id is string => typeof id === 'string'))] : [],
     unrevealed: Array.isArray(source.unrevealed) ? source.unrevealed.map(normalizePullResult).filter((result): result is PullResult => !!result && isKnownPet(result.petId)) : [],
   };
@@ -128,15 +131,22 @@ export function pullFive(collection: MobbyCollection, pool: readonly string[], r
  * always matches the collection the player sees. `paidPulls` is the server's
  * running count, which drives the guarantee.
  */
-export function applyServerPulls(collection: MobbyCollection, results: readonly PullResult[], paidPulls: number, isKnownPet: (id: string) => boolean): MobbyCollection {
+export function applyServerPulls(collection: MobbyCollection, results: readonly PullResult[], paidPulls: number, isKnownPet: (id: string) => boolean, paidTickets?: number): MobbyCollection {
   let next = collection;
   for (const result of results) {
     if (!isKnownPet(result.petId)) continue;
     const entry: PullResult = { petId: result.petId, isNew: !ownsMobby(next, result.petId), guaranteed: result.guaranteed === true, kind: result.kind === 'free' ? 'free' : 'paid' };
     next = { ...next, owned: { ...next.owned, [result.petId]: (next.owned[result.petId] ?? 0) + 1 }, unrevealed: [...next.unrevealed, entry] };
   }
-  return { ...next, paidPulls: Math.max(next.paidPulls, count(paidPulls)) };
+  return { ...next, paidPulls: Math.max(next.paidPulls, count(paidPulls)), paidTickets: paidTickets === undefined ? next.paidTickets : count(paidTickets) };
 }
+
+/** The balance the server reported for bought 木札. */
+export const setPaidTickets = (collection: MobbyCollection, amount: number): MobbyCollection =>
+  count(amount) === collection.paidTickets ? collection : { ...collection, paidTickets: count(amount) };
+
+/** Every 木札 the player can pull with: free ones and bought ones. */
+export const ticketCount = (collection: MobbyCollection) => collection.freePulls + collection.paidTickets;
 
 /** The reveal ceremony is over. */
 export function acknowledgePulls(collection: MobbyCollection): MobbyCollection {

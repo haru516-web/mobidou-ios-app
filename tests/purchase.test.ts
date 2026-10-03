@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buyPulls, settlePaidPulls, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
-import { applyServerPulls, emptyMobbyCollection } from '../src/services/gacha.ts';
+import { buyPulls, drawPaidTickets, fetchPaidTickets, settleCredits, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
+import { applyServerPulls, emptyMobbyCollection, setPaidTickets, ticketCount } from '../src/services/gacha.ts';
 
 const SINGLE = 'jp.mobby.mobidou.gacha.single';
 const FIVE = 'jp.mobby.mobidou.gacha.five';
@@ -17,11 +17,11 @@ function fakeApi(overrides: Record<string, () => Reply> = {}, wallet = { paid: 0
       calls.push(path + (path === '/gacha/pull' ? `:${(body as { count: number }).count}` : ''));
       if (overrides[path]) return overrides[path]();
       if (path === '/pets/sync') return reply(200, { owned: {} });
-      if (path === '/purchases/verify') return reply(200, { status: 'verified' });
+      if (path === '/purchases/verify') { wallet.paid += 5; return reply(200, { status: 'verified' }); }
       if (path === '/gacha/pull') {
         const count = (body as { count: number }).count;
         wallet.paid -= count;
-        return reply(200, { results: Array.from({ length: count }, () => ({ petId: 'yami', kind: 'paid', isNew: true, guaranteed: false })), paidPulls: 7 });
+        return reply(200, { results: Array.from({ length: count }, () => ({ petId: 'yami', kind: 'paid', isNew: true, guaranteed: false })), paidPulls: 7, remaining: wallet.paid });
       }
       return reply(404);
     },
@@ -43,88 +43,114 @@ function fakeStore(options: { cancel?: boolean; unfinished?: PurchasedItem[] } =
   return { store, events };
 }
 
-test('a purchase is verified before it is finished, and the draw comes last', async () => {
-  const { api, calls, wallet } = fakeApi(undefined, { paid: 0 });
+test('buying credits the 木札 and does NOT draw: the rope is still unpulled', async () => {
+  const { api, calls } = fakeApi();
   const { store, events } = fakeStore();
-  wallet.paid = 5;
-  const outcome = await buyPulls('pull5', mobbies, store, api);
-  assert.equal(outcome.ok, true);
-  if (outcome.ok) { assert.equal(outcome.results.length, 5); assert.equal(outcome.paidPulls, 7); }
-  assert.deepEqual(calls, ['/pets/sync', '/purchases/verify', '/gacha/pull:5']);
+  const outcome = await buyPulls('pull5', store, api);
+  assert.deepEqual(outcome, { ok: true, paidTickets: 5 });
+  assert.ok(!calls.some(call => call.startsWith('/gacha/pull')));
   assert.deepEqual(events, [`purchase:${FIVE}:user-1`, 'finish']);
 });
 
-test('the App Store purchase is tagged with the account id so the server can match it', async () => {
-  const { api } = fakeApi();
+test('a purchase is verified before it is finished', async () => {
+  const { api, calls } = fakeApi();
   const { store, events } = fakeStore();
-  await buyPulls('pull1', mobbies, store, api);
+  await buyPulls('pull1', store, api);
+  assert.ok(calls.indexOf('/purchases/verify') >= 0);
   assert.equal(events[0], `purchase:${SINGLE}:user-1`);
+  assert.equal(events[1], 'finish');
 });
 
 test('without a server connection nothing is charged', async () => {
   const { store, events } = fakeStore();
-  const offline = fakeApi({ '/pets/sync': () => null as unknown as Reply });
-  assert.deepEqual(await buyPulls('pull1', mobbies, store, offline.api), { ok: false, reason: 'offline' });
+  const noAccount: PurchaseApi = { ...fakeApi().api, account: async () => null };
+  assert.deepEqual(await buyPulls('pull1', store, noAccount), { ok: false, reason: 'offline' });
   assert.deepEqual(events, []);
-  assert.deepEqual(await buyPulls('pull1', mobbies, null, fakeApi().api), { ok: false, reason: 'unavailable', detail: 'store_module_missing' });
+  assert.deepEqual(await buyPulls('pull1', null, fakeApi().api), { ok: false, reason: 'unavailable', detail: 'store_module_missing' });
 });
 
 test('cancelling the App Store sheet stops quietly', async () => {
   const { api, calls } = fakeApi();
   const { store } = fakeStore({ cancel: true });
-  assert.deepEqual(await buyPulls('pull1', mobbies, store, api), { ok: false, reason: 'cancelled' });
-  assert.deepEqual(calls, ['/pets/sync']);
+  assert.deepEqual(await buyPulls('pull1', store, api), { ok: false, reason: 'cancelled' });
+  assert.deepEqual(calls, []);
 });
 
 test('if the server cannot verify the receipt, the transaction stays unfinished so the App Store replays it', async () => {
-  const { api, calls } = fakeApi({ '/purchases/verify': () => reply(500, { error: 'internal_error' }) });
+  const { api } = fakeApi({ '/purchases/verify': () => reply(500, { error: 'internal_error' }) });
   const { store, events } = fakeStore();
-  assert.deepEqual(await buyPulls('pull1', mobbies, store, api), { ok: false, reason: 'verify_failed' });
+  assert.deepEqual(await buyPulls('pull1', store, api), { ok: false, reason: 'verify_failed' });
   assert.ok(!events.includes('finish'));
-  assert.ok(!calls.some(call => call.startsWith('/gacha/pull')));
 });
 
-test('if the draw fails after payment, the receipt is finished and the credit waits for settlement', async () => {
-  const { api } = fakeApi({ '/gacha/pull': () => reply(503, null) });
-  const { store, events } = fakeStore();
-  assert.deepEqual(await buyPulls('pull1', mobbies, store, api), { ok: false, reason: 'pull_failed' });
-  assert.ok(events.includes('finish'));
+test('if the balance cannot be read after a verified purchase, the purchase still counts', async () => {
+  const { api } = fakeApi();
+  const { store } = fakeStore();
+  const noWallet: PurchaseApi = { ...api, get: async () => null };
+  assert.deepEqual(await buyPulls('pull1', store, noWallet), { ok: true, paidTickets: null });
 });
 
-test('settling draws every pull the server still holds credit for, five at a time', async () => {
-  const { api, calls } = fakeApi(undefined, { paid: 6 });
-  const drawn = await settlePaidPulls(mobbies, null, api);
-  assert.equal(drawn?.results.length, 6);
-  assert.deepEqual(calls.filter(call => call.startsWith('/gacha/pull')), ['/gacha/pull:5', '/gacha/pull:1']);
-});
-
-test('settling re-verifies an unfinished receipt, finishes it, then draws', async () => {
+test('settling re-verifies an unfinished receipt, finishes it, and reports the balance', async () => {
   const finished: string[] = [];
   const pending: PurchasedItem = { sku: SINGLE, jws: 'old-jws', finish: async () => { finished.push('old'); } };
   const other: PurchasedItem = { sku: 'something.else', jws: 'x', finish: async () => { finished.push('other'); } };
-  const { api, calls } = fakeApi(undefined, { paid: 1 });
+  const { api, calls } = fakeApi();
   const { store } = fakeStore({ unfinished: [pending, other] });
-  const drawn = await settlePaidPulls(mobbies, store, api);
-  assert.equal(drawn?.results.length, 1);
+  assert.equal(await settleCredits(store, api), 5);
   assert.deepEqual(finished, ['old']);
-  assert.ok(calls.indexOf('/purchases/verify') < calls.indexOf('/gacha/pull:1'));
+  assert.ok(calls.indexOf('/purchases/verify') < calls.indexOf('GET /wallet'));
 });
 
-test('settling does nothing when there is nothing to settle', async () => {
-  const { api, calls } = fakeApi(undefined, { paid: 0 });
-  assert.equal(await settlePaidPulls(mobbies, null, api), null);
-  assert.deepEqual(calls, ['GET /wallet']);
+test('the balance is null, not zero, when the server cannot say', async () => {
+  const { api } = fakeApi();
+  assert.equal(await fetchPaidTickets({ ...api, get: async () => reply(500, null) }), null);
+  assert.equal(await settleCredits(null, { ...api, get: async () => null }), null);
 });
 
-test('server pulls are recorded on the device: new vs duplicate is decided locally, the count only moves up', () => {
+test('pulling the rope spends bought 木札 on the server, five at a time, after syncing what is owned', async () => {
+  const { api, calls } = fakeApi(undefined, { paid: 7 });
+  const drawn = await drawPaidTickets(6, mobbies, api);
+  assert.equal(drawn?.results.length, 6);
+  assert.equal(drawn?.complete, true);
+  assert.equal(drawn?.paidTickets, 1);
+  assert.deepEqual(calls, ['/pets/sync', '/gacha/pull:5', '/gacha/pull:1']);
+});
+
+test('if the server cannot be reached, nothing is drawn and nothing is spent', async () => {
+  const offline = fakeApi({ '/pets/sync': () => null as unknown as Reply });
+  assert.equal(await drawPaidTickets(1, mobbies, offline.api), null);
+  assert.ok(!offline.calls.some(call => call.startsWith('/gacha/pull')));
+  const refused = fakeApi({ '/gacha/pull': () => reply(409, { error: 'insufficient_paid_gacha_balance' }) });
+  assert.equal(await drawPaidTickets(1, mobbies, refused.api), null);
+});
+
+test('a draw cut short reports what it got and says it is incomplete', async () => {
+  let calls = 0;
+  const { api } = fakeApi({ '/gacha/pull': () => (++calls === 1 ? reply(200, { results: Array.from({ length: 5 }, () => ({ petId: 'yami', kind: 'paid' })), paidPulls: 5, remaining: 1 }) : reply(503, null)) });
+  const drawn = await drawPaidTickets(6, mobbies, api);
+  assert.equal(drawn?.results.length, 5);
+  assert.equal(drawn?.complete, false);
+  assert.equal(drawn?.paidTickets, 1);
+});
+
+test('server pulls are recorded on the device: new vs duplicate is decided locally, the count only moves up, tickets follow the server', () => {
   const known = (id: string) => id === 'yami' || id === 'mobibou';
   const results = [
     { petId: 'yami', isNew: false, guaranteed: false, kind: 'paid' as const },
     { petId: 'yami', isNew: true, guaranteed: true, kind: 'paid' as const },
     { petId: 'mystery', isNew: true, guaranteed: false, kind: 'paid' as const },
   ];
-  const next = applyServerPulls({ ...mobbies, paidPulls: 9 }, results, 7, known);
+  const next = applyServerPulls({ ...mobbies, paidPulls: 9, paidTickets: 4 }, results, 7, known, 2);
   assert.deepEqual(next.owned, { mobibou: 1, yami: 2 });
   assert.deepEqual(next.unrevealed.map(entry => [entry.petId, entry.isNew, entry.guaranteed]), [['yami', true, false], ['yami', false, true]]);
   assert.equal(next.paidPulls, 9);
+  assert.equal(next.paidTickets, 2);
+});
+
+test('the ticket count is free plus bought, and the stored balance follows the server', () => {
+  const held = { ...mobbies, freePulls: 2, paidTickets: 3 };
+  assert.equal(ticketCount(held), 5);
+  assert.equal(setPaidTickets(held, 3), held);
+  assert.equal(ticketCount(setPaidTickets(held, 0)), 2);
+  assert.equal(setPaidTickets(held, -4).paidTickets, 0);
 });

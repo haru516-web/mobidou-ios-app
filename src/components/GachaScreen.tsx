@@ -71,7 +71,8 @@ type Props = {
   unrevealed: readonly PullResult[];
   haptics: boolean;
   /** Draw one free pull. The new result arrives through `unrevealed`. */
-  onDraw: (count: number) => void;
+  /** Draw `count` pulls. May answer later; `false` means nothing was drawn and no 木札 was spent. */
+  onDraw: (count: number) => void | Promise<boolean>;
   /** The app's bottom navigation, shown while the player is choosing how to draw and hidden once the cord is up. */
   nav?: React.ReactNode;
   /** Every waiting result has been shown. */
@@ -215,12 +216,12 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, nav, onFin
     setPanelReady(false);
   }, []);
 
-  // Pulls that arrive while the shop is open (a purchase) are opened from the draw tab.
-  const seenUnrevealed = useRef(unrevealed.length);
+  // 木札 that arrive while the shop is open (a purchase) send the player back to the draw tab to pull the rope.
+  const seenTickets = useRef(freePulls);
   useEffect(() => {
-    if (unrevealed.length > seenUnrevealed.current && tab === 'shop') setTab('draw');
-    seenUnrevealed.current = unrevealed.length;
-  }, [unrevealed.length, tab]);
+    if (freePulls > seenTickets.current && tab === 'shop') setTab('draw');
+    seenTickets.current = freePulls;
+  }, [freePulls, tab]);
 
   // A pull the player just asked for arrives as a waiting result; start showing it.
   useEffect(() => {
@@ -373,7 +374,8 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, nav, onFin
     if (playing || freePulls < batch || drawRequested.current) return;
     drawRequested.current = true;
     playSfx('sfx_ticket_use');
-    onDraw(batch);
+    const drawn = onDraw(batch);
+    if (drawn && typeof drawn.then === 'function') void drawn.then(done => { if (done === false) { drawRequested.current = false; setStage('lobby'); } });
   }, [playing, freePulls, batch, onDraw]);
 
   const ropePan = useMemo(() => PanResponder.create({

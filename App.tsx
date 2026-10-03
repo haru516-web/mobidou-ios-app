@@ -13,10 +13,10 @@ import { getPetCharacter, isPetId, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView, localDay } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
-import { hasStarter, ownsMobby } from './src/services/gacha';
+import { hasStarter, ownsMobby, ticketCount } from './src/services/gacha';
 import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
 import { GachaScreen } from './src/components/GachaScreen';
-import { buyPulls, settlePaidPulls, type BuyOutcome, type PullProductId } from './src/services/purchase';
+import { buyPulls, drawPaidTickets, settleCredits, type BuyOutcome, type PullProductId } from './src/services/purchase';
 import { createAppStore } from './src/services/appStore';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
@@ -191,25 +191,39 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     if (purchasing.current) return;
     purchasing.current = true;
     try {
-      const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, data.mobbies, appStore);
-      if (outcome.ok) { journey.applyPaidPulls(outcome.results, outcome.paidPulls); return; }
+      const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore);
+      if (outcome.ok) { if (outcome.paidTickets !== null) journey.setPaidTickets(outcome.paidTickets); return; }
       const message = {
         cancelled: '',
         offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。購入はされていません。',
         unavailable: 'この環境では購入できません。',
         verify_failed: '購入の確認ができませんでした。課金は保留されています。アプリを開き直すと、自動でやり直します。',
-        pull_failed: '購入は完了しました。ガチャの結果を受け取れなかったので、アプリを開き直すと自動で受け取ります。',
       }[outcome.reason];
-      if (message) Alert.alert('購入', __DEV__ && !outcome.ok && outcome.detail ? `${message}
+      if (message) Alert.alert('購入', __DEV__ && outcome.detail ? `${message}
 
 (開発用の詳細: ${outcome.detail})` : message);
     } finally { purchasing.current = false; }
   };
-  // Finish a purchase an earlier run left half done (for example the app was closed mid-purchase).
+  // Finish a purchase an earlier run left half done, and take the server's 木札 balance.
   useEffect(() => {
-    if (!journey.ready || data.demo || !appStore) return;
-    void settlePaidPulls(data.mobbies, appStore).then(drawn => { if (drawn) journey.applyPaidPulls(drawn.results, drawn.paidPulls); }).catch(() => undefined);
+    if (!journey.ready || data.demo) return;
+    void settleCredits(appStore).then(paid => { if (paid !== null) journey.setPaidTickets(paid); }).catch(() => undefined);
   }, [journey.ready, data.demo]);
+  // The rope was pulled: free 木札 go first and are drawn on the device; the rest are bought ones, drawn by the server.
+  const drawTickets = async (count: number): Promise<boolean> => {
+    const mobbies = data.mobbies;
+    const free = Math.min(count, mobbies.freePulls);
+    const paid = count - free;
+    if (paid > mobbies.paidTickets) return false;
+    if (paid > 0) {
+      const drawn = await drawPaidTickets(paid, mobbies);
+      if (!drawn) { Alert.alert('ガチャ', 'サーバーにつながりませんでした。木札は減っていません。電波のよいところで、もう一度お試しください。'); return false; }
+      journey.applyPaidPulls(drawn.results, drawn.paidPulls, drawn.paidTickets);
+      if (!drawn.complete) Alert.alert('ガチャ', '一部だけ引けました。残りの木札は減っていないので、もう一度お試しください。');
+    }
+    if (free > 0) journey.drawFreeMobby(free);
+    return true;
+  };
   const [bookOpen, setBookOpen] = useState(false);
   const [bookIndexOpen, setBookIndexOpen] = useState(false);
   const [petSelectionReaction, setPetSelectionReaction] = useState(0);
@@ -493,7 +507,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const notices: AppNotice[] = [
     ...(activeRoute && progress.completedAt ? [{ id: `todo:complete:${activeRoute.id}:${progress.completedAt}`, kind: 'todo' as const, icon: 'ribbon-outline' as const, title: `${activeRoute.name}を結願しました`, body: '次の巡礼へ出かけましょう。', actionLabel: '次の巡礼へ進む', onAction: advanceToNextRoute }] : []),
     ...(!omikujiDrawn ? [{ id: `todo:omikuji:${omikujiDay}`, kind: 'todo' as const, icon: 'document-text-outline' as const, title: '今日のおみくじを引こう', body: '一日一度のご縁です。', actionLabel: 'おみくじを引く', onAction: () => { move('home'); setOmikujiModal(true); } }] : []),
-    ...(hasStarter(data.mobbies) && data.mobbies.freePulls > 0 ? [{ id: `todo:gacha:${data.mobbies.freePulls}`, kind: 'todo' as const, icon: 'gift-outline' as const, title: 'ガチャを引けます', body: `無料で引けるのは${data.mobbies.freePulls}回です。新しいモビーに出会えます。`, actionLabel: 'ガチャをひらく', onAction: () => setGachaOpen(true) }] : []),
+    ...(hasStarter(data.mobbies) && ticketCount(data.mobbies) > 0 ? [{ id: `todo:gacha:${ticketCount(data.mobbies)}`, kind: 'todo' as const, icon: 'gift-outline' as const, title: 'ガチャを引けます', body: `無料で引けるのは${ticketCount(data.mobbies)}回です。新しいモビーに出会えます。`, actionLabel: 'ガチャをひらく', onAction: () => setGachaOpen(true) }] : []),
     ...(data.source === 'none' && !data.demo ? [{ id: 'todo:steps', kind: 'todo' as const, icon: 'footsteps-outline' as const, title: '歩数を連携しよう', body: '歩いた分だけ、巡礼が進みます。', actionLabel: '歩数を連携する', onAction: () => void journey.connect() }] : []),
     ...(activeRoute && next ? [{ id: 'status:next', kind: 'status' as const, icon: 'navigate-outline' as const, title: `次は${next.name}まで あと${fmt(stepsLeft)}歩`, body: activeRoute.name, actionLabel: '巡礼絵図を見る', onAction: () => openSection('walk', 'walkMap') }] : []),
     ...collected.map((shrine, index) => ({ shrine, index, reward: view.rewards[index] })).reverse().map(({ shrine, index, reward }) => ({ id: `event:reward:${recordPrefix}:${activeRoute?.id ?? ''}:${reward?.id ?? shrine.id}`, kind: 'event' as const, icon: 'flower-outline' as const, title: `${shrine.name}の御朱印を授かりました`, date: reward ? displayDate(reward.date) : undefined, actionLabel: '御朱印を見る', onAction: () => { setFeatured(index); setDetail(shrine); } })),
@@ -658,7 +672,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
         : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
-        {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} miniaturePasses={journey.special.passes.keychainDrop} onAddTickets={openGachaShop} onAddPasses={openGachaShop} />}
+        {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={ticketCount(data.mobbies)} miniaturePasses={journey.special.passes.keychainDrop} onAddTickets={openGachaShop} onAddPasses={openGachaShop} />}
         {data.demo && <Pressable plate="pill" artwork={false} accessibilityRole="button" accessibilityLabel="体験モード中。タップで体験を終えて実記録にもどる" onPress={() => journey.enter(false)} style={S.demoBadge}><View style={S.dot} /><Text style={S.demoBadgeText}>体験中</Text><Icon name="close" size={13} color="#8A6950" /></Pressable>}
         <TourAnchor id="header-settings"><Pressable plate="round" artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable></TourAnchor>
       </View>
@@ -748,7 +762,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {homePopup === 'goshuinPick' && <HomeGoshuinPickPopup shrines={COLLECTION_SHRINES} ownedIds={collectionRewardIds} selectedId={latest.id} onConfirm={shrineId => { journey.saveHomeWidgetItems(data.homeWidgetItems.map((item, slot) => data.homeWidgetOrder[slot] === 'goshuin' ? shrineId : item) as HomeWidgetItems); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} isOwned={!hasStarter(data.mobbies) ? undefined : (id => ownsMobby(data.mobbies, id))} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     <TourAnchor id="nav" onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
-      <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} onGacha={hasStarter(data.mobbies) && !onboardingPreview ? () => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); setGachaOpen(true); } : undefined} freePulls={data.mobbies.freePulls} />
+      <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} onGacha={hasStarter(data.mobbies) && !onboardingPreview ? () => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); setGachaOpen(true); } : undefined} freePulls={ticketCount(data.mobbies)} />
     </TourAnchor>
     {/* Keep the floating Mobby mounted through the fortune-card step so closing its menu cannot cancel an active drag. */}
     {(firstRunStage === null || firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag' || firstRunStage === 'homeOmikuji') && !homePopup && <>
@@ -872,7 +886,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <ConnectStepsPrompt visible={firstRunStage === 'connectSteps'} busy={journey.busy} error={journey.error} onConnect={() => void journey.connect().then(() => setFirstRunStage(null))} onLater={() => setFirstRunStage(null)} />
     {weeklyOpen && <WeeklyReview visible summary={weeklySummary} petName={pet.name} petImage={pet.image} places={weeklyPlaces} onClose={() => { journey.markWeekSeen(weekStartDay()); setWeeklyOpen(false); }} />}
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
-    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={data.mobbies.freePulls} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={(__DEV__ || gachaOnShop) && firstRunStage !== 'gacha'} startOnShop={gachaOnShop} onBuy={buyProduct} />}</Modal>
+    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={ticketCount(data.mobbies)} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={drawTickets} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={ticketCount(data.mobbies)} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={(__DEV__ || gachaOnShop) && firstRunStage !== 'gacha'} startOnShop={gachaOnShop} onBuy={buyProduct} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); openBookPage(index); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
   </SafeAreaView></View>;
 }
