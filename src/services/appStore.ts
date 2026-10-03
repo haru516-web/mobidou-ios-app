@@ -26,7 +26,8 @@ export function createAppStore(): PurchaseStore | null {
         });
         const failed = iap.purchaseErrorListener(error => {
           done();
-          if (error.code === iap.ErrorCode.UserCancelled) resolve('cancelled'); else reject(new Error(error.message));
+          // The code's spelling differs between library versions, so the message is checked as well.
+          if (error.code === iap.ErrorCode.UserCancelled || /cancel/i.test(`${error.code} ${error.message}`)) resolve('cancelled'); else reject(new Error(error.message));
         });
         iap.requestPurchase({ type: 'in-app', request: { apple: { sku, appAccountToken: accountToken } } }).catch(error => { done(); reject(error); });
       });
