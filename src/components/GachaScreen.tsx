@@ -219,13 +219,6 @@ export function GachaScreen({ freePulls, passes = 0, unrevealed, haptics, onDraw
     setPanelReady(false);
   }, []);
 
-  // 木札 that arrive while the shop is open (a purchase) send the player back to the draw tab to pull the rope.
-  const seenTickets = useRef(freePulls);
-  useEffect(() => {
-    if (freePulls > seenTickets.current && tab === 'shop') setTab('draw');
-    seenTickets.current = freePulls;
-  }, [freePulls, tab]);
-
   // A pull the player just asked for arrives as a waiting result; start showing it.
   useEffect(() => {
     if (!playing && drawRequested.current && unrevealed.length > 0) {
@@ -558,12 +551,12 @@ export function GachaScreen({ freePulls, passes = 0, unrevealed, haptics, onDraw
     </View>
 
     {showShop && !playing && <View style={[S.tabs, { top: 76 + insets.top }]} accessibilityRole="tablist">
-      <Pressable accessibilityRole="tab" accessibilityState={{ selected: !shopOpen }} onPress={() => setTab('draw')} style={S.tab}><SlicedArt art={!shopOpen ? GACHA_UI_ART.tabOn : GACHA_UI_ART.tabOff} /><Text style={[S.tabText, !shopOpen && S.tabTextOn]}>ひく</Text></Pressable>
+      <Pressable accessibilityRole="tab" accessibilityState={{ selected: !shopOpen }} onPress={() => setTab('draw')} style={S.tab}><SlicedArt art={!shopOpen ? GACHA_UI_ART.tabOff : GACHA_UI_ART.tabOn} /><Text style={[S.tabText, shopOpen && S.tabTextOn]}>ひく</Text></Pressable>
       <View style={S.tabGap} />
-      <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={S.tab}><SlicedArt art={shopOpen ? GACHA_UI_ART.tabOn : GACHA_UI_ART.tabOff} /><Text style={[S.tabText, shopOpen && S.tabTextOn]}>購入</Text></Pressable>
+      <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={S.tab}><SlicedArt art={shopOpen ? GACHA_UI_ART.tabOff : GACHA_UI_ART.tabOn} /><Text style={[S.tabText, !shopOpen && S.tabTextOn]}>購入</Text></Pressable>
     </View>}
 
-    {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={freePulls} miniaturePasses={passes} onAddTickets={showShop && !shopOpen ? () => setTab('shop') : undefined} /></View>}
+    {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={freePulls} miniaturePasses={passes} /></View>}
 
     {/* Once the Mobby has been revealed, one tap shows it large and another tap puts it back. */}
     {canZoom && <Pressable accessibilityRole="button" accessibilityLabel={zoomed ? 'モビーを小さく戻す' : 'モビーを大きく見る'} onPress={() => setZoomed(value => !value)} style={StyleSheet.absoluteFillObject}>
