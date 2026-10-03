@@ -82,6 +82,9 @@ const OUTING_BACKGROUND = require('./assets/ui-round3/backgrounds/outing/daily-o
 const HOME_CHARACTER_CUSHION_FOOT_INSET = 23;
 const HOME_CARD_MAX_HEIGHT = 244;
 const HOME_CARD_MIN_HEIGHT = 96;
+/** Short phones draw the home companion smaller so the two cards keep room to show their art. */
+const HOME_SHORT_WINDOW = 740;
+const HOME_SHORT_COMPANION_SCALE = .72;
 const HOME_CARD_CHROME_HEIGHT = 124;
 function displayDate(day: string) { const [y, m, d] = day.split('-'); return `${y}年${Number(m)}月${Number(d)}日`; }
 
@@ -184,6 +187,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [homeCardGroupLayout, setHomeCardGroupLayout] = useState<HomeLayout | null>(null);
   const [homeStepsSlotLayout, setHomeStepsSlotLayout] = useState<HomeLayout | null>(null);
   const [homeCompanionLayout, setHomeCompanionLayout] = useState<HomeLayout | null>(null);
+  const [homeCompanionNaturalHeight, setHomeCompanionNaturalHeight] = useState(0);
   const [homeStageLayout, setHomeStageLayout] = useState<HomeLayout | null>(null);
   const openingHomeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -363,9 +367,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const homeCardHeight = homeCompanionLayout && scrollViewportHeight > 0
     ? Math.round(Math.max(HOME_CARD_MIN_HEIGHT, Math.min(HOME_CARD_MAX_HEIGHT, scrollViewportHeight - (homeCompanionLayout.y + homeCompanionLayout.height) - HOME_CARD_CHROME_HEIGHT)))
     : HOME_CARD_MAX_HEIGHT;
+  const homeCompanionScale = windowHeight < HOME_SHORT_WINDOW ? HOME_SHORT_COMPANION_SCALE : 1;
   const homeCharacterShiftY = homeCushionContentY === null || !homeCompanionLayout || !homeStageLayout
     ? 0
-    : homeCushionContentY + HOME_CHARACTER_CUSHION_FOOT_INSET - (homeCompanionLayout.y + homeStageLayout.y + homeStageLayout.height);
+    : homeCushionContentY + HOME_CHARACTER_CUSHION_FOOT_INSET - (homeCompanionLayout.y + (homeStageLayout.y + homeStageLayout.height) * homeCompanionScale);
   // Mobby rests where it covers the least on each screen; the person can still
   // park it elsewhere, and that is remembered per screen.
   const walkRingSize = Math.max(120, Math.min(248, scrollViewportHeight - 392));
@@ -601,7 +606,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           : <>
             <TourAnchor id="home-companion" onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? { zIndex: 20 } : { zIndex: 20, transform: [{ translateY: homeCharacterShiftY }] }}>
               <TutorialTarget active={firstRunStage === 'homeCompanion'} onRectChange={setTutorialRect}>
-                <View>
+                <View onLayout={({ nativeEvent }) => { const { height } = nativeEvent.layout; setHomeCompanionNaturalHeight(previous => previous === height ? previous : height); }} style={homeCompanionScale === 1 || !homeCompanionNaturalHeight ? undefined : { marginBottom: -homeCompanionNaturalHeight * (1 - homeCompanionScale), transform: [{ scale: homeCompanionScale }], transformOrigin: 'top' }}>
                   <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
                   <DuplicateMobbies collection={data.mobbies} />
                 </View>
