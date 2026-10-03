@@ -63,6 +63,8 @@ const shots = [
   { name: '05-collection', action: async p => { await p.getByRole('tab', { name: /コレクション/ }).click(); await p.waitForTimeout(1500); } },
   { name: '06-gacha-curtain', action: async p => { await p.getByRole('tab', { name: /ガチャ/ }).click(); await p.waitForTimeout(1800); } },
   { name: '07-gacha-cart', action: async p => { await p.getByRole('tab', { name: /ガチャ/ }).click(); await p.waitForTimeout(1500); await p.getByRole('button', { name: 'ひもを引く' }).click(); await p.waitForTimeout(2350); }, noSettle: true },
+  // The shop is the only picture that shows the purchase buttons, so its dev-only controls stay: it is what App Review checks for the in-app purchases.
+  { name: '09-gacha-shop', action: async p => { await p.getByRole('tab', { name: /ガチャ/ }).click(); await p.waitForTimeout(1500); await p.getByRole('tab', { name: '購入', exact: true }).click(); await p.waitForTimeout(1200); }, keepDev: true },
   { name: '08-omikuji', fixture: store({ omikujiDay: null, omikujiPetId: null }), action: async p => { await p.getByRole('button', { name: '今日のおみくじを引く' }).click(); await p.waitForTimeout(9000); } },
 ];
 
@@ -70,7 +72,9 @@ const shots = [
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
+    const only = process.env.ONLY ? new Set(process.env.ONLY.split(',')) : null;
     for (const shot of shots) {
+      if (only && !only.has(shot.name)) continue;
       const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 3, locale: 'ja-JP', timezoneId: 'Asia/Tokyo', isMobile: true, hasTouch: false });
       await context.addInitScript(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), { key: KEY, value: shot.fixture ?? store() });
       const page = await context.newPage();
@@ -81,7 +85,7 @@ const shots = [
         if (shot.action) await shot.action(page);
         if (shot.ready) await shot.ready(page).waitFor({ state: 'visible', timeout: 30000 });
         if (!shot.noSettle) await settle(page);
-        await hideDevOnly(page);
+        if (!shot.keepDev) await hideDevOnly(page);
         await page.screenshot({ path: path.join(OUT, `${shot.name}.png`), animations: 'allow', timeout: 60000 });
         console.log('ok', shot.name);
       } catch (error) {
