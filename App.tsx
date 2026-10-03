@@ -50,6 +50,8 @@ import { milestoneCount, milestoneLine, milestoneMessage } from './src/services/
 import { AccountCenter, type AccountPage } from './src/components/AccountCenter';
 import { Close, M } from './src/components/ModalParts';
 import { SettingsModal } from './src/components/SettingsModal';
+import { useAppAudioCues } from './src/services/appAudioCues';
+import { playSfx } from './src/services/audio';
 import { OpeningExperience } from './src/components/OpeningExperience';
 import { CollectionBackdrop, getHomeBackgroundMetrics, HomeAnchoredBackground } from './src/components/HomeBackdrops';
 
@@ -157,6 +159,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     });
   };
   const openDetailStampPreview = () => {
+    playSfx('sfx_stamp_view');
     detailStampPreviewProgress.stopAnimation();
     detailStampPreviewProgress.setValue(0);
     setDetailStampPreview(true);
@@ -394,6 +397,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const advanceToNextRoute = () => {
     const completedIds = Object.entries(routeRecords).filter(([, record]) => !!record.completedAt).map(([routeId]) => routeId);
     const nextRouteId = activeRoute ? getNextPilgrimageId(activeRoute.id, completedIds) : FIRST_RUN_ROUTE_ID;
+    playSfx('sfx_route_advance');
     if (nextRouteId) selectPilgrimageRoute(nextRouteId);
   };
   const selectPilgrimageRoute = (routeId: string) => {
@@ -576,6 +580,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const timer = setTimeout(() => setWeeklyOpen(true), 1200);
     return () => clearTimeout(timer);
   }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet]);
+  useAppAudioCues({ firstRunStage, openingVisible, mobbyMenuOpen, homeEditing: homePopup === 'custom', milestoneToast, error: journey.error ?? null, weeklyOpen, pet: data.pet });
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
     if (!tourRequest || settings) return undefined;
@@ -695,7 +700,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               {view.completedAt
                 ? <Button title="次の巡礼へ進む" icon="map-outline" onPress={advanceToNextRoute} style={S.walkActionButton} />
                 : data.demo
-                  ? <Button title="体験で1,000歩あるく" icon="footsteps-outline" onPress={journey.demoWalk} style={S.walkActionButton} />
+                  ? <Button title="体験で1,000歩あるく" icon="footsteps-outline" onPress={() => { playSfx('sfx_demo_walk'); journey.demoWalk(); }} style={S.walkActionButton} />
                   : <Button title={data.source === 'none' ? '歩数を連携する' : journey.busy ? '歩数を更新しています…' : '今日の歩数を更新'} icon="refresh" disabled={journey.busy} onPress={() => void (data.source === 'none' ? journey.connect() : journey.refresh())} style={S.walkActionButton} />}
               <View pointerEvents="none" accessibilityLabel={`${pet.name}がボタンの上から覗いている`} style={[S.nextPilgrimagePeek, { top: 56 - nextRoutePeekBottom + 6, height: nextRoutePeekHeight }]}>
                 <Image source={PILGRIMAGE_PEEK_IMAGES[pet.id]} contentFit="contain" style={[S.nextPilgrimagePeekImage, { width: nextRoutePeekWidth, height: nextRoutePeekHeight, left: (190 - nextRoutePeekWidth) / 2 }]} />
