@@ -140,3 +140,18 @@ test("D1 age group and monthly purchases", async () => {
   insert.run("d", "dave", "five", "2026-09-30T14:59:00.000Z", null);
   assert.deepEqual((await store.purchasedProducts("dave", "2026-09-30T15:00:00.000Z", "2026-10-31T15:00:00.000Z")).sort(), ["five", "single"]);
 });
+
+test("D1 cloud save is versioned: a stale base version is refused", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  await store.registerUser({ id: "erin", friendCode: "ERIN123456", name: "Erin", petId: null, goshuinCount: 0, routeName: null }, "hash-e");
+  assert.equal(await store.cloudSave("erin"), null);
+  assert.equal(await store.putCloudSave("erin", "{\"a\":1}", 0), 1);
+  assert.equal(await store.putCloudSave("erin", "{\"a\":0}", 0), null);
+  assert.equal(await store.putCloudSave("erin", "{\"a\":2}", 5), null);
+  assert.equal(await store.putCloudSave("erin", "{\"a\":2}", 1), 2);
+  const save = await store.cloudSave("erin");
+  assert.equal(save?.data, "{\"a\":2}");
+  assert.equal(save?.version, 2);
+});

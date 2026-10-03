@@ -114,6 +114,14 @@ class MemoryStore {
   async friends(userId) {
     return [...this.friendRows].filter((row) => row.startsWith(`${userId}:`)).map((row) => this.users.get(row.split(":")[1]));
   }
+  saves = new Map();
+  async cloudSave(userId) { return this.saves.get(userId) ?? null; }
+  async putCloudSave(userId, data, baseVersion) {
+    const current = this.saves.get(userId);
+    if ((current?.version ?? 0) !== baseVersion) return null;
+    this.saves.set(userId, { data, version: baseVersion + 1, updatedAt: "now" });
+    return baseVersion + 1;
+  }
   appleLinks = new Map();
   async linkApple(userId, sub) {
     if (this.appleLinks.has(sub)) return this.appleLinks.get(sub) === userId ? "already_linked" : "apple_in_use";
@@ -704,4 +712,34 @@ test("Apple sign-in: link once, then a new device takes the account over and the
   context.credentials.set("new-device", restored.userId + "." + restored.secret);
   assert.equal((await call(context, "GET", "/profile", undefined, "new-device")).status, 200);
   assert.equal((await call(context, "GET", "/profile", undefined, first.userId)).status, 401, "the old device is signed out");
+});
+
+test("cloud save: only for Apple-linked accounts, versioned so a stale device cannot overwrite a newer record", async () => {
+  const context = createContext();
+  const { token, appleEnv } = await appleFixture();
+  const send = (method, path, body, user) => handleWithStore(new Request("https://server.test" + path, {
+    method,
+    headers: { "content-type": "application/json", ...(user ? { authorization: "Bearer " + context.credentials.get(user) } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  }), appleEnv, context.store);
+  const account = await register(context);
+
+  assert.equal((await send("GET", "/save", undefined, account.userId)).status, 403, "not linked yet");
+  assert.equal((await send("POST", "/save", { data: "{}", baseVersion: 0 }, account.userId)).status, 403);
+  assert.equal((await send("POST", "/account/apple/link", { identityToken: await token() }, account.userId)).status, 200);
+
+  assert.equal((await send("GET", "/save", undefined, account.userId)).status, 404, "nothing saved yet");
+  assert.equal((await send("POST", "/save", { data: "x", baseVersion: 0 }, account.userId)).status, 400);
+  assert.equal((await send("POST", "/save", { data: "{}", baseVersion: -1 }, account.userId)).status, 400);
+  assert.equal((await send("POST", "/save", { data: "{" + "a".repeat(200_001) + "}", baseVersion: 0 }, account.userId)).status, 413);
+
+  const first = await (await send("POST", "/save", { data: "{\"steps\":1}", baseVersion: 0 }, account.userId)).json();
+  assert.deepEqual(first, { version: 1 });
+  assert.equal((await send("POST", "/save", { data: "{\"steps\":0}", baseVersion: 0 }, account.userId)).status, 409, "a device that never saw version 1");
+  const second = await (await send("POST", "/save", { data: "{\"steps\":2}", baseVersion: 1 }, account.userId)).json();
+  assert.deepEqual(second, { version: 2 });
+  const read = await (await send("GET", "/save", undefined, account.userId)).json();
+  assert.equal(read.data, "{\"steps\":2}");
+  assert.equal(read.version, 2);
+  assert.equal((await send("GET", "/save")).status, 401);
 });

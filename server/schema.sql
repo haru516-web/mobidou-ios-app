@@ -178,6 +178,13 @@ CREATE TABLE IF NOT EXISTS apple_links (
   linked_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS cloud_saves (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  data TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS rate_limits (
   key TEXT NOT NULL,
   window INTEGER NOT NULL,

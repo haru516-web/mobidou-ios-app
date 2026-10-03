@@ -85,7 +85,16 @@ export type AgeGroup = "under16" | "16to19" | "adult";
 
 export type AppleLinkResult = "linked" | "already_linked" | "apple_in_use" | "account_has_other_apple";
 
+export interface CloudSave {
+  data: string;
+  version: number;
+  updatedAt: string;
+}
+
 export interface Store {
+  cloudSave(userId: string): Promise<CloudSave | null>;
+  /** Store the save if `baseVersion` is the stored version (0 when there is none); returns the new version, or null on a conflict. */
+  putCloudSave(userId: string, data: string, baseVersion: number): Promise<number | null>;
   linkApple(userId: string, appleSub: string): Promise<AppleLinkResult>;
   userByApple(appleSub: string): Promise<string | null>;
   appleLinked(userId: string): Promise<boolean>;

@@ -1,4 +1,4 @@
-import type { AgeGroup, AppleLinkResult, D1Database, Draw, EventRecord, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+import type { AgeGroup, AppleLinkResult, CloudSave, D1Database, Draw, EventRecord, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 import { randomToken } from "./crypto.ts";
 
 const nowIso = (): string => new Date().toISOString();
@@ -18,6 +18,19 @@ export class D1Store implements Store {
 
   async pendingRequestExists(fromId: string, toId: string): Promise<boolean> {
     return !!(await this.db.prepare("SELECT 1 AS found FROM friend_requests WHERE from_id = ? AND to_id = ? AND status = 'pending'").bind(fromId, toId).first());
+  }
+
+  async cloudSave(userId: string): Promise<CloudSave | null> {
+    const row = await this.db.prepare("SELECT data, version, updated_at FROM cloud_saves WHERE user_id = ?").bind(userId).first<{ data: string; version: number; updated_at: string }>();
+    return row ? { data: row.data, version: row.version, updatedAt: row.updated_at } : null;
+  }
+
+  async putCloudSave(userId: string, data: string, baseVersion: number): Promise<number | null> {
+    const now = nowIso();
+    const result = baseVersion === 0
+      ? await this.db.prepare("INSERT INTO cloud_saves (user_id, data, version, updated_at) VALUES (?, ?, 1, ?) ON CONFLICT (user_id) DO NOTHING").bind(userId, data, now).run()
+      : await this.db.prepare("UPDATE cloud_saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?").bind(data, now, userId, baseVersion).run();
+    return (result.meta?.changes ?? 0) > 0 ? baseVersion + 1 : null;
   }
 
   async linkApple(userId: string, appleSub: string): Promise<AppleLinkResult> {

@@ -27,6 +27,9 @@ function invitePage(code: string): Response {
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
 }
 
+/** The largest record kept for one account. A real record is a few kilobytes. */
+const MAX_SAVE_CHARS = 200_000;
+
 /** Anonymous sign-ups allowed from one source address. */
 const REGISTER_PER_MINUTE = 5;
 const REGISTER_PER_DAY = 30;
@@ -229,6 +232,27 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     const result = await store.linkApple(userId, appleSub);
     if (result === "apple_in_use" || result === "account_has_other_apple") throw new HttpError(409, result);
     return json({ status: result });
+  }
+
+  // The whole record, kept only for accounts tied to an Apple ID, so a new device can pick it up.
+  if (method === "GET" && path === "/save") {
+    if (!(await store.appleLinked(userId))) throw new HttpError(403, "apple_required");
+    const save = await store.cloudSave(userId);
+    if (!save) throw new HttpError(404, "no_save");
+    return json(save);
+  }
+
+  if (method === "POST" && path === "/save") {
+    if (!(await store.appleLinked(userId))) throw new HttpError(403, "apple_required");
+    const input = await body(request);
+    const data = input.data;
+    if (typeof data !== "string" || data.length < 2) throw new HttpError(400, "invalid_save");
+    if (data.length > MAX_SAVE_CHARS) throw new HttpError(413, "save_too_large");
+    const baseVersion = input.baseVersion;
+    if (typeof baseVersion !== "number" || !Number.isSafeInteger(baseVersion) || baseVersion < 0) throw new HttpError(400, "invalid_base_version");
+    const version = await store.putCloudSave(userId, data, baseVersion);
+    if (version === null) throw new HttpError(409, "save_changed_elsewhere");
+    return json({ version });
   }
 
   if (method === "POST" && path === "/profile") {
