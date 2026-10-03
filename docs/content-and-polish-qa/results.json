@@ -1,0 +1,96 @@
+[
+  {
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "screen": "gacha",
+    "errors": [],
+    "labels": [
+      {
+        "text": "1回引く",
+        "width": 55.390625,
+        "height": 20,
+        "fontSize": "14px",
+        "lineHeight": "normal"
+      },
+      {
+        "text": "10回引く",
+        "width": 65.765625,
+        "height": 20,
+        "fontSize": "14px",
+        "lineHeight": "normal"
+      }
+    ],
+    "reached": true
+  },
+  {
+    "size": {
+      "width": 375,
+      "height": 667
+    },
+    "screen": "home",
+    "errors": [],
+    "card": {
+      "width": 157,
+      "height": 96
+    },
+    "reached": true
+  },
+  {
+    "size": {
+      "width": 375,
+      "height": 667
+    },
+    "screen": "gacha",
+    "errors": [],
+    "labels": [
+      {
+        "text": "1回引く",
+        "width": 55.390625,
+        "height": 20,
+        "fontSize": "14px",
+        "lineHeight": "normal"
+      },
+      {
+        "text": "10回引く",
+        "width": 65.765625,
+        "height": 20,
+        "fontSize": "14px",
+        "lineHeight": "normal"
+      }
+    ],
+    "reached": true
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "screen": "award",
+    "errors": [],
+    "reached": true
+  },
+  {
+    "size": {
+      "width": 375,
+      "height": 667
+    },
+    "screen": "award",
+    "errors": [],
+    "reached": true
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "screen": "home",
+    "errors": [],
+    "card": {
+      "width": 164,
+      "height": 237
+    },
+    "reached": true
+  }
+]
