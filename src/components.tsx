@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
 import type { PetCharacter } from './petCatalog';
 import { PullableCompanion } from './components/PullableCompanion';
+import type { ReactionContext } from './data/reactions';
 import { STAMP_IMAGES, type Shrine } from './data/shrines';
 import { WashiPressable as Pressable } from './components/Washi';
 import { SlicedArt } from './components/SlicedArt';
@@ -86,8 +87,8 @@ export function useReducedMotion() {
   return reduced;
 }
 
-export function Companion({ pet, haptics, onBond, reactionTrigger, onStageLayout }: { pet: PetCharacter; haptics: boolean; onBond: () => void; reactionTrigger?: number; onStageLayout?: (layout: { y: number; height: number }) => void }) {
-  return <PullableCompanion pet={pet} haptics={haptics} onBond={onBond} reactionTrigger={reactionTrigger} onStageLayout={onStageLayout} />;
+export function Companion({ pet, haptics, onBond, reactionTrigger, onStageLayout, reactionContext }: { pet: PetCharacter; haptics: boolean; onBond: () => void; reactionTrigger?: number; onStageLayout?: (layout: { y: number; height: number }) => void; reactionContext?: ReactionContext }) {
+  return <PullableCompanion pet={pet} haptics={haptics} onBond={onBond} reactionTrigger={reactionTrigger} onStageLayout={onStageLayout} reactionContext={reactionContext} />;
 }
 const S = StyleSheet.create({
   button: { minHeight: 52, paddingHorizontal: 18, justifyContent: 'center' }, buttonBody: { flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 6 }, buttonText: { color: '#FFF9EF', fontFamily: BRUSH, fontSize: 14, letterSpacing: 1 },

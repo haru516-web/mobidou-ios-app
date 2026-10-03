@@ -5,7 +5,7 @@ import Svg, { Defs, Image as SvgImage, Mask } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 
 import type { PetCharacter } from '../petCatalog';
-import { reactionLine, type ReactionKind } from '../data/reactions';
+import { reactionLine, type ReactionContext, type ReactionKind } from '../data/reactions';
 import { PULL_ASSETS, type CoreMobbyId, type MobbyPullAsset, type PullFrame } from '../data/mobbyPullAssets';
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 import { MOBIBOU_ACTION_FRAMES, MOBIBOU_PRAYER_ORDER } from '../data/mobibouActionFrames';
@@ -145,12 +145,15 @@ export function PullableCompanion({
   onBond,
   reactionTrigger,
   onStageLayout,
+  reactionContext,
 }: {
   pet: PetCharacter;
   haptics: boolean;
   onBond: () => void;
   reactionTrigger?: number;
   onStageLayout?: (layout: { y: number; height: number }) => void;
+  /** What the app knows right now (time of day, a goshuin just received, ...), so talk can fit the moment. */
+  reactionContext?: ReactionContext;
 }) {
   useWebPointerCapture();
 
@@ -185,6 +188,8 @@ export function PullableCompanion({
   const reactionMotion = useRef(new Animated.Value(0)).current;
   const specialMotion = useRef(new Animated.Value(0)).current;
   const countRef = useRef(0);
+  const reactionContextRef = useRef(reactionContext);
+  reactionContextRef.current = reactionContext;
   const pullCountRef = useRef(0);
   const lastActionRef = useRef(0);
   const lastReactionFrameRef = useRef(-1);
@@ -309,7 +314,7 @@ export function PullableCompanion({
   }, [haptics]);
 
   const setReactionLine = useCallback((nextKind: ReactionKind, options?: { special?: boolean; keepStatus?: boolean }) => {
-    setLine(reactionLine(pet.id, nextKind, countRef.current++));
+    setLine(reactionLine(pet.id, nextKind, countRef.current++, reactionContextRef.current));
     setKind(nextKind);
     setSpecialReaction(nextKind === 'pull' && Boolean(options?.special));
     clearLineTimer();

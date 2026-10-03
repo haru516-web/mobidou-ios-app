@@ -11,7 +11,7 @@ import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku/400Regular';
 import { BRUSH, Button, C, Clouds, Companion, Icon, SERIF, Stamp, Torii } from './src/components';
 import { getPetCharacter, isPetId, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
-import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView } from './src/services/progress';
+import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView, localDay } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
 import { hasStarter, ownsMobby } from './src/services/gacha';
 import { DuplicateMobbies } from './src/components/DuplicateMobbies';
@@ -41,6 +41,7 @@ import { countsAsUnread, FriendsSheet, NotificationsSheet, PresentBoxSheet, type
 import { fetchGifts, markGiftReceived, markNoticesRead, readReadNoticeIds, readReceivedGiftIds, type Gift } from './src/services/social';
 import type { CustomHomeWidgetId } from './src/services/homePreferences';
 import { OmikujiExperience } from './src/components/OmikujiExperience';
+import { affinityStageFor, type ReactionContext } from './src/data/reactions';
 import { ConnectStepsPrompt } from './src/components/ConnectStepsPrompt';
 import { WeeklyReview } from './src/components/WeeklyReview';
 import { previousWeekStart, summarizeWeek, weekStartDay, weeklyDue } from './src/services/weekly';
@@ -534,6 +535,30 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       setOmikujiModal(true);
     }).catch(() => undefined);
   }, [tab, openingHomeReady, openingVisible, journey.ready, progress.routeId, omikujiDrawn, omikujiDay, firstRunStage, data.onboarded]);
+  // What Mobby can mention when talked to: the time, a stop just reached, a long break, how close the pair feel.
+  const [recentAward, setRecentAward] = useState<'goshuin' | 'completed' | null>(null);
+  const recentAwardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noteAward = (completed: boolean) => {
+    if (recentAwardTimer.current) clearTimeout(recentAwardTimer.current);
+    setRecentAward(completed ? 'completed' : 'goshuin');
+    recentAwardTimer.current = setTimeout(() => setRecentAward(null), 5 * 60 * 1000);
+  };
+  const daysAwayRef = useRef(0);
+  const daysAwayRead = useRef(false);
+  useEffect(() => {
+    if (!journey.ready || daysAwayRead.current) return;
+    daysAwayRead.current = true;
+    const last = data.lastSync?.day;
+    if (last) daysAwayRef.current = Math.max(0, Math.round((new Date(localDay() + 'T00:00:00').getTime() - new Date(last + 'T00:00:00').getTime()) / 86400000));
+  }, [journey.ready, data.lastSync]);
+  const reactionContext: ReactionContext = {
+    hour: new Date().getHours(),
+    daysSinceLastOpen: daysAwayRef.current,
+    justReceivedGoshuin: recentAward === 'goshuin',
+    justCompletedPilgrimage: recentAward === 'completed',
+    remainingSteps: homeNextPointSteps ?? undefined,
+    affinityStage: affinityStageFor(data.affection[data.pet] ?? 0),
+  };
   // Last week's look-back appears once per week, after the day's other popups are out of the way.
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const weeklySummary = useMemo(() => summarizeWeek(data.dayLog, progress.rewards, previousWeekStart()), [weeklyOpen]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -607,7 +632,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
             <TourAnchor id="home-companion" onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCompanionLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={homeCharacterShiftY === 0 ? { zIndex: 20 } : { zIndex: 20, transform: [{ translateY: homeCharacterShiftY }] }}>
               <TutorialTarget active={firstRunStage === 'homeCompanion'} onRectChange={setTutorialRect}>
                 <View onLayout={({ nativeEvent }) => { const { height } = nativeEvent.layout; setHomeCompanionNaturalHeight(previous => previous === height ? previous : height); }} style={homeCompanionScale === 1 || !homeCompanionNaturalHeight ? undefined : { marginBottom: -homeCompanionNaturalHeight * (1 - homeCompanionScale), transform: [{ scale: homeCompanionScale }], transformOrigin: 'top' }}>
-                  <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+                  <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} reactionContext={reactionContext} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
                   <DuplicateMobbies collection={data.mobbies} />
                 </View>
               </TutorialTarget>
@@ -807,7 +832,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {weeklyOpen && <WeeklyReview visible summary={weeklySummary} petName={pet.name} petImage={pet.image} places={weeklyPlaces} onClose={() => { journey.markWeekSeen(weekStartDay()); setWeeklyOpen(false); }} />}
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} quick={journey.ready && data.onboarded && !onboardingPreview} /></Modal>
     <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={journey.drawFreeMobby} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={data.mobbies.freePulls} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={(__DEV__ || gachaOnShop) && firstRunStage !== 'gacha'} startOnShop={gachaOnShop} />}</Modal>
-    <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
+    <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); journey.acknowledge(); openBookPage(index); }} />}</Modal>
   </SafeAreaView></View>;
 }
 
