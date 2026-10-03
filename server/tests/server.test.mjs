@@ -114,6 +114,9 @@ class MemoryStore {
   async friends(userId) {
     return [...this.friendRows].filter((row) => row.startsWith(`${userId}:`)).map((row) => this.users.get(row.split(":")[1]));
   }
+  async updateProfile(userId, name, petId) { Object.assign(this.users.get(userId), { name, petId }); }
+  async friendshipExists(userId, friendId) { return this.friendRows.has(`${userId}:${friendId}`); }
+  async pendingRequestExists(fromId, toId) { return [...this.requests.values()].some((row) => row.fromId === fromId && row.toId === toId && row.status === "pending"); }
   async friendRequests(userId) { return [...this.requests.values()].filter((row) => row.toId === userId && row.status === "pending"); }
   async requestFriend(fromId, toId, id) { this.requests.set(id, { id, fromId, toId, status: "pending" }); }
   async answerFriendRequest(userId, requestId, answer) {
@@ -583,4 +586,55 @@ test("monthly spending cap by age group: set once, can be lowered but not raised
   assert.equal((await setGroup("adult")).status, 409);
   context.store.ageGroups.set(account.userId, "adult");
   assert.deepEqual(await limits(october), { ageGroup: "adult", capYen: null, spentYen: 1500, remainingYen: null });
+});
+
+test("profile: a short name and a known main Mobby are saved and read back; bad input is refused", async () => {
+  const context = createContext();
+  const account = await register(context);
+  const [pet] = GACHA_PET_IDS;
+  assert.equal((await call(context, "POST", "/profile", { name: "", petId: pet }, account.userId)).status, 400);
+  assert.equal((await call(context, "POST", "/profile", { name: "あ".repeat(13), petId: pet }, account.userId)).status, 400);
+  assert.equal((await call(context, "POST", "/profile", { name: "bad" + String.fromCharCode(7), petId: pet }, account.userId)).status, 400);
+  assert.equal((await call(context, "POST", "/profile", { name: "はる", petId: "not-a-pet" }, account.userId)).status, 400);
+  assert.equal((await call(context, "POST", "/profile", { name: "  はる  ", petId: pet }, account.userId)).status, 200);
+  assert.deepEqual(await (await call(context, "GET", "/profile", undefined, account.userId)).json(), { name: "はる", petId: pet, friendCode: account.friendCode });
+  assert.equal((await call(context, "GET", "/profile")).status, 401);
+});
+
+test("friends by code: needs a profile, accepts hyphens and lower case, and refuses duplicates", async () => {
+  const context = createContext();
+  const ann = await register(context, "");
+  const ben = await register(context, "");
+  const [pet] = GACHA_PET_IDS;
+  await call(context, "POST", "/profile", { name: "ベン", petId: pet }, ben.userId);
+
+  const ask = (user, code) => call(context, "POST", "/friend-requests", { friendCode: code }, user.userId);
+  const spaced = ben.friendCode.slice(0, 5) + "-" + ben.friendCode.slice(5).toLowerCase();
+  assert.equal((await ask(ann, spaced)).status, 400, "no name yet");
+  await call(context, "POST", "/profile", { name: "アン", petId: pet }, ann.userId);
+  assert.equal((await ask(ann, "ZZZZZZZZZZ")).status, 404);
+  assert.equal((await ask(ann, ann.friendCode)).status, 400, "cannot add yourself");
+  assert.equal((await ask(ann, spaced)).status, 201);
+  assert.equal((await ask(ann, ben.friendCode)).status, 409, "already requested");
+  assert.equal((await ask(ben, ann.friendCode)).status, 409, "they already asked");
+
+  const inbox = (await (await call(context, "GET", "/friends", undefined, ben.userId)).json()).incomingRequests;
+  assert.equal(inbox.length, 1);
+  assert.equal((await call(context, "POST", "/friend-requests/" + inbox[0].id + "/answer", { answer: "accepted" }, ben.userId)).status, 200);
+  assert.equal((await ask(ann, ben.friendCode)).status, 409, "already friends");
+  const friends = (await (await call(context, "GET", "/friends", undefined, ann.userId)).json()).friends;
+  assert.equal(friends.length, 1);
+});
+
+test("the invite link page shows only the code, and only for a well-formed code", async () => {
+  const context = createContext();
+  const page = await call(context, "GET", "/f/ABCDEFGH23");
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /text\/html/);
+  const html = await page.text();
+  assert.match(html, /ABCDEFGH23/);
+  assert.match(html, /mobidou:\/\/friend\?code=ABCDEFGH23/);
+  assert.equal((await call(context, "GET", "/f/short")).status, 401);
+  assert.equal((await call(context, "GET", "/f/abcdefgh23")).status, 401);
+  assert.equal((await call(context, "GET", "/f/ABCDEFGH23" + "<script>")).status, 401);
 });

@@ -82,6 +82,11 @@ export interface EventRecord {
 export type AgeGroup = "under16" | "16to19" | "adult";
 
 export interface Store {
+  /** Name and main Mobby shown to friends. */
+  updateProfile(userId: string, name: string, petId: string | null): Promise<void>;
+  friendshipExists(userId: string, friendId: string): Promise<boolean>;
+  /** Whether `fromId` has a pending request to `toId`. */
+  pendingRequestExists(fromId: string, toId: string): Promise<boolean>;
   ageGroup(userId: string): Promise<AgeGroup | null>;
   setAgeGroup(userId: string, group: AgeGroup): Promise<void>;
   /** Product ids of this user's purchases (not revoked) granted in [from, to). */

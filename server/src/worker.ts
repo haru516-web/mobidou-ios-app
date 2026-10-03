@@ -17,6 +17,16 @@ function tokyoMonthRange(now: Date): { from: string; to: string } {
   return { from: new Date(Date.UTC(year, month, 1) - 9 * hour).toISOString(), to: new Date(Date.UTC(year, month + 1, 1) - 9 * hour).toISOString() };
 }
 
+/** The page a friend link opens: shows the code and hands it to the app. Nothing about the owner is looked up or shown. */
+function invitePage(code: string): Response {
+  const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>もび道 フレンド招待</title>
+<style>body{font-family:sans-serif;background:#f6efe0;color:#4a2f22;margin:0;padding:48px 24px;text-align:center}h1{font-size:22px}.code{font-size:26px;letter-spacing:3px;margin:20px 0;font-weight:bold}a.open{display:inline-block;background:#8c3b30;color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-size:18px}p{line-height:1.7;font-size:14px}</style></head>
+<body><h1>もび道へのご招待</h1><p>フレンドコード</p><div class="code">${code}</div>
+<a class="open" href="mobidou://friend?code=${code}">もび道で開く</a>
+<p>開けないときは、もび道の「フレンド」画面でこのコードを入力してください。</p></body></html>`;
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
+}
+
 /** Anonymous sign-ups allowed from one source address. */
 const REGISTER_PER_MINUTE = 5;
 const REGISTER_PER_DAY = 30;
@@ -129,6 +139,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   const path = url.pathname.replace(/\/$/, "") || "/";
 
   if (method === "GET" && path === "/health") return json({ ok: true });
+  const inviteMatch = /^\/f\/([A-Z2-9]{10})$/.exec(path);
+  if (method === "GET" && inviteMatch) return invitePage(inviteMatch[1]);
   if (method === "GET" && path === "/gifts.json") return json(configuredGifts(env));
   if (method === "GET" && path === "/catalog.json") return json(configuredJson(env.CATALOG_JSON, []));
   if (method === "GET" && path === "/gacha/odds") {
@@ -184,16 +196,38 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
 
   const userId = await authenticatedUser(request, store);
 
+  if (method === "GET" && path === "/profile") {
+    const me = await store.user(userId);
+    if (!me) throw new HttpError(401, "unauthorized");
+    return json({ name: me.name, petId: me.petId, friendCode: me.friendCode });
+  }
+
+  if (method === "POST" && path === "/profile") {
+    const input = await body(request);
+    const name = typeof input.name === "string" ? input.name.trim() : "";
+    // Shown to friends: short, and no control characters.
+    if (name.length < 1 || name.length > 12 || /[\u0000-\u001f\u007f]/.test(name)) throw new HttpError(400, "invalid_name");
+    const petId = input.petId === undefined || input.petId === null ? null : input.petId;
+    if (petId !== null && (typeof petId !== "string" || !gachaPetIds().includes(petId as typeof GACHA_PET_IDS[number]))) throw new HttpError(400, "unknown_pet");
+    await store.updateProfile(userId, name, petId);
+    return json({ name, petId });
+  }
+
   if (method === "GET" && path === "/friends") {
     return json({ friends: await store.friends(userId), incomingRequests: await store.friendRequests(userId) });
   }
 
   if (method === "POST" && path === "/friend-requests") {
     const input = await body(request);
-    const friendCode = requireString(input.friendCode, "invalid_friend_code", 16).toUpperCase();
+    const friendCode = requireString(input.friendCode, "invalid_friend_code", 20).replace(/[\s-]/g, "").toUpperCase();
+    const me = await store.user(userId);
+    if (!me?.name) throw new HttpError(400, "profile_required");
     const recipient = await store.userByFriendCode(friendCode);
     if (!recipient) throw new HttpError(404, "friend_not_found");
     if (recipient.id === userId) throw new HttpError(400, "cannot_add_self");
+    if (await store.friendshipExists(userId, recipient.id)) throw new HttpError(409, "already_friends");
+    if (await store.pendingRequestExists(userId, recipient.id)) throw new HttpError(409, "already_requested");
+    if (await store.pendingRequestExists(recipient.id, userId)) throw new HttpError(409, "they_already_asked");
     await store.requestFriend(userId, recipient.id, crypto.randomUUID());
     return json({ status: "pending" }, 201);
   }

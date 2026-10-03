@@ -8,6 +8,18 @@ export class D1Store implements Store {
   private readonly db: D1Database;
   constructor(db: D1Database) { this.db = db; }
 
+  async updateProfile(userId: string, name: string, petId: string | null): Promise<void> {
+    await this.db.prepare("UPDATE users SET name = ?, pet_id = ? WHERE id = ?").bind(name, petId, userId).run();
+  }
+
+  async friendshipExists(userId: string, friendId: string): Promise<boolean> {
+    return !!(await this.db.prepare("SELECT 1 AS found FROM friendships WHERE user_id = ? AND friend_id = ?").bind(userId, friendId).first());
+  }
+
+  async pendingRequestExists(fromId: string, toId: string): Promise<boolean> {
+    return !!(await this.db.prepare("SELECT 1 AS found FROM friend_requests WHERE from_id = ? AND to_id = ? AND status = 'pending'").bind(fromId, toId).first());
+  }
+
   async ageGroup(userId: string): Promise<AgeGroup | null> {
     const row = await this.db.prepare("SELECT age_group FROM user_limits WHERE user_id = ?").bind(userId).first<{ age_group: AgeGroup }>();
     return row?.age_group ?? null;
@@ -183,7 +195,7 @@ export class D1Store implements Store {
   }
 
   async friendRequests(userId: string): Promise<unknown[]> {
-    const result = await this.db.prepare(`SELECT r.id, r.from_id AS fromId, u.name AS fromName, r.created_at AS createdAt
+    const result = await this.db.prepare(`SELECT r.id, r.from_id AS fromId, u.name AS fromName, u.pet_id AS fromPetId, r.created_at AS createdAt
       FROM friend_requests r JOIN users u ON u.id = r.from_id WHERE r.to_id = ? AND r.status = 'pending' ORDER BY r.created_at DESC`)
       .bind(userId).all();
     return result.results ?? [];
