@@ -14,6 +14,7 @@ import { localOmikujiDay } from '../data/omikuji';
 import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
 import { adoptServerAccount, readServerAccount, syncServer, type ServerAccount } from './server';
 import { fetchPaidTickets } from './purchase';
+import { uploadSave } from './cloudSave';
 
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
@@ -300,6 +301,20 @@ export function useJourney() {
     } catch (e) { setError(e instanceof Error ? e.message : '接続できませんでした。'); }
     finally { syncLock.current = false; setBusy(false); }
   };
+  // For players tied to an Apple ID, the whole record is kept on the server a little after it changes, and when the app leaves the screen.
+  useEffect(() => {
+    if (!ready || data.demo || !data.onboarded) return undefined;
+    const timer = setTimeout(() => { void uploadSave(createTransferCode(current.current)); }, 20000);
+    return () => clearTimeout(timer);
+  }, [ready, data]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', value => {
+      if ((value === 'background' || value === 'inactive') && !current.current.demo && current.current.onboarded) void uploadSave(createTransferCode(current.current));
+    });
+    return () => subscription.remove();
+  }, []);
+  /** The record without the account's secret: this is what may be sent to the server. */
+  const exportRecord = useCallback(async () => { await writing.current; return createTransferCode(current.current); }, []);
   const exportTransfer = useCallback(async () => {
     await writing.current;
     return createTransferCode(current.current, await readServerAccount());
@@ -334,7 +349,7 @@ export function useJourney() {
     }
   }, []);
   return {
-    data, progress: data.demo ? data.trial : data.real, special: data.demo ? data.trialSpecial : data.realSpecial, ready, error, busy, synced, refresh, connect, exportTransfer, previewTransfer, importTransfer,
+    data, progress: data.demo ? data.trial : data.real, special: data.demo ? data.trialSpecial : data.realSpecial, ready, error, busy, synced, refresh, connect, exportTransfer, exportRecord, previewTransfer, importTransfer,
     dismissError: () => setError(''),
     /** The untouched text of a record that could not be loaded, if one was set aside. */
     corruptedBackup,

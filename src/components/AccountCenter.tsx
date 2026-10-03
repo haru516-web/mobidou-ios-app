@@ -55,6 +55,7 @@ export function AccountCenter({
 }: Props) {
   const [appleBusy, setAppleBusy] = useState(false);
   const [appleMessage, setAppleMessage] = useState('');
+  const [recordRestored, setRecordRestored] = useState(false);
   const [exportCode, setExportCode] = useState('');
   const [importCode, setImportCode] = useState('');
   const [preview, setPreview] = useState<AccountTransferSummary | null>(null);
@@ -69,6 +70,7 @@ export function AccountCenter({
     setConfirmReplace(false);
     setImported(false);
     setAppleMessage('');
+    setRecordRestored(false);
     if (page === 'login' || page === 'manage') onAppleStatus?.();
   }, [page]);
 
@@ -78,8 +80,9 @@ export function AccountCenter({
     setAppleMessage('');
     const outcome = await (isFirstLaunch ? onAppleRestore() : onAppleLink());
     setAppleBusy(false);
+    setRecordRestored(outcome.ok && outcome.status === 'restored' && outcome.recordRestored === true);
     setAppleMessage(outcome.ok
-      ? outcome.status === 'restored' ? '前の端末の木札・フレンド・プロフィールを呼び戻しました。' : outcome.status === 'already_linked' ? 'すでにこのApple IDとつながっています。' : 'Apple IDとつながりました。機種変更のときも、このApple IDで木札を引き継げます。'
+      ? outcome.status === 'restored' ? (outcome.recordRestored ? '前の端末の記録（御朱印・歩数・モビー）と、木札・フレンド・プロフィールを呼び戻しました。' : '前の端末の木札・フレンド・プロフィールを呼び戻しました。保存された記録は見つかりませんでした。') : outcome.status === 'already_linked' ? 'すでにこのApple IDとつながっています。' : 'Apple IDとつながりました。機種変更のときも、このApple IDで木札を引き継げます。'
       : appleMessages[outcome.reason]);
   };
 
@@ -130,7 +133,7 @@ export function AccountCenter({
       <Button title="はじめて使う" icon="arrow-forward" onPress={onStart} style={S.primary} />
       <Button title="データを引き継ぐ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
       <Button title="Appleでサインイン" icon="logo-apple" secondary onPress={() => onNavigate('login')} style={S.secondaryButton} />
-      <Text style={S.footnote}>機種変更のときは、前の端末でつないだApple IDでサインインすると、木札・フレンド・プロフィールが戻ります。</Text>
+      <Text style={S.footnote}>機種変更のときは、前の端末でつないだApple IDでサインインすると、記録と木札・フレンド・プロフィールが戻ります。</Text>
     </PagedBody>;
   }
 
@@ -141,14 +144,15 @@ export function AccountCenter({
         <View style={S.statusIcon}><Icon name="logo-apple" size={22} color={C.red} /></View>
         <Text style={S.statusTitle}>Appleでサインイン</Text>
         <Text style={S.body}>{isFirstLaunch
-          ? '前の端末でApple IDとつないでいれば、ここでサインインして、木札・フレンド・プロフィールを呼び戻せます。'
+          ? '前の端末でApple IDとつないでいれば、ここでサインインして、記録（御朱印・歩数・モビー）と木札・フレンド・プロフィールを呼び戻せます。'
           : appleLinked ? 'この端末のアカウントは、Apple IDとつながっています。機種変更のときは、新しい端末でサインインしてください。'
-          : 'Apple IDとつなぐと、機種変更のときも、木札・フレンド・プロフィールを引き継げます。名前やメールアドレスは、もび道には送りません。'}</Text>
+          : 'Apple IDとつなぐと、機種変更のときも、記録と木札・フレンド・プロフィールを引き継げます。名前やメールアドレスは、もび道には送りません。'}</Text>
       </View>
       {!!appleMessage && <Text accessibilityLiveRegion="polite" style={S.body}>{appleMessage}</Text>}
-      {(isFirstLaunch || !appleLinked) && <Button title={appleBusy ? 'サインイン中…' : isFirstLaunch ? 'Appleでサインインして引き継ぐ' : 'Apple IDとつなぐ'} icon="logo-apple" disabled={appleBusy} onPress={() => void signInWithApple()} style={S.primary} />}
-      <Section title="そのほかの記録" />
-      <Text style={S.body}>御朱印・歩数・集めたモビーは、iCloudバックアップから戻るか、「引き継ぎコード」で移せます。</Text>
+      {recordRestored && <Button title="旅をはじめる" icon="arrow-forward" onPress={onFinishImport} style={S.primary} />}
+      {!recordRestored && (isFirstLaunch || !appleLinked) && <Button title={appleBusy ? 'サインイン中…' : isFirstLaunch ? 'Appleでサインインして引き継ぐ' : 'Apple IDとつなぐ'} icon="logo-apple" disabled={appleBusy} onPress={() => void signInWithApple()} style={S.primary} />}
+      <Section title="記録の保存" />
+      <Text style={S.body}>Apple IDとつなぐと、御朱印・歩数・集めたモビーの記録も、サーバーに自動で保存されます。つながないかぎり、記録は送りません。</Text>
       <Button title="データ引き継ぎへ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
       <Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} />
     </PagedBody>;
@@ -222,7 +226,7 @@ export function AccountCenter({
     <Button title={appleLinked ? 'Apple IDの連携状況' : 'Appleでサインイン'} icon="logo-apple" secondary onPress={() => onNavigate('login')} />
     <Button title="データ引き継ぎ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
     <View style={S.petLine}><Icon name="paw-outline" size={18} color={C.gold} /><Text style={S.summaryText}>現在の相棒: {getPetCharacter(localSummary.petId).name}</Text></View>
-    <Text style={S.footnote}>Apple IDとつなぐと、木札・フレンド・プロフィールを機種変更で引き継げます。御朱印・歩数・モビーは、iCloudバックアップか「引き継ぎコード」で移せます。</Text>
+    <Text style={S.footnote}>Apple IDとつなぐと、御朱印・歩数・モビーの記録と、木札・フレンド・プロフィールを、機種変更で引き継げます。</Text>
   </PagedBody>;
 }
 

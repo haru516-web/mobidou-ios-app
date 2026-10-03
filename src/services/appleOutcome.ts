@@ -1,7 +1,8 @@
 /** What the server said to a Sign in with Apple call, as the screens need it. Pure so it can be tested. */
 
 export type AppleFailure = 'cancelled' | 'unavailable' | 'offline' | 'apple_in_use' | 'account_has_other_apple' | 'no_account' | 'failed';
-export type AppleOutcome = { ok: true; status: 'linked' | 'already_linked' | 'restored' } | { ok: false; reason: AppleFailure };
+/** `recordRestored`: on a restore, the saved record came back too (not only the account). */
+export type AppleOutcome = { ok: true; status: 'linked' | 'already_linked' | 'restored'; recordRestored?: boolean } | { ok: false; reason: AppleFailure };
 
 type Reply = { status: number; data: Record<string, unknown> | null } | null;
 

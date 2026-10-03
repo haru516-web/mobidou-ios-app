@@ -21,6 +21,7 @@ import { createAppStore } from './src/services/appStore';
 import { friendCodeFromUrl } from './src/services/friends';
 import { isAppleLinked, linkApple, restoreWithApple } from './src/services/appleAccount';
 import { fetchPaidTickets } from './src/services/purchase';
+import { downloadSave, markRestored, setCloudLinked, uploadSave } from './src/services/cloudSave';
 import { fetchProfile, hasSavedProfileName, markProfileGuideShown, SOCIAL_ONLINE, syncProfilePet, wasProfileGuideShown } from './src/services/social';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
@@ -182,6 +183,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [tour, setTour] = useState<TourSelection | null>(null);
   const [accountPage, setAccountPage] = useState<AccountPage | null>(null);
   const [appleLinked, setAppleLinked] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!journey.ready || data.demo) return;
+    void isAppleLinked().then(linked => { if (linked !== null) { setAppleLinked(linked); void setCloudLinked(linked); } });
+  }, [journey.ready, data.demo]);
   const [accountEntryVisible, setAccountEntryVisible] = useState(false);
   const [accountEntryPage, setAccountEntryPage] = useState<AccountPage>('welcome');
   const [overlayBusy, setOverlayBusy] = useState(false);
@@ -938,7 +943,16 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           onFinishImport={finishAccountImport}
           appleLinked={appleLinked}
           onAppleStatus={() => { void isAppleLinked().then(setAppleLinked); }}
-          onAppleLink={async () => { const outcome = await linkApple(); if (outcome.ok) setAppleLinked(true); return outcome; }}
+          onAppleLink={async () => {
+            const outcome = await linkApple();
+            if (outcome.ok) {
+              setAppleLinked(true);
+              await setCloudLinked(true);
+              // From now on the record is kept on the server; send the first copy right away.
+              void journey.exportRecord().then(record => uploadSave(record, Date.now() + 120000));
+            }
+            return outcome;
+          }}
           onAppleRestore={async () => {
             const outcome = await restoreWithApple();
             if (outcome.ok) {
@@ -947,6 +961,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               if (paid !== null) journey.setPaidTickets(paid);
               void fetchProfile();
               setAppleLinked(true);
+              await setCloudLinked(true);
+              // The saved record comes back with the account.
+              const saved = await downloadSave();
+              if (saved) {
+                try { await journey.importTransfer(saved.record); await markRestored(saved.record, saved.version); return { ...outcome, recordRestored: true }; } catch { return { ...outcome, recordRestored: false }; }
+              }
             }
             return outcome;
           }}
