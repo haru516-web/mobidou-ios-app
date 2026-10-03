@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Easing, Modal, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Linking, Easing, Modal, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from './src/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +18,8 @@ import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
 import { GachaScreen } from './src/components/GachaScreen';
 import { buyPulls, drawPaidTickets, setAgeGroup, settleCredits, type AgeGroup, type BuyOutcome, type PullProductId } from './src/services/purchase';
 import { createAppStore } from './src/services/appStore';
+import { friendCodeFromUrl } from './src/services/friends';
+import { hasSavedProfileName, markProfileGuideShown, SOCIAL_ONLINE, wasProfileGuideShown } from './src/services/social';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
 import { pilgrimageShrines, RouteMap } from './src/components/PilgrimageScreen';
@@ -640,6 +642,36 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const timer = setTimeout(() => setWeeklyOpen(true), 1200);
     return () => clearTimeout(timer);
   }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet]);
+  // A friend link (mobidou://friend?code=… or the invite page) opens the friends sheet with the code filled in.
+  const [inviteCode, setInviteCode] = useState('');
+  useEffect(() => {
+    if (!SOCIAL_ONLINE) return undefined;
+    const take = (url: string | null) => { const code = friendCodeFromUrl(url); if (code) setInviteCode(code); };
+    void Linking.getInitialURL().then(take).catch(() => undefined);
+    const subscription = Linking.addEventListener('url', event => take(event.url));
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (inviteCode && journey.ready && data.onboarded && !data.demo && firstRunStage === null && !openingVisible && !socialSheet) setSocialSheet('friends');
+  }, [inviteCode, journey.ready, data.onboarded, data.demo, firstRunStage, openingVisible, socialSheet]);
+  // Once the tutorial is over and the home screen is quiet, offer to register the profile (name + main Mobby) once.
+  const profileGuideChecked = useRef(false);
+  useEffect(() => {
+    if (!SOCIAL_ONLINE || profileGuideChecked.current) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet) return undefined;
+    const timer = setTimeout(() => {
+      profileGuideChecked.current = true;
+      void (async () => {
+        if ((await wasProfileGuideShown()) || (await hasSavedProfileName())) return;
+        await markProfileGuideShown();
+        Alert.alert('プロフィールを登録しよう', 'フレンドと遊ぶために、名前を登録します。フレンドに見えるのは、名前と、いまのメインモビーだけです。', [
+          { text: 'あとで', style: 'cancel' },
+          { text: '登録する', onPress: () => setSocialSheet('friends') },
+        ]);
+      })();
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet]);
   useAppAudioCues({ firstRunStage, openingVisible, mobbyMenuOpen, homeEditing: homePopup === 'custom', milestoneToast, error: journey.error ?? null, weeklyOpen, pet: data.pet });
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
@@ -791,7 +823,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
-    <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} onClose={() => setSocialSheet(null)} />
+    <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
     <BookIndexPopup visible={bookIndexOpen} title="目次" subtitle={activeRoute?.name} shrines={activeShrines} ownedIds={collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
     {firstRunStage === 'homeCompanion' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="1 / 7" title="ホームのモビーとふれあおう" detail="ほっぺを引っぱると伸びるよ。タップで二礼二拍手一礼。" />}
     {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="2 / 7" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}

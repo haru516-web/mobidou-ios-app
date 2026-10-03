@@ -9,7 +9,9 @@ import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { PagedBody } from './PagedBody';
 import { SlicedArt } from './SlicedArt';
 import { IMG7, UI_ART7 } from '../data/uiArtRound7';
-import { answerFriendRequest, fetchFriendRequests, fetchFriends, getMyFriendCode, sendFriendRequest, SOCIAL_ONLINE, type Friend, type FriendRequest, type Gift, type GiftItem } from '../services/social';
+import { answerFriendRequest, fetchFriendRequests, fetchFriends, fetchProfile, formatFriendCode, getMyFriendCode, saveProfile, sendFriendRequest, SOCIAL_ONLINE, type Friend, type FriendRequest, type Gift, type GiftItem } from '../services/social';
+import { friendInviteLink } from '../services/friends';
+import { SERVER_URL } from '../services/server';
 
 const TICKET_IMAGES: Record<GiftItem['kind'], number> = {
   keychainDrop: require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp'),
@@ -141,8 +143,10 @@ function PetAvatar({ petId, size = 52 }: { petId: PetCharacter['id']; size?: num
   </View>;
 }
 
-export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean; demo: boolean; pet: PetCharacter; onClose: () => void }) {
+export function FriendsSheet({ visible, demo, pet, initialCode, onClose }: { visible: boolean; demo: boolean; pet: PetCharacter; /** A code that came with an invite link; it is put in the box, not sent. */ initialCode?: string; onClose: () => void }) {
   const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [savedName, setSavedName] = useState('');
   const [friends, setFriends] = useState<readonly Friend[]>([]);
   const [requests, setRequests] = useState<readonly FriendRequest[]>([]);
   const [input, setInput] = useState('');
@@ -152,18 +156,40 @@ export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean
     if (!visible) return;
     let active = true;
     setNotice('');
-    void Promise.all([getMyFriendCode(), fetchFriends({ demo }), fetchFriendRequests({ demo })]).then(([myCode, list, pending]) => {
+    if (initialCode) setInput(initialCode);
+    void Promise.all([getMyFriendCode(demo), fetchFriends({ demo }), fetchFriendRequests({ demo }), demo ? Promise.resolve(null) : fetchProfile()]).then(([myCode, list, pending, profile]) => {
       if (!active) return;
       setCode(myCode); setFriends(list); setRequests(pending);
+      if (profile) {
+        setName(profile.name); setSavedName(profile.name);
+        // The main Mobby may have changed since the name was saved; friends should see the current one.
+        if (profile.name && profile.petId !== pet.id) void saveProfile(profile.name, pet.id);
+      }
     });
     return () => { active = false; };
-  }, [demo, visible]);
+  }, [demo, visible, initialCode, pet.id]);
 
-  const offlineMessage = 'フレンド機能はオンライン接続の準備中です。公開までお待ちください。';
+  const offlineMessage = SOCIAL_ONLINE ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。' : 'フレンド機能はオンライン接続の準備中です。公開までお待ちください。';
+  const failureMessages: Record<string, string> = {
+    invalid: 'フレンドコードの形式が正しくありません（例：ABCDE-FGHJK）',
+    not_found: 'そのフレンドコードの相手が見つかりませんでした。コードを確かめてください。',
+    self: '自分のフレンドコードは追加できません。',
+    already_friends: 'すでにフレンドです。',
+    already_requested: 'すでに申請しています。相手の承認をお待ちください。',
+    they_already_asked: '相手からの申請が届いています。「届いた申請」から承認してください。',
+    profile_required: 'フレンド申請の前に、プロフィールの名前を登録してください。',
+  };
   const submit = async () => {
     const result = await sendFriendRequest(input);
     playSfx(result.ok ? 'sfx_send' : 'sfx_error');
-    setNotice(result.ok ? '申請を送りました' : result.reason === 'invalid' ? 'フレンドコードの形式が正しくありません（例：MOBI-ABCD-2345）' : offlineMessage);
+    if (result.ok) setInput('');
+    setNotice(result.ok ? '申請を送りました' : failureMessages[result.reason] ?? offlineMessage);
+  };
+  const register = async () => {
+    const result = await saveProfile(name, pet.id);
+    playSfx(result.ok ? 'sfx_success' : 'sfx_error');
+    if (result.ok) setSavedName(name.trim());
+    setNotice(result.ok ? 'プロフィールを保存しました' : result.reason === 'invalid' ? '名前は1〜12文字で入力してください。' : offlineMessage);
   };
   const answer = async (request: FriendRequest, accept: boolean) => {
     const result = await answerFriendRequest(request.id, accept);
@@ -175,20 +201,31 @@ export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean
     {!SOCIAL_ONLINE && <OfflineBanner text={demo ? 'フレンド機能は準備中です。体験モードではサンプルを表示しています。' : 'フレンド機能は準備中です。公開後、ここでフレンドと歩みを共有できます。'} />}
     {!!notice && <Text accessibilityLiveRegion="polite" style={S.notice}>{notice}</Text>}
 
+    {!demo && SOCIAL_ONLINE && <View key="profile"><SectionTitle title="プロフィール" />
+    <View style={[S.card, S.addRow]}>
+      <WashiArt />
+      <PetAvatar petId={pet.id} size={44} />
+      <WashiInput value={name} onChangeText={setName} maxLength={12} placeholder="なまえ（12文字まで）" placeholderTextColor="#B7A58F" autoCorrect={false} accessibilityLabel="プロフィールの名前" style={S.codeInput} />
+      <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={!name.trim() || name.trim() === savedName} onPress={() => void register()} style={[S.primarySmall, (!name.trim() || name.trim() === savedName) && S.disabled]}><Text style={S.primarySmallText}>{savedName ? '変更' : '登録'}</Text></Pressable>
+    </View>
+    <Text style={S.profileNote}>フレンドに見えるのは、名前と、いまのメインモビー（{pet.name}）だけです。メインモビーは、持っているモビーから選べます。</Text></View>}
+
     <View style={[S.card, S.myCard]}>
       <WashiArt />
       <PetAvatar petId={pet.id} size={52} />
       <View style={{ flex: 1 }}>
         <Text style={S.myLabel}>あなたのフレンドコード</Text>
-        <View style={S.codePlate}><SlicedArt art={UI_ART7.codePlate} /><Text selectable numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.7} style={S.myCode}>{code || '…'}</Text></View>
+        <View style={S.codePlate}><SlicedArt art={UI_ART7.codePlate} /><Text selectable numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.7} style={S.myCode}>{code ? formatFriendCode(code) : '…'}</Text></View>
       </View>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="フレンドコードを共有" disabled={!code} onPress={() => void Share.share({ message: `もび道でいっしょに歩こう！ フレンドコード：${code}` }).catch(() => undefined)} style={S.iconButton}><Icon name="share-outline" size={20} color={C.red} /></Pressable>
+      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="フレンドコードと招待リンクを共有" disabled={!code} onPress={() => void Share.share({ message: `もび道でいっしょに歩こう！
+フレンドコード：${formatFriendCode(code)}
+${friendInviteLink(SERVER_URL, code)}` }).catch(() => undefined)} style={S.iconButton}><Icon name="share-outline" size={20} color={C.red} /></Pressable>
     </View>
 
     <View key="add"><SectionTitle title="フレンドを追加" />
     <View style={[S.card, S.addRow]}>
       <WashiArt />
-      <WashiInput value={input} onChangeText={value => setInput(value.toUpperCase())} placeholder="MOBI-XXXX-XXXX" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="フレンドコード" style={S.codeInput} />
+      <WashiInput value={input} onChangeText={value => setInput(value.toUpperCase())} placeholder="XXXXX-XXXXX" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="フレンドコード" style={S.codeInput} />
       <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={!input.trim()} onPress={() => void submit()} style={[S.primarySmall, !input.trim() && S.disabled]}><Text style={S.primarySmallText}>申請</Text></Pressable>
     </View></View>
 
@@ -205,8 +242,6 @@ export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean
       <PetAvatar petId={friend.petId} />
       <View style={{ flex: 1 }}>
         <Text style={S.personName}>{friend.name}</Text>
-        <Text style={S.personMeta}>{friend.routeName} · 御朱印 {friend.goshuinCount}</Text>
-        <Text style={S.personMeta}>最終 {friend.lastActive}</Text>
       </View>
     </View>), <Empty art={IMG7.emptyFriends} text="フレンドコードを交換して、いっしょに歩こう" />)}
   </Sheet>;
@@ -266,6 +301,7 @@ const S = StyleSheet.create({
   codeInput: { flex: 1, minHeight: 42, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFFFF', color: C.ink, fontSize: 16, letterSpacing: 1 },
   personRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  profileNote: { color: C.muted, fontSize: 12, lineHeight: 18, paddingHorizontal: 16, paddingTop: 6 },
   personName: { fontFamily: BRUSH, fontSize: 16, color: C.ink },
   personMeta: { marginTop: 2, color: C.muted, fontSize: 12 },
 });

@@ -1,31 +1,33 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { PetId } from '../petCatalog';
+import { isPetId, type PetId } from '../petCatalog';
 import type { PassKind } from './specialRewards';
+import { formatFriendCode, isFriendCode, normalizeFriendCode, readFriendRequests, readFriends, requestFailure, type RequestFailure } from './friends';
+import { authedRequest } from './server';
 
 /*
  * Social features: presents and friends.
  *
- * Both need a server (delivery of presents, friend graph, requests). None
- * exists yet, so this module is the seam: the screens only talk to the
- * functions below. Until a backend is connected, they return local sample
- * data in 体験モード and empty results otherwise, and every write that would
- * reach another user reports `offline`. Replace the bodies marked `SERVER:`
- * with API calls; the screens need no changes.
+ * Friends talk to the Cloudflare server (profile, friend codes, requests). Presents still need a delivery
+ * backend, so they stay sample data in 体験モード and empty otherwise. What a friend can see is only a name and
+ * the main Mobby.
+ *
+ * The friend features are on in development builds only. To switch them on for everyone, make this `true`
+ * (see docs/design-v3-monetization-server.md, section 6).
  */
 
-export const SOCIAL_ONLINE = false;
+export const SOCIAL_ONLINE = typeof __DEV__ !== 'undefined' && __DEV__;
 
 /** `gachaTicket` is a 木札: one pull of the gacha. */
 export type GiftItem = { kind: PassKind | 'gachaTicket'; quantity: number };
 export type Gift = { id: string; title: string; message: string; from: string; items: readonly GiftItem[]; sentAt: string; expiresAt?: string };
 
-export type Friend = { id: string; name: string; petId: PetId; goshuinCount: number; routeName: string; lastActive: string };
+export type Friend = { id: string; name: string; petId: PetId };
 export type FriendRequest = { id: string; name: string; petId: PetId; sentAt: string };
 
-export type SocialWriteResult = { ok: true } | { ok: false; reason: 'offline' | 'invalid' };
+export type SocialWriteResult = { ok: true } | { ok: false; reason: RequestFailure };
+export { formatFriendCode, isFriendCode, normalizeFriendCode };
 
 const RECEIVED_GIFTS_KEY = '@mobidou/social/received-gifts/v1';
-const FRIEND_CODE_KEY = '@mobidou/social/friend-code/v1';
 const READ_NOTICES_KEY = '@mobidou/notices/read/v1';
 
 const SAMPLE_GIFTS: readonly Gift[] = [
@@ -34,9 +36,9 @@ const SAMPLE_GIFTS: readonly Gift[] = [
 ];
 
 const SAMPLE_FRIENDS: readonly Friend[] = [
-  { id: 'sample-hana', name: 'はな', petId: 'mobirin', goshuinCount: 12, routeName: '木漏れ日の奥宮へ', lastActive: '今日' },
-  { id: 'sample-sora', name: 'そら', petId: 'mobichi', goshuinCount: 5, routeName: '山並みの修行道', lastActive: '昨日' },
-  { id: 'sample-kai', name: 'かい', petId: 'yami', goshuinCount: 27, routeName: '水辺の札所めぐり', lastActive: '3日前' },
+  { id: 'sample-hana', name: 'はな', petId: 'mobirin' },
+  { id: 'sample-sora', name: 'そら', petId: 'mobichi' },
+  { id: 'sample-kai', name: 'かい', petId: 'yami' },
 ];
 
 const SAMPLE_REQUESTS: readonly FriendRequest[] = [
@@ -79,48 +81,75 @@ export async function markNoticesRead(noticeIds: readonly string[]) {
   await writeIdSet(READ_NOTICES_KEY, ids);
 }
 
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const PROFILE_KEY = '@mobidou/social/profile/v1';
+const PROFILE_GUIDE_KEY = '@mobidou/social/profile-guide/v1';
 
-function generateFriendCode() {
-  const pick = () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
-  const block = () => Array.from({ length: 4 }, pick).join('');
-  return `MOBI-${block()}-${block()}`;
+export type Profile = { name: string; petId: string | null; friendCode: string };
+
+/** The name and main Mobby friends see, and the code to give them. Null when the server cannot be reached. */
+export async function fetchProfile(): Promise<Profile | null> {
+  if (!SOCIAL_ONLINE) return null;
+  const reply = await authedRequest('/profile', { method: 'GET' });
+  const data = reply?.data;
+  if (!reply || reply.status !== 200 || !data || typeof data.friendCode !== 'string') return null;
+  const profile = { name: typeof data.name === 'string' ? data.name : '', petId: typeof data.petId === 'string' ? data.petId : null, friendCode: data.friendCode };
+  await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify({ name: profile.name })).catch(() => undefined);
+  return profile;
 }
 
-export function isFriendCode(value: string) {
-  return /^MOBI-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(value.trim().toUpperCase());
+/** Save the name (1 to 12 characters) and the main Mobby that friends will see. */
+export async function saveProfile(name: string, petId: string): Promise<{ ok: true } | { ok: false; reason: 'invalid' | 'offline' }> {
+  const trimmed = name.trim();
+  if (trimmed.length < 1 || trimmed.length > 12) return { ok: false, reason: 'invalid' };
+  const reply = await authedRequest('/profile', { body: { name: trimmed, petId } });
+  if (!reply) return { ok: false, reason: 'offline' };
+  if (reply.status === 200) { await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify({ name: trimmed })).catch(() => undefined); return { ok: true }; }
+  return { ok: false, reason: reply.status === 400 ? 'invalid' : 'offline' };
 }
 
-/** SERVER: the code should be issued by the server; a local one stands in. */
-export async function getMyFriendCode() {
-  try {
-    const saved = await AsyncStorage.getItem(FRIEND_CODE_KEY);
-    if (saved && isFriendCode(saved)) return saved;
-  } catch {
-    // Fall through and issue a new local code.
-  }
-  const code = generateFriendCode();
-  await AsyncStorage.setItem(FRIEND_CODE_KEY, code).catch(() => undefined);
-  return code;
+/** Whether a name was saved on this device (so the guide to register one is not shown again). */
+export async function hasSavedProfileName() {
+  try { return !!(JSON.parse(await AsyncStorage.getItem(PROFILE_KEY) ?? 'null') as { name?: string } | null)?.name; } catch { return false; }
 }
 
-/** SERVER: GET /friends. */
+export async function wasProfileGuideShown() {
+  return (await AsyncStorage.getItem(PROFILE_GUIDE_KEY).catch(() => null)) === '1';
+}
+
+export const markProfileGuideShown = () => AsyncStorage.setItem(PROFILE_GUIDE_KEY, '1').catch(() => undefined);
+
+const SAMPLE_CODE = 'MOBIA-BCD23';
+
+/** The code to give a friend. */
+export async function getMyFriendCode(demo = false) {
+  if (demo || !SOCIAL_ONLINE) return SAMPLE_CODE;
+  return (await fetchProfile())?.friendCode ?? '';
+}
+
 export async function fetchFriends({ demo }: { demo: boolean }): Promise<readonly Friend[]> {
-  return demo ? SAMPLE_FRIENDS : [];
+  if (demo) return SAMPLE_FRIENDS;
+  if (!SOCIAL_ONLINE) return [];
+  const reply = await authedRequest('/friends', { method: 'GET' });
+  return reply?.status === 200 ? readFriends(reply.data, isPetId, 'mobibou') as Friend[] : [];
 }
 
-/** SERVER: GET /friend-requests. */
 export async function fetchFriendRequests({ demo }: { demo: boolean }): Promise<readonly FriendRequest[]> {
-  return demo ? SAMPLE_REQUESTS : [];
+  if (demo) return SAMPLE_REQUESTS;
+  if (!SOCIAL_ONLINE) return [];
+  const reply = await authedRequest('/friends', { method: 'GET' });
+  return reply?.status === 200 ? readFriendRequests(reply.data, isPetId, 'mobibou') as FriendRequest[] : [];
 }
 
-/** SERVER: POST /friend-requests { code }. */
 export async function sendFriendRequest(code: string): Promise<SocialWriteResult> {
   if (!isFriendCode(code)) return { ok: false, reason: 'invalid' };
-  return { ok: false, reason: 'offline' };
+  if (!SOCIAL_ONLINE) return { ok: false, reason: 'offline' };
+  const reply = await authedRequest('/friend-requests', { body: { friendCode: normalizeFriendCode(code) } });
+  if (reply && reply.status === 201) return { ok: true };
+  return { ok: false, reason: requestFailure(reply?.status ?? null, reply?.data?.error) };
 }
 
-/** SERVER: POST /friend-requests/:id/accept or /decline. */
-export async function answerFriendRequest(_id: string, _accept: boolean): Promise<SocialWriteResult> {
-  return { ok: false, reason: 'offline' };
+export async function answerFriendRequest(id: string, accept: boolean): Promise<SocialWriteResult> {
+  if (!SOCIAL_ONLINE) return { ok: false, reason: 'offline' };
+  const reply = await authedRequest('/friend-requests/' + encodeURIComponent(id) + '/answer', { body: { answer: accept ? 'accepted' : 'declined' } });
+  return reply && reply.status === 200 ? { ok: true } : { ok: false, reason: 'offline' };
 }
