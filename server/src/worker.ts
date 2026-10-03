@@ -313,13 +313,28 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   throw new HttpError(404, "not_found");
 }
 
-export async function handleWithStore(request: Request, env: Env, store: Store, now = new Date(), random: RandomSource = secureRandom): Promise<Response> {
+// Credentials travel in the Authorization header, never in cookies, so any origin (such as the web build) may call the API.
+const CORS_HEADERS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "authorization, content-type",
+  "access-control-max-age": "86400"
+};
+
+async function respond(request: Request, env: Env, store: Store, now: Date, random: RandomSource): Promise<Response> {
   try { return await handle(request, env, store, now, random); }
   catch (error) {
     if (error instanceof HttpError) return json({ error: error.code }, error.status);
     console.error("Request failed", error instanceof Error ? error.message : "unknown error");
     return json({ error: "internal_error" }, 500);
   }
+}
+
+export async function handleWithStore(request: Request, env: Env, store: Store, now = new Date(), random: RandomSource = secureRandom): Promise<Response> {
+  if (request.method.toUpperCase() === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
+  const response = await respond(request, env, store, now, random);
+  for (const [name, value] of Object.entries(CORS_HEADERS)) response.headers.set(name, value);
+  return response;
 }
 
 const worker = {

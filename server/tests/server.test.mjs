@@ -514,3 +514,13 @@ test("registration is capped at 30 per day per address", async () => {
   for (let i = 0; i < 40; i++) if ((await register(new Date(Date.parse("2026-10-03T00:00:00Z") + i * 120_000))).status === 429) refused++;
   assert.equal(refused, 10);
 });
+
+test("CORS: preflight is answered and every response allows cross-origin callers", async () => {
+  const store = new MemoryStore();
+  const preflight = await handleWithStore(new Request("https://server.test/pets/starter", { method: "OPTIONS", headers: { Origin: "http://localhost:8096" } }), env, store);
+  assert.equal(preflight.status, 204);
+  assert.match(preflight.headers.get("access-control-allow-headers"), /authorization/);
+  const refused = await handleWithStore(new Request("https://server.test/nope"), env, store);
+  assert.equal(refused.status, 401);
+  assert.equal(refused.headers.get("access-control-allow-origin"), "*");
+});
