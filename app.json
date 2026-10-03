@@ -27,7 +27,8 @@
           "motionPermission": "歩数に合わせて、もびの世界の御朱印を集めるために使用します。"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      ["expo-audio", { "microphonePermission": false, "recordAudioAndroid": false }]
     ],
     "web": {
       "bundler": "metro",

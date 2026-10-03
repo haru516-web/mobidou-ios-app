@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { playSfx, useSceneBgm } from '../services/audio';
 import { Animated, Easing, Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Image, ImageBackground } from './AppImage';
 import type { OmikujiFortune } from '../data/omikuji';
@@ -40,6 +41,19 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
   const playRevealRef = useRef<() => void>(() => {});
   const effect = REVEAL_EFFECTS[fortune.rank];
   const pulling = frame !== null;
+  useSceneBgm('bgm_omikuji', visible, 30);
+  useEffect(() => {
+    if (!visible || !pulling) return;
+    playSfx('sfx_omikuji_shake');
+    const timer = setInterval(() => playSfx('sfx_omikuji_shake'), 340);
+    return () => clearInterval(timer);
+  }, [visible, pulling]);
+  useEffect(() => {
+    if (!visible || !revealing) return;
+    playSfx('sfx_omikuji_reveal');
+    const timer = setTimeout(() => playSfx(fortune.rank === '大吉' ? 'sfx_omikuji_rank_great' : fortune.rank === '中吉' || fortune.rank === '吉' ? 'sfx_omikuji_rank_good' : 'sfx_omikuji_rank_quiet'), 910);
+    return () => clearTimeout(timer);
+  }, [visible, revealing, fortune.rank]);
   const atlas = OMIKUJI_ATLASES[pet.id] ?? pet.image;
 
   useEffect(() => () => {

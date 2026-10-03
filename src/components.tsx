@@ -71,8 +71,8 @@ export function Torii({ size = 30, color = C.red }: { size?: number; color?: str
   return <Svg width={size} height={size} viewBox="0 0 40 40"><Path d="M3 7 Q20 12 37 7 M6 13 H34 M8 21 H32 M12 13 L10 36 M28 13 L30 36 M20 14 V20" stroke={color} strokeWidth="3.5" strokeLinecap="round" fill="none" /></Svg>;
 }
 export function Clouds() { return <Svg pointerEvents="none" width="100%" height="150" viewBox="0 0 420 150" style={{ position: 'absolute', top: 45 }}><Path d="M-28 70 H35 Q66 70 66 51 Q66 35 48 35 Q31 35 31 49 H10 Q-4 49 -4 65 M341 115 H451 M359 99 H428 Q444 99 444 84 Q444 65 425 65 Q410 65 410 81 H386 Q371 81 371 99" stroke="#D9CBBB" strokeWidth="9" strokeLinecap="round" fill="none" opacity=".35" /></Svg>; }
-export function Button({ title, onPress, secondary, disabled, icon, style, textStyle }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean; icon?: React.ComponentProps<typeof Ionicons>['name']; style?: StyleProp<ViewStyle>; textStyle?: StyleProp<TextStyle> }) {
-  return <PlainPressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress} style={[S.button, style]}>{({ pressed }) => <>
+export function Button({ title, onPress, secondary, disabled, icon, style, textStyle, soundless = false }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean; icon?: React.ComponentProps<typeof Ionicons>['name']; style?: StyleProp<ViewStyle>; textStyle?: StyleProp<TextStyle>; soundless?: boolean }) {
+  return <PlainPressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={() => { if (!soundless) playSfx('sfx_tap_primary'); onPress(); }} style={[S.button, style]}>{({ pressed }) => <>
     <SlicedArt name={disabled ? 'buttonDisabled' : secondary ? (pressed ? 'buttonSecondaryPressed' : 'buttonSecondary') : (pressed ? 'buttonPrimaryPressed' : 'buttonPrimary')} />
     <View style={[S.buttonBody, pressed && { transform: [{ translateY: 1 }] }]}>{icon && <Icon name={icon} color={disabled ? '#8A8174' : secondary ? C.red : '#FFF9EF'} size={18} />}<Text style={[S.buttonText, secondary && { color: C.red }, disabled && { color: '#8A8174' }, textStyle]}>{title}</Text></View>
   </>}</PlainPressable>;
@@ -95,3 +95,4 @@ const S = StyleSheet.create({
   section: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 17, marginTop: 26 }, sectionTitle: { fontFamily: BRUSH, fontSize: 23, color: C.ink, letterSpacing: 1 }, eyebrow: { color: C.muted, fontSize: 11, letterSpacing: 1.5, marginTop: 5 }, link: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 3 }, linkText: { color: C.red, fontSize: 11 },
   stamp: { width: '100%', aspectRatio: 2 / 3, backgroundColor: '#F5EFDF', borderRadius: 5, overflow: 'hidden' }, lock: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 7 }, lockText: { fontSize: 11, color: '#6B655B', letterSpacing: 1 },
 });
+import { playSfx } from './services/audio';

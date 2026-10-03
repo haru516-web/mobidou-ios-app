@@ -1,0 +1,779 @@
+{
+  "bgmBytes": 2534232,
+  "results": [
+    {
+      "id": "bgm_main",
+      "codec": "aac",
+      "seconds": 72,
+      "bytes": 903885,
+      "lufs": -20.03,
+      "peak": -2.96,
+      "seam": 0.0007889419721323065
+    },
+    {
+      "id": "bgm_opening",
+      "codec": "aac",
+      "seconds": 36,
+      "bytes": 430031,
+      "lufs": -20.04,
+      "peak": -4.97,
+      "seam": 0.0014028138248249888
+    },
+    {
+      "id": "bgm_gacha",
+      "codec": "aac",
+      "seconds": 54,
+      "bytes": 727496,
+      "lufs": -20,
+      "peak": -12.08,
+      "seam": 0.008450877910945565
+    },
+    {
+      "id": "bgm_walk_award",
+      "codec": "aac",
+      "seconds": 16,
+      "bytes": 185981,
+      "lufs": -20,
+      "peak": -11.45,
+      "seam": null
+    },
+    {
+      "id": "bgm_omikuji",
+      "codec": "aac",
+      "seconds": 24,
+      "bytes": 286839,
+      "lufs": -20.05,
+      "peak": -3.91,
+      "seam": 0.002376421121880412
+    },
+    {
+      "id": "sfx_tap",
+      "codec": "aac",
+      "seconds": 0.075,
+      "bytes": 2042,
+      "lufs": -21.25,
+      "peak": -1.41,
+      "seam": null
+    },
+    {
+      "id": "sfx_tap_primary",
+      "codec": "aac",
+      "seconds": 0.24,
+      "bytes": 3973,
+      "lufs": -15.95,
+      "peak": -2.58,
+      "seam": null
+    },
+    {
+      "id": "sfx_tap_round",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3390,
+      "lufs": -21.45,
+      "peak": -1.74,
+      "seam": null
+    },
+    {
+      "id": "sfx_pop",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3379,
+      "lufs": -21.45,
+      "peak": -1.55,
+      "seam": null
+    },
+    {
+      "id": "sfx_close",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4613,
+      "lufs": -16.55,
+      "peak": -1.3,
+      "seam": null
+    },
+    {
+      "id": "sfx_open",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4940,
+      "lufs": -16.25,
+      "peak": -1.61,
+      "seam": null
+    },
+    {
+      "id": "sfx_toggle_on",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3279,
+      "lufs": -22.15,
+      "peak": -1.7,
+      "seam": null
+    },
+    {
+      "id": "sfx_toggle_off",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3292,
+      "lufs": -21.45,
+      "peak": -1.87,
+      "seam": null
+    },
+    {
+      "id": "sfx_disabled",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3231,
+      "lufs": -22.25,
+      "peak": -1.58,
+      "seam": null
+    },
+    {
+      "id": "sfx_tab",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3340,
+      "lufs": -21.65,
+      "peak": -1.36,
+      "seam": null
+    },
+    {
+      "id": "sfx_toast",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10514,
+      "lufs": -15.96,
+      "peak": -1.11,
+      "seam": null
+    },
+    {
+      "id": "sfx_error",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3232,
+      "lufs": -22.25,
+      "peak": -1.45,
+      "seam": null
+    },
+    {
+      "id": "sfx_mobby_pet",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3287,
+      "lufs": -20.75,
+      "peak": -1.91,
+      "seam": null
+    },
+    {
+      "id": "sfx_mobby_pray",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3317,
+      "lufs": -22.05,
+      "peak": -1.66,
+      "seam": null
+    },
+    {
+      "id": "sfx_clap",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3321,
+      "lufs": -19.25,
+      "peak": -1.59,
+      "seam": null
+    },
+    {
+      "id": "sfx_pull_stretch",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3380,
+      "lufs": -16.15,
+      "peak": -4.03,
+      "seam": null
+    },
+    {
+      "id": "sfx_pull_release",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3314,
+      "lufs": -21.15,
+      "peak": -1.46,
+      "seam": null
+    },
+    {
+      "id": "sfx_pull_release_special",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10578,
+      "lufs": -16.02,
+      "peak": -3.54,
+      "seam": null
+    },
+    {
+      "id": "sfx_mobby_drag",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3338,
+      "lufs": -21.35,
+      "peak": -1.67,
+      "seam": null
+    },
+    {
+      "id": "sfx_menu_open",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4601,
+      "lufs": -17.15,
+      "peak": -1.23,
+      "seam": null
+    },
+    {
+      "id": "sfx_menu_close",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4524,
+      "lufs": -17.35,
+      "peak": -1.33,
+      "seam": null
+    },
+    {
+      "id": "sfx_home_card_edit",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3316,
+      "lufs": -20.75,
+      "peak": -1.44,
+      "seam": null
+    },
+    {
+      "id": "sfx_bond_up",
+      "codec": "aac",
+      "seconds": 0.24,
+      "bytes": 3977,
+      "lufs": -16.05,
+      "peak": -5.51,
+      "seam": null
+    },
+    {
+      "id": "sfx_page_turn_1",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4549,
+      "lufs": -16.05,
+      "peak": -1.51,
+      "seam": null
+    },
+    {
+      "id": "sfx_page_turn_2",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4583,
+      "lufs": -16.15,
+      "peak": -2.01,
+      "seam": null
+    },
+    {
+      "id": "sfx_page_turn_3",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4567,
+      "lufs": -16.05,
+      "peak": -1.51,
+      "seam": null
+    },
+    {
+      "id": "sfx_page_flip_fast",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4573,
+      "lufs": -16.35,
+      "peak": -1.08,
+      "seam": null
+    },
+    {
+      "id": "sfx_book_open",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4710,
+      "lufs": -16.15,
+      "peak": -1.05,
+      "seam": null
+    },
+    {
+      "id": "sfx_stamp_view",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3359,
+      "lufs": -22.15,
+      "peak": -1.47,
+      "seam": null
+    },
+    {
+      "id": "sfx_stamp_press",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3349,
+      "lufs": -21.75,
+      "peak": -1.61,
+      "seam": null
+    },
+    {
+      "id": "sfx_cover_change",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3287,
+      "lufs": -22.25,
+      "peak": -1.57,
+      "seam": null
+    },
+    {
+      "id": "sfx_gacha_enter",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3298,
+      "lufs": -22.65,
+      "peak": -1.56,
+      "seam": null
+    },
+    {
+      "id": "sfx_curtain",
+      "codec": "aac",
+      "seconds": 1.1,
+      "bytes": 13361,
+      "lufs": -22.3,
+      "peak": -3.95,
+      "seam": null
+    },
+    {
+      "id": "sfx_roll_walk",
+      "codec": "aac",
+      "seconds": 1.28,
+      "bytes": 9969,
+      "lufs": -25.55,
+      "peak": -1.61,
+      "seam": null
+    },
+    {
+      "id": "sfx_unload",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3312,
+      "lufs": -21.65,
+      "peak": -1.73,
+      "seam": null
+    },
+    {
+      "id": "sfx_box_settle",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3310,
+      "lufs": -21.45,
+      "peak": -1.43,
+      "seam": null
+    },
+    {
+      "id": "sfx_rope_ready",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3353,
+      "lufs": -21.45,
+      "peak": -1.31,
+      "seam": null
+    },
+    {
+      "id": "sfx_rope_pull",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3413,
+      "lufs": -16.05,
+      "peak": -4.04,
+      "seam": null
+    },
+    {
+      "id": "sfx_rope_catch",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3299,
+      "lufs": -22.65,
+      "peak": -1.52,
+      "seam": null
+    },
+    {
+      "id": "sfx_rope_cancel",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3273,
+      "lufs": -21.45,
+      "peak": -1.6,
+      "seam": null
+    },
+    {
+      "id": "sfx_gacha_charge",
+      "codec": "aac",
+      "seconds": 1.5,
+      "bytes": 19012,
+      "lufs": -16.02,
+      "peak": -8.28,
+      "seam": null
+    },
+    {
+      "id": "sfx_gacha_burst",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3303,
+      "lufs": -22.35,
+      "peak": -1.53,
+      "seam": null
+    },
+    {
+      "id": "sfx_gacha_burst_rare",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3304,
+      "lufs": -19.25,
+      "peak": -1.5,
+      "seam": null
+    },
+    {
+      "id": "sfx_card_flip",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3334,
+      "lufs": -21.75,
+      "peak": -1.49,
+      "seam": null
+    },
+    {
+      "id": "sfx_ticket_use",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3298,
+      "lufs": -22.25,
+      "peak": -1.53,
+      "seam": null
+    },
+    {
+      "id": "sfx_shop_buy",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3347,
+      "lufs": -21.65,
+      "peak": -1.38,
+      "seam": null
+    },
+    {
+      "id": "sfx_cart_add",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3389,
+      "lufs": -21.95,
+      "peak": -1.36,
+      "seam": null
+    },
+    {
+      "id": "sfx_cart_remove",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3310,
+      "lufs": -20.45,
+      "peak": -1.56,
+      "seam": null
+    },
+    {
+      "id": "sfx_purchase_done",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3398,
+      "lufs": -21.55,
+      "peak": -1.55,
+      "seam": null
+    },
+    {
+      "id": "sfx_duplicate",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3308,
+      "lufs": -22.25,
+      "peak": -1.58,
+      "seam": null
+    },
+    {
+      "id": "sfx_award_footsteps",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3402,
+      "lufs": -23.85,
+      "peak": -1.38,
+      "seam": null
+    },
+    {
+      "id": "sfx_bow",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4966,
+      "lufs": -16.85,
+      "peak": -1.55,
+      "seam": null
+    },
+    {
+      "id": "sfx_stamp_reveal",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10342,
+      "lufs": -16,
+      "peak": -3.56,
+      "seam": null
+    },
+    {
+      "id": "sfx_special_reveal",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10290,
+      "lufs": -16,
+      "peak": -4.05,
+      "seam": null
+    },
+    {
+      "id": "sfx_keychain_roll",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3362,
+      "lufs": -21.25,
+      "peak": -1.57,
+      "seam": null
+    },
+    {
+      "id": "sfx_keychain_get",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10514,
+      "lufs": -15.96,
+      "peak": -1.11,
+      "seam": null
+    },
+    {
+      "id": "sfx_arrive_point",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10320,
+      "lufs": -17.12,
+      "peak": -1.79,
+      "seam": null
+    },
+    {
+      "id": "sfx_scroll_open",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4706,
+      "lufs": -16.35,
+      "peak": -1.35,
+      "seam": null
+    },
+    {
+      "id": "sfx_steps_refresh",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3350,
+      "lufs": -21.15,
+      "peak": -1.72,
+      "seam": null
+    },
+    {
+      "id": "sfx_demo_walk",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3312,
+      "lufs": -22.15,
+      "peak": -1.59,
+      "seam": null
+    },
+    {
+      "id": "sfx_route_advance",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3340,
+      "lufs": -22.55,
+      "peak": -1.54,
+      "seam": null
+    },
+    {
+      "id": "sfx_omikuji_shake",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3334,
+      "lufs": -21.15,
+      "peak": -1.6,
+      "seam": null
+    },
+    {
+      "id": "sfx_omikuji_reveal",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10342,
+      "lufs": -16,
+      "peak": -3.56,
+      "seam": null
+    },
+    {
+      "id": "sfx_omikuji_rank_great",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10290,
+      "lufs": -16,
+      "peak": -4.05,
+      "seam": null
+    },
+    {
+      "id": "sfx_omikuji_rank_good",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10476,
+      "lufs": -16,
+      "peak": -3.16,
+      "seam": null
+    },
+    {
+      "id": "sfx_omikuji_rank_quiet",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10514,
+      "lufs": -15.96,
+      "peak": -1.11,
+      "seam": null
+    },
+    {
+      "id": "sfx_omikuji_tie",
+      "codec": "aac",
+      "seconds": 0.32,
+      "bytes": 4694,
+      "lufs": -16.45,
+      "peak": -1.75,
+      "seam": null
+    },
+    {
+      "id": "sfx_room_place",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3277,
+      "lufs": -21.85,
+      "peak": -1.61,
+      "seam": null
+    },
+    {
+      "id": "sfx_room_pick",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3327,
+      "lufs": -21.75,
+      "peak": -1.58,
+      "seam": null
+    },
+    {
+      "id": "sfx_pet_select",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3341,
+      "lufs": -21.75,
+      "peak": -1.67,
+      "seam": null
+    },
+    {
+      "id": "sfx_item_unlock",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3212,
+      "lufs": -20.95,
+      "peak": -1.12,
+      "seam": null
+    },
+    {
+      "id": "sfx_gift_open",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 11605,
+      "lufs": -16.24,
+      "peak": -3.63,
+      "seam": null
+    },
+    {
+      "id": "sfx_gift_receive",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10342,
+      "lufs": -16,
+      "peak": -3.56,
+      "seam": null
+    },
+    {
+      "id": "sfx_send",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3314,
+      "lufs": -21.55,
+      "peak": -1.62,
+      "seam": null
+    },
+    {
+      "id": "sfx_success",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 10476,
+      "lufs": -16,
+      "peak": -3.16,
+      "seam": null
+    },
+    {
+      "id": "sfx_opening_logo",
+      "codec": "aac",
+      "seconds": 0.85,
+      "bytes": 11605,
+      "lufs": -16.26,
+      "peak": -3.43,
+      "seam": null
+    },
+    {
+      "id": "sfx_tutorial_next",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3282,
+      "lufs": -21.85,
+      "peak": -1.7,
+      "seam": null
+    },
+    {
+      "id": "sfx_tour_step",
+      "codec": "aac",
+      "seconds": 0.18,
+      "bytes": 3379,
+      "lufs": -21.45,
+      "peak": -1.79,
+      "seam": null
+    },
+    {
+      "id": "jingle_gacha_reveal",
+      "codec": "aac",
+      "seconds": 4,
+      "bytes": 45832,
+      "lufs": -15.99,
+      "peak": -2.26,
+      "seam": null
+    },
+    {
+      "id": "jingle_gacha_reveal_rare",
+      "codec": "aac",
+      "seconds": 5,
+      "bytes": 50103,
+      "lufs": -16.83,
+      "peak": -1.5,
+      "seam": null
+    },
+    {
+      "id": "jingle_complete",
+      "codec": "aac",
+      "seconds": 5,
+      "bytes": 50120,
+      "lufs": -17.12,
+      "peak": -1.46,
+      "seam": null
+    }
+  ]
+}

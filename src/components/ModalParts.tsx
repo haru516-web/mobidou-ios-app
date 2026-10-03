@@ -1,10 +1,11 @@
 import React from 'react';
+import { playSfx } from '../services/audio';
 import { StyleSheet, Text, View } from 'react-native';
 import { C, BRUSH, Icon } from '../components';
 import { WashiPressable as Pressable } from './Washi';
 
-export function Close({ onPress }: { onPress: () => void }) {
-  return <Pressable plate="round" accessibilityRole="button" accessibilityLabel="閉じる" onPress={onPress} style={M.close}><Icon name="close" /></Pressable>;
+export function Close({ onPress, soundless = false }: { onPress: () => void; soundless?: boolean }) {
+  return <Pressable soundless plate="round" accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => { if (!soundless) playSfx('sfx_close'); onPress(); }} style={M.close}><Icon name="close" /></Pressable>;
 }
 
 export function Meta({ icon, text }: { icon: React.ComponentProps<typeof Icon>['name']; text: string }) {

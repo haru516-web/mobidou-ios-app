@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { playPageTurn, playSfx } from '../services/audio';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from './AppImage';
 import { BRUSH, C, Icon } from '../components';
@@ -18,13 +19,13 @@ export type ShrineGridKind = 'goshuin' | 'miniature';
  */
 export function BookIndexPopup({ visible, title, subtitle, shrines, ownedIds, onSelect, onClose }: { visible: boolean; title: string; subtitle?: string; shrines: readonly Shrine[]; ownedIds: readonly string[]; onSelect: (shrine: Shrine, index: number) => void; onClose: () => void }) {
   return <ScrollPopup visible={visible} title={title} subtitle={subtitle} onClose={onClose}>
-    {paper => <PagedShrineGrid bare kind="goshuin" title="" shrines={shrines} ownedIds={ownedIds} onSelect={onSelect} height={paper.height} />}
+    {paper => <PagedShrineGrid bare soundless kind="goshuin" title="" shrines={shrines} ownedIds={ownedIds} onSelect={(shrine, index) => { playPageTurn(true); onSelect(shrine, index); }} height={paper.height} />}
   </ScrollPopup>;
 }
 
 export function GoshuinBookCover({ route, onOpen }: { route: Pilgrimage; onOpen: () => void }) {
   return <View style={S.coverStage}>
-        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${route.name}の御朱印帳をひらく`} accessibilityHint="御朱印帳の見開きを表示します" onPress={onOpen} style={S.cover}>
+        <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel={`${route.name}の御朱印帳をひらく`} accessibilityHint="御朱印帳の見開きを表示します" onPress={() => { playSfx('sfx_book_open'); onOpen(); }} style={S.cover}>
           <Image source={getGoshuinBookCover(route.id)} contentFit="contain" style={S.coverImage} />
     </Pressable>
   </View>;
@@ -67,7 +68,7 @@ const PAGED_PAGER_HEIGHT = 52;
  * The same grid as ShrineGrid, but split into pages instead of scrolling: it
  * fits as many rows as the given height allows and offers ‹ › to turn pages.
  */
-export function PagedShrineGrid({ kind, title, shrines, ownedIds, onSelect, height, bare = false }: { bare?: boolean; kind: ShrineGridKind; title: string; shrines: readonly Shrine[]; ownedIds: readonly string[]; onSelect: (shrine: Shrine, index: number) => void; height: number }) {
+export function PagedShrineGrid({ kind, title, shrines, ownedIds, onSelect, height, bare = false, soundless = false }: { bare?: boolean; soundless?: boolean; kind: ShrineGridKind; title: string; shrines: readonly Shrine[]; ownedIds: readonly string[]; onSelect: (shrine: Shrine, index: number) => void; height: number }) {
   const owned = new Set(ownedIds);
   const ownedCount = shrines.filter(shrine => owned.has(shrine.id)).length;
   const noun = kind === 'goshuin' ? '御朱印' : 'ミニチュア';
@@ -95,7 +96,7 @@ export function PagedShrineGrid({ kind, title, shrines, ownedIds, onSelect, heig
           const acquired = owned.has(shrine.id);
           const locked = !acquired;
           const source = kind === 'goshuin' ? STAMP_IMAGES[shrine.id] : COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
-          return <Pressable artwork={false} key={shrine.id + '-' + index} accessibilityRole="button" accessibilityState={{ disabled: locked }} disabled={locked} accessibilityLabel={locked ? `未取得の${noun}` : shrine.name + 'の' + noun + '、' + (acquired ? '取得済み' : '未取得')} onPress={locked ? undefined : () => onSelect(shrine, index)} style={{ width: tileWidth }}>
+          return <Pressable soundless={soundless} artwork={false} key={shrine.id + '-' + index} accessibilityRole="button" accessibilityState={{ disabled: locked }} disabled={locked} accessibilityLabel={locked ? `未取得の${noun}` : shrine.name + 'の' + noun + '、' + (acquired ? '取得済み' : '未取得')} onPress={locked ? undefined : () => onSelect(shrine, index)} style={{ width: tileWidth }}>
             <View style={[S.tile, !acquired && S.tileUnacquired, { height: tileWidth / .82 }]}><SlicedArt name={acquired ? 'tileFrame' : 'tileFrameEmpty'} corner={9} />
               {source && !locked ? <Image source={source} contentFit="contain" style={[S.image, !acquired && S.imageUnacquired]} /> : null}
             </View>

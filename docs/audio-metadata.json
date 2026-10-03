@@ -1,0 +1,862 @@
+[
+  {
+    "id": "bgm_main",
+    "file": "assets/audio/bgm/bgm_main.m4a",
+    "seconds": 72,
+    "bytes": 903885,
+    "loop": true,
+    "use": "共通画面",
+    "lufs": -20,
+    "peak": -4.62
+  },
+  {
+    "id": "bgm_opening",
+    "file": "assets/audio/bgm/bgm_opening.m4a",
+    "seconds": 36,
+    "bytes": 430031,
+    "loop": true,
+    "use": "起動・導入",
+    "lufs": -20,
+    "peak": -5.49
+  },
+  {
+    "id": "bgm_gacha",
+    "file": "assets/audio/bgm/bgm_gacha.m4a",
+    "seconds": 54,
+    "bytes": 727496,
+    "loop": true,
+    "use": "ガチャ待機",
+    "lufs": -20,
+    "peak": -12.08
+  },
+  {
+    "id": "bgm_walk_award",
+    "file": "assets/audio/bgm/bgm_walk_award.m4a",
+    "seconds": 16,
+    "bytes": 185981,
+    "loop": false,
+    "use": "授与演出",
+    "lufs": -20,
+    "peak": -11.44
+  },
+  {
+    "id": "bgm_omikuji",
+    "file": "assets/audio/bgm/bgm_omikuji.m4a",
+    "seconds": 24,
+    "bytes": 286839,
+    "loop": true,
+    "use": "おみくじ",
+    "lufs": -20,
+    "peak": -5.02
+  },
+  {
+    "id": "sfx_tap",
+    "file": "assets/audio/sfx/sfx_tap.m4a",
+    "seconds": 0.075,
+    "bytes": 2042,
+    "loop": false,
+    "use": "tap",
+    "lufs": -21.66,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_tap_primary",
+    "file": "assets/audio/sfx/sfx_tap_primary.m4a",
+    "seconds": 0.24,
+    "bytes": 3973,
+    "loop": false,
+    "use": "tap_primary",
+    "lufs": -16,
+    "peak": -5.61
+  },
+  {
+    "id": "sfx_tap_round",
+    "file": "assets/audio/sfx/sfx_tap_round.m4a",
+    "seconds": 0.18,
+    "bytes": 3390,
+    "loop": false,
+    "use": "tap_round",
+    "lufs": -21.32,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_pop",
+    "file": "assets/audio/sfx/sfx_pop.m4a",
+    "seconds": 0.18,
+    "bytes": 3379,
+    "loop": false,
+    "use": "pop",
+    "lufs": -21.52,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_close",
+    "file": "assets/audio/sfx/sfx_close.m4a",
+    "seconds": 0.32,
+    "bytes": 4613,
+    "loop": false,
+    "use": "close",
+    "lufs": -16.63,
+    "peak": -2.09
+  },
+  {
+    "id": "sfx_open",
+    "file": "assets/audio/sfx/sfx_open.m4a",
+    "seconds": 0.32,
+    "bytes": 4940,
+    "loop": false,
+    "use": "open",
+    "lufs": -16,
+    "peak": -1.67
+  },
+  {
+    "id": "sfx_toggle_on",
+    "file": "assets/audio/sfx/sfx_toggle_on.m4a",
+    "seconds": 0.18,
+    "bytes": 3279,
+    "loop": false,
+    "use": "toggle_on",
+    "lufs": -22.17,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_toggle_off",
+    "file": "assets/audio/sfx/sfx_toggle_off.m4a",
+    "seconds": 0.18,
+    "bytes": 3292,
+    "loop": false,
+    "use": "toggle_off",
+    "lufs": -22.06,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_disabled",
+    "file": "assets/audio/sfx/sfx_disabled.m4a",
+    "seconds": 0.18,
+    "bytes": 3231,
+    "loop": false,
+    "use": "disabled",
+    "lufs": -22.66,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_tab",
+    "file": "assets/audio/sfx/sfx_tab.m4a",
+    "seconds": 0.18,
+    "bytes": 3340,
+    "loop": false,
+    "use": "tab",
+    "lufs": -21.81,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_toast",
+    "file": "assets/audio/sfx/sfx_toast.m4a",
+    "seconds": 0.85,
+    "bytes": 10514,
+    "loop": false,
+    "use": "toast",
+    "lufs": -16,
+    "peak": -3.47
+  },
+  {
+    "id": "sfx_error",
+    "file": "assets/audio/sfx/sfx_error.m4a",
+    "seconds": 0.18,
+    "bytes": 3232,
+    "loop": false,
+    "use": "error",
+    "lufs": -22.76,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_mobby_pet",
+    "file": "assets/audio/sfx/sfx_mobby_pet.m4a",
+    "seconds": 0.18,
+    "bytes": 3287,
+    "loop": false,
+    "use": "mobby_pet",
+    "lufs": -20.85,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_mobby_pray",
+    "file": "assets/audio/sfx/sfx_mobby_pray.m4a",
+    "seconds": 0.18,
+    "bytes": 3317,
+    "loop": false,
+    "use": "mobby_pray",
+    "lufs": -22,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_clap",
+    "file": "assets/audio/sfx/sfx_clap.m4a",
+    "seconds": 0.18,
+    "bytes": 3321,
+    "loop": false,
+    "use": "clap",
+    "lufs": -18.95,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_pull_stretch",
+    "file": "assets/audio/sfx/sfx_pull_stretch.m4a",
+    "seconds": 0.18,
+    "bytes": 3380,
+    "loop": false,
+    "use": "pull_stretch",
+    "lufs": -16,
+    "peak": -3.94
+  },
+  {
+    "id": "sfx_pull_release",
+    "file": "assets/audio/sfx/sfx_pull_release.m4a",
+    "seconds": 0.18,
+    "bytes": 3314,
+    "loop": false,
+    "use": "pull_release",
+    "lufs": -21.19,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_pull_release_special",
+    "file": "assets/audio/sfx/sfx_pull_release_special.m4a",
+    "seconds": 0.85,
+    "bytes": 10578,
+    "loop": false,
+    "use": "pull_release_special",
+    "lufs": -16,
+    "peak": -3.56
+  },
+  {
+    "id": "sfx_mobby_drag",
+    "file": "assets/audio/sfx/sfx_mobby_drag.m4a",
+    "seconds": 0.18,
+    "bytes": 3338,
+    "loop": false,
+    "use": "mobby_drag",
+    "lufs": -21.15,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_menu_open",
+    "file": "assets/audio/sfx/sfx_menu_open.m4a",
+    "seconds": 0.32,
+    "bytes": 4601,
+    "loop": false,
+    "use": "menu_open",
+    "lufs": -17.09,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_menu_close",
+    "file": "assets/audio/sfx/sfx_menu_close.m4a",
+    "seconds": 0.32,
+    "bytes": 4524,
+    "loop": false,
+    "use": "menu_close",
+    "lufs": -17.34,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_home_card_edit",
+    "file": "assets/audio/sfx/sfx_home_card_edit.m4a",
+    "seconds": 0.18,
+    "bytes": 3316,
+    "loop": false,
+    "use": "home_card_edit",
+    "lufs": -21.02,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_bond_up",
+    "file": "assets/audio/sfx/sfx_bond_up.m4a",
+    "seconds": 0.24,
+    "bytes": 3977,
+    "loop": false,
+    "use": "bond_up",
+    "lufs": -16,
+    "peak": -5.7
+  },
+  {
+    "id": "sfx_page_turn_1",
+    "file": "assets/audio/sfx/sfx_page_turn_1.m4a",
+    "seconds": 0.32,
+    "bytes": 4549,
+    "loop": false,
+    "use": "page_turn_1",
+    "lufs": -16,
+    "peak": -1.77
+  },
+  {
+    "id": "sfx_page_turn_2",
+    "file": "assets/audio/sfx/sfx_page_turn_2.m4a",
+    "seconds": 0.32,
+    "bytes": 4583,
+    "loop": false,
+    "use": "page_turn_2",
+    "lufs": -16,
+    "peak": -1.77
+  },
+  {
+    "id": "sfx_page_turn_3",
+    "file": "assets/audio/sfx/sfx_page_turn_3.m4a",
+    "seconds": 0.32,
+    "bytes": 4567,
+    "loop": false,
+    "use": "page_turn_3",
+    "lufs": -16,
+    "peak": -1.62
+  },
+  {
+    "id": "sfx_page_flip_fast",
+    "file": "assets/audio/sfx/sfx_page_flip_fast.m4a",
+    "seconds": 0.32,
+    "bytes": 4573,
+    "loop": false,
+    "use": "page_flip_fast",
+    "lufs": -16.19,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_book_open",
+    "file": "assets/audio/sfx/sfx_book_open.m4a",
+    "seconds": 0.32,
+    "bytes": 4710,
+    "loop": false,
+    "use": "book_open",
+    "lufs": -16,
+    "peak": -1.6
+  },
+  {
+    "id": "sfx_stamp_view",
+    "file": "assets/audio/sfx/sfx_stamp_view.m4a",
+    "seconds": 0.18,
+    "bytes": 3359,
+    "loop": false,
+    "use": "stamp_view",
+    "lufs": -22.03,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_stamp_press",
+    "file": "assets/audio/sfx/sfx_stamp_press.m4a",
+    "seconds": 0.18,
+    "bytes": 3349,
+    "loop": false,
+    "use": "stamp_press",
+    "lufs": -21.58,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_cover_change",
+    "file": "assets/audio/sfx/sfx_cover_change.m4a",
+    "seconds": 0.18,
+    "bytes": 3287,
+    "loop": false,
+    "use": "cover_change",
+    "lufs": -22.47,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_gacha_enter",
+    "file": "assets/audio/sfx/sfx_gacha_enter.m4a",
+    "seconds": 0.18,
+    "bytes": 3298,
+    "loop": false,
+    "use": "gacha_enter",
+    "lufs": -22.78,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_curtain",
+    "file": "assets/audio/sfx/sfx_curtain.m4a",
+    "seconds": 1.1,
+    "bytes": 13361,
+    "loop": false,
+    "use": "curtain",
+    "lufs": -22.04,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_roll_walk",
+    "file": "assets/audio/sfx/sfx_roll_walk.m4a",
+    "seconds": 1.28,
+    "bytes": 9969,
+    "loop": false,
+    "use": "roll_walk",
+    "lufs": -25.54,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_unload",
+    "file": "assets/audio/sfx/sfx_unload.m4a",
+    "seconds": 0.18,
+    "bytes": 3312,
+    "loop": false,
+    "use": "unload",
+    "lufs": -22.37,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_box_settle",
+    "file": "assets/audio/sfx/sfx_box_settle.m4a",
+    "seconds": 0.18,
+    "bytes": 3310,
+    "loop": false,
+    "use": "box_settle",
+    "lufs": -21.92,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_rope_ready",
+    "file": "assets/audio/sfx/sfx_rope_ready.m4a",
+    "seconds": 0.18,
+    "bytes": 3353,
+    "loop": false,
+    "use": "rope_ready",
+    "lufs": -21.42,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_rope_pull",
+    "file": "assets/audio/sfx/sfx_rope_pull.m4a",
+    "seconds": 0.18,
+    "bytes": 3413,
+    "loop": false,
+    "use": "rope_pull",
+    "lufs": -16,
+    "peak": -3.98
+  },
+  {
+    "id": "sfx_rope_catch",
+    "file": "assets/audio/sfx/sfx_rope_catch.m4a",
+    "seconds": 0.18,
+    "bytes": 3299,
+    "loop": false,
+    "use": "rope_catch",
+    "lufs": -22.57,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_rope_cancel",
+    "file": "assets/audio/sfx/sfx_rope_cancel.m4a",
+    "seconds": 0.18,
+    "bytes": 3273,
+    "loop": false,
+    "use": "rope_cancel",
+    "lufs": -21.5,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_gacha_charge",
+    "file": "assets/audio/sfx/sfx_gacha_charge.m4a",
+    "seconds": 1.5,
+    "bytes": 19012,
+    "loop": false,
+    "use": "gacha_charge",
+    "lufs": -16,
+    "peak": -8.28
+  },
+  {
+    "id": "sfx_gacha_burst",
+    "file": "assets/audio/sfx/sfx_gacha_burst.m4a",
+    "seconds": 0.18,
+    "bytes": 3303,
+    "loop": false,
+    "use": "gacha_burst",
+    "lufs": -22.49,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_gacha_burst_rare",
+    "file": "assets/audio/sfx/sfx_gacha_burst_rare.m4a",
+    "seconds": 0.18,
+    "bytes": 3304,
+    "loop": false,
+    "use": "gacha_burst_rare",
+    "lufs": -19.16,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_card_flip",
+    "file": "assets/audio/sfx/sfx_card_flip.m4a",
+    "seconds": 0.18,
+    "bytes": 3334,
+    "loop": false,
+    "use": "card_flip",
+    "lufs": -21.95,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_ticket_use",
+    "file": "assets/audio/sfx/sfx_ticket_use.m4a",
+    "seconds": 0.18,
+    "bytes": 3298,
+    "loop": false,
+    "use": "ticket_use",
+    "lufs": -22.18,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_shop_buy",
+    "file": "assets/audio/sfx/sfx_shop_buy.m4a",
+    "seconds": 0.18,
+    "bytes": 3347,
+    "loop": false,
+    "use": "shop_buy",
+    "lufs": -21.92,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_cart_add",
+    "file": "assets/audio/sfx/sfx_cart_add.m4a",
+    "seconds": 0.18,
+    "bytes": 3389,
+    "loop": false,
+    "use": "cart_add",
+    "lufs": -22.17,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_cart_remove",
+    "file": "assets/audio/sfx/sfx_cart_remove.m4a",
+    "seconds": 0.18,
+    "bytes": 3310,
+    "loop": false,
+    "use": "cart_remove",
+    "lufs": -20.52,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_purchase_done",
+    "file": "assets/audio/sfx/sfx_purchase_done.m4a",
+    "seconds": 0.18,
+    "bytes": 3398,
+    "loop": false,
+    "use": "purchase_done",
+    "lufs": -21.43,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_duplicate",
+    "file": "assets/audio/sfx/sfx_duplicate.m4a",
+    "seconds": 0.18,
+    "bytes": 3308,
+    "loop": false,
+    "use": "duplicate",
+    "lufs": -22.23,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_award_footsteps",
+    "file": "assets/audio/sfx/sfx_award_footsteps.m4a",
+    "seconds": 0.18,
+    "bytes": 3402,
+    "loop": false,
+    "use": "award_footsteps",
+    "lufs": -24.51,
+    "peak": -3.21
+  },
+  {
+    "id": "sfx_bow",
+    "file": "assets/audio/sfx/sfx_bow.m4a",
+    "seconds": 0.32,
+    "bytes": 4966,
+    "loop": false,
+    "use": "bow",
+    "lufs": -16.56,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_stamp_reveal",
+    "file": "assets/audio/sfx/sfx_stamp_reveal.m4a",
+    "seconds": 0.85,
+    "bytes": 10342,
+    "loop": false,
+    "use": "stamp_reveal",
+    "lufs": -16,
+    "peak": -3.57
+  },
+  {
+    "id": "sfx_special_reveal",
+    "file": "assets/audio/sfx/sfx_special_reveal.m4a",
+    "seconds": 0.85,
+    "bytes": 10290,
+    "loop": false,
+    "use": "special_reveal",
+    "lufs": -16,
+    "peak": -4.05
+  },
+  {
+    "id": "sfx_keychain_roll",
+    "file": "assets/audio/sfx/sfx_keychain_roll.m4a",
+    "seconds": 0.18,
+    "bytes": 3362,
+    "loop": false,
+    "use": "keychain_roll",
+    "lufs": -21.37,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_keychain_get",
+    "file": "assets/audio/sfx/sfx_keychain_get.m4a",
+    "seconds": 0.85,
+    "bytes": 10514,
+    "loop": false,
+    "use": "keychain_get",
+    "lufs": -16,
+    "peak": -3.47
+  },
+  {
+    "id": "sfx_arrive_point",
+    "file": "assets/audio/sfx/sfx_arrive_point.m4a",
+    "seconds": 0.85,
+    "bytes": 10320,
+    "loop": false,
+    "use": "arrive_point",
+    "lufs": -17.14,
+    "peak": -4.63
+  },
+  {
+    "id": "sfx_scroll_open",
+    "file": "assets/audio/sfx/sfx_scroll_open.m4a",
+    "seconds": 0.32,
+    "bytes": 4706,
+    "loop": false,
+    "use": "scroll_open",
+    "lufs": -16.3,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_steps_refresh",
+    "file": "assets/audio/sfx/sfx_steps_refresh.m4a",
+    "seconds": 0.18,
+    "bytes": 3350,
+    "loop": false,
+    "use": "steps_refresh",
+    "lufs": -21.09,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_demo_walk",
+    "file": "assets/audio/sfx/sfx_demo_walk.m4a",
+    "seconds": 0.18,
+    "bytes": 3312,
+    "loop": false,
+    "use": "demo_walk",
+    "lufs": -22.22,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_route_advance",
+    "file": "assets/audio/sfx/sfx_route_advance.m4a",
+    "seconds": 0.18,
+    "bytes": 3340,
+    "loop": false,
+    "use": "route_advance",
+    "lufs": -22.88,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_omikuji_shake",
+    "file": "assets/audio/sfx/sfx_omikuji_shake.m4a",
+    "seconds": 0.18,
+    "bytes": 3334,
+    "loop": false,
+    "use": "omikuji_shake",
+    "lufs": -21.47,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_omikuji_reveal",
+    "file": "assets/audio/sfx/sfx_omikuji_reveal.m4a",
+    "seconds": 0.85,
+    "bytes": 10342,
+    "loop": false,
+    "use": "omikuji_reveal",
+    "lufs": -16,
+    "peak": -3.57
+  },
+  {
+    "id": "sfx_omikuji_rank_great",
+    "file": "assets/audio/sfx/sfx_omikuji_rank_great.m4a",
+    "seconds": 0.85,
+    "bytes": 10290,
+    "loop": false,
+    "use": "omikuji_rank_great",
+    "lufs": -16,
+    "peak": -4.05
+  },
+  {
+    "id": "sfx_omikuji_rank_good",
+    "file": "assets/audio/sfx/sfx_omikuji_rank_good.m4a",
+    "seconds": 0.85,
+    "bytes": 10476,
+    "loop": false,
+    "use": "omikuji_rank_good",
+    "lufs": -16,
+    "peak": -3.65
+  },
+  {
+    "id": "sfx_omikuji_rank_quiet",
+    "file": "assets/audio/sfx/sfx_omikuji_rank_quiet.m4a",
+    "seconds": 0.85,
+    "bytes": 10514,
+    "loop": false,
+    "use": "omikuji_rank_quiet",
+    "lufs": -16,
+    "peak": -3.47
+  },
+  {
+    "id": "sfx_omikuji_tie",
+    "file": "assets/audio/sfx/sfx_omikuji_tie.m4a",
+    "seconds": 0.32,
+    "bytes": 4694,
+    "loop": false,
+    "use": "omikuji_tie",
+    "lufs": -16.22,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_room_place",
+    "file": "assets/audio/sfx/sfx_room_place.m4a",
+    "seconds": 0.18,
+    "bytes": 3277,
+    "loop": false,
+    "use": "room_place",
+    "lufs": -21.71,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_room_pick",
+    "file": "assets/audio/sfx/sfx_room_pick.m4a",
+    "seconds": 0.18,
+    "bytes": 3327,
+    "loop": false,
+    "use": "room_pick",
+    "lufs": -21.8,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_pet_select",
+    "file": "assets/audio/sfx/sfx_pet_select.m4a",
+    "seconds": 0.18,
+    "bytes": 3341,
+    "loop": false,
+    "use": "pet_select",
+    "lufs": -21.85,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_item_unlock",
+    "file": "assets/audio/sfx/sfx_item_unlock.m4a",
+    "seconds": 0.18,
+    "bytes": 3212,
+    "loop": false,
+    "use": "item_unlock",
+    "lufs": -21.65,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_gift_open",
+    "file": "assets/audio/sfx/sfx_gift_open.m4a",
+    "seconds": 0.85,
+    "bytes": 11605,
+    "loop": false,
+    "use": "gift_open",
+    "lufs": -16,
+    "peak": -3.58
+  },
+  {
+    "id": "sfx_gift_receive",
+    "file": "assets/audio/sfx/sfx_gift_receive.m4a",
+    "seconds": 0.85,
+    "bytes": 10342,
+    "loop": false,
+    "use": "gift_receive",
+    "lufs": -16,
+    "peak": -3.57
+  },
+  {
+    "id": "sfx_send",
+    "file": "assets/audio/sfx/sfx_send.m4a",
+    "seconds": 0.18,
+    "bytes": 3314,
+    "loop": false,
+    "use": "send",
+    "lufs": -21.39,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_success",
+    "file": "assets/audio/sfx/sfx_success.m4a",
+    "seconds": 0.85,
+    "bytes": 10476,
+    "loop": false,
+    "use": "success",
+    "lufs": -16,
+    "peak": -3.65
+  },
+  {
+    "id": "sfx_opening_logo",
+    "file": "assets/audio/sfx/sfx_opening_logo.m4a",
+    "seconds": 0.85,
+    "bytes": 11605,
+    "loop": false,
+    "use": "opening_logo",
+    "lufs": -16,
+    "peak": -3.44
+  },
+  {
+    "id": "sfx_tutorial_next",
+    "file": "assets/audio/sfx/sfx_tutorial_next.m4a",
+    "seconds": 0.18,
+    "bytes": 3282,
+    "loop": false,
+    "use": "tutorial_next",
+    "lufs": -21.95,
+    "peak": -1.5
+  },
+  {
+    "id": "sfx_tour_step",
+    "file": "assets/audio/sfx/sfx_tour_step.m4a",
+    "seconds": 0.18,
+    "bytes": 3379,
+    "loop": false,
+    "use": "tour_step",
+    "lufs": -21.44,
+    "peak": -1.5
+  },
+  {
+    "id": "jingle_gacha_reveal",
+    "file": "assets/audio/sfx/jingle_gacha_reveal.m4a",
+    "seconds": 4,
+    "bytes": 45832,
+    "loop": false,
+    "use": "BGMダック中のジングル",
+    "lufs": -16,
+    "peak": -2.26
+  },
+  {
+    "id": "jingle_gacha_reveal_rare",
+    "file": "assets/audio/sfx/jingle_gacha_reveal_rare.m4a",
+    "seconds": 5,
+    "bytes": 50103,
+    "loop": false,
+    "use": "BGMダック中のジングル",
+    "lufs": -16.78,
+    "peak": -1.5
+  },
+  {
+    "id": "jingle_complete",
+    "file": "assets/audio/sfx/jingle_complete.m4a",
+    "seconds": 5,
+    "bytes": 50120,
+    "loop": false,
+    "use": "BGMダック中のジングル",
+    "lufs": -17.08,
+    "peak": -1.5
+  }
+]

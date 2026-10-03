@@ -35,6 +35,7 @@ type ScrollPopupProps = {
  * draw on the paper.
  */
 export function ScrollPopup({ visible, title, subtitle, onClose, onShow, variant = 'narrow', children }: ScrollPopupProps) {
+  React.useEffect(() => { if (visible) playSfx('sfx_scroll_open'); }, [visible]);
   const { width, height } = useWindowDimensions();
   if (variant === 'wide') return <WideScroll visible={visible} title={title} onClose={onClose} onShow={onShow} width={width} height={height}>{children}</WideScroll>;
   const scrollWidth = Math.min(width - 24, (height - 96) * SCROLL_ASPECT, 380);
@@ -48,14 +49,14 @@ export function ScrollPopup({ visible, title, subtitle, onClose, onShow, variant
   const closeHeight = 48;
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} onShow={onShow}>
     <View style={S.scrim}>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${title}を閉じる`} onPress={onClose} style={StyleSheet.absoluteFill} />
+      <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel={`${title}を閉じる`} onPress={() => { playSfx('sfx_close'); onClose(); }} style={StyleSheet.absoluteFill} />
       <View accessibilityViewIsModal style={{ width: scrollWidth, height: scrollHeight, overflow: 'hidden' }}>
         <Image accessible={false} source={SCROLL_ART} contentFit="fill" pointerEvents="none" style={{ position: 'absolute', left: -SCROLL_LEFT * artWidth, top: 0, width: artWidth, height: artHeight }} />
         <View style={[S.content, { left: scrollWidth * .12, right: scrollWidth * .12, top: scrollHeight * .165, height: paperHeight }]}>
           <Text accessibilityRole="header" style={S.title}>{title}</Text>
           {!!subtitle && <Text numberOfLines={1} style={S.subtitle}>{subtitle}</Text>}
           <View style={{ flex: 1, minHeight: 0 }}>{children({ width: paperWidth, height: paperHeight - headingHeight - closeHeight })}</View>
-          <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={S.close}>
+          <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => { playSfx('sfx_close'); onClose(); }} style={S.close}>
             <Text style={S.closeText}>とじる</Text>
             <Image accessible={false} source={UNDERLINE_BRUSH} contentFit="fill" style={S.closeLine} />
           </Pressable>
@@ -79,7 +80,7 @@ function WideScroll({ visible, title, onClose, onShow, width, height, children }
   const across = { x0: WIDE.x0, x1: WIDE.x1 };
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} onShow={onShow}>
     <View style={S.scrim}>
-      <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${title}を閉じる`} onPress={onClose} style={StyleSheet.absoluteFill} />
+      <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel={`${title}を閉じる`} onPress={() => { playSfx('sfx_close'); onClose(); }} style={StyleSheet.absoluteFill} />
       <View accessibilityViewIsModal accessibilityLabel={title} style={{ width: scrollWidth, height: scrollHeight }}>
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: topHeight }}><CroppedArt source={WIDE_SCROLL_ART} bounds={{ ...across, y0: WIDE.y0, y1: WIDE.topEnd }} /></View>
@@ -103,3 +104,4 @@ const S = StyleSheet.create({
   closeText: { fontFamily: BRUSH, fontSize: 15, color: C.red, letterSpacing: 2 },
   closeLine: { width: 72, height: 8, marginTop: -1 },
 });
+import { playSfx } from '../services/audio';

@@ -1,4 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
+import { playPageTurn } from '../services/audio';
 import { Animated, Easing, PanResponder, Platform, StyleSheet, View, type PanResponderGestureState, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from '../components';
 import { NativeBookPageTurn, isNativePageCurlAvailable, type NativeBookPage } from './NativeBookPageTurn';
@@ -140,6 +141,7 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
     }
     animationRef.current?.stop();
     const remaining = Math.max(0.08, Math.abs(target - progressValueRef.current));
+    if (commit) playPageTurn();
     const animation = Animated.timing(progress, {
       toValue: target,
       duration: reducedMotion ? 180 : Math.max(160, Math.round(520 * remaining)),

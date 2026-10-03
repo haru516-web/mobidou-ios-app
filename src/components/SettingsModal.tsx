@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { playSfx, useAudioSettings } from '../services/audio';
 import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from './AppImage';
@@ -41,6 +42,7 @@ type Props = {
 export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss, onClose, onOpenAccount, onEditHome, onToggleDemo, gacha, onStartTour }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const { data } = journey;
+  const audio = useAudioSettings();
   const [info, setInfo] = useState<InfoKind | null>(null);
   const [tourPicker, setTourPicker] = useState(false);
   const [confirmDiscardBackup, setConfirmDiscardBackup] = useState(false);
@@ -49,7 +51,7 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
   const close = () => { setInfo(null); setTourPicker(false); onClose(); };
   const startTour = (selection: TourSelection) => { setTourPicker(false); onStartTour(selection); };
 
-  return <Modal visible={visible} onShow={onShow} onDismiss={() => { if (!accountOpen) { setInfo(null); onDismiss(); } }} animationType="slide" onRequestClose={onClose} presentationStyle="pageSheet">
+  return <Modal visible={visible} onShow={() => { playSfx('sfx_open'); onShow(); }} onDismiss={() => { if (!accountOpen) { setInfo(null); onDismiss(); } }} animationType="slide" onRequestClose={onClose} presentationStyle="pageSheet">
     <SafeAreaView style={M.modal}>
       <Image accessible={false} source={SETTINGS_BACKGROUND} contentFit="cover" pointerEvents="none" style={StyleSheet.absoluteFill} />
       <View style={M.modalHeader}><Text style={M.modalTitle}>設定</Text><Close onPress={close} /></View>
@@ -94,10 +96,23 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
           <Text style={M.settingHelp}>ホームのカードは長押しでも編集できます。</Text>
           <Button title="ホームのカードを編集" icon="grid-outline" secondary onPress={onEditHome} />
         </View>
-        <View key="haptics" style={S.row}>
-          <View style={{ flex: 1 }}><Text style={S.label}>ふれあいの振動</Text><Text style={M.settingHelp}>なでたとき・御朱印を授かったとき</Text></View>
-          <WashiSwitch accessibilityLabel="ふれあいの振動" value={data.haptics} onValueChange={journey.toggleHaptics} />
-        </View>
+        <ScrollView key="haptics" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[S.row, { gap: 20, paddingVertical: 4 }]} accessibilityLabel="音と振動。横にスクロールして設定">
+          {(['bgm', 'sfx'] as const).map(kind => {
+            const label = kind === 'bgm' ? 'BGM' : '効果音';
+            const enabled = kind === 'bgm' ? audio.bgmEnabled : audio.sfxEnabled;
+            const volume = kind === 'bgm' ? audio.bgmVolume : audio.sfxVolume;
+            const change = (delta: number) => audio.update(kind === 'bgm' ? { bgmVolume: Math.round(Math.max(0, Math.min(1, volume + delta)) * 10) / 10 } : { sfxVolume: Math.round(Math.max(0, Math.min(1, volume + delta)) * 10) / 10 });
+            return <View key={kind} style={{ width: 148, gap: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={S.label}>{label}</Text><WashiSwitch value={enabled} accessibilityLabel={label} onValueChange={value => audio.update(kind === 'bgm' ? { bgmEnabled: value } : { sfxEnabled: value })} /></View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <WashiPressable plate="pill" accessibilityRole="button" accessibilityLabel={`${label}音量を下げる`} onPress={() => change(-.1)} hitSlop={4}><Text style={{ paddingHorizontal: 12, color: C.ink }}>−</Text></WashiPressable>
+                <Text accessibilityLabel={`${label}音量 ${Math.round(volume * 100)}パーセント`} style={{ color: C.ink }}>{Math.round(volume * 100)}%</Text>
+                <WashiPressable plate="pill" accessibilityRole="button" accessibilityLabel={`${label}音量を上げる`} onPress={() => change(.1)} hitSlop={4}><Text style={{ paddingHorizontal: 12, color: C.ink }}>＋</Text></WashiPressable>
+              </View>
+            </View>;
+          })}
+          <View style={{ width: 180, flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={S.label}>ふれあいの振動</Text><WashiSwitch accessibilityLabel="ふれあいの振動" value={data.haptics} onValueChange={journey.toggleHaptics} /></View>
+        </ScrollView>
         <View key="demo">
           <Section title="もび道を体験" />
           <Text style={M.settingHelp}>体験用の御朱印帳で、お散歩と授与演出を試せます。本番の記録には影響しません。</Text>

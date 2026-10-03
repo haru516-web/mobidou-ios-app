@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { playSfx } from '../services/audio';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from './AppImage';
 import { BRUSH, C, Icon, useReducedMotion } from '../components';
@@ -15,6 +16,7 @@ const FLOAT_DISTANCE = 3;
 const FLOAT_HALF_PERIOD = 1500;
 
 type PopButtonProps = {
+  soundless?: boolean;
   id: PopButtonId;
   label: string;
   icon: React.ComponentProps<typeof Icon>['name'];
@@ -35,7 +37,7 @@ type PopButtonProps = {
  * When dedicated artwork is registered in POP_BUTTON_IMAGES it replaces the
  * drawn seal; the bob, press, badge and label stay the same.
  */
-export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phase = 0, selected = false, accessibilityHint, style }: PopButtonProps) {
+export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phase = 0, selected = false, accessibilityHint, style, soundless = false }: PopButtonProps) {
   const reduced = useReducedMotion();
   const float = useRef(new Animated.Value(0)).current;
   const press = useRef(new Animated.Value(1)).current;
@@ -60,7 +62,7 @@ export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phas
     accessibilityLabel={badge > 0 ? `${label}、${badge}件` : label}
     accessibilityHint={accessibilityHint}
     accessibilityState={{ selected }}
-    onPress={onPress}
+    onPress={() => { if (!soundless) playSfx('sfx_pop', { rate: selected ? 1.12 : 1 }); onPress(); }}
     onPressIn={() => pressTo(.9)}
     onPressOut={() => pressTo(1)}
     hitSlop={6}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { playSfx, useSceneBgm, unlockAudio } from '../services/audio';
 import { Animated, Easing, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from './AppImage';
@@ -46,6 +47,7 @@ function OpeningScene({ scene, width, frameIndex, progress }: { scene: (typeof O
 
 /** `quick` is for people who have used the app before: the title plays by itself and finishes in about a second. */
 export function OpeningExperience({ onEnter, error, quick = false }: { onEnter: () => void; error?: string | null; quick?: boolean }) {
+  useSceneBgm('bgm_opening', true, 50);
   const [width, setWidth] = useState(0);
   const [, setIndex] = useState(0);
   const indexRef = useRef(0);
@@ -59,6 +61,7 @@ export function OpeningExperience({ onEnter, error, quick = false }: { onEnter: 
   const complete = useCallback(() => {
     if (enteringRef.current) return;
     enteringRef.current = true;
+    playSfx('sfx_opening_logo');
     settleTimerRef.current = setTimeout(onEnter, 420);
   }, [onEnter]);
 
@@ -122,6 +125,7 @@ export function OpeningExperience({ onEnter, error, quick = false }: { onEnter: 
     onMoveShouldSetPanResponderCapture: (_, gesture) => !enteringRef.current && !autoRunningRef.current && Math.hypot(gesture.dx, gesture.dy) > 4,
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
+      unlockAudio();
       gestureCommittedRef.current = false;
       frameProgress.stopAnimation();
     },

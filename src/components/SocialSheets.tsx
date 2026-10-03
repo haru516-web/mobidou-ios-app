@@ -23,13 +23,13 @@ const TICKET_NAMES: Record<GiftItem['kind'], string> = {
 
 /** Page sheet shared by the social screens and the book index. */
 export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode }) {
-  return <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+  return <Modal visible={visible} onShow={() => playSfx('sfx_open')} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
     <SafeAreaView style={S.sheet}>
       <Image pointerEvents="none" accessible={false} source={IMG7.sheetBg} contentFit="cover" style={StyleSheet.absoluteFillObject} />
       <View style={S.sheetHeader}>
         <SlicedArt art={UI_ART7.sheetHeader} />
         <Text accessibilityRole="header" style={S.sheetTitle}>{title}</Text>
-        <Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={S.close}><Icon name="close" size={21} /></Pressable>
+        <Pressable soundless plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => { playSfx('sfx_close'); onClose(); }} style={S.close}><Icon name="close" size={21} /></Pressable>
       </View>
       <PagedBody style={S.sheetBody}>{children}</PagedBody>
     </SafeAreaView>
@@ -114,7 +114,7 @@ function GiftCard({ gift, received, onReceive }: { gift: Gift; received: boolean
       <Text style={S.giftMeta}>{gift.from} · {gift.sentAt}{gift.expiresAt ? ` · ${gift.expiresAt}まで` : ''}</Text>
       {received
         ? <View style={S.stamp}><Image source={IMG7.stampReceived} contentFit="contain" style={StyleSheet.absoluteFillObject} /><Text style={S.stampText}>済</Text></View>
-        : <Pressable plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel={`${gift.title}を受け取る`} onPress={onReceive} style={S.primarySmall}><Text style={S.primarySmallText}>受け取る</Text></Pressable>}
+        : <Pressable soundless plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel={`${gift.title}を受け取る`} onPress={() => { playSfx('sfx_gift_receive'); onReceive?.(); }} style={S.primarySmall}><Text style={S.primarySmallText}>受け取る</Text></Pressable>}
     </View>
   </View>;
 }
@@ -162,10 +162,12 @@ export function FriendsSheet({ visible, demo, pet, onClose }: { visible: boolean
   const offlineMessage = 'フレンド機能はオンライン接続の準備中です。公開までお待ちください。';
   const submit = async () => {
     const result = await sendFriendRequest(input);
+    playSfx(result.ok ? 'sfx_send' : 'sfx_error');
     setNotice(result.ok ? '申請を送りました' : result.reason === 'invalid' ? 'フレンドコードの形式が正しくありません（例：MOBI-ABCD-2345）' : offlineMessage);
   };
   const answer = async (request: FriendRequest, accept: boolean) => {
     const result = await answerFriendRequest(request.id, accept);
+    playSfx(result.ok ? 'sfx_success' : 'sfx_error');
     setNotice(result.ok ? (accept ? `${request.name}さんとフレンドになりました` : '申請を見送りました') : offlineMessage);
   };
 
@@ -267,3 +269,4 @@ const S = StyleSheet.create({
   personName: { fontFamily: BRUSH, fontSize: 16, color: C.ink },
   personMeta: { marginTop: 2, color: C.muted, fontSize: 12 },
 });
+import { playSfx } from '../services/audio';

@@ -64,6 +64,15 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const paint = useRef(new Animated.Value(0)).current;
   const revealHapticSent = useRef(false);
   const phase = useMemo(() => locate(frame), [frame]);
+  useSceneBgm('bgm_walk_award', true, 40);
+  useEffect(() => {
+    if (phase.key === 'bowIn' || phase.key === 'bowOut') playSfx('sfx_bow');
+    if (phase.key === 'pray') duckBgm(4800);
+  }, [phase.key]);
+  useEffect(() => {
+    if (['approach', 'enter', 'return', 'leave'].includes(phase.key) && phase.local % 4 === 0) playSfx('sfx_award_footsteps');
+    if (phase.key === 'pray' && (phase.local === 19 || phase.local === 27)) playSfx('sfx_clap');
+  }, [phase.key, phase.local]);
   const prayer = PRAYER_ATLASES[pet.id];
   // The clear reward belongs to the first finish only; a later lap is just a visit.
   const complete = !!route && stopIndex === route.ids.length - 1 && !goshuinOwned;
@@ -105,13 +114,15 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   useEffect(() => {
     if (phase.key !== 'reveal') return;
     const timer = setTimeout(() => {
+      playSfx('sfx_stamp_reveal');
+      if (complete) playJingle('jingle_complete');
       if (haptics && !revealHapticSent.current) {
         revealHapticSent.current = true;
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
     }, revealReducedMotion ? 0 : BURST_AT);
     return () => clearTimeout(timer);
-  }, [haptics, phase.key, revealReducedMotion]);
+  }, [haptics, phase.key, revealReducedMotion, complete]);
   const t = phase.progress;
   // Coordinates share the 600 x 400 illustration space on every phone.
   const x = phase.key === 'approach' ? -80 + 175 * t : phase.key === 'bowIn' ? 95
@@ -127,6 +138,9 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   // The keychain is rolled once when this ceremony opens (never again for the same visit).
   useEffect(() => { onArrive(shrine.id); }, [onArrive, shrine.id]);
   const arrival = special.arrival?.shrineId === shrine.id ? special.arrival : null;
+  useEffect(() => {
+    if (revealDone && (arrival?.outcome === 'won' || arrival?.outcome === 'ticket')) { playSfx('sfx_keychain_get'); playJingle('sfx_special_reveal'); }
+  }, [revealDone, arrival?.outcome]);
   const ticketCount = special.passes.keychainDrop;
   const canUseTicket = revealDone && arrival?.outcome === 'missed' && ticketCount > 0;
   const keychainStatus = arrival?.outcome === 'owned' ? 'もう持ってるよ' : arrival?.outcome === 'won' ? '獲得しました' : arrival?.outcome === 'ticket' ? '券で獲得しました' : 'ドロップなし';
@@ -210,3 +224,4 @@ const S = StyleSheet.create({
   phaseTrack: { flexDirection: 'row', gap: 9, padding: 7 }, phaseDot: { height: 4, width: 18, borderRadius: 2 }, skip: { backgroundColor: '#FFF5E8', maxWidth: 350, minHeight: 44 }, rewardScene: { width: '100%', maxWidth: 350, minHeight: 420, alignItems: 'center', justifyContent: 'center', position: 'relative' }, particle: { position: 'absolute', left: '50%', top: '50%', width: 30, height: 30, marginLeft: -15, marginTop: -15, textAlign: 'center', fontWeight: '700' }, reward: { width: 264, alignItems: 'center', zIndex: 2 }, rewardRays: { position: 'absolute', pointerEvents: 'none', width: 340, height: 340 }, shineClip: { position: 'absolute', width: 212, aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 5 }, shine: { position: 'absolute', top: -60, bottom: -60, left: '50%', width: 46, marginLeft: -23, backgroundColor: '#FFF4D2AA' }, stampFrame: { width: 264, height: 340, alignItems: 'center', justifyContent: 'center' }, inkRing: { position: 'absolute', alignSelf: 'center', top: 44, width: 250, height: 250, borderRadius: 125, borderWidth: 2, borderColor: C.red }, seal: { position: 'absolute', right: 4, bottom: 9, borderWidth: 3, borderColor: C.red, padding: 6, transform: [{ rotate: '-10deg' }], backgroundColor: '#FFF6E8DD' }, sealText: { color: C.red, fontFamily: BRUSH, fontSize: 19 }, copyGroup: { alignItems: 'center', gap: 2 }, name: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 21, textAlign: 'center' }, theme: { color: '#E6D8C5', fontSize: 12, lineHeight: 22, textAlign: 'center' }, guaranteeBadge: { borderWidth: 1, borderColor: '#C69B72', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 5, backgroundColor: '#5C493B', marginTop: 2 }, guaranteeText: { color: '#F6D9A3', fontFamily: SERIF, fontSize: 11, letterSpacing: 1 }, completion: { paddingVertical: 26, paddingHorizontal: 24, alignItems: 'center', overflow: 'hidden', width: '100%', maxWidth: 350, gap: 8 }, completionTitle: { fontFamily: BRUSH, fontSize: 24, letterSpacing: 2, color: C.red }, completionText: { fontFamily: SERIF, fontSize: 13, lineHeight: 21, letterSpacing: .6, color: C.ink, textAlign: 'center' },
   specialCard: { width: '100%', maxWidth: 350, paddingVertical: 12, paddingHorizontal: 18, overflow: 'hidden' }, specialEyebrow: { color: '#9a6851', fontFamily: SERIF, fontSize: 11, letterSpacing: 1.4, textAlign: 'center' }, specialTitle: { color: C.ink, fontFamily: BRUSH, fontSize: 15, letterSpacing: 1, marginTop: 4, marginBottom: 7, textAlign: 'center' }, specialRows: { gap: 7 }, specialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, specialLabel: { color: '#5f503e', fontFamily: SERIF, fontSize: 13, flex: 1 }, specialStatus: { color: '#8a7e6e', fontFamily: SERIF, fontSize: 13 }, specialWon: { color: '#a24c3e', fontFamily: SERIF }, specialWaiting: { color: '#806f5b', fontFamily: SERIF, fontSize: 12, lineHeight: 17, textAlign: 'center', paddingVertical: 5 }, specialInstruction: { color: '#6f5f4b', fontFamily: SERIF, fontSize: 12, lineHeight: 19, marginTop: 7, textAlign: 'center' }, passOwned: { color: '#776957', fontFamily: SERIF, fontSize: 11, lineHeight: 15, marginTop: 11, textAlign: 'center' }, exchangeActions: { gap: 7, marginTop: 10 }, specialButton: { minHeight: 42 }, noPass: { color: '#806f5b', fontSize: 11, lineHeight: 16, marginTop: 10, textAlign: 'center' }, purchaseActions: { gap: 6, marginTop: 8 }, purchaseButton: { minHeight: 40 }, fakePurchase: { color: '#998a76', fontSize: 11, textAlign: 'center', marginTop: 7 },
 });
+import { duckBgm, playJingle, playSfx, useSceneBgm } from '../services/audio';

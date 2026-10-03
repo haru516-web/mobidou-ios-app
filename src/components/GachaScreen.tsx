@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Easing, Image as RNImage, PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { duckBgm, playJingle, playSfx, useSceneBgm } from '../services/audio';
+import { SLIDE_START_MS, WALK_START_MS } from './gachaTimeline';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
 import { PET_CHARACTERS, getPetCharacter, isPetId, type PetCharacter } from '../petCatalog';
@@ -97,6 +99,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
 }
 
 export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, nextHint, companion, guided = false, startOnShop = false }: Props) {
+  useSceneBgm('bgm_gacha', true, 20);
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
   // The lobby is where the player picks how many to draw; the cord only works once a draw has been chosen. The first-run guide goes straight to the cord.
   const [stage, setStage] = useState<'lobby' | 'rope'>(guided ? 'rope' : 'lobby');
@@ -175,6 +178,24 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, nav, onFin
   const result = unrevealed[index];
   const phase = phaseOf(ms, opened ? openedFor : null);
   const done = playing && phase === 'revealed';
+  const audioPhase = useRef('');
+  const walkAudio = useRef(false);
+  const unloadAudio = useRef(false);
+  useEffect(() => {
+    if (!playing) { audioPhase.current = ''; walkAudio.current = false; unloadAudio.current = false; return; }
+    if (audioPhase.current === phase) return;
+    audioPhase.current = phase;
+    if (phase === 'curtain') { walkAudio.current = false; unloadAudio.current = false; playSfx('sfx_curtain'); }
+    if (phase === 'settle') playSfx('sfx_box_settle');
+    if (phase === 'charge') { duckBgm(10000); playSfx('sfx_gacha_charge'); }
+    if (phase === 'hold') playSfx('sfx_gacha_burst');
+    if (phase === 'revealed') playJingle('jingle_gacha_reveal');
+  }, [playing, phase, index]);
+  useEffect(() => {
+    if (!playing || skipped.current) return;
+    if (ms >= WALK_START_MS && ms < SLIDE_START_MS && !walkAudio.current) { walkAudio.current = true; playSfx('sfx_roll_walk'); }
+    if (ms >= SLIDE_START_MS && ms < ROLL_MS && !unloadAudio.current) { unloadAudio.current = true; playSfx('sfx_unload'); }
+  }, [playing, ms]);
 
   const resetScene = useCallback(() => {
     cancelAnimationFrame(tween.current);
@@ -333,28 +354,31 @@ export function GachaScreen({ freePulls, unrevealed, haptics, onDraw, nav, onFin
     onPanResponderGrant: () => { cancelAnimationFrame(tween.current); dragStart.current = openRef.current; },
     onPanResponderMove: (_, gesture) => {
       const value = Math.max(0, Math.min(1, dragStart.current - gesture.dy / lift));
+      playSfx('sfx_rope_pull', { rate: .7 + value * .8, debounceMs: 180, gain: .4 });
       openRef.current = value;
       setOpen(value);
     },
-    onPanResponderRelease: () => settleBoard(resolveRelease(openRef.current) === 'open' ? 1 : 0),
+    onPanResponderRelease: () => { playSfx(resolveRelease(openRef.current) === 'open' ? 'sfx_rope_catch' : 'sfx_rope_cancel'); settleBoard(resolveRelease(openRef.current) === 'open' ? 1 : 0); },
     onPanResponderTerminate: () => settleBoard(0),
   }), [boardEnabled, lift, settleBoard]);
 
   const requestDraw = useCallback(() => {
     if (playing || freePulls < batch || drawRequested.current) return;
     drawRequested.current = true;
+    playSfx('sfx_ticket_use');
     onDraw(batch);
   }, [playing, freePulls, batch, onDraw]);
 
   const ropePan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady,
     onMoveShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady,
-    onPanResponderMove: (_, gesture) => setPull(Math.max(0, Math.min(MAX_PULL, gesture.dy))),
-    onPanResponderRelease: (_, gesture) => { setPull(0); if (gesture.dy >= PULL_TO_DRAW) requestDraw(); },
+    onPanResponderMove: (_, gesture) => { playSfx('sfx_rope_pull', { rate: .7 + Math.min(1, gesture.dy / PULL_TO_DRAW), debounceMs: 180, gain: .4 }); setPull(Math.max(0, Math.min(MAX_PULL, gesture.dy))); },
+    onPanResponderRelease: (_, gesture) => { playSfx(gesture.dy >= PULL_TO_DRAW ? 'sfx_rope_catch' : 'sfx_rope_cancel'); setPull(0); if (gesture.dy >= PULL_TO_DRAW) requestDraw(); },
     onPanResponderTerminate: () => setPull(0),
   }), [playing, freePulls, ropeReady, requestDraw]);
 
   const next = () => {
+    playSfx('sfx_card_flip');
     if (index + 1 < unrevealed.length) {
       skipIntro.current = true;
       setIndex(index + 1);

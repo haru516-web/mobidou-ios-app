@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { playSfx } from '../services/audio';
 import { Animated, Easing, PanResponder, Platform, Pressable as RNPressable, StyleSheet, Text, View, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
 import { Image } from './AppImage';
 import type { PetId } from '../petCatalog';
@@ -188,11 +189,13 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
 
   const finishDrag = useCallback(() => {
     if (!draggingRef.current) return;
+    playSfx('sfx_pull_release');
     draggingRef.current = false;
     persist(positionRef.current);
   }, [persist]);
 
   const startDrag = useCallback(() => {
+    playSfx('sfx_mobby_drag');
     draggingRef.current = true;
     movedRef.current = false;
     dragStartRef.current = positionRef.current;

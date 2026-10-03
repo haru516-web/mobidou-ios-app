@@ -1,4 +1,5 @@
 import React from 'react';
+import { playSfx } from '../services/audio';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from './AppImage';
 import { BRUSH, Button, SERIF } from '../components';
@@ -28,7 +29,7 @@ export function GachaShop({ onBuy }: Props) {
       </View>
       <View style={S.buy}>
         <Text style={S.price}>{product.price}</Text>
-        <Button title={onBuy ? '購入' : '準備中'} disabled={!onBuy} onPress={() => onBuy?.(product)} style={S.button} />
+        <Button soundless title={onBuy ? '購入' : '準備中'} disabled={!onBuy} onPress={() => { playSfx('sfx_shop_buy'); onBuy?.(product); }} style={S.button} />
       </View>
     </View>)}
   </View>;

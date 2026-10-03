@@ -1,4 +1,5 @@
 import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { playPageTurn, playSfx } from '../services/audio';
 import { Asset } from 'expo-asset';
 import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modules-core';
 import type { BookPageTurnHandle } from './BookPageTurn';
@@ -66,7 +67,7 @@ export function NativeBookPageTurn({ pages, selectedIndex, onCommit, onBusyChang
     pagesJson={pagesJson}
     selectedIndex={selectedIndex}
     onPageChange={event => onCommit(event.nativeEvent.index)}
-    onBusyChange={event => onBusyChange?.(event.nativeEvent.busy)}
-    onOpenDetail={event => onOpenDetail?.(event.nativeEvent.index)}
+    onBusyChange={event => { if (event.nativeEvent.busy) playPageTurn(); onBusyChange?.(event.nativeEvent.busy); }}
+    onOpenDetail={event => { playSfx('sfx_stamp_view'); onOpenDetail?.(event.nativeEvent.index); }}
   />;
 }

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { playSfx } from '../services/audio';
 import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from './AppImage';
 import Svg, { Defs, Image as SvgImage, Mask } from 'react-native-svg';
@@ -339,7 +340,8 @@ export function PullableCompanion({
     if (now - lastActionRef.current < 700) return;
     lastActionRef.current = now;
     setReactionLine(nextKind);
-    if (!options?.skipBond) onBond();
+    playSfx('sfx_mobby_pet');
+    if (!options?.skipBond) { onBond(); playSfx('sfx_bond_up', { debounceMs: 1500, gain: .25 }); }
     haptic(Haptics.ImpactFeedbackStyle.Light);
   }, [haptic, onBond, setReactionLine]);
 
@@ -371,6 +373,8 @@ export function PullableCompanion({
     resetPose();
     setStatus('reacting');
     setPrayerFrame(0);
+    playSfx('sfx_mobby_pray');
+    playSfx('sfx_bond_up', { debounceMs: 1500, gain: .25 });
     setLine(`${pet.name}のお参り。`);
     onBond();
     haptic(Haptics.ImpactFeedbackStyle.Medium);
@@ -386,7 +390,7 @@ export function PullableCompanion({
           return;
         }
         setPrayerFrame(next);
-        if (timeline.clapFrames.includes(next)) haptic(Haptics.ImpactFeedbackStyle.Light);
+        if (timeline.clapFrames.includes(next)) { playSfx('sfx_clap'); haptic(Haptics.ImpactFeedbackStyle.Light); }
         advance(next);
       }, timeline.durations[index]);
     };
@@ -453,6 +457,8 @@ export function PullableCompanion({
     const nextPullCount = pullCountRef.current + 1;
     pullCountRef.current = nextPullCount;
     const special = nextPullCount % 10 === 0;
+    playSfx(special ? 'sfx_pull_release_special' : 'sfx_pull_release');
+    playSfx('sfx_bond_up', { debounceMs: 1500, gain: .25 });
     setReactionLine('pull', { special, keepStatus: true });
     onBond();
     haptic(special ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium);
@@ -523,6 +529,7 @@ export function PullableCompanion({
     onPanResponderMove: (_event, gesture) => {
       const dx = gesture.dx;
       const dy = gesture.dy;
+      if (Math.hypot(dx, dy) > 8) playSfx('sfx_pull_stretch', { rate: .6 + Math.min(1, Math.hypot(dx, dy) / 120), debounceMs: 220, gain: .35 });
       const previous = smoothedPullRef.current;
       const now = Date.now();
       const deltaMs = Math.max(8, now - lastMoveAtRef.current);

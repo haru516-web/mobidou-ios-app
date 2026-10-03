@@ -1,4 +1,5 @@
 import React from 'react';
+import { playSfx, unlockAudio } from '../services/audio';
 import { Pressable as NativePressable, View, StyleSheet, Text, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { Image } from './AppImage';
 import { SlicedArt } from './SlicedArt';
@@ -44,8 +45,12 @@ export function PillText({ children, textStyle, dark = false }: { children: Reac
  * `plate` puts a cut washi plate behind the button (vermilion for the main action,
  * cream for a quieter one) and drops the drawn box from its style; the layout stays.
  */
-export function WashiPressable({ children, style, artwork = true, plate, ...props }: PressableProps & { artwork?: boolean; plate?: 'primary' | 'secondary' | 'round' | 'pill' }) {
-  return <NativePressable {...props} style={state => {
+export function WashiPressable({ children, style, artwork = true, plate, soundless = false, ...props }: PressableProps & { artwork?: boolean; plate?: 'primary' | 'secondary' | 'round' | 'pill'; soundless?: boolean }) {
+  return <NativePressable {...props} onPress={event => {
+    unlockAudio();
+    if (!soundless && props.onPress) playSfx(plate === 'primary' ? 'sfx_tap_primary' : plate === 'round' || plate === 'pill' ? 'sfx_tap_round' : 'sfx_tap');
+    props.onPress?.(event);
+  }} style={state => {
     const resolved = typeof style === 'function' ? style(state) : style;
     return [{ position: 'relative', overflow: 'hidden' }, plate ? withoutBox(resolved) : resolved];
   }}>{state => <>

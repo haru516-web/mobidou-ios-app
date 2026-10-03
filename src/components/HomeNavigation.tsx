@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { playSfx } from '../services/audio';
 import { Animated, BackHandler, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { Image } from './AppImage';
 import { BRUSH, C, Icon, useReducedMotion } from '../components';
@@ -42,6 +43,7 @@ type HomeBottomNavigationProps = {
   tab: PrimaryTab;
   onNavigate: (tab: PrimaryTab) => void;
   disabled?: boolean;
+  soundless?: boolean;
   /** Opens the gacha. Its tab sits in the middle of the bar and is shown only when this is given. */
   onGacha?: () => void;
   /** Free pulls waiting; shown as a small count on the gacha tab. */
@@ -53,9 +55,9 @@ type HomeBottomNavigationProps = {
 // The washi tab frame. The separate menu button that used to sit to its right
 // is gone (every screen is reachable from the tabs and segmented controls), so
 // the frame now spans the full width.
-export function HomeBottomNavigation({ tab, onNavigate, disabled = false, onGacha, freePulls = 0, gachaActive = false }: HomeBottomNavigationProps) {
-  const gacha = <NavTab key="gacha" item={GACHA_NAV_ITEM} selected={gachaActive} badge={freePulls} onPress={() => onGacha?.()} />;
-  const items = PRIMARY_NAV_ITEMS.map(item => <NavTab key={item.id} item={item} selected={!gachaActive && tab === item.id} onPress={() => onNavigate(item.id)} />);
+export function HomeBottomNavigation({ tab, onNavigate, disabled = false, onGacha, freePulls = 0, gachaActive = false, soundless = false }: HomeBottomNavigationProps) {
+  const gacha = <NavTab soundless={soundless} key="gacha" item={GACHA_NAV_ITEM} selected={gachaActive} badge={freePulls} onPress={() => onGacha?.()} />;
+  const items = PRIMARY_NAV_ITEMS.map(item => <NavTab soundless={soundless} key={item.id} item={item} selected={!gachaActive && tab === item.id} onPress={() => onNavigate(item.id)} />);
   return <View style={S.navShell} pointerEvents={disabled ? 'none' : 'auto'} accessibilityElementsHidden={disabled} aria-hidden={disabled ? true : undefined} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
     <View style={[S.primaryNavFrame, CONTINUOUS_CORNER]}>
       <CroppedArt source={NAV_BACKGROUND} bounds={NAV_BOUNDS} />
@@ -70,7 +72,7 @@ export function HomeBottomNavigation({ tab, onNavigate, disabled = false, onGach
  * One tab. The chosen tab turns vermilion: its icon lifts a little, and the
  * name is underlined with a thick brush stroke.
  */
-function NavTab({ item, selected, onPress, badge = 0 }: { item: { title: string; icon?: React.ComponentProps<typeof Icon>['name']; /** A drawn icon used instead of `icon`. */ image?: ImageSourcePropType }; selected: boolean; onPress: () => void; badge?: number }) {
+function NavTab({ item, selected, onPress, badge = 0, soundless = false }: { item: { title: string; icon?: React.ComponentProps<typeof Icon>['name']; /** A drawn icon used instead of `icon`. */ image?: ImageSourcePropType }; selected: boolean; onPress: () => void; badge?: number; soundless?: boolean }) {
   const reduced = useReducedMotion();
   const progress = useRef(new Animated.Value(selected ? 1 : 0)).current;
   const useNativeDriver = Platform.OS !== 'web';
@@ -84,7 +86,7 @@ function NavTab({ item, selected, onPress, badge = 0 }: { item: { title: string;
   }, [progress, reduced, selected, useNativeDriver]);
   const lift = progress.interpolate({ inputRange: [0, 1], outputRange: [0, -4] });
   const markColor = selected ? C.red : '#6F675B';
-  return <Pressable artwork={false} accessibilityRole="tab" accessibilityLabel={badge > 0 ? `${item.title}。無料で引けるのは${badge}回` : item.title} accessibilityState={{ selected }} onPress={onPress} style={S.navItem}>
+  return <Pressable soundless artwork={false} accessibilityRole="tab" accessibilityLabel={badge > 0 ? `${item.title}。無料で引けるのは${badge}回` : item.title} accessibilityState={{ selected }} onPress={() => { if (!soundless && !selected) playSfx(item === GACHA_NAV_ITEM ? 'sfx_gacha_enter' : 'sfx_tab'); onPress(); }} style={S.navItem}>
     <Animated.View style={[S.navIconWrap, { transform: [{ translateY: lift }] }]}>
       {item.image
         ? <Image accessible={false} source={item.image} contentFit="contain" tintColor={markColor} style={S.navImage} />
@@ -119,7 +121,7 @@ function usePopupAnimation(reduced: boolean): [PopupAnimation, (onDone?: () => v
 }
 
 function PopupClose({ onPress }: { onPress: () => void }) {
-  return <Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onPress} style={S.popupClose}><Text style={S.popupCloseText}>×</Text></Pressable>;
+  return <Pressable soundless plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => { playSfx('sfx_close'); onPress(); }} style={S.popupClose}><Text style={S.popupCloseText}>×</Text></Pressable>;
 }
 
 function PopupRoot({ children, style, modalLabel }: { children: React.ReactNode; style?: object; modalLabel?: string }) {
@@ -275,6 +277,7 @@ type MobyPickerPopupProps = {
 };
 
 export function MobyPickerPopup({ selectedPet, isOwned, onGacha, freePulls = 0, onConfirm, onClose, guided = false }: MobyPickerPopupProps) {
+  useEffect(() => { playSfx('sfx_open'); }, []);
   const reduced = useReducedMotion();
   const [animation, closeAnimation] = usePopupAnimation(reduced);
   const [draftPet, setDraftPet] = useState<PetId>(selectedPet);
@@ -303,7 +306,7 @@ export function MobyPickerPopup({ selectedPet, isOwned, onGacha, freePulls = 0, 
       <View style={S.popupFooter}>
         {!guided && <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>閉じる</Text></Pressable>}
         <TutorialTarget active={guided && guideStage === 'confirm'} onRectChange={setTutorialRect} style={guided && S.guidedMobyConfirmTarget}>
-          <Pressable plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel="決定" onPress={() => closeAnimation(() => onConfirm(draftPet))} style={[S.popupFooterButton, S.popupFooterPrimary, guided && S.guidedMobyConfirmButton]}><Text style={S.popupFooterPrimaryText}>決定</Text></Pressable>
+          <Pressable soundless plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel="決定" onPress={() => { playSfx('sfx_pet_select'); closeAnimation(() => onConfirm(draftPet)); }} style={[S.popupFooterButton, S.popupFooterPrimary, guided && S.guidedMobyConfirmButton]}><Text style={S.popupFooterPrimaryText}>決定</Text></Pressable>
         </TutorialTarget>
       </View>
     </Animated.View>
