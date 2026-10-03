@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { Pedometer } from 'expo-sensors';
+import { missedDays, type SyncMark } from './progress';
 
 type HealthModule = { isAvailable(): Promise<boolean>; requestPermission(): Promise<boolean>; readSteps(start: number, end: number): Promise<number> };
 const health = Platform.OS === 'ios' ? requireOptionalNativeModule<HealthModule>('MobiHealth') : null;
@@ -31,4 +32,16 @@ export async function readTodaySteps(source: StepSource): Promise<{ steps: numbe
   const end = new Date();
   const start = new Date(end); start.setHours(0, 0, 0, 0);
   return { steps: await readStepsBetween(source, start.getTime(), end.getTime()), at: end };
+}
+/**
+ * Full-day counts for the days since the last credited reading, oldest first.
+ * The motion sensor only keeps about a week of history; HealthKit keeps more.
+ * A failed read throws so the caller retries instead of moving past a gap.
+ */
+export async function readMissedDays(source: StepSource, mark: SyncMark | undefined, now = new Date()): Promise<{ day: string; steps: number }[]> {
+  if (!mark || source === 'none') return [];
+  const days = missedDays(mark.day, now, source === 'motion' ? 7 : 14);
+  const readings: { day: string; steps: number }[] = [];
+  for (const day of days) readings.push({ day: day.day, steps: await readStepsBetween(source, day.start, day.end) });
+  return readings;
 }

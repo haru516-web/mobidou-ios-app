@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshProgress, updateSteps, rollDay, localDay, normalizeProgress, startRoute, SHRINE_IDS, DAILY_TARGETS } from '../src/services/progress.ts';
+import { freshProgress, updateSteps, rollDay, localDay, normalizeProgress, startRoute, missedDays, creditMissedDays, SHRINE_IDS, DAILY_TARGETS } from '../src/services/progress.ts';
 import { PILGRIMAGES } from '../src/data/pilgrimages.ts';
 const day = new Date(2026, 8, 9, 12);
 const tomorrow = new Date(2026, 8, 10, 0, 1);
@@ -201,4 +201,42 @@ test('a lap survives save and restore, and a bad lap marker is dropped', () => {
   assert.equal(normalizeProgress({ ...JSON.parse(JSON.stringify(walked)), lapBase: -5 }, day).lapBase, undefined);
   const partial = updateSteps(startRoute('compassion', 0, day), 5000, day);
   assert.equal(normalizeProgress({ ...JSON.parse(JSON.stringify(partial)), lapBase: 100 }, day).lapBase, undefined);
+});
+const routeId = PILGRIMAGES[0].id;
+const at = (d: number, h = 12) => new Date(2026, 8, d, h);
+const routeDay = (steps: number, d: number) => updateSteps(startRoute(routeId, 0, at(d)), steps, at(d));
+test('missedDays lists whole local days after the mark up to yesterday, newest kept when capped', () => {
+  assert.deepEqual(missedDays('2026-09-09', at(9)).map(d => d.day), []);
+  assert.deepEqual(missedDays('2026-09-09', at(12, 8)).map(d => d.day), ['2026-09-09', '2026-09-10', '2026-09-11']);
+  assert.deepEqual(missedDays('2026-08-01', at(12), 3).map(d => d.day), ['2026-09-09', '2026-09-10', '2026-09-11']);
+  const [first] = missedDays('2026-09-09', at(10));
+  assert.equal(first.end, new Date(2026, 8, 10).getTime());
+});
+test('catch-up credits closed days once, without recounting what the mark day already had', () => {
+  const synced = routeDay(3000, 9); // last opened on the 9th at 3,000 steps
+  const mark = { day: '2026-09-09', steps: 3000 };
+  const rolled = rollDay(synced, at(12, 8)); // the app reopens on the 12th
+  // 9th ended at 4,500 steps, 10th was a 2,000-step day, 11th was not walked.
+  const caught = creditMissedDays(rolled, mark, [{ day: '2026-09-09', steps: 4500 }, { day: '2026-09-10', steps: 2000 }, { day: '2026-09-11', steps: 0 }]);
+  const today = updateSteps(caught, 1000, at(12, 8));
+  assert.equal(today.routeSteps, 3000 + 1500 + 2000 + 1000);
+  assert.equal(today.totalSteps, 7500);
+  assert.equal(today.day, '2026-09-12');
+  assert.equal(today.steps, 1000);
+  // Reading the same days again must not add anything.
+  assert.equal(updateSteps(today, 1000, at(12, 9)).routeSteps, today.routeSteps);
+});
+test('catch-up queues rewards reached on closed days with that day as the reward date', () => {
+  const synced = routeDay(4000, 9);
+  const caught = creditMissedDays(rollDay(synced, at(11, 8)), { day: '2026-09-09', steps: 4000 }, [{ day: '2026-09-09', steps: 4500 }, { day: '2026-09-10', steps: 500 }]);
+  assert.equal(caught.rewards.length, 1);
+  assert.equal(caught.rewards[0].date, '2026-09-10');
+  assert.equal(caught.pending.length, 1);
+});
+test('catch-up with a lower device count never subtracts, and non-route progress is untouched', () => {
+  const synced = routeDay(3000, 9);
+  const caught = creditMissedDays(rollDay(synced, at(10, 8)), { day: '2026-09-09', steps: 3000 }, [{ day: '2026-09-09', steps: 2000 }]);
+  assert.equal(updateSteps(caught, 0, at(10, 8)).routeSteps, 3000);
+  const legacy = updateSteps(freshProgress(at(9)), 1000, at(9));
+  assert.equal(creditMissedDays(legacy, { day: '2026-09-09', steps: 1000 }, [{ day: '2026-09-09', steps: 9000 }]), legacy);
 });

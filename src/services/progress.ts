@@ -90,6 +90,39 @@ export function freshProgress(date = new Date()): Progress {
 export function rollDay(progress: Progress, date = new Date()): Progress {
   return progress.day === localDay(date) ? progress : { ...progress, day: localDay(date), steps: 0, highWater: 0, dayStart: progress.rewards.length, ...(progress.routeId ? { baseline: 0 } : {}) };
 }
+/** The last real step reading that was credited: its local day and that day's peak count. */
+export type SyncMark = { day: string; steps: number };
+export type MissedDay = { day: string; start: number; end: number };
+export const isSyncMark = (value: unknown): value is SyncMark => !!value && typeof value === 'object'
+  && typeof (value as SyncMark).day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test((value as SyncMark).day)
+  && Number.isFinite((value as SyncMark).steps) && (value as SyncMark).steps >= 0;
+const localDayStart = (day: string) => { const [y, m, d] = day.split('-').map(Number); return new Date(y, m - 1, d); };
+/**
+ * Whole local days from `sinceDay` up to (not including) today, oldest first,
+ * keeping only the most recent `maxDays`. Ranges use calendar arithmetic so a
+ * 23- or 25-hour daylight-saving day still ends at the next local midnight.
+ */
+export function missedDays(sinceDay: string, now = new Date(), maxDays = 14): MissedDay[] {
+  const today = localDay(now);
+  const days: MissedDay[] = [];
+  for (let d = localDayStart(sinceDay); localDay(d) < today && days.length < 400; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    days.push({ day: localDay(d), start: d.getTime(), end: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime() });
+  }
+  return days.slice(-maxDays);
+}
+/**
+ * Credits days the app was not open. `readings` are the full-day counts of
+ * `missedDays`, oldest first. Steps already credited on the mark's day are not
+ * counted twice. Only route progress is credited: the older daily-reward mode
+ * counts per day and has no carry-over to extend.
+ */
+export function creditMissedDays(progress: Progress, mark: SyncMark, readings: readonly { day: string; steps: number }[]): Progress {
+  if (!progress.routeId) return progress;
+  return readings.reduce<Progress>((p, reading) => {
+    const peak = reading.day === mark.day ? mark.steps : 0;
+    return updateSteps({ ...p, day: reading.day, steps: peak, highWater: peak }, reading.steps, new Date(localDayStart(reading.day).getTime() + 12 * 3600_000));
+  }, progress);
+}
 export function updateSteps(progress: Progress, steps: number, date = new Date()): Progress {
   const next = rollDay(progress, date);
   if (!Number.isFinite(steps) || steps < 0) return next;

@@ -10,7 +10,7 @@ const moduleUrls = [
   ['react', stub('export const useCallback = (fn) => fn; export const useEffect = () => {}; export const useRef = value => ({ current: value }); export const useState = value => [value, () => {}];')],
   ['react-native', stub('export const AppState = { currentState: null, addEventListener: () => ({ remove() {} }) }; export const DevSettings = { reload() {} };')],
   ['@react-native-async-storage/async-storage', stub('export default { getItem: async () => null, setItem: async () => {} };')],
-  ['./steps', stub('export const connectSteps = async () => "none"; export const readTodaySteps = async () => ({ steps: 0, at: new Date() });')],
+  ['./steps', stub('export const connectSteps = async () => "none"; export const readMissedDays = async () => []; export const readTodaySteps = async () => ({ steps: 0, at: new Date() });')],
   ['../petCatalog', stub('export const PET_CHARACTERS = [{ id: "mobibou" }, { id: "mobirin" }]; export const isPetId = id => id === "mobibou" || id === "mobirin";')],
   ['../data/backgrounds', stub('export const defaultBackgroundId = () => "spring-dawn"; export const isBackgroundId = () => true;')],
 ];

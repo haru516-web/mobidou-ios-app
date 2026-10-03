@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, DevSettings } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { freshProgress, localDay, normalizeProgress, rollDay, updateSteps, startRoute, startReplay, resumeRoute, type Progress } from './progress';
+import { creditMissedDays, freshProgress, isSyncMark, localDay, normalizeProgress, rollDay, updateSteps, startRoute, startReplay, resumeRoute, type Progress, type SyncMark } from './progress';
 import { getPilgrimage } from '../data/pilgrimages';
-import { connectSteps, readTodaySteps, type StepSource } from './steps';
+import { connectSteps, readMissedDays, readTodaySteps, type StepSource } from './steps';
 import { isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
 import { acknowledgePulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, type MobbyCollection } from './gacha';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
@@ -15,7 +15,7 @@ import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
 export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
-type Saved = { routes?: Record<string, Progress>; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; keychainPlan: KeychainPlan; mobbies: MobbyCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
+type Saved = { routes?: Record<string, Progress>; /** Last credited real step reading; the start of any catch-up for days the app was closed. */ lastSync?: SyncMark; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; keychainPlan: KeychainPlan; mobbies: MobbyCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
 export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
 export type BookDesignState = { bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns };
 
@@ -78,13 +78,17 @@ function setActiveBookDesignsFor(saved: Saved, field: 'realBookDesigns' | 'trial
   return { ...saved, [field]: designs, ...(isActive ? { bookDesigns: designs } : {}) };
 }
 
-function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: number, date = new Date()): Saved {
+function updateSavedProgress(saved: Saved, field: 'real' | 'trial', steps: number, date = new Date(), missed: readonly { day: string; steps: number }[] = []): Saved {
   const previous = saved[field];
-  const next = updateSteps(previous, steps, date);
+  // Days the app was closed are credited first, then today's reading on top.
+  const base = field === 'real' && saved.lastSync && missed.length ? creditMissedDays(previous, saved.lastSync, missed) : previous;
+  const next = updateSteps(base, steps, date);
+  const mark: SyncMark | undefined = field === 'real' ? { day: localDay(date), steps: next.highWater ?? next.steps } : undefined;
+  const markChanged = !!mark && (saved.lastSync?.day !== mark.day || saved.lastSync.steps !== mark.steps);
   // Periodic refreshes usually read the same count; skip the no-op so it
   // neither re-renders the app nor rewrites storage.
-  if (JSON.stringify(next) === JSON.stringify(previous)) return saved;
-  return rewardFirstClear({ ...saved, [field]: next }, field, previous, next);
+  if (JSON.stringify(next) === JSON.stringify(previous) && !markChanged) return saved;
+  return rewardFirstClear({ ...saved, [field]: next, ...(markChanged ? { lastSync: mark } : {}) }, field, previous, next);
 }
 
 export function normalizeSaved(value: unknown): Saved {
@@ -118,6 +122,7 @@ export function normalizeSaved(value: unknown): Saved {
       try { return [[key, normalizeProgress(progress)] as const]; } catch { return []; }
     })),
     affection: Object.fromEntries(Object.entries(p.affection && typeof p.affection === 'object' ? p.affection : {}).filter(([key, count]) => isPetId(key) && Number.isFinite(count) && count >= 0)),
+    ...(isSyncMark(p.lastSync) ? { lastSync: { day: p.lastSync.day, steps: p.lastSync.steps } } : {}),
     omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null,
     omikujiPetId: isPetId(p.omikujiPetId) ? p.omikujiPetId : null,
   };
@@ -238,12 +243,13 @@ export function useJourney() {
       const trial = rollDay(prev.trial);
       return real === prev.real && trial === prev.trial ? prev : { ...prev, real, trial };
     });
-    if (state.demo || state.source === 'none') return;
+    if (state.demo || state.source === 'none' || !state.onboarded) return;
     syncLock.current = true; setBusy(true); const token = epoch.current;
     try {
+      const missed = await readMissedDays(state.source, state.lastSync);
       const result = await readTodaySteps(state.source);
       if (token === epoch.current && localDay(result.at) === localDay()) {
-        change(prev => updateSavedProgress(prev, 'real', result.steps, result.at));
+        change(prev => updateSavedProgress(prev, 'real', result.steps, result.at, missed));
         setSynced(new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
         setError('');
       }
@@ -262,9 +268,10 @@ export function useJourney() {
     syncLock.current = true; setBusy(true); setError('');
     try {
       const source = await connectSteps();
+      const missed = await readMissedDays(source, current.current.lastSync);
       const result = await readTodaySteps(source);
       epoch.current++;
-      change(prev => setActiveBookDesigns({ ...updateSavedProgress(prev, 'real', result.steps, result.at), onboarded: true, demo: false, source }, cloneBookDesigns(prev.realBookDesigns)));
+      change(prev => setActiveBookDesigns({ ...updateSavedProgress(prev, 'real', result.steps, result.at, missed), onboarded: true, demo: false, source }, cloneBookDesigns(prev.realBookDesigns)));
       setSynced(new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
     } catch (e) { setError(e instanceof Error ? e.message : '接続できませんでした。'); }
     finally { syncLock.current = false; setBusy(false); }
@@ -276,7 +283,9 @@ export function useJourney() {
   const previewTransfer = useCallback((raw: string) => transferSummary(readTransferData(raw)), []);
   const importTransfer = useCallback(async (raw: string) => {
     if (syncLock.current) throw new Error('歩数を更新中です。少し待ってからもう一度お試しください。');
-    const imported = { ...readTransferData(raw), onboarded: true };
+    // A restored record starts a fresh reading baseline: steps taken between the export and now are not back-filled.
+    const { lastSync: _discarded, ...restored } = readTransferData(raw);
+    const imported: Saved = { ...restored, onboarded: true };
     syncLock.current = true;
     setBusy(true);
     try {
