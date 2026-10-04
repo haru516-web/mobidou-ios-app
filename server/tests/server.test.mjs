@@ -787,3 +787,20 @@ test("account deletion needs the confirmation word, removes everything of the ac
   assert.deepEqual((await (await call(context, "GET", "/friends", undefined, ben.userId)).json()).friends, [], "gone from friends' lists");
   assert.equal((await call(context, "GET", "/profile", undefined, ben.userId)).status, 200, "other accounts are untouched");
 });
+
+test("the privacy policy page is public, shows the operator and contact, and matches the copy in docs", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { PRIVACY_MARKDOWN, markdownToHtml } = await import("../src/privacyPolicy.ts");
+  const context = createContext();
+  const page = await call(context, "GET", "/privacy");
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /text\/html/);
+  const html = await page.text();
+  assert.match(html, /<h1>プライバシーポリシー<\/h1>/);
+  assert.match(html, /Mobby/);
+  assert.match(html, /info@mobby\.online/);
+  assert.equal((html.match(/<h2>/g) ?? []).length, 12, "all twelve sections");
+  assert.match(html, /<table>/);
+  assert.equal(readFileSync(new URL("../../docs/privacy-policy.md", import.meta.url), "utf8").replace(/\r\n/g, "\n"), PRIVACY_MARKDOWN, "docs/privacy-policy.md must be the same text");
+  assert.equal(markdownToHtml("## <script>alert(1)</script>\n**bold** & more"), "<h2>&lt;script&gt;alert(1)&lt;/script&gt;</h2>\n<p><strong>bold</strong> &amp; more</p>");
+});

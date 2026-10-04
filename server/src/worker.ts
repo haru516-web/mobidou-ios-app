@@ -1,6 +1,7 @@
 import { GACHA_PET_IDS, PAID_PITY_INTERVAL, validateGachaPetIds } from "./config/gacha.ts";
 import { equalSecretHash, hashSecret, randomToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
+import { privacyPageHtml } from "./privacyPolicy.ts";
 import type { AgeGroup, Env, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 
 /** Monthly spending caps in yen by self-declared age group, following the Japanese online-game industry guideline. null means no cap. */
@@ -142,6 +143,9 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   const path = url.pathname.replace(/\/$/, "") || "/";
 
   if (method === "GET" && path === "/health") return json({ ok: true });
+  if (method === "GET" && path === "/privacy") {
+    return new Response(privacyPageHtml(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
+  }
   const inviteMatch = /^\/f\/([A-Z2-9]{10})$/.exec(path);
   if (method === "GET" && inviteMatch) return invitePage(inviteMatch[1]);
   if (method === "GET" && path === "/gifts.json") return json(configuredGifts(env));
