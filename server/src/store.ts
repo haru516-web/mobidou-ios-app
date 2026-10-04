@@ -20,6 +20,11 @@ export class D1Store implements Store {
     return !!(await this.db.prepare("SELECT 1 AS found FROM friend_requests WHERE from_id = ? AND to_id = ? AND status = 'pending'").bind(fromId, toId).first());
   }
 
+  async deleteUser(userId: string): Promise<void> {
+    // Every table that refers to a user deletes its rows along with the user (ON DELETE CASCADE).
+    await this.db.prepare("DELETE FROM users WHERE id = ?").bind(userId).run();
+  }
+
   async cloudSave(userId: string): Promise<CloudSave | null> {
     const row = await this.db.prepare("SELECT data, version, updated_at FROM cloud_saves WHERE user_id = ?").bind(userId).first<{ data: string; version: number; updated_at: string }>();
     return row ? { data: row.data, version: row.version, updatedAt: row.updated_at } : null;

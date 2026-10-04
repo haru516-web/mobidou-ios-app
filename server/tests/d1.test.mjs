@@ -155,3 +155,38 @@ test("D1 cloud save is versioned: a stale base version is refused", async () => 
   assert.equal(save?.data, "{\"a\":2}");
   assert.equal(save?.version, 2);
 });
+
+test("D1 deleting a user removes every row that belongs to the user and leaves others alone", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  const make = (id, code) => store.registerUser({ id, friendCode: code, name: id, petId: null, goshuinCount: 0, routeName: null }, "hash-" + id);
+  await make("gone", "GONE123456");
+  await make("stay", "STAY123456");
+
+  await store.claimFreePull("gone", "route-1");
+  await store.chooseStarter("gone", "pet-a");
+  await store.putCloudSave("gone", "{\"a\":1}", 0);
+  await store.linkApple("gone", "apple-sub-gone");
+  await store.setAgeGroup("gone", "adult");
+  await store.requestFriend("gone", "stay", "req-1");
+  await store.answerFriendRequest("stay", "req-1", "accepted");
+  database.prepare("INSERT INTO purchases (apple_transaction_id, user_id, product_id, original_transaction_id, granted_at, revoked_at) VALUES ('tx-1', 'gone', 'p', NULL, '2026-10-01T00:00:00.000Z', NULL)").run();
+  database.prepare("INSERT INTO gacha_pulls (id, user_id, result_pet_id, pulled_at, kind, is_new, guaranteed) VALUES ('pull-1', 'gone', 'pet-a', '2026-10-01T00:00:00.000Z', 'paid', 1, 0)").run();
+  await store.claimFreePull("stay", "route-9");
+
+  await store.deleteUser("gone");
+
+  // Every table with a column that points at a user must have no row for the deleted user.
+  const columns = { users: "id", friendships: "user_id", friend_requests: "from_id", purchases: "user_id", entitlements: "user_id", ticket_ledger: "user_id", gift_claims: "user_id", gacha_wallet: "user_id", gacha_wallet_ledger: "user_id", gacha_pulls: "user_id", gacha_state: "user_id", user_pets: "user_id", free_pull_claims: "user_id", event_members: "user_id", event_steps: "user_id", apple_links: "user_id", user_limits: "user_id", cloud_saves: "user_id" };
+  for (const [table, column] of Object.entries(columns)) {
+    assert.equal(database.prepare("SELECT COUNT(*) AS n FROM " + table + " WHERE " + column + " = 'gone'").get().n, 0, table);
+  }
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM friendships WHERE friend_id = 'gone'").get().n, 0, "friendships (as the friend)");
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM friend_requests WHERE to_id = 'gone'").get().n, 0, "friend_requests (as the target)");
+  assert.equal(await store.userByApple("apple-sub-gone"), null);
+  // The other account keeps its own rows.
+  assert.equal((await store.user("stay"))?.name, "stay");
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM free_pull_claims WHERE user_id = 'stay'").get().n, 1);
+  assert.deepEqual(await store.friends("stay"), []);
+});

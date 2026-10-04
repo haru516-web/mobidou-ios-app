@@ -114,6 +114,17 @@ class MemoryStore {
   async friends(userId) {
     return [...this.friendRows].filter((row) => row.startsWith(`${userId}:`)).map((row) => this.users.get(row.split(":")[1]));
   }
+  async deleteUser(userId) {
+    this.users.delete(userId);
+    this.hashes.delete(userId);
+    this.walletRows.delete(userId);
+    this.owned.delete(userId);
+    this.saves.delete(userId);
+    this.ageGroups.delete(userId);
+    for (const [sub, id] of [...this.appleLinks]) if (id === userId) this.appleLinks.delete(sub);
+    for (const row of [...this.friendRows]) if (row.split(":").includes(userId)) this.friendRows.delete(row);
+    for (const [id, row] of [...this.requests]) if (row.fromId === userId || row.toId === userId) this.requests.delete(id);
+  }
   saves = new Map();
   async cloudSave(userId) { return this.saves.get(userId) ?? null; }
   async putCloudSave(userId, data, baseVersion) {
@@ -742,4 +753,37 @@ test("cloud save: only for Apple-linked accounts, versioned so a stale device ca
   assert.equal(read.data, "{\"steps\":2}");
   assert.equal(read.version, 2);
   assert.equal((await send("GET", "/save")).status, 401);
+});
+
+test("account deletion needs the confirmation word, removes everything of the account, and signs it out at once", async () => {
+  const context = createContext();
+  const { token, appleEnv } = await appleFixture();
+  const asAppleUser = (path, body, user) => handleWithStore(new Request("https://server.test" + path, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer " + context.credentials.get(user) },
+    body: JSON.stringify(body)
+  }), appleEnv, context.store);
+  const ann = await register(context);
+  const ben = await register(context);
+  const [pet] = GACHA_PET_IDS;
+  await call(context, "POST", "/profile", { name: "アン", petId: pet }, ann.userId);
+  await call(context, "POST", "/profile", { name: "ベン", petId: pet }, ben.userId);
+  await call(context, "POST", "/friend-requests", { friendCode: ben.friendCode }, ann.userId);
+  const request = (await (await call(context, "GET", "/friends", undefined, ben.userId)).json()).incomingRequests[0];
+  await call(context, "POST", "/friend-requests/" + request.id + "/answer", { answer: "accepted" }, ben.userId);
+  await asAppleUser("/account/apple/link", { identityToken: await token() }, ann.userId);
+  await asAppleUser("/save", { data: "{\"steps\":1}", baseVersion: 0 }, ann.userId);
+
+  assert.equal((await call(context, "POST", "/account/delete", {}, ann.userId)).status, 400);
+  assert.equal((await call(context, "POST", "/account/delete", { confirm: "yes" }, ann.userId)).status, 400);
+  assert.equal((await call(context, "GET", "/profile", undefined, ann.userId)).status, 200, "still there");
+  assert.equal((await call(context, "POST", "/account/delete", { confirm: "delete" })).status, 401);
+
+  const deleted = await call(context, "POST", "/account/delete", { confirm: "delete" }, ann.userId);
+  assert.equal(deleted.status, 200);
+  assert.equal((await call(context, "GET", "/profile", undefined, ann.userId)).status, 401, "signed out at once");
+  assert.equal(await context.store.cloudSave(ann.userId), null);
+  assert.equal(await context.store.userByApple("apple-person-1"), null, "the Apple ID is free again");
+  assert.deepEqual((await (await call(context, "GET", "/friends", undefined, ben.userId)).json()).friends, [], "gone from friends' lists");
+  assert.equal((await call(context, "GET", "/profile", undefined, ben.userId)).status, 200, "other accounts are untouched");
 });

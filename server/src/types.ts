@@ -92,6 +92,8 @@ export interface CloudSave {
 }
 
 export interface Store {
+  /** Remove the account and everything that belongs to it (profile, friends, wallet, pulls, purchases, saves, Apple link). */
+  deleteUser(userId: string): Promise<void>;
   cloudSave(userId: string): Promise<CloudSave | null>;
   /** Store the save if `baseVersion` is the stored version (0 when there is none); returns the new version, or null on a conflict. */
   putCloudSave(userId: string, data: string, baseVersion: number): Promise<number | null>;

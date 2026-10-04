@@ -235,6 +235,14 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   }
 
   // The whole record, kept only for accounts tied to an Apple ID, so a new device can pick it up.
+  // Deleting the account is final: it needs the exact confirmation word, and the credentials stop working at once.
+  if (method === "POST" && path === "/account/delete") {
+    const input = await body(request);
+    if (input.confirm !== "delete") throw new HttpError(400, "confirmation_required");
+    await store.deleteUser(userId);
+    return json({ status: "deleted" });
+  }
+
   if (method === "GET" && path === "/save") {
     if (!(await store.appleLinked(userId))) throw new HttpError(403, "apple_required");
     const save = await store.cloudSave(userId);
