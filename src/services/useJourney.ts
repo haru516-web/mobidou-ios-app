@@ -15,6 +15,7 @@ import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
 import { adoptServerAccount, readServerAccount, syncServer, type ServerAccount } from './server';
 import { fetchPaidTickets } from './purchase';
 import { uploadSave } from './cloudSave';
+import { isAppStorageKey } from './accountDeletion';
 
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
@@ -408,6 +409,19 @@ export function useJourney() {
     drawDailyOmikuji: () => change(p => ({ ...p, omikujiDay: localOmikujiDay(), omikujiPetId: p.pet })),
     resetDailyOmikuji: () => change(p => ({ ...p, omikujiDay: null, omikujiPetId: null })),
     /** Development builds only: wipe the saved record and restart the app from the first launch. */
+    /** Account deletion: wipe everything this app keeps on the device and start again from a blank record. */
+    eraseEverything: async () => {
+      await writing.current.catch(() => {});
+      const keys = (await AsyncStorage.getAllKeys()).filter(isAppStorageKey);
+      if (keys.length) await AsyncStorage.multiRemove(keys);
+      const blank = initial();
+      epoch.current++;
+      current.current = blank;
+      setData(blank);
+      readOnly.current = false;
+      writing.current = Promise.resolve();
+      setError('');
+    },
     devResetAll: async () => {
       if (!__DEV__) return;
       await writing.current.catch(() => {});

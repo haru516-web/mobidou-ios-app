@@ -7,8 +7,9 @@ import { getPilgrimage } from '../data/pilgrimages';
 import { getPetCharacter, type PetId } from '../petCatalog';
 import { WashiArt } from './Washi';
 import { appleMessages, type AppleOutcome } from '../services/appleOutcome';
+import { DELETE_CONFIRMATION_WORD, type DeletionResult } from '../services/accountDeletion';
 
-export type AccountPage = 'welcome' | 'manage' | 'login' | 'transfer';
+export type AccountPage = 'welcome' | 'manage' | 'login' | 'transfer' | 'delete';
 export type AccountTransferSummary = {
   petId: PetId;
   routeId: string | null;
@@ -35,6 +36,12 @@ type Props = {
   onAppleLink: () => Promise<AppleOutcome>;
   /** On a new device: take over the account tied to the Apple ID. */
   onAppleRestore: () => Promise<AppleOutcome>;
+  /** 木札 held (free and bought), shown at the second step of deleting the account. */
+  tickets?: number;
+  /** Delete the account on the server. The device is erased by `onAccountDeleted` afterwards. */
+  onDeleteAccount: () => Promise<DeletionResult>;
+  /** The account is gone: erase this device and go back to the first screen. */
+  onAccountDeleted: () => void;
 };
 
 export function AccountCenter({
@@ -52,7 +59,15 @@ export function AccountCenter({
   onAppleStatus,
   onAppleLink,
   onAppleRestore,
+  tickets = 0,
+  onDeleteAccount,
+  onAccountDeleted,
 }: Props) {
+  // Deleting takes three steps: what goes, what is lost, and typing the word.
+  const [deleteStep, setDeleteStep] = useState(1);
+  const [deleteWord, setDeleteWord] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState('');
   const [appleBusy, setAppleBusy] = useState(false);
   const [appleMessage, setAppleMessage] = useState('');
   const [recordRestored, setRecordRestored] = useState(false);
@@ -71,6 +86,9 @@ export function AccountCenter({
     setImported(false);
     setAppleMessage('');
     setRecordRestored(false);
+    setDeleteStep(1);
+    setDeleteWord('');
+    setDeleteMessage('');
     if (page === 'login' || page === 'manage') onAppleStatus?.();
   }, [page]);
 
@@ -153,7 +171,55 @@ export function AccountCenter({
       {!recordRestored && (isFirstLaunch || !appleLinked) && <Button title={appleBusy ? 'サインイン中…' : isFirstLaunch ? 'Appleでサインインして引き継ぐ' : 'Apple IDとつなぐ'} icon="logo-apple" disabled={appleBusy} onPress={() => void signInWithApple()} style={S.primary} />}
       <Section title="記録の保存" />
       <Text style={S.body}>Apple IDとつなぐと、御朱印・歩数・集めたモビーの記録も、サーバーに自動で保存されます。つながないかぎり、記録は送りません。</Text>
-      <Button title="データ引き継ぎへ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
+      {appleLinked !== true && <Button title="データ引き継ぎへ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />}
+      <Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} />
+    </PagedBody>;
+  }
+
+  if (page === 'delete') {
+    const deleteNow = async () => {
+      setDeleteBusy(true);
+      setDeleteMessage('');
+      const result = await onDeleteAccount();
+      setDeleteBusy(false);
+      if (result === 'deleted') onAccountDeleted();
+      else setDeleteMessage(result === 'offline' ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。削除は、まだ行われていません。' : '削除できませんでした。しばらくしてから、もう一度お試しください。削除は、まだ行われていません。');
+    };
+    return <PagedBody style={S.content} gap={12}>
+      <View style={S.statusCard}>
+        <WashiArt />
+        <View style={S.statusIcon}><Icon name="trash-outline" size={22} color={C.red} /></View>
+        <Text style={S.kicker}>アカウントの削除 {deleteStep} / 3</Text>
+        {deleteStep === 1 && <>
+          <Text style={S.statusTitle}>アカウントを削除しますか？</Text>
+          <Text style={S.body}>削除すると、次のものがすべて消えます。{'\n'}・この端末の記録（御朱印・歩数・集めたモビー・設定）{'\n'}・サーバーにあるデータ（プロフィール・フレンド・木札・ガチャの記録・保存された記録）{'\n'}・Apple IDとのつながり</Text>
+        </>}
+        {deleteStep === 2 && <>
+          <Text style={S.statusTitle}>本当に削除しますか？</Text>
+          <Text style={S.body}>{tickets > 0 ? `いま持っている木札 ${tickets} 枚も、消えます。購入した分も、返金や復元はできません。` : '消えたデータは、元に戻せません。'}{'\n'}Appleでの購入の履歴は、Appleに残ります。</Text>
+        </>}
+        {deleteStep === 3 && <>
+          <Text style={S.statusTitle}>最後の確認です</Text>
+          <Text style={S.body}>削除するには、下の欄に「{DELETE_CONFIRMATION_WORD}」と入力してください。入力すると、削除のボタンが押せます。</Text>
+          <WashiInput value={deleteWord} onChangeText={setDeleteWord} placeholder={DELETE_CONFIRMATION_WORD} autoCorrect={false} accessibilityLabel="確認のため、削除と入力" style={S.deleteInput} />
+        </>}
+      </View>
+      {!!deleteMessage && <Text accessibilityLiveRegion="polite" style={S.body}>{deleteMessage}</Text>}
+      {deleteStep < 3
+        ? <Button title={deleteStep === 1 ? '削除に進む' : '削除を続ける'} icon="arrow-forward" disabled={deleteBusy} onPress={() => setDeleteStep(deleteStep + 1)} style={S.dangerButton} />
+        : <Button title={deleteBusy ? '削除しています…' : 'すべてを完全に削除する'} icon="trash-outline" disabled={deleteBusy || deleteWord.trim() !== DELETE_CONFIRMATION_WORD} onPress={() => void deleteNow()} style={S.dangerButton} />}
+      <Button title="やめる" secondary disabled={deleteBusy} onPress={onBack} style={S.secondaryButton} />
+    </PagedBody>;
+  }
+
+  if (page === 'transfer' && appleLinked === true) {
+    return <PagedBody style={S.content} gap={12}>
+      <View style={S.statusCard}>
+        <WashiArt />
+        <View style={S.statusIcon}><Icon name="logo-apple" size={22} color={C.red} /></View>
+        <Text style={S.statusTitle}>Apple IDで引き継ぎます</Text>
+        <Text style={S.body}>Apple IDとつながっているので、引き継ぎコードは使いません。記録はサーバーに自動で保存されます。新しい端末で、はじめの画面から「Appleでサインイン」を選んでください。</Text>
+      </View>
       <Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} />
     </PagedBody>;
   }
@@ -224,13 +290,16 @@ export function AccountCenter({
     </View>
     <Section title="アカウントとデータ" />
     <Button title={appleLinked ? 'Apple IDの連携状況' : 'Appleでサインイン'} icon="logo-apple" secondary onPress={() => onNavigate('login')} />
-    <Button title="データ引き継ぎ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
+    {appleLinked !== true && <Button title="データ引き継ぎ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />}
+    <Section title="アカウントの削除" />
+    <Button title="アカウントを削除する" icon="trash-outline" secondary onPress={() => onNavigate('delete')} style={S.secondaryButton} />
     <View style={S.petLine}><Icon name="paw-outline" size={18} color={C.gold} /><Text style={S.summaryText}>現在の相棒: {getPetCharacter(localSummary.petId).name}</Text></View>
     <Text style={S.footnote}>Apple IDとつなぐと、御朱印・歩数・モビーの記録と、木札・フレンド・プロフィールを、機種変更で引き継げます。</Text>
   </PagedBody>;
 }
 
 const S = StyleSheet.create({
+  deleteInput: { minHeight: 44, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFFFF', color: C.ink, fontSize: 18, marginTop: 10, textAlign: 'center' },
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 12 },
   welcomeArt: { height: 92, width: 92, borderRadius: 46, alignSelf: 'center', backgroundColor: '#F1E7D8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: 5 },
   welcomeIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FFF9EF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E4D3BD' },

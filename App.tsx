@@ -20,6 +20,7 @@ import { buyPulls, drawPaidTickets, setAgeGroup, settleCredits, type AgeGroup, t
 import { createAppStore } from './src/services/appStore';
 import { friendCodeFromUrl } from './src/services/friends';
 import { isAppleLinked, linkApple, restoreWithApple } from './src/services/appleAccount';
+import { deleteServerAccount } from './src/services/accountDeletion';
 import { fetchPaidTickets } from './src/services/purchase';
 import { downloadSave, markRestored, setCloudLinked, uploadSave } from './src/services/cloudSave';
 import { fetchProfile, hasSavedProfileName, markProfileGuideShown, SOCIAL_ONLINE, syncProfilePet, wasProfileGuideShown } from './src/services/social';
@@ -923,8 +924,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           ><Icon name="chevron-back" size={21} color={C.red} /></Pressable>}
           <Text style={[M.modalTitle, (accountEntryVisible ? accountEntryPage : accountPage) !== 'welcome' && { flex: 1 }]}>
             {accountEntryVisible
-              ? ({ welcome: 'はじめての方へ', login: 'ログイン', transfer: 'データ引き継ぎ', manage: 'アカウント' } as const)[accountEntryPage]
-              : ({ manage: 'アカウント', login: 'ログイン', transfer: 'データ引き継ぎ', welcome: 'はじめての方へ' } as const)[accountPage ?? 'manage']}
+              ? ({ welcome: 'はじめての方へ', login: 'Appleでサインイン', transfer: 'データ引き継ぎ', manage: 'アカウント', delete: 'アカウントの削除' } as const)[accountEntryPage]
+              : ({ manage: 'アカウント', login: 'Appleでサインイン', transfer: 'データ引き継ぎ', welcome: 'はじめての方へ', delete: 'アカウントの削除' } as const)[accountPage ?? 'manage']}
           </Text>
           {!accountEntryVisible && <Close onPress={() => setAccountPage(null)} />}
         </View>
@@ -942,6 +943,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           onImportTransfer={journey.importTransfer}
           onFinishImport={finishAccountImport}
           appleLinked={appleLinked}
+          tickets={ticketCount(data.mobbies)}
+          onDeleteAccount={deleteServerAccount}
+          onAccountDeleted={() => {
+            // The server's copy is gone: erase this device too and return to the first screen.
+            void journey.eraseEverything().then(() => {
+              setAppleLinked(null);
+              setSocialSheet(null);
+              setSettings(false);
+              setAccountPage(null);
+              setAccountEntryPage('welcome');
+              setAccountEntryVisible(true);
+            });
+          }}
           onAppleStatus={() => { void isAppleLinked().then(setAppleLinked); }}
           onAppleLink={async () => {
             const outcome = await linkApple();
