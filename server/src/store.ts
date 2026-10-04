@@ -78,8 +78,10 @@ export class D1Store implements Store {
   async hitRateLimit(key: string, window: number): Promise<number> {
     const row = await this.db.prepare("INSERT INTO rate_limits (key, window, count) VALUES (?, ?, 1) ON CONFLICT (key, window) DO UPDATE SET count = count + 1 RETURNING count")
       .bind(key, window).first<{ count: number }>();
-    // Day counters are numbered in days and minute counters in minutes, so only same-kind rows this old are safe to drop.
-    await this.db.prepare("DELETE FROM rate_limits WHERE key = ? AND window < ?").bind(key, window).run();
+    // Counters of one kind ("register:minute:", "register:day:", ...) share a window numbering, so every older window of that kind is
+    // finished: drop them all, so a source address is not kept after its window has passed.
+    const kind = key.slice(0, key.lastIndexOf(":") + 1);
+    await this.db.prepare("DELETE FROM rate_limits WHERE substr(key, 1, ?) = ? AND window < ?").bind(kind.length, kind, window).run();
     return row?.count ?? 1;
   }
 
