@@ -1,4 +1,6 @@
 import React from 'react';
+import { Linking } from 'react-native';
+import { SERVER_URL } from '../services/server';
 import { playSfx } from '../services/audio';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from './AppImage';
@@ -35,10 +37,12 @@ export function GachaShop({ onBuy }: Props) {
   </View>;
   return <View style={S.root}>
     {SHOP_GROUPS.map(group)}
+    <Text accessibilityRole="link" onPress={() => void Linking.openURL(`${SERVER_URL}/legal`).catch(() => undefined)} style={S.legalLink}>特定商取引法に基づく表記</Text>
   </View>;
 }
 
 const S = StyleSheet.create({
+  legalLink: { color: '#D5BD98', fontSize: 12, textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 6 },
   root: { gap: 10, width: '100%', maxWidth: 380, alignSelf: 'center' },
   group: { gap: 6 },
   summary: { color: '#FFF8E9', fontSize: 12, lineHeight: 17, paddingHorizontal: 4, textShadowColor: '#000000CC', textShadowRadius: 5 },

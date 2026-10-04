@@ -804,3 +804,17 @@ test("the privacy policy page is public, shows the operator and contact, and mat
   assert.equal(readFileSync(new URL("../../docs/privacy-policy.md", import.meta.url), "utf8").replace(/\r\n/g, "\n"), PRIVACY_MARKDOWN, "docs/privacy-policy.md must be the same text");
   assert.equal(markdownToHtml("## <script>alert(1)</script>\n**bold** & more"), "<h2>&lt;script&gt;alert(1)&lt;/script&gt;</h2>\n<p><strong>bold</strong> &amp; more</p>");
 });
+
+test("the legal notice page is public, says name, address and phone are given on request, and matches the copy in docs", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { LEGAL_MARKDOWN } = await import("../src/legalNotice.ts");
+  const context = createContext();
+  const page = await call(context, "GET", "/legal");
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /text\/html/);
+  const html = await page.text();
+  assert.match(html, /<h1>特定商取引法に基づく表記<\/h1>/);
+  assert.equal((html.match(/請求があった場合、遅滞なく開示します/g) ?? []).length, 3, "operator, address and phone are given on request");
+  for (const needle of ["info@mobby.online", "木札1枚 300円", "木札5枚セット 1,200円", "iOS 15.1以上", "返品・キャンセルはお受けできません", "Appleの規約と手続き", "5,000円", "10,000円"]) assert.ok(html.includes(needle), needle);
+  assert.equal(readFileSync(new URL("../../docs/legal-notice.md", import.meta.url), "utf8").replace(/\r\n/g, "\n"), LEGAL_MARKDOWN, "docs/legal-notice.md must be the same text");
+});
