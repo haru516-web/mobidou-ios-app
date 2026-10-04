@@ -129,26 +129,16 @@ export async function wasProfileGuideShown() {
 
 export const markProfileGuideShown = () => AsyncStorage.setItem(PROFILE_GUIDE_KEY, '1').catch(() => undefined);
 
-const SAMPLE_CODE = 'MOBIA-BCD23';
+/** The code shown in 体験モード and while the friend features are off. */
+export const SAMPLE_FRIEND_CODE = 'MOBIA-BCD23';
 
-/** The code to give a friend. */
-export async function getMyFriendCode(demo = false) {
-  if (demo || !SOCIAL_ONLINE) return SAMPLE_CODE;
-  return (await fetchProfile())?.friendCode ?? '';
-}
-
-export async function fetchFriends({ demo }: { demo: boolean }): Promise<readonly Friend[]> {
-  if (demo) return SAMPLE_FRIENDS;
-  if (!SOCIAL_ONLINE) return [];
+/** Friends and the requests waiting for an answer, from one request to the server. */
+export async function fetchSocialOverview({ demo }: { demo: boolean }): Promise<{ friends: readonly Friend[]; requests: readonly FriendRequest[] }> {
+  if (demo) return { friends: SAMPLE_FRIENDS, requests: SAMPLE_REQUESTS };
+  if (!SOCIAL_ONLINE) return { friends: [], requests: [] };
   const reply = await authedRequest('/friends', { method: 'GET' });
-  return reply?.status === 200 ? readFriends(reply.data, isPetId, 'mobibou') as Friend[] : [];
-}
-
-export async function fetchFriendRequests({ demo }: { demo: boolean }): Promise<readonly FriendRequest[]> {
-  if (demo) return SAMPLE_REQUESTS;
-  if (!SOCIAL_ONLINE) return [];
-  const reply = await authedRequest('/friends', { method: 'GET' });
-  return reply?.status === 200 ? readFriendRequests(reply.data, isPetId, 'mobibou') as FriendRequest[] : [];
+  if (reply?.status !== 200) return { friends: [], requests: [] };
+  return { friends: readFriends(reply.data, isPetId, 'mobibou') as Friend[], requests: readFriendRequests(reply.data, isPetId, 'mobibou') as FriendRequest[] };
 }
 
 export async function sendFriendRequest(code: string): Promise<SocialWriteResult> {

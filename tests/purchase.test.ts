@@ -52,7 +52,7 @@ test('buying credits the 木札 and does NOT draw: the rope is still unpulled', 
   const { api, calls } = fakeApi();
   const { store, events } = fakeStore();
   const outcome = await buyPulls('pull5', store, api);
-  assert.deepEqual(outcome, { ok: true, paidTickets: 5 });
+  assert.deepEqual(outcome, { ok: true, wallet: { paid: 5, refundDebt: 0 } });
   assert.ok(!calls.some(call => call.startsWith('/gacha/pull')));
   assert.deepEqual(events, [`purchase:${FIVE}:user-1`, 'finish']);
 });
@@ -92,7 +92,7 @@ test('if the balance cannot be read after a verified purchase, the purchase stil
   const { api } = fakeApi();
   const { store } = fakeStore();
   const noWallet: PurchaseApi = { ...api, get: async path => (path === '/wallet' ? null : api.get(path)) };
-  assert.deepEqual(await buyPulls('pull1', store, noWallet), { ok: true, paidTickets: null });
+  assert.deepEqual(await buyPulls('pull1', store, noWallet), { ok: true, wallet: null });
 });
 
 test('settling re-verifies an unfinished receipt, finishes it, and reports the balance', async () => {
@@ -101,7 +101,7 @@ test('settling re-verifies an unfinished receipt, finishes it, and reports the b
   const other: PurchasedItem = { sku: 'something.else', jws: 'x', finish: async () => { finished.push('other'); } };
   const { api, calls } = fakeApi();
   const { store } = fakeStore({ unfinished: [pending, other] });
-  assert.equal(await settleCredits(store, api), 5);
+  assert.deepEqual(await settleCredits(store, api), { paid: 5, refundDebt: 0 });
   assert.deepEqual(finished, ['old']);
   assert.ok(calls.indexOf('/purchases/verify') < calls.indexOf('GET /wallet'));
 });

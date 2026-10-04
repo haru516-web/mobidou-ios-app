@@ -9,7 +9,7 @@ import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { PagedBody } from './PagedBody';
 import { SlicedArt } from './SlicedArt';
 import { IMG7, UI_ART7 } from '../data/uiArtRound7';
-import { answerFriendRequest, fetchFriendRequests, fetchFriends, fetchProfile, formatFriendCode, getMyFriendCode, saveProfile, sendFriendRequest, SOCIAL_ONLINE, type Friend, type FriendRequest, type Gift, type GiftItem } from '../services/social';
+import { answerFriendRequest, fetchProfile, fetchSocialOverview, formatFriendCode, SAMPLE_FRIEND_CODE, saveProfile, sendFriendRequest, SOCIAL_ONLINE, type Friend, type FriendRequest, type Gift, type GiftItem } from '../services/social';
 import { friendInviteLink } from '../services/friends';
 import { SERVER_URL } from '../services/server';
 
@@ -157,9 +157,9 @@ export function FriendsSheet({ visible, demo, pet, initialCode, onChangePet, onC
     let active = true;
     setNotice('');
     if (initialCode) setInput(initialCode);
-    void Promise.all([getMyFriendCode(demo), fetchFriends({ demo }), fetchFriendRequests({ demo }), demo ? Promise.resolve(null) : fetchProfile()]).then(([myCode, list, pending, profile]) => {
+    void Promise.all([demo ? Promise.resolve(null) : fetchProfile(), fetchSocialOverview({ demo })]).then(([profile, overview]) => {
       if (!active) return;
-      setCode(myCode); setFriends(list); setRequests(pending);
+      setCode(demo || !SOCIAL_ONLINE ? SAMPLE_FRIEND_CODE : profile?.friendCode ?? ''); setFriends(overview.friends); setRequests(overview.requests);
       if (profile) {
         setName(profile.name); setSavedName(profile.name);
         // The main Mobby may have changed since the name was saved; friends should see the current one.

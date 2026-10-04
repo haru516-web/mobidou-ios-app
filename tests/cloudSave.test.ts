@@ -27,6 +27,6 @@ test('the fingerprint tells records apart and is stable', () => {
 
 test('a damaged saved state falls back to a safe one', () => {
   assert.deepEqual(normalizeCloudState('x'), emptyCloudState());
-  assert.deepEqual(normalizeCloudState({ linked: 'yes', version: -3, hash: 5, at: 'now', conflict: 1 }), emptyCloudState());
-  assert.deepEqual(normalizeCloudState({ linked: true, version: 4, hash: 'h', at: 7, conflict: true }), { linked: true, version: 4, hash: 'h', at: 7, conflict: true });
+  assert.deepEqual(normalizeCloudState({ linked: 'yes', version: -3, hash: 5, at: 'now', conflict: 1, linkCheckedAt: 'x' }), emptyCloudState());
+  assert.deepEqual(normalizeCloudState({ linked: true, version: 4, hash: 'h', at: 7, conflict: true, linkCheckedAt: 9 }), { linked: true, version: 4, hash: 'h', at: 7, conflict: true, linkCheckedAt: 9 });
 });

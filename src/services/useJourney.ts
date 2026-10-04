@@ -14,7 +14,7 @@ import { localOmikujiDay } from '../data/omikuji';
 import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
 import { adoptServerAccount, readServerAccount, syncServer, type ServerAccount } from './server';
 import { fetchPaidTickets } from './purchase';
-import { uploadSave } from './cloudSave';
+import { MIN_UPLOAD_GAP_MS, uploadSave } from './cloudSave';
 import { isAppStorageKey } from './accountDeletion';
 
 const KEY = '@mobidou/journey/v1';
@@ -281,7 +281,8 @@ export function useJourney() {
   useEffect(() => {
     if (!ready) return;
     void refresh();
-    const timer = setInterval(() => { if (AppState.currentState === 'active' || AppState.currentState === null) void refresh(); }, 30000);
+    // Steps are read when the app opens or comes back, and now and then while it stays open (the phone counts them all the time anyway).
+    const timer = setInterval(() => { if (AppState.currentState === 'active' || AppState.currentState === null) void refresh(); }, 5 * 60_000);
     const subscription = AppState.addEventListener('change', value => { if (value === 'active') void refresh(); });
     return () => { clearInterval(timer); subscription.remove(); };
   }, [ready, data.demo, data.source, refresh]);
@@ -302,12 +303,15 @@ export function useJourney() {
     } catch (e) { setError(e instanceof Error ? e.message : '接続できませんでした。'); }
     finally { syncLock.current = false; setBusy(false); }
   };
-  // For players tied to an Apple ID, the whole record is kept on the server a little after it changes, and when the app leaves the screen.
+  // For players tied to an Apple ID the whole record is kept on the server: when the app is left (below), once shortly after it opens
+  // (after the steps were read), and as a safety every 15 minutes while it stays open. Nothing is sent when nothing changed.
+  const launchUploaded = useRef(false);
   useEffect(() => {
     if (!ready || data.demo || !data.onboarded) return undefined;
-    const timer = setTimeout(() => { void uploadSave(createTransferCode(current.current)); }, 20000);
-    return () => clearTimeout(timer);
-  }, [ready, data]);
+    const first = launchUploaded.current ? null : setTimeout(() => { launchUploaded.current = true; void uploadSave(createTransferCode(current.current), { force: true }); }, 15000);
+    const safety = setInterval(() => { void uploadSave(createTransferCode(current.current)); }, MIN_UPLOAD_GAP_MS);
+    return () => { if (first) clearTimeout(first); clearInterval(safety); };
+  }, [ready, data.demo, data.onboarded]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', value => {
       if ((value === 'background' || value === 'inactive') && !current.current.demo && current.current.onboarded) void uploadSave(createTransferCode(current.current), { force: true });

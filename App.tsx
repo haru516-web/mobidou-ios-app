@@ -22,7 +22,7 @@ import { friendCodeFromUrl } from './src/services/friends';
 import { isAppleLinked, linkApple, restoreWithApple } from './src/services/appleAccount';
 import { deleteServerAccount } from './src/services/accountDeletion';
 import { fetchPaidTickets, fetchWallet } from './src/services/purchase';
-import { downloadSave, markRestored, setCloudLinked, uploadSave } from './src/services/cloudSave';
+import { downloadSave, markRestored, readCloudLinked, setCloudLinked, uploadSave } from './src/services/cloudSave';
 import { fetchProfile, hasSavedProfileName, markProfileGuideShown, SOCIAL_ONLINE, syncProfilePet, wasProfileGuideShown } from './src/services/social';
 import { getBackgroundOption } from './src/data/backgrounds';
 import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilgrimages';
@@ -186,7 +186,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [appleLinked, setAppleLinked] = useState<boolean | null>(null);
   useEffect(() => {
     if (!journey.ready || data.demo) return;
-    void isAppleLinked().then(linked => { if (linked !== null) { setAppleLinked(linked); void setCloudLinked(linked); } });
+    // The link only changes through this app, so the saved answer is used at once and the server is asked at most every six hours.
+    void readCloudLinked().then(saved => {
+      setAppleLinked(saved.linked);
+      if (Date.now() - saved.checkedAt < 6 * 3_600_000) return;
+      void isAppleLinked().then(linked => { if (linked !== null) { setAppleLinked(linked); void setCloudLinked(linked); } });
+    });
   }, [journey.ready, data.demo]);
   const [accountEntryVisible, setAccountEntryVisible] = useState(false);
   const [accountEntryPage, setAccountEntryPage] = useState<AccountPage>('welcome');
@@ -198,11 +203,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const appStore = useMemo(createAppStore, []);
   // Bought 木札 and any refund debt, as the server says.
   const [refundDebt, setRefundDebt] = useState(0);
-  const refreshWallet = async () => {
-    const wallet = await fetchWallet();
-    if (!wallet) return;
+  const walletReadAt = useRef(0);
+  const applyWallet = (wallet: { paid: number; refundDebt: number }) => {
+    walletReadAt.current = Date.now();
     journey.setPaidTickets(wallet.paid);
     setRefundDebt(wallet.refundDebt);
+  };
+  /** Read the wallet again unless it was read within the last minute. */
+  const refreshWallet = async () => {
+    if (Date.now() - walletReadAt.current < 60_000) return;
+    const wallet = await fetchWallet();
+    if (wallet) applyWallet(wallet);
   };
   const purchasing = useRef(false);
   const buyProduct = async (product: { id: string; kind: 'pull' | 'plan' }) => {
@@ -212,7 +223,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     let askAge = false;
     try {
       const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore);
-      if (outcome.ok) { if (outcome.paidTickets !== null) journey.setPaidTickets(outcome.paidTickets); void refreshWallet(); return; }
+      if (outcome.ok) { if (outcome.wallet) applyWallet(outcome.wallet); return; }
       if (outcome.reason === 'age_needed') { askAge = true; return; }
       if (outcome.reason === 'limit') {
         Alert.alert('購入', `今月の購入の上限（${outcome.capYen.toLocaleString('ja-JP')}円）まで、あと${outcome.remainingYen.toLocaleString('ja-JP')}円です。この商品は上限を超えるため、購入できません。\n上限は、毎月1日にリセットされます。`);
@@ -244,7 +255,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Finish a purchase an earlier run left half done, and take the server's 木札 balance.
   useEffect(() => {
     if (!journey.ready || data.demo) return;
-    void settleCredits(appStore).then(paid => { if (paid !== null) journey.setPaidTickets(paid); void refreshWallet(); }).catch(() => undefined);
+    void settleCredits(appStore).then(wallet => { if (wallet) applyWallet(wallet); }).catch(() => undefined);
   }, [journey.ready, data.demo]);
   // A refund can arrive any time; look again whenever the gacha screen opens.
   useEffect(() => {

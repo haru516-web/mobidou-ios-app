@@ -22,8 +22,8 @@ export const PULL_PRODUCTS = {
 export type PullProductId = keyof typeof PULL_PRODUCTS;
 
 export type BuyOutcome =
-  /** `paidTickets` is the server's balance now, or null when it could not be read (it is read again at the next start). */
-  | { ok: true; paidTickets: number | null }
+  /** `wallet` is the server's balance now, or null when it could not be read (it is read again at the next start). */
+  | { ok: true; wallet: Wallet | null }
   | { ok: false; reason: 'cancelled' | 'offline' | 'unavailable' | 'verify_failed'; detail?: string }
   /** The player has not said which age group they are in yet; ask, call `setAgeGroup`, then buy again. */
   | { ok: false; reason: 'age_needed' }
@@ -107,7 +107,7 @@ export async function buyPulls(productId: PullProductId, store: PurchaseStore | 
 
   if (!(await verify(api, bought.jws))) return { ok: false, reason: 'verify_failed' };
   await bought.finish().catch(() => undefined);
-  return { ok: true, paidTickets: await fetchPaidTickets(api) };
+  return { ok: true, wallet: await fetchWallet(api) };
 }
 
 /**
@@ -115,11 +115,11 @@ export async function buyPulls(productId: PullProductId, store: PurchaseStore | 
  * never finished, then report the server's 木札 balance. Safe to call at every
  * start; returns null when the server cannot be reached.
  */
-export async function settleCredits(store: PurchaseStore | null, api: PurchaseApi = serverApi): Promise<number | null> {
+export async function settleCredits(store: PurchaseStore | null, api: PurchaseApi = serverApi): Promise<Wallet | null> {
   const known = new Set<string>(Object.values(PULL_PRODUCTS).map(product => product.sku));
   const pending = store ? (await store.unfinished().catch(() => [] as PurchasedItem[])).filter(item => known.has(item.sku)) : [];
   for (const item of pending) if (await verify(api, item.jws)) await item.finish().catch(() => undefined);
-  return fetchPaidTickets(api);
+  return fetchWallet(api);
 }
 
 export type PaidDraw = { results: PullResult[]; paidPulls: number; paidTickets: number; complete: boolean };

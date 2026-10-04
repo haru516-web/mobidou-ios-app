@@ -10,7 +10,8 @@ import { authedRequest } from './server.ts';
  */
 
 const STATE_KEY = '@mobidou/cloudsave/v1';
-export const MIN_UPLOAD_GAP_MS = 60_000;
+/** The record is also sent when the app is left, shortly after it opens, and when linking; this is only the gap for the safety send while the app stays open. */
+export const MIN_UPLOAD_GAP_MS = 15 * 60_000;
 
 export type CloudState = {
   /** The account is tied to an Apple ID (the server keeps saves for those only). */
@@ -23,9 +24,11 @@ export type CloudState = {
   at: number;
   /** The server holds a newer record from elsewhere; this device stops sending until it restores. */
   conflict: boolean;
+  /** When the Apple link was last asked of the server (epoch ms), so it is not asked at every start. */
+  linkCheckedAt: number;
 };
 
-export const emptyCloudState = (): CloudState => ({ linked: false, version: 0, hash: '', at: 0, conflict: false });
+export const emptyCloudState = (): CloudState => ({ linked: false, version: 0, hash: '', at: 0, conflict: false, linkCheckedAt: 0 });
 
 export function normalizeCloudState(value: unknown): CloudState {
   const s = value && typeof value === 'object' ? value as Partial<CloudState> : {};
@@ -35,6 +38,7 @@ export function normalizeCloudState(value: unknown): CloudState {
     hash: typeof s.hash === 'string' ? s.hash : '',
     at: Number.isFinite(s.at) ? Number(s.at) : 0,
     conflict: s.conflict === true,
+    linkCheckedAt: Number.isFinite(s.linkCheckedAt) ? Number(s.linkCheckedAt) : 0,
   };
 }
 
@@ -67,7 +71,13 @@ const saveState = (state: CloudState) => AsyncStorage.setItem(STATE_KEY, JSON.st
 /** Tell the saver whether the account is tied to an Apple ID. */
 export async function setCloudLinked(linked: boolean) {
   const state = await loadState();
-  if (state.linked !== linked) await saveState({ ...state, linked });
+  await saveState({ ...state, linked, linkCheckedAt: Date.now() });
+}
+
+/** What was last learned about the Apple link, without asking the server. */
+export async function readCloudLinked(): Promise<{ linked: boolean; checkedAt: number }> {
+  const state = await loadState();
+  return { linked: state.linked, checkedAt: state.linkCheckedAt };
 }
 
 let uploading = false;
@@ -107,5 +117,5 @@ export async function downloadSave(): Promise<{ record: string; version: number 
 
 /** This device now holds exactly what the server has, so the next upload builds on that version. */
 export async function markRestored(record: string, version: number) {
-  await saveState({ linked: true, version, hash: fingerprint(record), at: Date.now(), conflict: false });
+  await saveState({ linked: true, version, hash: fingerprint(record), at: Date.now(), conflict: false, linkCheckedAt: Date.now() });
 }
