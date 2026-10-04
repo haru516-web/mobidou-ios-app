@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { WashiInput } from './WashiInput';
-import { PagedBody } from './PagedBody';
 import { BRUSH, Button, C, Icon, SERIF, Section } from '../components';
 import { getPilgrimage } from '../data/pilgrimages';
 import { getPetCharacter, type PetId } from '../petCatalog';
@@ -43,6 +42,11 @@ type Props = {
   /** The account is gone: erase this device and go back to the first screen. */
   onAccountDeleted: () => void;
 };
+
+/** The account screens scroll up and down as one long page instead of being split into pages. */
+function AccountBody({ children }: { children: React.ReactNode }) {
+  return <ScrollView style={S.scroll} contentContainerStyle={S.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">{children}</ScrollView>;
+}
 
 export function AccountCenter({
   page,
@@ -143,7 +147,7 @@ export function AccountCenter({
   };
 
   if (page === 'welcome') {
-    return <PagedBody style={S.content} gap={12}>
+    return <AccountBody>
       <View style={S.welcomeArt}><WashiArt legacy /><View style={S.welcomeIcon}><Icon name="footsteps-outline" size={26} color={C.red} /></View></View>
       <Text style={S.kicker}>MOBIDOU · はじめの一歩</Text>
       <Text style={S.title}>旅の始め方を{'\n'}選んでください</Text>
@@ -152,11 +156,11 @@ export function AccountCenter({
       <Button title="データを引き継ぐ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />
       <Button title="Appleでサインイン" icon="logo-apple" secondary onPress={() => onNavigate('login')} style={S.secondaryButton} />
       <Text style={S.footnote}>機種変更のときは、前の端末でつないだApple IDでサインインすると、記録と木札・フレンド・プロフィールが戻ります。</Text>
-    </PagedBody>;
+    </AccountBody>;
   }
 
   if (page === 'login') {
-    return <PagedBody style={S.content} gap={12}>
+    return <AccountBody>
       <View style={S.statusCard}>
         <WashiArt />
         <View style={S.statusIcon}><Icon name="logo-apple" size={22} color={C.red} /></View>
@@ -173,7 +177,7 @@ export function AccountCenter({
       <Text style={S.body}>Apple IDとつなぐと、御朱印・歩数・集めたモビーの記録も、サーバーに自動で保存されます。つながないかぎり、記録は送りません。</Text>
       {appleLinked !== true && <Button title="データ引き継ぎへ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />}
       <Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} />
-    </PagedBody>;
+    </AccountBody>;
   }
 
   if (page === 'delete') {
@@ -185,7 +189,7 @@ export function AccountCenter({
       if (result === 'deleted') onAccountDeleted();
       else setDeleteMessage(result === 'offline' ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。削除は、まだ行われていません。' : '削除できませんでした。しばらくしてから、もう一度お試しください。削除は、まだ行われていません。');
     };
-    return <PagedBody style={S.content} gap={12}>
+    return <AccountBody>
       <View style={S.statusCard}>
         <WashiArt />
         <View style={S.statusIcon}><Icon name="trash-outline" size={22} color={C.red} /></View>
@@ -209,11 +213,11 @@ export function AccountCenter({
         ? <Button title={deleteStep === 1 ? '削除に進む' : '削除を続ける'} icon="arrow-forward" disabled={deleteBusy} onPress={() => setDeleteStep(deleteStep + 1)} style={S.dangerButton} />
         : <Button title={deleteBusy ? '削除しています…' : 'すべてを完全に削除する'} icon="trash-outline" disabled={deleteBusy || deleteWord.trim() !== DELETE_CONFIRMATION_WORD} onPress={() => void deleteNow()} style={S.dangerButton} />}
       <Button title="やめる" secondary disabled={deleteBusy} onPress={onBack} style={S.secondaryButton} />
-    </PagedBody>;
+    </AccountBody>;
   }
 
   if (page === 'transfer' && appleLinked === true) {
-    return <PagedBody style={S.content} gap={12}>
+    return <AccountBody>
       <View style={S.statusCard}>
         <WashiArt />
         <View style={S.statusIcon}><Icon name="logo-apple" size={22} color={C.red} /></View>
@@ -221,11 +225,11 @@ export function AccountCenter({
         <Text style={S.body}>Apple IDとつながっているので、引き継ぎコードは使いません。記録はサーバーに自動で保存されます。新しい端末で、はじめの画面から「Appleでサインイン」を選んでください。</Text>
       </View>
       <Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} />
-    </PagedBody>;
+    </AccountBody>;
   }
 
   if (page === 'transfer') {
-    return <PagedBody style={S.content} gap={12}>
+    return <AccountBody>
       {imported ? <>
         <View style={S.statusCard}>
           <WashiArt />
@@ -272,10 +276,10 @@ export function AccountCenter({
         {!!error && <Text key="error" accessibilityRole="alert" style={S.error}>{error}</Text>}
         <View key="tail" style={{ gap: 6 }}><Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} /><Text style={S.footnote}>引き継ぎコードには歩数・御朱印・設定などの記録が含まれます。ログイン情報や位置情報は含まれません。</Text></View>
       </>}
-    </PagedBody>;
+    </AccountBody>;
   }
 
-  return <PagedBody style={S.content} gap={12}>
+  return <AccountBody>
     <View style={S.statusCard}>
       <WashiArt />
       <View style={S.statusIcon}><Icon name="phone-portrait-outline" size={22} color={C.red} /></View>
@@ -295,10 +299,12 @@ export function AccountCenter({
     <Button title="アカウントを削除する" icon="trash-outline" secondary onPress={() => onNavigate('delete')} style={S.secondaryButton} />
     <View style={S.petLine}><Icon name="paw-outline" size={18} color={C.gold} /><Text style={S.summaryText}>現在の相棒: {getPetCharacter(localSummary.petId).name}</Text></View>
     <Text style={S.footnote}>Apple IDとつなぐと、御朱印・歩数・モビーの記録と、木札・フレンド・プロフィールを、機種変更で引き継げます。</Text>
-  </PagedBody>;
+  </AccountBody>;
 }
 
 const S = StyleSheet.create({
+  scroll: { flex: 1 },
+  scrollContent: { gap: 12, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 32 },
   deleteInput: { minHeight: 44, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: '#FFFFFF', color: C.ink, fontSize: 18, marginTop: 10, textAlign: 'center' },
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 12 },
   welcomeArt: { height: 92, width: 92, borderRadius: 46, alignSelf: 'center', backgroundColor: '#F1E7D8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: 5 },
