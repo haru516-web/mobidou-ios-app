@@ -309,7 +309,7 @@ export function useJourney() {
   }, [ready, data]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', value => {
-      if ((value === 'background' || value === 'inactive') && !current.current.demo && current.current.onboarded) void uploadSave(createTransferCode(current.current));
+      if ((value === 'background' || value === 'inactive') && !current.current.demo && current.current.onboarded) void uploadSave(createTransferCode(current.current), { force: true });
     });
     return () => subscription.remove();
   }, []);
@@ -411,6 +411,8 @@ export function useJourney() {
     devResetAll: async () => {
       if (!__DEV__) return;
       await writing.current.catch(() => {});
+      // Keep the latest record on the server before wiping this device (a linked account can restore it).
+      if (current.current.onboarded && !current.current.demo) await uploadSave(createTransferCode(current.current), { force: true });
       await AsyncStorage.removeItem(KEY);
       await AsyncStorage.removeItem(CORRUPTED_BACKUP_KEY);
       DevSettings.reload();

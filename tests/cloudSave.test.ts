@@ -12,6 +12,11 @@ test('the record is sent only for a linked account, when it changed, and not too
   assert.equal(shouldUpload({ ...linked, at: now - 1000 }, fingerprint('new'), now), false, 'just sent');
   assert.equal(shouldUpload({ ...linked, at: now - MIN_UPLOAD_GAP_MS }, fingerprint('new'), now), true);
   assert.equal(shouldUpload({ ...linked, conflict: true }, fingerprint('new'), now), false, 'the server has a newer record');
+  // Moments that matter skip the wait, but still need a linked account, a change, and no conflict.
+  assert.equal(shouldUpload({ ...linked, at: now - 1000 }, fingerprint('new'), now, true), true);
+  assert.equal(shouldUpload({ ...linked, at: now - 1000 }, fingerprint('old'), now, true), false);
+  assert.equal(shouldUpload({ ...emptyCloudState(), at: now - 1000 }, fingerprint('new'), now, true), false);
+  assert.equal(shouldUpload({ ...linked, conflict: true }, fingerprint('new'), now, true), false);
 });
 
 test('the fingerprint tells records apart and is stable', () => {

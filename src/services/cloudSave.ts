@@ -51,9 +51,12 @@ export function fingerprint(text: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
 }
 
-/** Whether the record should be sent now. */
-export function shouldUpload(state: CloudState, hash: string, now: number): boolean {
-  return state.linked && !state.conflict && hash !== state.hash && now - state.at >= MIN_UPLOAD_GAP_MS;
+/**
+ * Whether the record should be sent now. `force` skips the wait between sends: it is for moments that matter and are rare
+ * (the app leaving the screen, the first copy after linking, just before the record is wiped).
+ */
+export function shouldUpload(state: CloudState, hash: string, now: number, force = false): boolean {
+  return state.linked && !state.conflict && hash !== state.hash && (force || now - state.at >= MIN_UPLOAD_GAP_MS);
 }
 
 async function loadState() {
@@ -72,13 +75,14 @@ let uploading = false;
 export type UploadResult = 'uploaded' | 'skipped' | 'conflict' | 'failed';
 
 /** Send the record (the text of a 引き継ぎコード without the account's secret) if it is due. Never throws. */
-export async function uploadSave(record: string, now = Date.now()): Promise<UploadResult> {
+export async function uploadSave(record: string, options: { now?: number; force?: boolean } = {}): Promise<UploadResult> {
+  const now = options.now ?? Date.now();
   if (uploading) return 'skipped';
   uploading = true;
   try {
     const state = await loadState();
     const hash = fingerprint(record);
-    if (!shouldUpload(state, hash, now)) return 'skipped';
+    if (!shouldUpload(state, hash, now, options.force)) return 'skipped';
     const reply = await authedRequest('/save', { body: { data: record, baseVersion: state.version } });
     if (reply?.status === 200 && typeof reply.data?.version === 'number') {
       await saveState({ ...state, version: reply.data.version, hash, at: now });

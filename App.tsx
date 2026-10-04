@@ -949,7 +949,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               setAppleLinked(true);
               await setCloudLinked(true);
               // From now on the record is kept on the server; send the first copy right away.
-              void journey.exportRecord().then(record => uploadSave(record, Date.now() + 120000));
+              void journey.exportRecord().then(record => uploadSave(record, { force: true }));
             }
             return outcome;
           }}
