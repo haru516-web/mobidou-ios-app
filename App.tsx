@@ -21,7 +21,7 @@ import { createAppStore } from './src/services/appStore';
 import { friendCodeFromUrl } from './src/services/friends';
 import { isAppleLinked, linkApple, restoreWithApple } from './src/services/appleAccount';
 import { deleteServerAccount } from './src/services/accountDeletion';
-import { fetchPaidTickets } from './src/services/purchase';
+import { fetchPaidTickets, fetchWallet } from './src/services/purchase';
 import { downloadSave, markRestored, setCloudLinked, uploadSave } from './src/services/cloudSave';
 import { fetchProfile, hasSavedProfileName, markProfileGuideShown, SOCIAL_ONLINE, syncProfilePet, wasProfileGuideShown } from './src/services/social';
 import { getBackgroundOption } from './src/data/backgrounds';
@@ -196,6 +196,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [gachaOpen, setGachaOpen] = useState(false);
   const [gachaOnShop, setGachaOnShop] = useState(false);
   const appStore = useMemo(createAppStore, []);
+  // Bought 木札 and any refund debt, as the server says.
+  const [refundDebt, setRefundDebt] = useState(0);
+  const refreshWallet = async () => {
+    const wallet = await fetchWallet();
+    if (!wallet) return;
+    journey.setPaidTickets(wallet.paid);
+    setRefundDebt(wallet.refundDebt);
+  };
   const purchasing = useRef(false);
   const buyProduct = async (product: { id: string; kind: 'pull' | 'plan' }) => {
     if (product.kind !== 'pull') { Alert.alert('準備中です', '毎月のプランは、もうしばらくお待ちください。'); return; }
@@ -204,7 +212,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     let askAge = false;
     try {
       const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore);
-      if (outcome.ok) { if (outcome.paidTickets !== null) journey.setPaidTickets(outcome.paidTickets); return; }
+      if (outcome.ok) { if (outcome.paidTickets !== null) journey.setPaidTickets(outcome.paidTickets); void refreshWallet(); return; }
       if (outcome.reason === 'age_needed') { askAge = true; return; }
       if (outcome.reason === 'limit') {
         Alert.alert('購入', `今月の購入の上限（${outcome.capYen.toLocaleString('ja-JP')}円）まで、あと${outcome.remainingYen.toLocaleString('ja-JP')}円です。この商品は上限を超えるため、購入できません。\n上限は、毎月1日にリセットされます。`);
@@ -236,8 +244,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Finish a purchase an earlier run left half done, and take the server's 木札 balance.
   useEffect(() => {
     if (!journey.ready || data.demo) return;
-    void settleCredits(appStore).then(paid => { if (paid !== null) journey.setPaidTickets(paid); }).catch(() => undefined);
+    void settleCredits(appStore).then(paid => { if (paid !== null) journey.setPaidTickets(paid); void refreshWallet(); }).catch(() => undefined);
   }, [journey.ready, data.demo]);
+  // A refund can arrive any time; look again whenever the gacha screen opens.
+  useEffect(() => {
+    if (gachaOpen && journey.ready && !data.demo) void refreshWallet();
+  }, [gachaOpen]);
   // The rope was pulled: free 木札 go first and are drawn on the device; the rest are bought ones, drawn by the server.
   const drawTickets = async (count: number): Promise<boolean> => {
     const mobbies = data.mobbies;
@@ -991,7 +1003,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <ConnectStepsPrompt visible={firstRunStage === 'connectSteps'} busy={journey.busy} error={journey.error} onConnect={() => void journey.connect().then(() => setFirstRunStage(null))} onLater={() => setFirstRunStage(null)} />
     {weeklyOpen && <WeeklyReview visible summary={weeklySummary} petName={pet.name} petImage={pet.image} places={weeklyPlaces} onClose={() => { journey.markWeekSeen(weekStartDay()); setWeeklyOpen(false); }} />}
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
-    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={ticketCount(data.mobbies)} passes={journey.special.passes.keychainDrop} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={drawTickets} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={ticketCount(data.mobbies)} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={(__DEV__ || gachaOnShop) && firstRunStage !== 'gacha'} startOnShop={gachaOnShop} onBuy={buyProduct} />}</Modal>
+    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={ticketCount(data.mobbies)} passes={journey.special.passes.keychainDrop} refundDebt={refundDebt} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={drawTickets} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={ticketCount(data.mobbies)} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={(__DEV__ || gachaOnShop) && firstRunStage !== 'gacha'} startOnShop={gachaOnShop} onBuy={buyProduct} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); openBookPage(index); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
   </SafeAreaView></View>;
 }

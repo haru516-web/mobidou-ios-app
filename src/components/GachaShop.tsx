@@ -10,12 +10,14 @@ import { GACHA_UI_ART, SHOP_PRODUCT_ART } from '../data/gachaUiArt';
 import { SlicedArt } from './SlicedArt';
 
 type Props = {
+  /** Tickets owed back after a refund: the next purchase pays this off first. */
+  refundDebt?: number;
   /** Start a purchase. Omit while the App Store connection is not available: the buttons then say so. */
   onBuy?: (product: ShopProduct) => void;
 };
 
 /** The shop tab of the gacha screen: single and five pulls, and the monthly plans. */
-export function GachaShop({ onBuy }: Props) {
+export function GachaShop({ onBuy, refundDebt = 0 }: Props) {
   const group = ({ kind, heading, summary }: typeof SHOP_GROUPS[number]) => <View key={kind} style={S.group}>
     <View style={S.headingPlate}>
       <SlicedArt art={GACHA_UI_ART.shopHeading} />
@@ -36,12 +38,14 @@ export function GachaShop({ onBuy }: Props) {
     </View>)}
   </View>;
   return <View style={S.root}>
+    {refundDebt > 0 && <Text accessibilityLiveRegion="polite" style={S.debtNote}>返金があったため、木札{refundDebt}枚分は、次にご購入の木札から差し引かれます。差し引きが終わるまで、購入した木札は手元に増えません。</Text>}
     {SHOP_GROUPS.map(group)}
     <Text accessibilityRole="link" onPress={() => void Linking.openURL(`${SERVER_URL}/legal`).catch(() => undefined)} style={S.legalLink}>特定商取引法に基づく表記</Text>
   </View>;
 }
 
 const S = StyleSheet.create({
+  debtNote: { color: '#FFF8E9', fontSize: 12, lineHeight: 18, paddingHorizontal: 8, textShadowColor: '#000000CC', textShadowRadius: 5 },
   legalLink: { color: '#D5BD98', fontSize: 12, textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 6 },
   root: { gap: 10, width: '100%', maxWidth: 380, alignSelf: 'center' },
   group: { gap: 6 },

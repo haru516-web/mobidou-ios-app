@@ -199,3 +199,13 @@ test('limits and the age group are read and written through the server', async (
   assert.equal(await setAgeGroup('adult', fakeApi({ '/profile/age-group': () => reply(409, { error: 'age_group_cannot_be_raised' }) }).api), false);
   assert.equal(await fetchLimits(fakeApi({ 'GET /limits': () => reply(500, null) }).api), null);
 });
+
+test('the wallet reports bought 木札 and the refund debt, and treats a missing or odd debt as none', async () => {
+  const { fetchWallet } = await import('../src/services/purchase.ts');
+  const reading = (data: Record<string, unknown> | null, status = 200) => fakeApi({ 'GET /wallet': () => reply(status, data) }).api;
+  assert.deepEqual(await fetchWallet(reading({ paid: 2, refundDebt: 3 })), { paid: 2, refundDebt: 3 });
+  assert.deepEqual(await fetchWallet(reading({ paid: 2 })), { paid: 2, refundDebt: 0 });
+  assert.deepEqual(await fetchWallet(reading({ paid: 2, refundDebt: -1 })), { paid: 2, refundDebt: 0 });
+  assert.equal(await fetchWallet(reading({ paid: -1 })), null);
+  assert.equal(await fetchWallet(reading({}, 500)), null);
+});

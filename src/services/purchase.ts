@@ -54,11 +54,23 @@ export const serverApi: PurchaseApi = {
 
 const ok = (reply: Reply) => reply !== null && reply.status >= 200 && reply.status < 300;
 
+export type Wallet = { paid: number; refundDebt: number };
+
+/**
+ * Bought 木札 the server holds for this account, and how many are owed back after a refund (the next purchase pays that off
+ * first). Null when the server cannot say.
+ */
+export async function fetchWallet(api: PurchaseApi = serverApi): Promise<Wallet | null> {
+  const reply = await api.get('/wallet');
+  const paid = reply?.data?.paid;
+  const debt = reply?.data?.refundDebt;
+  if (!ok(reply) || typeof paid !== 'number' || !Number.isFinite(paid) || paid < 0) return null;
+  return { paid, refundDebt: typeof debt === 'number' && Number.isFinite(debt) && debt > 0 ? debt : 0 };
+}
+
 /** Bought 木札 the server holds for this account, or null when the server cannot say. */
 export async function fetchPaidTickets(api: PurchaseApi = serverApi): Promise<number | null> {
-  const wallet = await api.get('/wallet');
-  const paid = wallet?.data?.paid;
-  return ok(wallet) && typeof paid === 'number' && Number.isFinite(paid) && paid >= 0 ? paid : null;
+  return (await fetchWallet(api))?.paid ?? null;
 }
 
 /** The spending cap and what is left of it this month, or null when the server cannot say. */
