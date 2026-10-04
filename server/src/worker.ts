@@ -67,7 +67,9 @@ function configuredProducts(env: Env): Record<string, ProductDefinition> {
   for (const [id, product] of Object.entries(products)) {
     const validAmount = (amount: number | undefined): boolean => amount === undefined || (Number.isSafeInteger(amount) && amount >= 0);
     if (!id || !product || (product.plan !== undefined && typeof product.plan !== "string") ||
-        !validAmount(product.monthlyTickets) || !validAmount(product.paidPulls) || !validAmount(product.priceYen)) {
+        !validAmount(product.monthlyTickets) || !validAmount(product.paidPulls) || !validAmount(product.priceYen) ||
+        // Tickets and a plan in one product are not supported: a refund could not tell which part to take back.
+        ((product.paidPulls ?? 0) > 0 && ((product.monthlyTickets ?? 0) > 0 || product.plan !== undefined))) {
       throw new HttpError(500, "invalid_product_configuration");
     }
   }
@@ -210,7 +212,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
         transaction = await verifySignedTransaction(data.signedTransactionInfo, env);
       } catch { throw new HttpError(400, "invalid_notification_transaction"); }
       if (transaction.revocationDate || notification.notificationType === "REFUND" || notification.notificationType === "REVOKE") {
-        await store.revokePurchase(transaction.transactionId);
+        await store.revokePurchase(transaction.transactionId, configuredProducts(env)[transaction.productId]?.paidPulls ?? 0);
       } else if (transaction.appAccountToken) {
         const user = await store.user(transaction.appAccountToken);
         const product = configuredProducts(env)[transaction.productId];
@@ -330,7 +332,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     if (!transaction.appAccountToken) throw new HttpError(400, "missing_app_account_token");
     if (transaction.appAccountToken !== userId) throw new HttpError(403, "app_account_token_mismatch");
     if (transaction.revocationDate) {
-      await store.revokePurchase(transaction.transactionId);
+      await store.revokePurchase(transaction.transactionId, product.paidPulls ?? 0);
       return json({ status: "revoked" });
     }
     const effectiveProduct = transaction.expiresDate && transaction.expiresDate <= now.getTime()

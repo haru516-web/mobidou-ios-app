@@ -185,6 +185,32 @@ CREATE TABLE IF NOT EXISTS cloud_saves (
   updated_at TEXT NOT NULL
 );
 
+-- A refund takes back the unspent tickets of that purchase; what was already spent becomes a debt that the next purchase pays off first.
+CREATE TABLE IF NOT EXISTS refund_debt (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  pulls INTEGER NOT NULL CHECK (pulls >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS refund_events (
+  transaction_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pulls INTEGER NOT NULL,
+  taken INTEGER NOT NULL,
+  debt INTEGER NOT NULL,
+  debt_applied INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
+-- How a purchase's tickets were split between paying off a debt and the wallet.
+CREATE TABLE IF NOT EXISTS purchase_settlements (
+  transaction_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pulls INTEGER NOT NULL,
+  paid_off INTEGER NOT NULL,
+  credited INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS rate_limits (
   key TEXT NOT NULL,
   window INTEGER NOT NULL,

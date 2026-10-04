@@ -122,8 +122,9 @@ export interface Store {
   consumeTickets(userId: string, amount: number, ref: string): Promise<boolean>;
   grantMonthlyTickets(userId: string, plan: string, periodStart: string, periodEnd: string, amount: number): Promise<boolean>;
   recordPurchase(userId: string, transaction: VerifiedTransaction, product: ProductDefinition): Promise<boolean>;
-  revokePurchase(transactionId: string): Promise<void>;
-  wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number }>;
+  /** Apple refunded this purchase: take back its unspent tickets and record the spent part as a debt. Safe to repeat. */
+  revokePurchase(transactionId: string, paidPulls?: number): Promise<void>;
+  wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number; refundDebt: number }>;
   ownedPets(userId: string): Promise<Record<string, number>>;
   chooseStarter(userId: string, petId: string): Promise<boolean>;
   /** Raise each pet's copy count to at least the given number (never lowers it). */

@@ -156,8 +156,21 @@ export class D1Store implements Store {
       this.db.prepare("INSERT OR IGNORE INTO purchases (apple_transaction_id, user_id, product_id, original_transaction_id, granted_at, revoked_at) VALUES (?, ?, ?, ?, ?, NULL)")
         .bind(transaction.transactionId, userId, transaction.productId, transaction.originalTransactionId ?? null, now)
     ];
-    if ((product.paidPulls ?? 0) > 0) statements.push(this.db.prepare("INSERT OR IGNORE INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at) SELECT ?, ?, 'paid', ?, 'purchase', ?, ? WHERE changes() = 1")
-      .bind(ledgerId(), userId, product.paidPulls, transaction.transactionId, now));
+    if ((product.paidPulls ?? 0) > 0) {
+      // The tickets first pay off any refund debt; only the rest reaches the wallet. Every step is repeat-safe, and the batch is atomic.
+      const pulls = product.paidPulls as number;
+      const debt = "COALESCE((SELECT pulls FROM refund_debt WHERE user_id = ?), 0)";
+      statements.push(
+        this.db.prepare(`INSERT OR IGNORE INTO purchase_settlements (transaction_id, user_id, pulls, paid_off, credited, created_at)
+          SELECT ?, ?, ?, MIN(?, ${debt}), ? - MIN(?, ${debt}), ? WHERE changes() = 1`)
+          .bind(transaction.transactionId, userId, pulls, pulls, userId, pulls, pulls, userId, now),
+        this.db.prepare("UPDATE refund_debt SET pulls = pulls - (SELECT paid_off FROM purchase_settlements WHERE transaction_id = ?) WHERE user_id = ? AND changes() = 1")
+          .bind(transaction.transactionId, userId),
+        this.db.prepare(`INSERT OR IGNORE INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at)
+          SELECT 'purchase:' || transaction_id, user_id, 'paid', credited, 'purchase', transaction_id, ? FROM purchase_settlements WHERE transaction_id = ? AND credited > 0`)
+          .bind(now, transaction.transactionId)
+      );
+    }
     if (product.plan && (product.monthlyTickets ?? 0) > 0 && transaction.expiresDate) {
       const start = new Date(transaction.purchaseDate).toISOString();
       const end = new Date(transaction.expiresDate).toISOString();
@@ -171,19 +184,38 @@ export class D1Store implements Store {
     }
     const results = await this.db.batch(statements);
     const granted = (results[0]?.meta?.changes ?? 0) > 0;
-    if (transaction.revocationDate) await this.revokePurchase(transaction.transactionId);
+    if (transaction.revocationDate) await this.revokePurchase(transaction.transactionId, product.paidPulls ?? 0);
     return granted;
   }
 
-  async revokePurchase(transactionId: string): Promise<void> {
-    await this.db.prepare("UPDATE purchases SET revoked_at = ? WHERE apple_transaction_id = ?").bind(nowIso(), transactionId).run();
+  async revokePurchase(transactionId: string, paidPulls = 0): Promise<void> {
+    const now = nowIso();
+    const statements = [this.db.prepare("UPDATE purchases SET revoked_at = ? WHERE apple_transaction_id = ? AND revoked_at IS NULL").bind(now, transactionId)];
+    if (paidPulls > 0) {
+      // Take back what is still unspent, up to this purchase's tickets; what was already spent becomes a debt.
+      statements.push(
+        this.db.prepare(`INSERT OR IGNORE INTO refund_events (transaction_id, user_id, pulls, taken, debt, created_at)
+          SELECT p.apple_transaction_id, p.user_id, ?, MIN(?, w.paid_balance), ? - MIN(?, w.paid_balance), ?
+          FROM purchases p JOIN gacha_wallet w ON w.user_id = p.user_id WHERE p.apple_transaction_id = ?`)
+          .bind(paidPulls, paidPulls, paidPulls, paidPulls, now, transactionId),
+        this.db.prepare(`INSERT OR IGNORE INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at)
+          SELECT 'refund:' || transaction_id, user_id, 'paid', -taken, 'refund', transaction_id, ? FROM refund_events WHERE transaction_id = ? AND taken > 0`)
+          .bind(now, transactionId),
+        this.db.prepare(`INSERT INTO refund_debt (user_id, pulls) SELECT user_id, debt FROM refund_events WHERE transaction_id = ? AND debt > 0 AND debt_applied = 0
+          ON CONFLICT (user_id) DO UPDATE SET pulls = pulls + excluded.pulls`)
+          .bind(transactionId),
+        this.db.prepare("UPDATE refund_events SET debt_applied = 1 WHERE transaction_id = ?").bind(transactionId)
+      );
+    }
+    await this.db.batch(statements);
   }
 
-  async wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number }> {
-    const row = await this.db.prepare(`SELECT w.paid_balance, w.free_balance, COALESCE(s.paid_pull_count, 0) AS paid_pulls
+  async wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number; refundDebt: number }> {
+    const row = await this.db.prepare(`SELECT w.paid_balance, w.free_balance, COALESCE(s.paid_pull_count, 0) AS paid_pulls,
+        COALESCE((SELECT pulls FROM refund_debt WHERE user_id = w.user_id), 0) AS refund_debt
       FROM gacha_wallet w LEFT JOIN gacha_state s ON s.user_id = w.user_id WHERE w.user_id = ?`)
-      .bind(userId).first<{ paid_balance: number; free_balance: number; paid_pulls: number }>();
-    return { paid: row?.paid_balance ?? 0, free: row?.free_balance ?? 0, paidPulls: row?.paid_pulls ?? 0 };
+      .bind(userId).first<{ paid_balance: number; free_balance: number; paid_pulls: number; refund_debt: number }>();
+    return { paid: row?.paid_balance ?? 0, free: row?.free_balance ?? 0, paidPulls: row?.paid_pulls ?? 0, refundDebt: row?.refund_debt ?? 0 };
   }
 
   async ownedPets(userId: string): Promise<Record<string, number>> {

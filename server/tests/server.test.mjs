@@ -66,7 +66,11 @@ class MemoryStore {
     this.purchases.set(transaction.transactionId, userId);
     this.purchaseLog.push({ id: transaction.transactionId, userId, productId: transaction.productId, at: new Date(transaction.purchaseDate).toISOString() });
     const wallet = this.walletRows.get(userId);
-    wallet.paid += product.paidPulls ?? 0;
+    const pulls = product.paidPulls ?? 0;
+    const owed = this.refundDebts.get(userId) ?? 0;
+    const paidOff = Math.min(pulls, owed);
+    this.refundDebts.set(userId, owed - paidOff);
+    wallet.paid += pulls - paidOff;
     if (product.plan && product.monthlyTickets && transaction.expiresDate) {
       await this.grantMonthlyTickets(userId, product.plan, new Date(transaction.purchaseDate).toISOString(), new Date(transaction.expiresDate).toISOString(), product.monthlyTickets);
     } else if (product.monthlyTickets) {
@@ -74,13 +78,25 @@ class MemoryStore {
     }
     return true;
   }
-  async revokePurchase(transactionId) { this.purchases.delete(transactionId); this.purchaseLog = this.purchaseLog.filter((entry) => entry.id !== transactionId); }
+  refundDebts = new Map();
+  refunded = new Set();
+  async revokePurchase(transactionId, paidPulls = 0) {
+    const userId = this.purchases.get(transactionId);
+    this.purchases.delete(transactionId);
+    this.purchaseLog = this.purchaseLog.filter((entry) => entry.id !== transactionId);
+    if (!userId || !paidPulls || this.refunded.has(transactionId)) return;
+    this.refunded.add(transactionId);
+    const wallet = this.walletRows.get(userId);
+    const taken = Math.min(paidPulls, wallet.paid);
+    wallet.paid -= taken;
+    this.refundDebts.set(userId, (this.refundDebts.get(userId) ?? 0) + paidPulls - taken);
+  }
   purchaseLog = [];
   ageGroups = new Map();
   async ageGroup(userId) { return this.ageGroups.get(userId) ?? null; }
   async setAgeGroup(userId, group) { this.ageGroups.set(userId, group); }
   async purchasedProducts(userId, from, to) { return this.purchaseLog.filter((entry) => entry.userId === userId && entry.at >= from && entry.at < to).map((entry) => entry.productId); }
-  async wallet(userId) { return { ...this.walletRows.get(userId), paidPulls: this.paidPullCounts.get(userId) ?? 0 }; }
+  async wallet(userId) { return { ...this.walletRows.get(userId), paidPulls: this.paidPullCounts.get(userId) ?? 0, refundDebt: this.refundDebts.get(userId) ?? 0 }; }
   async ownedPets(userId) { return { ...(this.owned.get(userId) ?? {}) }; }
   async chooseStarter(userId, petId) {
     const owned = this.owned.get(userId) ?? {};
@@ -462,7 +478,7 @@ test("a failed five-pull commits no balance, ownership, history, or paid-pity ch
   context.store.failNextCommit = true;
   const response = await call(context, "POST", "/gacha/pull", { count: 5, kind: "paid" }, account.userId, undefined, () => 0);
   assert.equal(response.status, 409);
-  assert.deepEqual(await context.store.wallet(account.userId), { paid: 5, free: 0, paidPulls: 22 });
+  assert.deepEqual(await context.store.wallet(account.userId), { paid: 5, free: 0, paidPulls: 22, refundDebt: 0 });
   assert.deepEqual(await context.store.ownedPets(account.userId), {});
   assert.equal(context.store.pulls.length, 0);
 });
@@ -588,7 +604,7 @@ test("GET /wallet reports the balances of the signed-in user", async () => {
   context.store.walletRows.get(account.userId).paid = 3;
   const response = await call(context, "GET", "/wallet", undefined, account.userId);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { paid: 3, free: 0, paidPulls: 0 });
+  assert.deepEqual(await response.json(), { paid: 3, free: 0, paidPulls: 0, refundDebt: 0 });
 });
 
 test("monthly spending cap by age group: set once, can be lowered but not raised, counted per Tokyo month", async () => {

@@ -45,7 +45,7 @@ test("D1 schema and ledger operations enforce idempotency and wallet constraints
   assert.equal(await store.claimGift(alice.id, { id: "welcome", title: "Welcome", tickets: 3, freePulls: 1 }), true);
   assert.equal(await store.claimGift(alice.id, { id: "welcome", title: "Welcome", tickets: 3, freePulls: 1 }), false);
   assert.equal(await store.ticketBalance(alice.id), 3);
-  assert.deepEqual(await store.wallet(alice.id), { paid: 0, free: 1, paidPulls: 0 });
+  assert.deepEqual(await store.wallet(alice.id), { paid: 0, free: 1, paidPulls: 0, refundDebt: 0 });
 
   assert.equal(await store.grantMonthlyTickets(alice.id, "plus", "2026-09", "2026-10", 10), true);
   assert.equal(await store.grantMonthlyTickets(alice.id, "plus", "2026-09", "2026-10", 10), false);
@@ -60,17 +60,17 @@ test("D1 schema and ledger operations enforce idempotency and wallet constraints
   assert.equal(await store.ticketBalance(alice.id), 10);
   const paidTransaction = { ...transaction, transactionId: "apple-tx-2", productId: "gacha" };
   assert.equal(await store.recordPurchase(alice.id, paidTransaction, { paidPulls: 5 }), true);
-  assert.deepEqual(await store.wallet(alice.id), { paid: 5, free: 1, paidPulls: 0 });
+  assert.deepEqual(await store.wallet(alice.id), { paid: 5, free: 1, paidPulls: 0, refundDebt: 0 });
 
   assert.equal(await store.chooseStarter(alice.id, "mobibou"), true);
   assert.equal(await store.chooseStarter(alice.id, "mobirin"), false);
   assert.deepEqual(await store.ownedPets(alice.id), { mobibou: 1 });
   assert.equal(await store.claimFreePull(alice.id, "route-a"), true);
   assert.equal(await store.claimFreePull(alice.id, "route-a"), false);
-  assert.deepEqual(await store.wallet(alice.id), { paid: 5, free: 2, paidPulls: 0 });
+  assert.deepEqual(await store.wallet(alice.id), { paid: 5, free: 2, paidPulls: 0, refundDebt: 0 });
 
   await store.commitDraws(alice.id, [{ petId: "mobibou", kind: "free", isNew: false, guaranteed: false }], "free", 0);
-  assert.deepEqual(await store.wallet(alice.id), { paid: 5, free: 1, paidPulls: 0 });
+  assert.deepEqual(await store.wallet(alice.id), { paid: 5, free: 1, paidPulls: 0, refundDebt: 0 });
   assert.deepEqual(await store.ownedPets(alice.id), { mobibou: 2 });
   await assert.rejects(() => store.commitDraws(alice.id, [
     { petId: "mobirin", kind: "paid", isNew: true, guaranteed: false },
@@ -79,7 +79,7 @@ test("D1 schema and ledger operations enforce idempotency and wallet constraints
     { petId: "mobichi", kind: "paid", isNew: true, guaranteed: false },
     { petId: "mobibou", kind: "paid", isNew: false, guaranteed: false }
   ], "paid", 5));
-  assert.deepEqual(await store.wallet(alice.id), { paid: 5, free: 1, paidPulls: 0 });
+  assert.deepEqual(await store.wallet(alice.id), { paid: 5, free: 1, paidPulls: 0, refundDebt: 0 });
   assert.deepEqual(await store.ownedPets(alice.id), { mobibou: 2 });
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM gacha_pulls WHERE user_id = ?").get(alice.id).count, 1);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM gacha_wallet_ledger WHERE reason = 'gacha_pull' AND currency = 'paid'").get().count, 0);
@@ -178,11 +178,14 @@ test("D1 deleting a user removes every row that belongs to the user and leaves o
   database.prepare("INSERT INTO purchases (apple_transaction_id, user_id, product_id, original_transaction_id, granted_at, revoked_at) VALUES ('tx-1', 'gone', 'p', NULL, '2026-10-01T00:00:00.000Z', NULL)").run();
   database.prepare("INSERT INTO gacha_pulls (id, user_id, result_pet_id, pulled_at, kind, is_new, guaranteed) VALUES ('pull-1', 'gone', 'pet-a', '2026-10-01T00:00:00.000Z', 'paid', 1, 0)").run();
   await store.claimFreePull("stay", "route-9");
+  database.prepare("INSERT INTO refund_debt (user_id, pulls) VALUES ('gone', 2)").run();
+  database.prepare("INSERT INTO refund_events (transaction_id, user_id, pulls, taken, debt, debt_applied, created_at) VALUES ('tx-r', 'gone', 5, 3, 2, 1, '2026-10-01T00:00:00.000Z')").run();
+  database.prepare("INSERT INTO purchase_settlements (transaction_id, user_id, pulls, paid_off, credited, created_at) VALUES ('tx-s', 'gone', 5, 0, 5, '2026-10-01T00:00:00.000Z')").run();
 
   await store.deleteUser("gone");
 
   // Every table with a column that points at a user must have no row for the deleted user.
-  const columns = { users: "id", friendships: "user_id", friend_requests: "from_id", purchases: "user_id", entitlements: "user_id", ticket_ledger: "user_id", gift_claims: "user_id", gacha_wallet: "user_id", gacha_wallet_ledger: "user_id", gacha_pulls: "user_id", gacha_state: "user_id", user_pets: "user_id", free_pull_claims: "user_id", event_members: "user_id", event_steps: "user_id", apple_links: "user_id", user_limits: "user_id", cloud_saves: "user_id" };
+  const columns = { users: "id", friendships: "user_id", friend_requests: "from_id", purchases: "user_id", entitlements: "user_id", ticket_ledger: "user_id", gift_claims: "user_id", gacha_wallet: "user_id", gacha_wallet_ledger: "user_id", gacha_pulls: "user_id", gacha_state: "user_id", user_pets: "user_id", free_pull_claims: "user_id", event_members: "user_id", event_steps: "user_id", apple_links: "user_id", user_limits: "user_id", cloud_saves: "user_id", refund_debt: "user_id", refund_events: "user_id", purchase_settlements: "user_id" };
   for (const [table, column] of Object.entries(columns)) {
     assert.equal(database.prepare("SELECT COUNT(*) AS n FROM " + table + " WHERE " + column + " = 'gone'").get().n, 0, table);
   }
@@ -193,4 +196,54 @@ test("D1 deleting a user removes every row that belongs to the user and leaves o
   assert.equal((await store.user("stay"))?.name, "stay");
   assert.equal(database.prepare("SELECT COUNT(*) AS n FROM free_pull_claims WHERE user_id = 'stay'").get().n, 1);
   assert.deepEqual(await store.friends("stay"), []);
+});
+
+test("D1 refunds: unspent tickets are taken back, the spent part becomes a debt the next purchase pays off first, and repeats change nothing", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  const make = (id, code) => store.registerUser({ id, friendCode: code, name: id, petId: null, goshuinCount: 0, routeName: null }, "hash-" + id);
+  await make("fay", "FAY1234567");
+  const buy = (id, productId, purchaseDate = Date.parse("2026-10-04T00:00:00Z")) => store.recordPurchase("fay", { transactionId: id, productId, purchaseDate }, { paidPulls: productId === "five" ? 5 : 1 });
+  const state = async () => { const w = await store.wallet("fay"); return [w.paid, w.refundDebt]; };
+  const spend = (count) => store.commitDraws("fay", Array.from({ length: count }, () => ({ petId: "pet-a", kind: "paid", isNew: false, guaranteed: false })), "paid", count);
+
+  // Buy five, spend three, get the purchase refunded: two unspent are taken back, three become a debt.
+  assert.equal(await buy("tx1", "five"), true);
+  assert.deepEqual(await state(), [5, 0]);
+  await spend(3);
+  assert.deepEqual(await state(), [2, 0]);
+  await store.revokePurchase("tx1", 5);
+  assert.deepEqual(await state(), [0, 3]);
+  await store.revokePurchase("tx1", 5);
+  await store.revokePurchase("tx1", 5);
+  assert.deepEqual(await state(), [0, 3], "the same refund twice changes nothing");
+
+  // The next purchase pays the debt first.
+  assert.equal(await buy("tx2", "five"), true);
+  assert.deepEqual(await state(), [2, 0]);
+  assert.equal(await buy("tx2", "five"), false);
+  assert.deepEqual(await state(), [2, 0], "the same purchase twice changes nothing");
+
+  // Refunding that purchase puts things back as they were.
+  await store.revokePurchase("tx2", 5);
+  assert.deepEqual(await state(), [0, 3]);
+
+  // A small purchase is absorbed by the debt entirely; refunding it adds the debt back.
+  assert.equal(await buy("tx3", "single"), true);
+  assert.deepEqual(await state(), [0, 2]);
+  await store.revokePurchase("tx3", 1);
+  assert.deepEqual(await state(), [0, 3]);
+
+  // A refund of something never recorded does nothing.
+  await store.revokePurchase("unknown", 5);
+  assert.deepEqual(await state(), [0, 3]);
+
+  // Refunding a purchase that was never spent takes it all back and owes nothing.
+  await make("gus", "GUS1234567");
+  await store.recordPurchase("gus", { transactionId: "g1", productId: "five", purchaseDate: 0 }, { paidPulls: 5 });
+  await store.revokePurchase("g1", 5);
+  const gus = await store.wallet("gus");
+  assert.deepEqual([gus.paid, gus.refundDebt], [0, 0]);
+  assert.equal(database.prepare("SELECT revoked_at IS NOT NULL AS revoked FROM purchases WHERE apple_transaction_id = 'g1'").get().revoked, 1);
 });
