@@ -232,6 +232,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const watchdog = __DEV__ ? setTimeout(() => { if (purchasing.current && stage !== 'store') Alert.alert('購入', `10秒たっても、次に進みません。止まっている段階: ${stage}（開発用の表示）`); }, 10000) : null;
     try {
       const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore, undefined, next => { stage = next; });
+      // While developing: always show how the purchase ended, so a quiet end (such as a cancel) is not mistaken for nothing happening.
+      if (__DEV__) Alert.alert('購入の結果（開発用の表示）', JSON.stringify(outcome));
       if (outcome.ok) {
         if (outcome.wallet) applyWallet(outcome.wallet);
         // Anything an earlier run left unfinished is settled now too, so the balance below is complete.
