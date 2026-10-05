@@ -8,11 +8,16 @@ test('next pilgrimage prefers the next unfinished route', () => {
 
 test('next pilgrimage wraps around the catalogue', () => {
   const last = PILGRIMAGES.at(-1)!;
-  assert.equal(getNextPilgrimageId(last.id, [last.id]), PILGRIMAGES[0].id);
+  assert.equal(getNextPilgrimageId(last.id, [last.id]), PILGRIMAGES.find(route => !route.tutorial)!.id);
 });
 
 test('next pilgrimage keeps moving when every route is complete', () => {
-  assert.equal(getNextPilgrimageId('sanctuary', PILGRIMAGES.map(route => route.id)), PILGRIMAGES[1].id);
+  assert.equal(getNextPilgrimageId('sanctuary', PILGRIMAGES.map(route => route.id)), 'mountain');
+});
+
+test('the first-step tutorial route is never offered as the next route', () => {
+  assert.equal(getNextPilgrimageId('firstStep', ['firstStep']), 'sanctuary');
+  assert.notEqual(getNextPilgrimageId(PILGRIMAGES.at(-1)!.id, []), 'firstStep');
 });
 
 test('next pilgrimage ignores unknown active routes', () => {

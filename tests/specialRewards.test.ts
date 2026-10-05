@@ -119,3 +119,9 @@ test('a persisted arrival survives normalization so a restart cannot re-roll', (
   assert.deepEqual(restored.arrival, missed.arrival);
   assert.equal(rollKeychainOnArrival(restored, 'rain', 'none', fixed(0)), restored);
 });
+
+test('the first-step shrine always drops its keychain, even without a plan', () => {
+  const result = rollKeychainOnArrival(emptySpecialCollection(), 'hatsumobi', 'none', fixed(0.999));
+  assert.equal(ownsKeychain(result, 'hatsumobi'), true);
+  assert.equal(rollKeychainOnArrival(emptySpecialCollection(), 'rain', 'none', fixed(0.999)).arrival?.outcome, 'missed');
+});

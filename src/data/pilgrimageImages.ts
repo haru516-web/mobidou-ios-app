@@ -1,4 +1,6 @@
 export const PILGRIMAGE_IMAGES: Record<string, number> = {
+  // TEMPORARY: replace with route-firstStep.webp when the first-step images arrive.
+  firstStep: require('../../assets/ui-round3/pilgrimage/route-sanctuary.webp'),
   sanctuary: require('../../assets/ui-round3/pilgrimage/route-sanctuary.webp'),
   mountain: require('../../assets/ui-round3/pilgrimage/route-mountain.webp'),
   circuit: require('../../assets/ui-round3/pilgrimage/route-circuit.webp'),

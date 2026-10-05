@@ -1,14 +1,16 @@
 /** permanent routes are always playable; event routes only inside their window. */
 export type PilgrimageKind = 'permanent' | 'event';
-export type Pilgrimage = { kind?: PilgrimageKind; startsAt?: string; endsAt?: string; id: string; name: string; type: string; subtitle: string; description: string; ids: string[]; targets: number[]; completion: string; title: string; gift: string; color: string; chapters: string[] };
+export type Pilgrimage = { /** A short first walk for new players: its first point is not raised to the usual minimum, and it is never offered as the "next" route. */ tutorial?: boolean; kind?: PilgrimageKind; startsAt?: string; endsAt?: string; id: string; name: string; type: string; subtitle: string; description: string; ids: string[]; targets: number[]; completion: string; title: string; gift: string; color: string; chapters: string[] };
 export const MIN_FIRST_POINT_STEPS = 5000;
 
 const raiseFirstPointToMinimum = (route: Pilgrimage): Pilgrimage => {
+  if (route.tutorial) return route;
   const offset = Math.max(0, MIN_FIRST_POINT_STEPS - (route.targets[0] ?? MIN_FIRST_POINT_STEPS));
   return { ...route, targets: route.targets.map(target => target + offset) };
 };
 
 const PILGRIMAGE_DEFINITIONS: Pilgrimage[] = [
+  { id: 'firstStep', tutorial: true, name: 'はじめの一歩', type: '入門参詣', subtitle: '千歩で、はじめてのご縁。', description: 'もびの入口にある小さな社まで、千歩だけ歩く入門の道。歩いたぶんだけ、御朱印と寺社のミニチュアが手に入る。', ids: ['hatsumobi'], targets: [1000], completion: '初もび灯社に着いて、はじめての御朱印とミニチュアを授かる', title: 'はじめの一歩を踏み出した人', gift: 'はじめの結願印', color: '#C77B63', chapters: ['初もび灯社で、はじめての御朱印を受ける'] },
   { id: 'sanctuary', name: '木漏れ日の奥宮へ', type: '神域参詣', subtitle: '大社へ続く、五つの社をたどる。', description: '遠方の大きな社を主目的地に、五つの社を順に参拝し、各社の授与所で御朱印を受ける直線型の神域参詣。森や水辺の景観は、社と社を結ぶ道中として描く。', ids: ['rain', 'forest', 'takekaze', 'morika', 'morikage'], targets: [1000, 3000, 5000], completion: '五つの社を巡り、最奥の森影大社に到達する', title: '神域を訪ねた人', gift: '神域の結願印', color: '#59735B', chapters: ['雨もびしず葉社で祓いを受ける', '森もびこもれ宮で木漏れ日を仰ぐ', '竹もび風社で風音を聴く', '鹿もび森社で御朱印を受ける', '森影大社で結願を奉告する'] },
   { id: 'mountain', name: '雲をこえる祈り', type: '山岳修行', subtitle: '麓から、朝焼けの頂へ。', description: '石段、風の峠、白い稜線。その先の朝焼けを目指して、いつもより少し長い道のりを歩く。', ids: ['hibikiishi', 'kazewatari', 'yukishiro', 'mine', 'akatsuki'], targets: [2000, 5000, 8000], completion: '山頂の暁もび灯宮まで歩き切る', title: '雲上の旅人', gift: '山頂の結願印', color: '#657E90', chapters: ['麓の石段から出発', '風の峠でひと休み', '雪の稜線を越える', '峰の静けさに包まれる', '山頂で朝日を迎える'] },
   { id: 'circuit', name: '十二のご縁めぐり', type: '札所周回', subtitle: '一頁ずつ、旅を綴る。', description: '花の里から月見台まで、十二の札所を順番に巡る。結ばれたご縁が、一冊の帳面になる。', ids: ['flower', 'mebuki', 'aoba', 'wakaba', 'asatsuyu', 'mizusumi', 'gindrop', 'cloud', 'sabaku', 'amenagi', 'moon', 'nijiayumu'], targets: [1000, 3000, 5000], completion: '十二の札所すべてに参拝する', title: '十二縁の巡り人', gift: '十二札所満願証', color: '#A56B53', chapters: [] },
@@ -51,9 +53,7 @@ export function getNextPilgrimageId(activeId: string, completedRouteIds: readonl
   const activeIndex = PILGRIMAGES.findIndex(route => route.id === activeId);
   if (activeIndex < 0 || PILGRIMAGES.length < 2) return undefined;
   const completed = new Set(completedRouteIds);
-  for (let offset = 1; offset < PILGRIMAGES.length; offset++) {
-    const candidate = PILGRIMAGES[(activeIndex + offset) % PILGRIMAGES.length];
-    if (!completed.has(candidate.id)) return candidate.id;
-  }
-  return PILGRIMAGES[(activeIndex + 1) % PILGRIMAGES.length]?.id;
+  // The tutorial route is a one-time start, never the answer to "what next".
+  const candidates = Array.from({ length: PILGRIMAGES.length - 1 }, (_, index) => PILGRIMAGES[(activeIndex + 1 + index) % PILGRIMAGES.length]).filter(route => !route.tutorial);
+  return (candidates.find(route => !completed.has(route.id)) ?? candidates[0])?.id;
 }

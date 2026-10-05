@@ -110,6 +110,7 @@ export const SHRINES = [
   createShrine('sorashiori', '空栞もび寺', 'そらしおりもびじ', 'もび川原・空栞の丘', '見上げた空を、物語の栞にする。', '記憶・解放', '#889BA7', 'cloud'),
   createShrine('natsukage', '夏影もび社', 'なつかげもびしゃ', 'もび葦原・夏影回廊', '過ぎた季節も、続きを照らす。', '回想・成長', '#7D966F', 'leaf'),
   createShrine('tsuzuri', '綴り星もび宮', 'つづりぼしもびぐう', 'もび河口・星綴り台', '自分の一歩を、最後の一文にする。', '結末・再出発', '#7586A0', 'sparkles'),
+  createShrine('hatsumobi', '初もび灯社', 'はつもびあかりしゃ', 'もびの入口・はじまりの鳥居', '最初の一歩を、灯りに。', 'はじまり・最初の一歩', '#C77B63', 'footsteps'),
 ] as const;
 
 export type Shrine = typeof SHRINES[number];
@@ -201,4 +202,6 @@ export const STAMP_IMAGES = {
   sorashiori: require('../../assets/goshuin/sorashiori.png'),
   natsukage: require('../../assets/goshuin/natsukage.png'),
   tsuzuri: require('../../assets/goshuin/tsuzuri.png'),
+  // TEMPORARY: replace with assets/goshuin/hatsumobi.webp when the first-step images arrive (docs/codex-first-step-assets.md).
+  hatsumobi: require('../../assets/goshuin/rain.webp'),
 } as const;

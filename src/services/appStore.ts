@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import type { PurchasedItem, PurchaseStore } from './purchase';
+import { PLUS_PRODUCT, type PurchasedItem, type PurchaseStore } from './purchase';
 
 /** Turn a call that never answers into an error that can be shown, so a purchase can never just sit there silently. */
 function withTimeout<T>(work: Promise<T>, ms: number, what: string): Promise<T> {
@@ -19,12 +19,12 @@ export function createAppStore(): PurchaseStore | null {
   const item = (purchase: import('expo-iap').Purchase): PurchasedItem => ({
     sku: purchase.productId,
     jws: purchase.purchaseToken ?? '',
-    finish: async () => { await iap.finishTransaction({ purchase, isConsumable: true }); },
+    finish: async () => { await iap.finishTransaction({ purchase, isConsumable: purchase.productId !== PLUS_PRODUCT.sku }); },
   });
   return {
-    async purchase(sku, accountToken) {
+    async purchase(sku, accountToken, kind = 'in-app') {
       await connect();
-      const products = await withTimeout(iap.fetchProducts({ skus: [sku], type: 'in-app' }), 15000, 'fetchProducts');
+      const products = await withTimeout(iap.fetchProducts({ skus: [sku], type: kind }), 15000, 'fetchProducts');
       if (!products || products.length === 0) throw new Error(`product_not_found: ${sku}`);
       // Purchases an earlier run left unfinished are replayed by the store; they are settled at the next start and must not be
       // mistaken for the purchase being made now.
@@ -42,7 +42,7 @@ export function createAppStore(): PurchaseStore | null {
           // The code's spelling differs between library versions, so the message is checked as well.
           if (error.code === iap.ErrorCode.UserCancelled || /cancel/i.test(`${error.code} ${error.message}`)) resolve('cancelled'); else reject(new Error(error.message));
         });
-        iap.requestPurchase({ type: 'in-app', request: { apple: { sku, appAccountToken: accountToken } } }).catch(error => { done(); reject(error); });
+        iap.requestPurchase({ type: kind, request: { apple: { sku, appAccountToken: accountToken } } }).catch(error => { done(); reject(error); });
       });
     },
     async unfinished() {

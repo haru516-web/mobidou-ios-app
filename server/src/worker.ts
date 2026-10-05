@@ -67,7 +67,7 @@ function configuredProducts(env: Env): Record<string, ProductDefinition> {
   for (const [id, product] of Object.entries(products)) {
     const validAmount = (amount: number | undefined): boolean => amount === undefined || (Number.isSafeInteger(amount) && amount >= 0);
     if (!id || !product || (product.plan !== undefined && typeof product.plan !== "string") ||
-        !validAmount(product.monthlyTickets) || !validAmount(product.paidPulls) || !validAmount(product.priceYen) ||
+        !validAmount(product.monthlyTickets) || !validAmount(product.monthlyPulls) || !validAmount(product.paidPulls) || !validAmount(product.priceYen) ||
         // Tickets and a plan in one product are not supported: a refund could not tell which part to take back.
         ((product.paidPulls ?? 0) > 0 && ((product.monthlyTickets ?? 0) > 0 || product.plan !== undefined))) {
       throw new HttpError(500, "invalid_product_configuration");
@@ -85,6 +85,13 @@ function configuredGifts(env: Env): Gift[] {
     throw new HttpError(500, "invalid_gift_configuration");
   }
   return gifts;
+}
+
+/** A plan's billing period: remembered, and its monthly 木札 credited once (an expired period grants nothing). */
+async function recordPlanPeriod(store: Store, userId: string, transaction: VerifiedTransaction, product: ProductDefinition, now: Date): Promise<void> {
+  if (!product.plan || !transaction.expiresDate || transaction.revocationDate) return;
+  const expired = transaction.expiresDate <= now.getTime();
+  await store.recordPlanPeriod(userId, product.plan, new Date(transaction.purchaseDate).toISOString(), new Date(transaction.expiresDate).toISOString(), expired ? 0 : product.monthlyPulls ?? 0, transaction.transactionId);
 }
 
 function requireString(value: unknown, code: string, maxLength = 160): string {
@@ -219,6 +226,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
         if (user && product) {
           const activeProduct = transaction.expiresDate && transaction.expiresDate <= now.getTime() ? { ...product, monthlyTickets: 0 } : product;
           await store.recordPurchase(user.id, transaction, activeProduct);
+          await recordPlanPeriod(store, user.id, transaction, product, now);
         }
       }
     }
@@ -339,6 +347,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       ? { ...product, monthlyTickets: 0 }
       : product;
     const granted = await store.recordPurchase(userId, transaction, effectiveProduct);
+    await recordPlanPeriod(store, userId, transaction, product, now);
     return json({ status: granted ? "verified" : "already_processed" });
   }
 
@@ -397,6 +406,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   }
 
   if (method === "GET" && path === "/wallet") return json(await store.wallet(userId));
+
+  if (method === "GET" && path === "/plan") return json({ plan: (await store.activePlan(userId, now.toISOString())) ?? "none" });
 
   if (method === "POST" && path === "/free-pulls/claim") {
     const input = await body(request);

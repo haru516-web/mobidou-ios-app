@@ -188,6 +188,22 @@ export class D1Store implements Store {
     return granted;
   }
 
+  async recordPlanPeriod(userId: string, plan: string, periodStart: string, periodEnd: string, pulls: number, transactionId: string): Promise<void> {
+    const statements = [
+      this.db.prepare("INSERT OR IGNORE INTO entitlements (user_id, plan, period_start, period_end, tickets_granted_period) VALUES (?, ?, ?, ?, ?)")
+        .bind(userId, plan, periodStart, periodEnd, pulls),
+      ...(pulls > 0 ? [this.db.prepare("INSERT OR IGNORE INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at) VALUES (?, ?, 'paid', ?, 'plan_monthly', ?, ?)")
+        .bind(`plan:${transactionId}`, userId, pulls, transactionId, nowIso())] : []),
+    ];
+    await this.db.batch(statements);
+  }
+
+  async activePlan(userId: string, at: string): Promise<string | null> {
+    const row = await this.db.prepare("SELECT plan FROM entitlements WHERE user_id = ? AND period_start <= ? AND period_end > ? ORDER BY period_end DESC LIMIT 1")
+      .bind(userId, at, at).first<{ plan: string }>();
+    return row?.plan ?? null;
+  }
+
   async revokePurchase(transactionId: string, paidPulls = 0): Promise<void> {
     const now = nowIso();
     const statements = [this.db.prepare("UPDATE purchases SET revoked_at = ? WHERE apple_transaction_id = ? AND revoked_at IS NULL").bind(now, transactionId)];

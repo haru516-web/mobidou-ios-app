@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buyPulls, drawPaidTickets, fetchLimits, fetchPaidTickets, setAgeGroup, settleCredits, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
+import { buyPlan, buyPulls, drawPaidTickets, fetchLimits, fetchPaidTickets, setAgeGroup, settleCredits, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
 import { applyServerPulls, emptyMobbyCollection, setPaidTickets, ticketCount } from '../src/services/gacha.ts';
 
 const SINGLE = 'jp.mobby.mobidou.gacha.single';
@@ -223,4 +223,26 @@ test('every way a purchase can end has a follow-up, and asking for the age is ne
   assert.match(withDetail.kind === 'message' ? withDetail.text : '', /timeout: x/);
   const withoutDetail = purchaseFollowUp({ ok: false, reason: 'unavailable', detail: 'timeout: x' }, false);
   assert.doesNotMatch(withoutDetail.kind === 'message' ? withoutDetail.text : '', /timeout/);
+});
+
+test('subscribing buys the plus product as a subscription, verifies it, then reads the plan', async () => {
+  const { api, calls } = fakeApi({ 'GET /plan': () => reply(200, { plan: 'plus' }) });
+  const kinds: (string | undefined)[] = [];
+  const events: string[] = [];
+  const store: PurchaseStore = {
+    purchase: async (sku, token, kind) => { kinds.push(kind); events.push(`purchase:${sku}:${token}`); return { sku, jws: 'jws-plan', finish: async () => { events.push('finish'); } }; },
+    unfinished: async () => [],
+  };
+  const outcome = await buyPlan(store, api);
+  assert.deepEqual(kinds, ['subs']);
+  assert.deepEqual(events, ['purchase:jp.mobby.mobidou.plus.monthly:user-1', 'finish']);
+  assert.ok(outcome.ok && outcome.plan === 'plus');
+  assert.ok(calls.indexOf('/purchases/verify') < calls.indexOf('GET /plan'));
+});
+
+test('a cancelled subscription changes nothing', async () => {
+  const { api, calls } = fakeApi();
+  const { store } = fakeStore({ cancel: true });
+  assert.deepEqual(await buyPlan(store, api), { ok: false, reason: 'cancelled' });
+  assert.ok(!calls.includes('/purchases/verify'));
 });

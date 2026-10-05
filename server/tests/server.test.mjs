@@ -78,6 +78,15 @@ class MemoryStore {
     }
     return true;
   }
+  planPeriods = [];
+  async recordPlanPeriod(userId, plan, periodStart, periodEnd, pulls, transactionId) {
+    if (!this.planPeriods.some((row) => row.userId === userId && row.plan === plan && row.periodStart === periodStart)) this.planPeriods.push({ userId, plan, periodStart, periodEnd });
+    const ref = `plan:${transactionId}`;
+    if (pulls > 0 && !this.planCredits?.has(ref)) { (this.planCredits ??= new Set()).add(ref); this.walletRows.get(userId).paid += pulls; }
+  }
+  async activePlan(userId, at) {
+    return this.planPeriods.find((row) => row.userId === userId && row.periodStart <= at && row.periodEnd > at)?.plan ?? null;
+  }
   refundDebts = new Map();
   refunded = new Set();
   async revokePurchase(transactionId, paidPulls = 0) {
@@ -190,7 +199,7 @@ const env = {
   DB: {},
   APPLE_ROOT_CERTIFICATES: "test-root",
   APPLE_BUNDLE_ID: "com.example.mobidou",
-  PRODUCT_CATALOG_JSON: JSON.stringify({ "plus.monthly": { plan: "plus", monthlyTickets: 10 }, "gacha.ticket": { paidPulls: 1 } }),
+  PRODUCT_CATALOG_JSON: JSON.stringify({ "plus.monthly": { plan: "plus", monthlyTickets: 10 }, "plus.pulls": { plan: "plus", monthlyPulls: 1 }, "gacha.ticket": { paidPulls: 1 } }),
   GIFTS_JSON: JSON.stringify([{ id: "welcome", title: "Welcome", tickets: 4, freePulls: 1 }, { id: "paid-test", title: "Paid test", paidPulls: 1 }]),
   CATALOG_JSON: JSON.stringify([{ id: "mobby_sample_01", name: "Sample" }]),
   EVENT_STEPS_WINDOW_START: "20:00",
@@ -833,4 +842,25 @@ test("the legal notice page is public, says name, address and phone are given on
   assert.equal((html.match(/請求があった場合、遅滞なく開示します/g) ?? []).length, 3, "operator, address and phone are given on request");
   for (const needle of ["info@mobby.online", "木札1枚 300円", "木札5枚セット 1,200円", "iOS 15.1以上", "返品・キャンセルはお受けできません", "Appleの規約と手続き", "5,000円", "10,000円"]) assert.ok(html.includes(needle), needle);
   assert.equal(readFileSync(new URL("../../docs/legal-notice.md", import.meta.url), "utf8").replace(/\r\n/g, "\n"), LEGAL_MARKDOWN, "docs/legal-notice.md must be the same text");
+});
+
+test("a plan purchase credits one gacha 木札 per period once and /plan reports it until the period ends", async () => {
+  const root = await selfSignedTestRoot();
+  const testEnv = { ...env, APPLE_ROOT_CERTIFICATES: root.pem };
+  const context = createContext();
+  const account = await register(context);
+  const verify = async (jws) => handleWithStore(new Request("https://server.test/purchases/verify", {
+    method: "POST", headers: { authorization: `Bearer ${context.credentials.get(account.userId)}`, "content-type": "application/json" },
+    body: JSON.stringify({ signedTransactionInfo: jws })
+  }), testEnv, context.store);
+  const planOf = async () => (await (await call(context, "GET", "/plan", undefined, account.userId)).json()).plan;
+  assert.equal(await planOf(), "none");
+  const jws = await signedTransaction(root, { appAccountToken: account.userId, productId: "plus.pulls", transactionId: "plan-001" });
+  assert.equal((await (await verify(jws)).json()).status, "verified");
+  await verify(jws);
+  assert.equal((await context.store.wallet(account.userId)).paid, 1);
+  assert.equal(await planOf(), "plus");
+  const renewal = await signedTransaction(root, { appAccountToken: account.userId, productId: "plus.pulls", transactionId: "plan-002", purchaseDate: Date.now() + 30 * 86400000, expiresDate: Date.now() + 60 * 86400000 });
+  await verify(renewal);
+  assert.equal((await context.store.wallet(account.userId)).paid, 2);
 });

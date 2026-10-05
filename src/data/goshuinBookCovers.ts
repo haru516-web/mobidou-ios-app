@@ -5,6 +5,8 @@ import { PILGRIMAGE_IMAGES } from './pilgrimageImages';
 // stable fallback while a new cover asset is being produced or migrated.
 export type GoshuinBookCoverSource = ImageSourcePropType;
 export const GOSHUIN_BOOK_COVERS: Partial<Record<string, GoshuinBookCoverSource>> = {
+  // TEMPORARY: replace with assets/ui-round3/covers/firstStep.webp when the first-step images arrive.
+  firstStep: require('../../assets/ui-round3/covers/sanctuary.webp'),
   sanctuary: require('../../assets/ui-round3/covers/sanctuary.webp'),
   mountain: require('../../assets/ui-round3/covers/mountain.webp'),
   circuit: require('../../assets/ui-round3/covers/circuit.webp'),

@@ -87,6 +87,8 @@ type Props = {
   showShop?: boolean;
   /** Start a purchase from the shop tab; without it the shop's buttons are inactive. */
   onBuy?: (product: ShopProduct) => void;
+  /** Restore purchases (shown in the shop). */
+  onRestore?: () => void;
   /** The plus plan is running (the shop shows it as active instead of offering it). */
   plusActive?: boolean;
   /** What to do to earn the next pull, shown when there is nothing to pull. */
@@ -106,7 +108,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, plusActive = false, nextHint, companion, guided = false, startOnShop = false }: Props) {
+export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false }: Props) {
   useSceneBgm('bgm_gacha', true, 20);
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
   // The lobby is where the player picks how many to draw; the cord only works once a draw has been chosen. The first-run guide goes straight to the cord.
@@ -568,7 +570,7 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
       {zoomT > 0 && <RNImage accessible={false} source={pet.image} resizeMode="contain" style={{ position: 'absolute', width: bigSize, height: bigSize, left: (width - bigSize) / 2, top: bigTop, opacity: Math.min(1, zoomT * 1.6), transform: [{ scale: .55 + .45 * zoomT + .08 * Math.sin(Math.min(1, zoomT) * Math.PI) }] }} />}
     </Pressable>}
 
-    {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: navShown ? lobbyBottom + 8 : 84 + insets.bottom }]}><GachaShop onBuy={onBuy} refundDebt={refundDebt} plusActive={plusActive} /></View>}
+    {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: navShown ? lobbyBottom + 8 : 84 + insets.bottom }]}><GachaShop onBuy={onBuy} onRestore={onRestore} refundDebt={refundDebt} plusActive={plusActive} /></View>}
 
     {shopOpen && !navShown && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} /><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 

@@ -16,6 +16,9 @@ export const KEYCHAIN_BASE_RATE = 0.10;
 /** Drop rate while the plus plan is active: every shrine arrival hands over the keychain. */
 export const KEYCHAIN_PLAN_RATE = 1;
 
+/** Shrines whose keychain always drops (the first-step tutorial route), so a new player sees what the miniatures are. */
+export const GUARANTEED_KEYCHAIN_SHRINES: ReadonlySet<string> = new Set(['hatsumobi']);
+
 export type KeychainPlan = 'none' | 'plus';
 export const KEYCHAIN_PLANS: readonly KeychainPlan[] = ['none', 'plus'];
 export const isKeychainPlan = (value: unknown): value is KeychainPlan => KEYCHAIN_PLANS.includes(value as KeychainPlan);
@@ -90,7 +93,7 @@ export const ownsKeychain = (collection: SpecialCollection, shrineId: string) =>
  */
 export function rollKeychainOnArrival(collection: SpecialCollection, shrineId: string, plan: KeychainPlan = 'none', random: () => number = Math.random): SpecialCollection {
   if (collection.arrival?.shrineId === shrineId) return collection;
-  const rate = keychainRate(plan);
+  const rate = GUARANTEED_KEYCHAIN_SHRINES.has(shrineId) ? 1 : keychainRate(plan);
   if (ownsKeychain(collection, shrineId)) return { ...collection, arrival: { shrineId, outcome: 'owned', rate } };
   const won = random() < rate;
   return {

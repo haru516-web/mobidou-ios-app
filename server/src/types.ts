@@ -50,6 +50,8 @@ export interface Gift {
 export interface ProductDefinition {
   plan?: string;
   monthlyTickets?: number;
+  /** Gacha 木札 (the paid wallet) a plan hands over for each billing period; they carry over like bought ones. */
+  monthlyPulls?: number;
   paidPulls?: number;
   /** Price in yen, used for the monthly spending cap of younger players. */
   priceYen?: number;
@@ -122,6 +124,10 @@ export interface Store {
   consumeTickets(userId: string, amount: number, ref: string): Promise<boolean>;
   grantMonthlyTickets(userId: string, plan: string, periodStart: string, periodEnd: string, amount: number): Promise<boolean>;
   recordPurchase(userId: string, transaction: VerifiedTransaction, product: ProductDefinition): Promise<boolean>;
+  /** One billing period of a plan: remember it and credit that period's gacha 木札 once. Safe to repeat. */
+  recordPlanPeriod(userId: string, plan: string, periodStart: string, periodEnd: string, pulls: number, transactionId: string): Promise<void>;
+  /** The plan whose billing period covers `at`, or null. */
+  activePlan(userId: string, at: string): Promise<string | null>;
   /** Apple refunded this purchase: take back its unspent tickets and record the spent part as a debt. Safe to repeat. */
   revokePurchase(transactionId: string, paidPulls?: number): Promise<void>;
   wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number; refundDebt: number }>;

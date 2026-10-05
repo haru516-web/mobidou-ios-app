@@ -20,6 +20,9 @@ export const PULL_PRODUCTS = {
   pull5: { sku: 'jp.mobby.mobidou.gacha.five', count: 5, priceYen: 1200 },
 } as const;
 export type PullProductId = keyof typeof PULL_PRODUCTS;
+/** The plus plan: an auto-renewing subscription (App Store Connect product id). The server credits its monthly 木札 and reports the plan. */
+export const PLUS_PRODUCT = { sku: 'jp.mobby.mobidou.plus.monthly', priceYen: 300 } as const;
+export type PurchaseKind = 'in-app' | 'subs';
 
 export type BuyOutcome =
   /** `wallet` is the server's balance now, or null when it could not be read (it is read again at the next start). */
@@ -62,7 +65,7 @@ export function purchaseFollowUp(outcome: BuyOutcome, showDetail = false): Follo
 
 export type PurchasedItem = { sku: string; jws: string; finish: () => Promise<void> };
 export interface PurchaseStore {
-  purchase(sku: string, accountToken: string): Promise<PurchasedItem | 'cancelled'>;
+  purchase(sku: string, accountToken: string, kind?: PurchaseKind): Promise<PurchasedItem | 'cancelled'>;
   /** Purchases paid for but not finished yet (for example after a crash). */
   unfinished(): Promise<PurchasedItem[]>;
 }
@@ -98,6 +101,13 @@ export async function fetchWallet(api: PurchaseApi = serverApi): Promise<Wallet 
 /** Bought 木札 the server holds for this account, or null when the server cannot say. */
 export async function fetchPaidTickets(api: PurchaseApi = serverApi): Promise<number | null> {
   return (await fetchWallet(api))?.paid ?? null;
+}
+
+/** The plan the server says is running right now, or null when it cannot say. */
+export async function fetchPlan(api: PurchaseApi = serverApi): Promise<'none' | 'plus' | null> {
+  const reply = await api.get('/plan');
+  if (!ok(reply)) return null;
+  return reply?.data?.plan === 'plus' ? 'plus' : 'none';
 }
 
 /** The spending cap and what is left of it this month, or null when the server cannot say. */
@@ -144,13 +154,38 @@ export async function buyPulls(productId: PullProductId, store: PurchaseStore | 
   return { ok: true, wallet: await fetchWallet(api) };
 }
 
+export type BuyPlanOutcome = BuyOutcome extends infer T ? T extends { ok: true } ? { ok: true; wallet: Wallet | null; plan: 'none' | 'plus' | null } : T : never;
+
+/** Subscribe to the plus plan. Same order as a pull purchase: account, cap, store, server check; then the wallet and the plan are read again. */
+export async function buyPlan(store: PurchaseStore | null, api: PurchaseApi = serverApi, onStage?: (stage: string) => void): Promise<BuyPlanOutcome> {
+  onStage?.('start');
+  if (!store) return { ok: false, reason: 'unavailable', detail: 'store_module_missing' };
+  onStage?.('account');
+  const account = await api.account();
+  if (!account) return { ok: false, reason: 'offline' };
+  onStage?.('limits');
+  const limits = await fetchLimits(api);
+  if (!limits) return { ok: false, reason: 'offline' };
+  if (limits.ageGroup === null) return { ok: false, reason: 'age_needed' };
+  if (limits.capYen !== null && limits.remainingYen !== null && PLUS_PRODUCT.priceYen > limits.remainingYen) return { ok: false, reason: 'limit', capYen: limits.capYen, remainingYen: limits.remainingYen };
+  let bought: PurchasedItem | 'cancelled';
+  onStage?.('store');
+  try { bought = await store.purchase(PLUS_PRODUCT.sku, account.userId, 'subs'); } catch (error) { return { ok: false, reason: 'unavailable', detail: error instanceof Error ? error.message : String(error) }; }
+  if (bought === 'cancelled') return { ok: false, reason: 'cancelled' };
+  onStage?.('verify');
+  if (!(await verify(api, bought.jws))) return { ok: false, reason: 'verify_failed' };
+  await bought.finish().catch(() => undefined);
+  onStage?.('wallet');
+  return { ok: true, wallet: await fetchWallet(api), plan: await fetchPlan(api) };
+}
+
 /**
  * Finish whatever an earlier run left half done: verify receipts that were
  * never finished, then report the server's 木札 balance. Safe to call at every
  * start; returns null when the server cannot be reached.
  */
 export async function settleCredits(store: PurchaseStore | null, api: PurchaseApi = serverApi): Promise<Wallet | null> {
-  const known = new Set<string>(Object.values(PULL_PRODUCTS).map(product => product.sku));
+  const known = new Set<string>([...Object.values(PULL_PRODUCTS).map(product => product.sku), PLUS_PRODUCT.sku]);
   const pending = store ? (await store.unfinished().catch(() => [] as PurchasedItem[])).filter(item => known.has(item.sku)) : [];
   for (const item of pending) if (await verify(api, item.jws)) await item.finish().catch(() => undefined);
   return fetchWallet(api);

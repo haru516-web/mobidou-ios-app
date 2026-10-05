@@ -93,16 +93,18 @@ test('seven-visit vow route can also complete without a daily cap', () => {
 });
 test('all pilgrimage points are unique across routes', () => {
   const ids = PILGRIMAGES.flatMap(route => route.ids);
-  assert.equal(PILGRIMAGES.length, 12);
-  assert.equal(ids.length, 74);
+  assert.equal(PILGRIMAGES.length, 13);
+  assert.equal(ids.length, 75);
   assert.equal(new Set(ids).size, ids.length);
   for (const type of ['神域参詣', '山岳修行', '札所周回', '観音巡礼', '七願掛け', '物語の聖地巡礼']) {
     assert.equal(PILGRIMAGES.filter(route => route.type === type).length, 2);
   }
-  assert.equal(SHRINE_IDS.length, 74);
+  assert.equal(SHRINE_IDS.length, 75);
   assert.equal(new Set(SHRINE_IDS).size, SHRINE_IDS.length);
   assert.ok(ids.every(id => (SHRINE_IDS as readonly string[]).includes(id)));
-  assert.ok(PILGRIMAGES.every(route => route.targets[0] === 5000));
+  assert.ok(PILGRIMAGES.filter(route => !route.tutorial).every(route => route.targets[0] === 5000));
+  const first = PILGRIMAGES.find(route => route.tutorial)!;
+  assert.deepEqual([first.ids, first.targets], [['hatsumobi'], [1000]]);
 });
 test('legacy numbered vow rewards migrate to named shrine IDs', () => {
   const legacy = {
@@ -202,7 +204,7 @@ test('a lap survives save and restore, and a bad lap marker is dropped', () => {
   const partial = updateSteps(startRoute('compassion', 0, day), 5000, day);
   assert.equal(normalizeProgress({ ...JSON.parse(JSON.stringify(partial)), lapBase: 100 }, day).lapBase, undefined);
 });
-const routeId = PILGRIMAGES[0].id;
+const routeId = PILGRIMAGES.find(route => !route.tutorial)!.id;
 const at = (d: number, h = 12) => new Date(2026, 8, d, h);
 const routeDay = (steps: number, d: number) => updateSteps(startRoute(routeId, 0, at(d)), steps, at(d));
 test('missedDays lists whole local days after the mark up to yesterday, newest kept when capped', () => {
@@ -239,4 +241,11 @@ test('catch-up with a lower device count never subtracts, and non-route progress
   assert.equal(updateSteps(caught, 0, at(10, 8)).routeSteps, 3000);
   const legacy = updateSteps(freshProgress(at(9)), 1000, at(9));
   assert.equal(creditMissedDays(legacy, { day: '2026-09-09', steps: 1000 }, [{ day: '2026-09-09', steps: 9000 }]), legacy);
+});
+
+test('the first-step route is cleared at 1,000 steps with its one shrine', () => {
+  const walked = updateSteps(startRoute('firstStep', 0, at(9)), 1000, at(9));
+  assert.deepEqual(walked.rewards.map(reward => reward.id), ['hatsumobi']);
+  assert.ok(walked.completedAt);
+  assert.equal(updateSteps(startRoute('firstStep', 0, at(9)), 999, at(9)).rewards.length, 0);
 });

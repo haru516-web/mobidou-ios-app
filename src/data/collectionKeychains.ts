@@ -92,5 +92,7 @@ export const COLLECTION_KEYCHAINS = {
   sorashiori: require('../../assets/collection/keychains/keychain-sorashiori-v1-transparent.webp'),
   natsukage: require('../../assets/collection/keychains/keychain-natsukage-v1-transparent.webp'),
   tsuzuri: require('../../assets/collection/keychains/keychain-tsuzuri-v1-transparent.webp'),
+  // TEMPORARY: replace with keychain-hatsumobi-v1-transparent.webp when the first-step images arrive.
+  hatsumobi: require('../../assets/collection/keychains/keychain-rain-v1-transparent.webp'),
 } as const;
 

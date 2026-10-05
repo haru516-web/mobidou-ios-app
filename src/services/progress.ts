@@ -13,6 +13,7 @@ export const SHRINE_IDS = [
   'yasuragi', 'megumi', 'kokorone', 'negai',
   'ichibanboshi', 'tsukishirabe', 'kibou', 'kokoroseki', 'hoshimizu', 'yorunagi', 'musubihoshi',
   'kawakagami', 'hoshinooto', 'funeakari', 'sorashiori', 'natsukage', 'tsuzuri',
+  'hatsumobi',
 ] as const;
 export const DAILY_TARGETS = [5000, 7000, 9000] as const;
 export type Reward = { id: string; date: string; steps: number; threshold: number };
