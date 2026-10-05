@@ -812,9 +812,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
       {tab === 'walk' && <>
         <View style={S.pageTop}>
-          <View style={[S.pageTopText, S.pageTopPlate]}><WashiArt />
+          {/* Same width as the button on the right, so the name sits in the middle of the screen as on the goshuin book page. */}
+          {activeRoute && <View style={{ width: 54 }} />}
+          <View style={[S.pageTopText, S.pageTopPlate, { alignItems: 'center' }]}><WashiArt />
             <Text style={S.pageEyebrow}>{mapOpen ? '巡礼絵図' : '今日の歩数'}</Text>
-            <Text numberOfLines={2} style={S.pageLead}>{activeRoute?.name ?? '巡礼を選びましょう'}</Text>
+            <Text numberOfLines={2} style={[S.pageLead, { textAlign: 'center' }]}>{activeRoute?.name ?? '巡礼を選びましょう'}</Text>
           </View>
           {activeRoute && <TourAnchor id="walk-top"><PopButton id="walkMap" label={mapOpen ? '歩数' : '絵図'} icon={mapOpen ? 'footsteps' : 'map'} size={54} phase={0} onPress={() => setMapOpen(open => !open)} /></TourAnchor>}
         </View>
@@ -825,9 +827,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           : <View style={S.walkMinimal}>
             <TourAnchor id="walk-ring"><StepProgressRing steps={routeSteps} goal={nextTarget} size={walkRingSize} /></TourAnchor>
             <PillText textStyle={S.walkCaption}>{view.completedAt ? '結願しました。次の巡礼へ出かけましょう。' : next ? `次は ${next.name} · あと ${fmt(stepsLeft)}歩` : 'この巡礼のすべてのご縁を結びました。'}</PillText>
-            <View accessibilityLabel={`今日の足あと。${[3000, 5000, 8000].filter(goal => todaySteps >= goal).length}/3`} style={S.footprintRow}>
-              {[3000, 5000, 8000].map(goal => <View key={goal} style={[S.footprint, todaySteps >= goal && S.footprintDone]}><Text style={[S.footprintMark, todaySteps >= goal && S.footprintMarkDone]}>{todaySteps >= goal ? '❀' : '○'}</Text><Text style={S.footprintText}>{fmt(goal)}歩</Text></View>)}
-            </View>
             {/* The companion peeks over the main action, as on the old steps card. */}
             {activeRoute && <TourAnchor id="walk-action" style={S.nextPilgrimageAction}>
               {view.completedAt
@@ -1049,7 +1048,7 @@ const S = StyleSheet.create({
   demoBadge: { height: 32, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 10, paddingRight: 8, borderRadius: 16, backgroundColor: '#F3E6D2F2', borderWidth: StyleSheet.hairlineWidth, borderColor: '#8A695066' },
   demoBadgeText: { color: '#7A5A43', fontSize: 12, fontWeight: '600' },
 
-  walkCaption: { alignSelf: 'center', textAlign: 'center', color: '#4E4034', fontSize: 14, lineHeight: 20, marginTop: 6, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14, overflow: 'hidden', backgroundColor: '#FFF9EFE0' },
+  walkCaption: { alignSelf: 'center', textAlign: 'center', color: '#4E4034', fontFamily: BRUSH, fontSize: 14, lineHeight: 20, marginTop: 6, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14, overflow: 'hidden', backgroundColor: '#FFF9EFE0' },
   homeGoshuinOnlyCard: { padding: 0, borderWidth: 0, borderRadius: 17, backgroundColor: 'transparent' },
   homeOmikujiCardFocused: { outlineStyle: 'solid', outlineColor: '#D9C7AE', outlineWidth: 1 },
   homeTutorialIntro: { alignItems: 'center', paddingVertical: 12 },
