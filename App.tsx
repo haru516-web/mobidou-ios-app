@@ -217,6 +217,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   };
   const purchasing = useRef(false);
   const buyProduct = async (product: { id: string; kind: 'pull' | 'plan' }) => {
+    // While developing: prove the tap arrived, whatever happens next.
+    if (__DEV__) Alert.alert('購入ボタンが押されました', `${product.id}（開発用の表示）。この表示のあとの動きを、教えてください。`);
     if (product.kind !== 'pull') { Alert.alert('準備中です', '毎月のプランは、もうしばらくお待ちください。'); return; }
     if (purchasing.current) {
       // Never ignore a tap silently while developing: say that the earlier purchase is still being worked on.
