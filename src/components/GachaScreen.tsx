@@ -9,6 +9,7 @@ import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_S
 import { PET_CHARACTERS, getPetCharacter, isPetId, type PetCharacter } from '../petCatalog';
 import { GachaShop } from './GachaShop';
 import { FitToHeight } from './PagedBody';
+import { GachaSummary } from './GachaSummary';
 import { HomeStatusBar } from './HomeStatusBar';
 import { WashiPressable } from './Washi';
 import { SlicedArt } from './SlicedArt';
@@ -143,6 +144,8 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
   const bigTop = Math.round(76 + Math.max(0, height - 76 - 220 - bigSize) / 2);
 
   const [index, setIndex] = useState(0);
+  /** After the last Mobby of a multi-pull: the whole result on one sheet. */
+  const [summary, setSummary] = useState<PullResult[] | null>(null);
   const [playing, setPlaying] = useState(guided && unrevealed.length > 0);
   const [ms, setMs] = useState(0);
   /** How far the front board has been lifted, 0..1. */
@@ -398,6 +401,11 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
       setMs(INTRO_END_MS);
       return;
     }
+    if (unrevealed.length > 1 && !guided && !summary) { setSummary(unrevealed.slice()); return; }
+    finish();
+  };
+  const finish = () => {
+    setSummary(null);
     setPlaying(false);
     setIndex(0);
     resetScene();
@@ -620,8 +628,9 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
       <Text style={S.name}>{pet.name}</Text>
       <Text style={S.badge}>{result.isNew ? 'はじめまして！' : 'また会えたね。小さなモビーがそばに来るよ'}</Text>
       <Text style={S.small} numberOfLines={2}>{pet.catchphrase}</Text>
-      <Button title={index + 1 < remaining ? 'つぎへ' : 'おわる'} onPress={next} style={S.wide} />
+      <Button title={index + 1 < remaining ? 'つぎへ' : remaining > 1 && !guided ? 'まとめを見る' : 'おわる'} onPress={next} style={S.wide} />
     </View>}
+    {summary && <GachaSummary results={summary} onClose={finish} />}
   </View>;
 }
 
