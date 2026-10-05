@@ -33,6 +33,33 @@ export type BuyOutcome =
 export type AgeGroup = 'under16' | '16to19' | 'adult';
 export type Limits = { ageGroup: AgeGroup | null; capYen: number | null; remainingYen: number | null };
 
+/** What the screen does once a purchase has ended. Kept apart from the screen so every ending has a tested answer. */
+export type FollowUp =
+  /** Bought: the balance is already known; settle anything left over. */
+  | { kind: 'done' }
+  /** The player has not said which age group they are in yet: ask, then buy again. */
+  | { kind: 'askAge' }
+  /** A quiet ending, such as cancelling the App Store sheet. */
+  | { kind: 'quiet' }
+  | { kind: 'message'; text: string };
+
+/** `showDetail` adds the technical reason to a message (development builds). */
+export function purchaseFollowUp(outcome: BuyOutcome, showDetail = false): FollowUp {
+  if (outcome.ok) return { kind: 'done' };
+  if (outcome.reason === 'age_needed') return { kind: 'askAge' };
+  if (outcome.reason === 'limit') {
+    return { kind: 'message', text: `今月の購入の上限（${outcome.capYen.toLocaleString('ja-JP')}円）まで、あと${outcome.remainingYen.toLocaleString('ja-JP')}円です。この商品は上限を超えるため、購入できません。\n上限は、毎月1日にリセットされます。` };
+  }
+  const base = {
+    cancelled: '',
+    offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。購入はされていません。',
+    unavailable: 'この環境では購入できません。',
+    verify_failed: '購入の確認ができませんでした。課金は保留されています。アプリを開き直すと、自動でやり直します。',
+  }[outcome.reason];
+  if (!base) return { kind: 'quiet' };
+  return { kind: 'message', text: showDetail && outcome.detail ? `${base}\n\n(開発用の詳細: ${outcome.detail})` : base };
+}
+
 export type PurchasedItem = { sku: string; jws: string; finish: () => Promise<void> };
 export interface PurchaseStore {
   purchase(sku: string, accountToken: string): Promise<PurchasedItem | 'cancelled'>;

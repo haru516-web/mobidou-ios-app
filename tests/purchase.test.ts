@@ -209,3 +209,18 @@ test('the wallet reports bought 木札 and the refund debt, and treats a missing
   assert.equal(await fetchWallet(reading({ paid: -1 })), null);
   assert.equal(await fetchWallet(reading({}, 500)), null);
 });
+
+test('every way a purchase can end has a follow-up, and asking for the age is never lost', async () => {
+  const { purchaseFollowUp } = await import('../src/services/purchase.ts');
+  assert.deepEqual(purchaseFollowUp({ ok: true, wallet: null }), { kind: 'done' });
+  assert.deepEqual(purchaseFollowUp({ ok: false, reason: 'age_needed' }), { kind: 'askAge' });
+  assert.deepEqual(purchaseFollowUp({ ok: false, reason: 'cancelled' }), { kind: 'quiet' });
+  const limit = purchaseFollowUp({ ok: false, reason: 'limit', capYen: 5000, remainingYen: 1000 });
+  assert.equal(limit.kind, 'message');
+  assert.match(limit.kind === 'message' ? limit.text : '', /5,000円.*1,000円/s);
+  for (const reason of ['offline', 'unavailable', 'verify_failed'] as const) assert.equal(purchaseFollowUp({ ok: false, reason }).kind, 'message', reason);
+  const withDetail = purchaseFollowUp({ ok: false, reason: 'unavailable', detail: 'timeout: x' }, true);
+  assert.match(withDetail.kind === 'message' ? withDetail.text : '', /timeout: x/);
+  const withoutDetail = purchaseFollowUp({ ok: false, reason: 'unavailable', detail: 'timeout: x' }, false);
+  assert.doesNotMatch(withoutDetail.kind === 'message' ? withoutDetail.text : '', /timeout/);
+});

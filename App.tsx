@@ -16,7 +16,7 @@ import { useJourney } from './src/services/useJourney';
 import { hasStarter, ownsMobby, ticketCount } from './src/services/gacha';
 import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
 import { GachaScreen } from './src/components/GachaScreen';
-import { buyPulls, drawPaidTickets, setAgeGroup, settleCredits, type AgeGroup, type BuyOutcome, type PullProductId } from './src/services/purchase';
+import { buyPulls, drawPaidTickets, purchaseFollowUp, setAgeGroup, settleCredits, type AgeGroup, type BuyOutcome, type FollowUp, type PullProductId } from './src/services/purchase';
 import { createAppStore } from './src/services/appStore';
 import { friendCodeFromUrl } from './src/services/friends';
 import { isAppleLinked, linkApple, restoreWithApple } from './src/services/appleAccount';
@@ -217,8 +217,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   };
   const purchasing = useRef(false);
   const buyProduct = async (product: { id: string; kind: 'pull' | 'plan' }) => {
-    // While developing: prove the tap arrived, whatever happens next.
-    if (__DEV__) Alert.alert('購入ボタンが押されました', `${product.id}（開発用の表示）。この表示のあとの動きを、教えてください。`);
     if (product.kind !== 'pull') { Alert.alert('準備中です', '毎月のプランは、もうしばらくお待ちください。'); return; }
     if (purchasing.current) {
       // Never ignore a tap silently while developing: say that the earlier purchase is still being worked on.
@@ -226,34 +224,21 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       return;
     }
     purchasing.current = true;
-    let askAge = false;
     // While developing: if the purchase gets nowhere for 10 seconds (outside the App Store sheet), say which step it is stuck on.
     let stage = 'tap';
     const watchdog = __DEV__ ? setTimeout(() => { if (purchasing.current && stage !== 'store') Alert.alert('購入', `10秒たっても、次に進みません。止まっている段階: ${stage}（開発用の表示）`); }, 10000) : null;
+    let next: FollowUp = { kind: 'quiet' };
     try {
-      const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore, undefined, next => { stage = next; });
-      // While developing: always show how the purchase ended, so a quiet end (such as a cancel) is not mistaken for nothing happening.
-      if (__DEV__) Alert.alert('購入の結果（開発用の表示）', JSON.stringify(outcome));
-      if (outcome.ok) {
-        if (outcome.wallet) applyWallet(outcome.wallet);
-        // Anything an earlier run left unfinished is settled now too, so the balance below is complete.
-        void settleCredits(appStore).then(wallet => { if (wallet) applyWallet(wallet); }).catch(() => undefined);
-        return;
-      }
-      if (outcome.reason === 'age_needed') { askAge = true; return; }
-      if (outcome.reason === 'limit') {
-        Alert.alert('購入', `今月の購入の上限（${outcome.capYen.toLocaleString('ja-JP')}円）まで、あと${outcome.remainingYen.toLocaleString('ja-JP')}円です。この商品は上限を超えるため、購入できません。\n上限は、毎月1日にリセットされます。`);
-        return;
-      }
-      const message = {
-        cancelled: '',
-        offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。購入はされていません。',
-        unavailable: 'この環境では購入できません。',
-        verify_failed: '購入の確認ができませんでした。課金は保留されています。アプリを開き直すと、自動でやり直します。',
-      }[outcome.reason];
-      if (message) Alert.alert('購入', __DEV__ && outcome.detail ? `${message}\n\n(開発用の詳細: ${outcome.detail})` : message);
+      const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore, undefined, step => { stage = step; });
+      next = purchaseFollowUp(outcome, __DEV__);
+      if (outcome.ok && outcome.wallet) applyWallet(outcome.wallet);
+    } catch (error) {
+      next = { kind: 'message', text: __DEV__ ? `購入の処理で、予期しないエラーが起きました: ${String(error)}` : '購入できませんでした。もう一度お試しください。' };
     } finally { purchasing.current = false; if (watchdog) clearTimeout(watchdog); }
-    if (askAge) askAgeGroup(product);
+    // What happens next is decided here, after the purchase has fully ended, with no early return in between.
+    if (next.kind === 'done') void settleCredits(appStore).then(wallet => { if (wallet) applyWallet(wallet); }).catch(() => undefined); // anything an earlier run left unfinished
+    else if (next.kind === 'askAge') askAgeGroup(product);
+    else if (next.kind === 'message') Alert.alert('購入', next.text);
   };
   // The monthly cap depends on age, so the first purchase asks once. The choice can be lowered later but not raised.
   const askAgeGroup = (product: { id: string; kind: 'pull' | 'plan' }) => {
