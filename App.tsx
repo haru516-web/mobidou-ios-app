@@ -223,7 +223,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     let askAge = false;
     try {
       const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore);
-      if (outcome.ok) { if (outcome.wallet) applyWallet(outcome.wallet); return; }
+      if (outcome.ok) {
+        if (outcome.wallet) applyWallet(outcome.wallet);
+        // Anything an earlier run left unfinished is settled now too, so the balance below is complete.
+        void settleCredits(appStore).then(wallet => { if (wallet) applyWallet(wallet); }).catch(() => undefined);
+        return;
+      }
       if (outcome.reason === 'age_needed') { askAge = true; return; }
       if (outcome.reason === 'limit') {
         Alert.alert('購入', `今月の購入の上限（${outcome.capYen.toLocaleString('ja-JP')}円）まで、あと${outcome.remainingYen.toLocaleString('ja-JP')}円です。この商品は上限を超えるため、購入できません。\n上限は、毎月1日にリセットされます。`);

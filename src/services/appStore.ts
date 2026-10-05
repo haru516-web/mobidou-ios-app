@@ -18,10 +18,15 @@ export function createAppStore(): PurchaseStore | null {
       await connect();
       const products = await iap.fetchProducts({ skus: [sku], type: 'in-app' });
       if (!products || products.length === 0) throw new Error(`product_not_found: ${sku}`);
+      // Purchases an earlier run left unfinished are replayed by the store; they are settled at the next start and must not be
+      // mistaken for the purchase being made now.
+      const leftOver = new Set((await iap.getAvailablePurchases().catch(() => [])).filter(purchase => purchase.productId === sku).map(purchase => purchase.id));
+      if (__DEV__) console.log(`[iap] buying ${sku}; ${leftOver.size} unfinished from before`);
       return new Promise<PurchasedItem | 'cancelled'>((resolve, reject) => {
         const done = () => { updated.remove(); failed.remove(); };
         const updated = iap.purchaseUpdatedListener(purchase => {
-          if (purchase.productId !== sku || !purchase.purchaseToken) return;
+          if (__DEV__) console.log(`[iap] update ${purchase.productId} id=${purchase.id} token=${purchase.purchaseToken ? 'yes' : 'no'} old=${leftOver.has(purchase.id)}`);
+          if (purchase.productId !== sku || !purchase.purchaseToken || leftOver.has(purchase.id)) return;
           done(); resolve(item(purchase));
         });
         const failed = iap.purchaseErrorListener(error => {
