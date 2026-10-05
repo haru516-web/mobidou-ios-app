@@ -8,6 +8,7 @@ import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
 import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
 import { PET_CHARACTERS, getPetCharacter, isPetId, type PetCharacter } from '../petCatalog';
 import { GachaShop } from './GachaShop';
+import { FitToHeight } from './PagedBody';
 import { HomeStatusBar } from './HomeStatusBar';
 import { WashiPressable } from './Washi';
 import { SlicedArt } from './SlicedArt';
@@ -570,7 +571,7 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
       {zoomT > 0 && <RNImage accessible={false} source={pet.image} resizeMode="contain" style={{ position: 'absolute', width: bigSize, height: bigSize, left: (width - bigSize) / 2, top: bigTop, opacity: Math.min(1, zoomT * 1.6), transform: [{ scale: .55 + .45 * zoomT + .08 * Math.sin(Math.min(1, zoomT) * Math.PI) }] }} />}
     </Pressable>}
 
-    {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: navShown ? lobbyBottom + 8 : 84 + insets.bottom }]}><GachaShop onBuy={onBuy} onRestore={onRestore} refundDebt={refundDebt} plusActive={plusActive} /></View>}
+    {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: navShown ? lobbyBottom + 8 : 84 + insets.bottom }]}><FitToHeight><GachaShop onBuy={onBuy} onRestore={onRestore} refundDebt={refundDebt} plusActive={plusActive} /></FitToHeight></View>}
 
     {shopOpen && !navShown && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} /><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 

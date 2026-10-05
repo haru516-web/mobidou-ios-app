@@ -46,20 +46,27 @@ export function GachaShop({ onBuy, onRestore, refundDebt = 0, plusActive = false
   return <View style={S.root}>
     {refundDebt > 0 && <Text accessibilityLiveRegion="polite" style={S.debtNote}>返金があったため、木札{refundDebt}枚分は、次にご購入の木札から差し引かれます。差し引きが終わるまで、購入した木札は手元に増えません。</Text>}
     {SHOP_GROUPS.map(group)}
-    <Text style={S.fineprint}>プラスプランは月300円の自動更新です。お支払いはApple IDに請求され、期間の終了の24時間前までに解約しない限り、自動で更新されます。解約は、iPhoneの「設定」のApple ID、サブスクリプションからできます。</Text>
-    {onRestore && <Text accessibilityRole="button" onPress={onRestore} style={S.legalLink}>購入を復元する</Text>}
-    <Text style={S.fineprint}>
-      <Text accessibilityRole="link" onPress={() => void Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/').catch(() => undefined)} style={S.underline}>利用規約（Apple標準）</Text>
-      {'　/　'}
-      <Text accessibilityRole="link" onPress={() => void Linking.openURL(`${SERVER_URL}/privacy`).catch(() => undefined)} style={S.underline}>プライバシーポリシー</Text>
-    </Text>
-    <Text accessibilityRole="link" onPress={() => void Linking.openURL(`${SERVER_URL}/legal`).catch(() => undefined)} style={S.legalLink}>特定商取引法に基づく表記</Text>
+    <View style={S.notePlate}>
+      <SlicedArt art={GACHA_UI_ART.shopCard} corner={22} />
+      <Text style={S.fineprint}>プラスプランは月300円の自動更新です。お支払いはApple IDに請求され、期間の終了の24時間前までに解約しない限り、自動で更新されます。解約は、iPhoneの「設定」のApple ID、サブスクリプションからできます。</Text>
+      <Text style={S.fineprint}>
+        {onRestore && <Text accessibilityRole="button" onPress={onRestore} style={S.underline}>購入を復元する</Text>}
+        {onRestore && '　/　'}
+        <Text accessibilityRole="link" onPress={() => void Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/').catch(() => undefined)} style={S.underline}>利用規約（Apple標準）</Text>
+      </Text>
+      <Text style={S.fineprint}>
+        <Text accessibilityRole="link" onPress={() => void Linking.openURL(`${SERVER_URL}/privacy`).catch(() => undefined)} style={S.underline}>プライバシーポリシー</Text>
+        {'　/　'}
+        <Text accessibilityRole="link" onPress={() => void Linking.openURL(`${SERVER_URL}/legal`).catch(() => undefined)} style={S.underline}>特定商取引法に基づく表記</Text>
+      </Text>
+    </View>
   </View>;
 }
 
 const S = StyleSheet.create({
   debtNote: { color: '#FFF8E9', fontSize: 12, lineHeight: 18, paddingHorizontal: 8, textShadowColor: '#000000CC', textShadowRadius: 5 },
-  fineprint: { color: '#D5BD98', fontSize: 11, lineHeight: 16, textAlign: 'center', paddingHorizontal: 6 },
+  notePlate: { gap: 6, paddingVertical: 12, paddingHorizontal: 20 },
+  fineprint: { color: '#F1E3C8', fontSize: 11, lineHeight: 16, textAlign: 'center' },
   underline: { textDecorationLine: 'underline' },
   legalLink: { color: '#D5BD98', fontSize: 12, textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 6 },
   root: { gap: 10, width: '100%', maxWidth: 380, alignSelf: 'center' },
