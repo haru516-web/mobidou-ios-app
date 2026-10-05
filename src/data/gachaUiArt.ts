@@ -15,10 +15,9 @@ export const GACHA_UI_ART = {
 export type GachaUiArtName = keyof typeof GACHA_UI_ART;
 
 export const SHOP_PRODUCT_ART: Record<ShopProduct['id'], number> = {
-  pull1: require('../../assets/ui-round5/shop/product-pull1.webp'),
-  pull5: require('../../assets/ui-round5/shop/product-pull5.webp'),
-  light: require('../../assets/ui-round5/shop/product-plan-light.webp'),
-  plus: require('../../assets/ui-round5/shop/product-plan-plus.webp'),
+  pull1: require('../../assets/ui-round5/shop/product-pull1-tag.webp'),
+  pull5: require('../../assets/ui-round5/shop/product-pull5-tag.webp'),
+  plus: require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp'),
 };
 
 export const GACHA_PANEL_ART: UiArt = { source: require('../../assets/ui-round8/gacha/panel-dark-v1.webp'), width: 1024, height: 512, box: { x0: 10, x1: 1013, y0: 34, y1: 503 }, slice: { left: 110, right: 110, top: 110, bottom: 110 } };

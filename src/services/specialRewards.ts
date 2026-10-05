@@ -13,16 +13,16 @@
 
 /** Drop rate for players without a subscription. */
 export const KEYCHAIN_BASE_RATE = 0.10;
-/** Drop rate while a monthly plan is active. */
-export const KEYCHAIN_PLAN_RATE = 0.50;
+/** Drop rate while the plus plan is active: every shrine arrival hands over the keychain. */
+export const KEYCHAIN_PLAN_RATE = 1;
 
-export type KeychainPlan = 'none' | 'light' | 'plus';
-export const KEYCHAIN_PLANS: readonly KeychainPlan[] = ['none', 'light', 'plus'];
+export type KeychainPlan = 'none' | 'plus';
+export const KEYCHAIN_PLANS: readonly KeychainPlan[] = ['none', 'plus'];
 export const isKeychainPlan = (value: unknown): value is KeychainPlan => KEYCHAIN_PLANS.includes(value as KeychainPlan);
 export const keychainRate = (plan: KeychainPlan) => plan === 'none' ? KEYCHAIN_BASE_RATE : KEYCHAIN_PLAN_RATE;
 
-/** Exchange tickets granted each month by the "plus" plan; they do not carry over. */
-export const PLUS_MONTHLY_TICKETS = 10;
+/** Gacha 木札 the "plus" plan grants each month (the server credits them; they carry over like any other 木札). */
+export const PLUS_MONTHLY_TICKETS = 1;
 
 export type PassKind = 'keychainDrop';
 export type PassInventory = { keychainDrop: number };

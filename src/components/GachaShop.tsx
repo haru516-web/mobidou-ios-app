@@ -14,10 +14,12 @@ type Props = {
   refundDebt?: number;
   /** Start a purchase. Omit while the App Store connection is not available: the buttons then say so. */
   onBuy?: (product: ShopProduct) => void;
+  /** The plus plan is running: its card says so and cannot be bought again. */
+  plusActive?: boolean;
 };
 
 /** The shop tab of the gacha screen: single and five pulls, and the monthly plans. */
-export function GachaShop({ onBuy, refundDebt = 0 }: Props) {
+export function GachaShop({ onBuy, refundDebt = 0, plusActive = false }: Props) {
   const group = ({ kind, heading, summary }: typeof SHOP_GROUPS[number]) => <View key={kind} style={S.group}>
     <View style={S.headingPlate}>
       <SlicedArt art={GACHA_UI_ART.shopHeading} />
@@ -31,10 +33,12 @@ export function GachaShop({ onBuy, refundDebt = 0 }: Props) {
         <Text style={S.title}>{product.title}</Text>
         <Text style={S.detail}>{product.detail}</Text>
       </View>
-      <View style={S.buy}>
-        <Text style={S.price}>{product.price}</Text>
-        <Button soundless title={onBuy ? '購入' : '準備中'} disabled={!onBuy} onPress={() => { playSfx('sfx_shop_buy'); onBuy?.(product); }} style={S.button} />
-      </View>
+      {product.id === 'plus' && plusActive
+        ? <View accessible accessibilityRole="text" accessibilityLabel="プラスプラン契約中" style={S.buy}><View style={S.activePlate}><SlicedArt name="buttonSecondary" /><Text style={S.active}>契約中</Text></View></View>
+        : <View style={S.buy}>
+          <Text style={S.price}>{product.price}</Text>
+          <Button soundless title={onBuy ? '購入' : '準備中'} disabled={!onBuy} onPress={() => { playSfx('sfx_shop_buy'); onBuy?.(product); }} style={S.button} />
+        </View>}
     </View>)}
   </View>;
   return <View style={S.root}>
@@ -59,5 +63,7 @@ const S = StyleSheet.create({
   detail: { color: '#D5BD98', fontSize: 11, lineHeight: 16 },
   buy: { alignItems: 'center', gap: 6 },
   price: { color: '#FFF5E2', fontFamily: SERIF, fontSize: 14 },
+  activePlate: { minWidth: 84, minHeight: 44, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
+  active: { color: '#A54E42', fontFamily: BRUSH, fontSize: 14, letterSpacing: 1 },
   button: { minWidth: 84 },
 });

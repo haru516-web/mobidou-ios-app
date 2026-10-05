@@ -15,9 +15,9 @@ import {
 
 const fixed = (value: number) => () => value;
 
-test('the rate is ten percent without a plan and fifty percent with one', () => {
+test('the rate is ten percent without a plan and every time with the plus plan', () => {
   assert.equal(keychainRate('none'), KEYCHAIN_BASE_RATE);
-  assert.equal(keychainRate('light'), KEYCHAIN_PLAN_RATE);
+  assert.equal(keychainRate('plus'), 1);
   assert.equal(keychainRate('plus'), KEYCHAIN_PLAN_RATE);
 });
 
@@ -29,7 +29,7 @@ test('the drop uses an exact boundary at the base rate', () => {
 test('a plan raises the chance for the same roll', () => {
   const roll = fixed(0.4);
   assert.equal(ownsKeychain(rollKeychainOnArrival(emptySpecialCollection(), 'star', 'none', roll), 'star'), false);
-  assert.equal(ownsKeychain(rollKeychainOnArrival(emptySpecialCollection(), 'star', 'light', roll), 'star'), true);
+  assert.equal(ownsKeychain(rollKeychainOnArrival(emptySpecialCollection(), 'star', 'plus', roll), 'star'), true);
 });
 
 test('arriving with the keychain already owned never rolls', () => {
