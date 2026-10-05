@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '..');
 const pullDir = path.join(root, 'assets/mobies/pull');
 const ffmpeg = process.env.FFMPEG || 'ffmpeg';
 const SIZE = 1254;
-const prefixes = { mobirin: 'mobirin', mobichi: 'mobichi', yami: 'yami', mobiyan: 'mobiyan', mobiyura: 'yura', reomoby: 'reo', potemoby: 'pote', mobibou: 'mobibou', babumoby: 'babu' };
+const prefixes = { mobirin: 'mobirin', mobichi: 'mobichi', yami: 'yami', mobiyan: 'mobiyan', mobiyura: 'yura', reomoby: 'reo', potemoby: 'pote', mobibou: 'mobibou', babumoby: 'babu', bearmobby: 'bear', boymobby: 'boy', dogmobby: 'dog', ojimobby: 'oji', reamobby: 'rea', shikamobby: 'shika', uyumobby: 'uyu', wolfmobby: 'wolf' };
 const parts = { lens: 'lens', cross: 'cross', buttonLeft: 'button-left', buttonRight: 'button-right' };
 
 function measure(file) {

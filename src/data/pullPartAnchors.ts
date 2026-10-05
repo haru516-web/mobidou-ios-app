@@ -10,4 +10,12 @@ export const PULL_PART_ANCHORS: Record<string, PullPartAnchors> = {
   potemoby: { lens: { x: 0.632, y: 0.321 }, cross: { x: 0.4131, y: 0.4621 }, buttonLeft: { x: 0.5861, y: 0.449 }, buttonRight: { x: 0.6423, y: 0.4302 } },
   mobibou: { lens: { x: 0.6459, y: 0.3608 }, cross: { x: 0.3927, y: 0.5981 }, buttonLeft: { x: 0.5965, y: 0.5977 }, buttonRight: { x: 0.6842, y: 0.5702 } },
   babumoby: { lens: { x: 0.614, y: 0.3967 }, cross: { x: 0.3868, y: 0.6483 }, buttonLeft: { x: 0.5805, y: 0.6579 }, buttonRight: { x: 0.6495, y: 0.624 } },
+  bearmobby: { lens: { x: 0.6563, y: 0.323 }, cross: { x: 0.3684, y: 0.5463 }, buttonLeft: { x: 0.5797, y: 0.5702 }, buttonRight: { x: 0.6611, y: 0.5199 } },
+  boymobby: { lens: { x: 0.6595, y: 0.3652 }, cross: { x: 0.3788, y: 0.5981 }, buttonLeft: { x: 0.5821, y: 0.6021 }, buttonRight: { x: 0.6635, y: 0.5526 } },
+  dogmobby: { lens: { x: 0.6547, y: 0.3094 }, cross: { x: 0.3612, y: 0.6587 }, buttonLeft: { x: 0.5766, y: 0.6762 }, buttonRight: { x: 0.6595, y: 0.6316 } },
+  ojimobby: { lens: { x: 0.6563, y: 0.323 }, cross: { x: 0.3676, y: 0.5542 }, buttonLeft: { x: 0.5781, y: 0.571 }, buttonRight: { x: 0.6603, y: 0.5239 } },
+  reamobby: { lens: { x: 0.6244, y: 0.3589 }, cross: { x: 0.3708, y: 0.6156 }, buttonLeft: { x: 0.5622, y: 0.6459 }, buttonRight: { x: 0.6364, y: 0.6037 } },
+  shikamobby: { lens: { x: 0.6683, y: 0.3692 }, cross: { x: 0.3923, y: 0.5702 }, buttonLeft: { x: 0.5957, y: 0.5901 }, buttonRight: { x: 0.6738, y: 0.5478 } },
+  uyumobby: { lens: { x: 0.63, y: 0.3389 }, cross: { x: 0.3907, y: 0.5526 }, buttonLeft: { x: 0.5678, y: 0.5718 }, buttonRight: { x: 0.6356, y: 0.5327 } },
+  wolfmobby: { lens: { x: 0.6515, y: 0.3493 }, cross: { x: 0.3676, y: 0.5941 }, buttonLeft: { x: 0.5758, y: 0.614 }, buttonRight: { x: 0.6539, y: 0.5678 } },
 };

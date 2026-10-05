@@ -1,6 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 
-export type CoreMobbyId = 'mobirin' | 'mobichi' | 'yami' | 'mobiyan' | 'mobiyura' | 'reomoby' | 'potemoby' | 'mobibou' | 'babumoby';
+export type CoreMobbyId = 'mobirin' | 'mobichi' | 'yami' | 'mobiyan' | 'mobiyura' | 'reomoby' | 'potemoby' | 'mobibou' | 'babumoby'
+  | 'bearmobby' | 'boymobby' | 'dogmobby' | 'ojimobby' | 'reamobby' | 'shikamobby' | 'uyumobby' | 'wolfmobby';
 type MobbyId = CoreMobbyId;
 
 export type PullFrame = { x: number; y: number; width: number; height: number };
@@ -194,6 +195,53 @@ const fixedAccessoryParts: Record<MobbyId, PullFixedAccessoryParts> = {
     cross: require('../../assets/mobies/pull/babu-cross.webp'),
     buttonLeft: require('../../assets/mobies/pull/babu-button-left.webp'),
     buttonRight: require('../../assets/mobies/pull/babu-button-right.webp'),
+  },  bearmobby: {
+    lens: require('../../assets/mobies/pull/bear-lens.webp'),
+    cross: require('../../assets/mobies/pull/bear-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/bear-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/bear-button-right.webp'),
+  },
+  boymobby: {
+    lens: require('../../assets/mobies/pull/boy-lens.webp'),
+    cross: require('../../assets/mobies/pull/boy-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/boy-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/boy-button-right.webp'),
+  },
+  dogmobby: {
+    lens: require('../../assets/mobies/pull/dog-lens.webp'),
+    cross: require('../../assets/mobies/pull/dog-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/dog-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/dog-button-right.webp'),
+  },
+  ojimobby: {
+    lens: require('../../assets/mobies/pull/oji-lens.webp'),
+    cross: require('../../assets/mobies/pull/oji-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/oji-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/oji-button-right.webp'),
+  },
+  reamobby: {
+    lens: require('../../assets/mobies/pull/rea-lens.webp'),
+    cross: require('../../assets/mobies/pull/rea-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/rea-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/rea-button-right.webp'),
+  },
+  shikamobby: {
+    lens: require('../../assets/mobies/pull/shika-lens.webp'),
+    cross: require('../../assets/mobies/pull/shika-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/shika-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/shika-button-right.webp'),
+  },
+  uyumobby: {
+    lens: require('../../assets/mobies/pull/uyu-lens.webp'),
+    cross: require('../../assets/mobies/pull/uyu-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/uyu-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/uyu-button-right.webp'),
+  },
+  wolfmobby: {
+    lens: require('../../assets/mobies/pull/wolf-lens.webp'),
+    cross: require('../../assets/mobies/pull/wolf-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/wolf-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/wolf-button-right.webp'),
   },
 };
 
@@ -317,6 +365,70 @@ const assets: Record<MobbyId, MobbyPullAsset> = {
     eyeFrame: { x: 379, y: 396, width: 227, height: 213 },
     mouthFrame: { x: 558, y: 577, width: 150, height: 69 },
     fixedAccessoryParts: fixedAccessoryParts.babumoby,
+  }),  bearmobby: createAsset({
+    body: require('../../assets/mobies/pull/bear-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 306, y: 283, width: 284, height: 244 },
+    mouthFrame: { x: 553, y: 485, width: 150, height: 69 },
+    fixedAccessoryParts: fixedAccessoryParts.bearmobby,
+  }),
+  boymobby: createAsset({
+    body: require('../../assets/mobies/pull/boy-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 328, y: 340, width: 274, height: 240 },
+    mouthFrame: { x: 571, y: 550, width: 150, height: 69 },
+    fixedAccessoryParts: fixedAccessoryParts.boymobby,
+  }),
+  dogmobby: createAsset({
+    body: require('../../assets/mobies/pull/dog-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 306, y: 280, width: 284, height: 244 },
+    mouthFrame: { x: 547, y: 530, width: 150, height: 69 },
+    fixedAccessoryParts: fixedAccessoryParts.dogmobby,
+  }),
+  ojimobby: createAsset({
+    body: require('../../assets/mobies/pull/oji-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 306, y: 314, width: 284, height: 222 },
+    mouthFrame: { x: 557, y: 565, width: 150, height: 69 },
+    mouthPairs: darkMouthPairs,
+    fixedAccessoryParts: fixedAccessoryParts.ojimobby,
+  }),
+  reamobby: createAsset({
+    body: require('../../assets/mobies/pull/rea-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 336, y: 349, width: 229, height: 198 },
+    mouthFrame: { x: 541, y: 540, width: 150, height: 69 },
+    fixedAccessoryParts: fixedAccessoryParts.reamobby,
+  }),
+  shikamobby: createAsset({
+    body: require('../../assets/mobies/pull/shika-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 350, y: 340, width: 274, height: 240 },
+    mouthFrame: { x: 585, y: 565, width: 150, height: 69 },
+    fixedAccessoryParts: fixedAccessoryParts.shikamobby,
+  }),
+  uyumobby: createAsset({
+    body: require('../../assets/mobies/pull/uyu-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 361, y: 322, width: 234, height: 207 },
+    mouthFrame: { x: 559, y: 500, width: 150, height: 69 },
+    fixedAccessoryParts: fixedAccessoryParts.uyumobby,
+  }),
+  wolfmobby: createAsset({
+    body: require('../../assets/mobies/pull/wolf-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 315, y: 321, width: 272, height: 235 },
+    mouthFrame: { x: 552, y: 562, width: 150, height: 69 },
+    fixedAccessoryParts: fixedAccessoryParts.wolfmobby,
   }),
 };
 

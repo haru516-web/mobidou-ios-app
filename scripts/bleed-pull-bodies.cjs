@@ -19,7 +19,7 @@ const SOLID = 180; // alpha at or above this is a colour source for the fill
 const FILL_BELOW = 40; // only pixels fainter than this are repainted; the rest keep their own real colour
 const EDGE_REACH = 45; // the baked-in checkerboard only sits within this many px of the silhouette edge
 // pull-body prefix -> the character art whose silhouette is used as the mask
-const bodies = { mobirin: 'mobirin', mobichi: 'mobichi', yami: 'yami-mobby', mobiyan: 'mobiyan', yura: 'mobiyura', reo: 'reomoby', pote: 'potemoby', mobibou: 'mobibou', babu: 'babumoby' };
+const bodies = { mobirin: 'mobirin', mobichi: 'mobichi', yami: 'yami-mobby', mobiyan: 'mobiyan', yura: 'mobiyura', reo: 'reomoby', pote: 'potemoby', mobibou: 'mobibou', babu: 'babumoby', bear: 'bearmobby', boy: 'boymobby', dog: 'dogmobby', oji: 'ojimobby', rea: 'reamobby', shika: 'shikamobby', uyu: 'uyumobby', wolf: 'wolfmobby' };
 const decode = file => execFileSync(ffmpeg, ['-v', 'error', '-i', file, '-vf', `scale=${SIZE}:${SIZE}:flags=lanczos`, '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'], { maxBuffer: SIZE * SIZE * 8 });
 const channelGap = (a, i) => Math.max(Math.abs(a[i] - a[i + 1]), Math.abs(a[i + 1] - a[i + 2]));
 // The art must be clearly more colourful than the grey checkerboard (or, low down where there are no eyes or

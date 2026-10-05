@@ -17,4 +17,12 @@ export const PULL_GL_TEXTURES: Record<CoreMobbyId, ImageSourcePropType> = {
   potemoby: require('../../assets/mobies/pull/gl/potemoby-body.png'),
   mobibou: require('../../assets/mobies/pull/gl/mobibou-body.png'),
   babumoby: require('../../assets/mobies/pull/gl/babumoby-body.png'),
+  bearmobby: require('../../assets/mobies/pull/gl/bearmobby-body.png'),
+  boymobby: require('../../assets/mobies/pull/gl/boymobby-body.png'),
+  dogmobby: require('../../assets/mobies/pull/gl/dogmobby-body.png'),
+  ojimobby: require('../../assets/mobies/pull/gl/ojimobby-body.png'),
+  reamobby: require('../../assets/mobies/pull/gl/reamobby-body.png'),
+  shikamobby: require('../../assets/mobies/pull/gl/shikamobby-body.png'),
+  uyumobby: require('../../assets/mobies/pull/gl/uyumobby-body.png'),
+  wolfmobby: require('../../assets/mobies/pull/gl/wolfmobby-body.png'),
 };

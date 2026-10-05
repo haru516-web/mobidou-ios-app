@@ -20,6 +20,14 @@ const pets = {
   potemoby: ['pote-body-clean', 'potemoby'],
   mobibou: ['mobibou-body-clean', 'mobibou'],
   babumoby: ['babu-body-clean', 'babumoby'],
+  bearmobby: ['bear-body-clean', 'bearmobby'],
+  boymobby: ['boy-body-clean', 'boymobby'],
+  dogmobby: ['dog-body-clean', 'dogmobby'],
+  ojimobby: ['oji-body-clean', 'ojimobby'],
+  reamobby: ['rea-body-clean', 'reamobby'],
+  shikamobby: ['shika-body-clean', 'shikamobby'],
+  uyumobby: ['uyu-body-clean', 'uyumobby'],
+  wolfmobby: ['wolf-body-clean', 'wolfmobby'],
 };
 const t = 'clip((val-77)/102,0,1)';
 const graph = [
