@@ -225,8 +225,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     }
     purchasing.current = true;
     let askAge = false;
+    // While developing: if the purchase gets nowhere for 10 seconds (outside the App Store sheet), say which step it is stuck on.
+    let stage = 'tap';
+    const watchdog = __DEV__ ? setTimeout(() => { if (purchasing.current && stage !== 'store') Alert.alert('購入', `10秒たっても、次に進みません。止まっている段階: ${stage}（開発用の表示）`); }, 10000) : null;
     try {
-      const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore);
+      const outcome: BuyOutcome = await buyPulls(product.id as PullProductId, appStore, undefined, next => { stage = next; });
       if (outcome.ok) {
         if (outcome.wallet) applyWallet(outcome.wallet);
         // Anything an earlier run left unfinished is settled now too, so the balance below is complete.
@@ -245,7 +248,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         verify_failed: '購入の確認ができませんでした。課金は保留されています。アプリを開き直すと、自動でやり直します。',
       }[outcome.reason];
       if (message) Alert.alert('購入', __DEV__ && outcome.detail ? `${message}\n\n(開発用の詳細: ${outcome.detail})` : message);
-    } finally { purchasing.current = false; }
+    } finally { purchasing.current = false; if (watchdog) clearTimeout(watchdog); }
     if (askAge) askAgeGroup(product);
   };
   // The monthly cap depends on age, so the first purchase asks once. The choice can be lowered later but not raised.

@@ -90,23 +90,30 @@ export async function setAgeGroup(group: AgeGroup, api: PurchaseApi = serverApi)
 
 const verify = async (api: PurchaseApi, jws: string) => ok(await api.post('/purchases/verify', { signedTransactionInfo: jws }));
 
-export async function buyPulls(productId: PullProductId, store: PurchaseStore | null, api: PurchaseApi = serverApi): Promise<BuyOutcome> {
+/** `onStage` is told which step is under way (account, limits, store, verify, wallet), so a stall can be located. */
+export async function buyPulls(productId: PullProductId, store: PurchaseStore | null, api: PurchaseApi = serverApi, onStage?: (stage: string) => void): Promise<BuyOutcome> {
+  onStage?.('start');
   if (!store) return { ok: false, reason: 'unavailable', detail: 'store_module_missing' };
   const product = PULL_PRODUCTS[productId];
+  onStage?.('account');
   const account = await api.account();
   if (!account) return { ok: false, reason: 'offline' };
 
+  onStage?.('limits');
   const limits = await fetchLimits(api);
   if (!limits) return { ok: false, reason: 'offline' };
   if (limits.ageGroup === null) return { ok: false, reason: 'age_needed' };
   if (limits.capYen !== null && limits.remainingYen !== null && product.priceYen > limits.remainingYen) return { ok: false, reason: 'limit', capYen: limits.capYen, remainingYen: limits.remainingYen };
 
   let bought: PurchasedItem | 'cancelled';
+  onStage?.('store');
   try { bought = await store.purchase(product.sku, account.userId); } catch (error) { return { ok: false, reason: 'unavailable', detail: error instanceof Error ? error.message : String(error) }; }
   if (bought === 'cancelled') return { ok: false, reason: 'cancelled' };
 
+  onStage?.('verify');
   if (!(await verify(api, bought.jws))) return { ok: false, reason: 'verify_failed' };
   await bought.finish().catch(() => undefined);
+  onStage?.('wallet');
   return { ok: true, wallet: await fetchWallet(api) };
 }
 
