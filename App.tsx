@@ -218,7 +218,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const purchasing = useRef(false);
   const buyProduct = async (product: { id: string; kind: 'pull' | 'plan' }) => {
     if (product.kind !== 'pull') { Alert.alert('準備中です', '毎月のプランは、もうしばらくお待ちください。'); return; }
-    if (purchasing.current) return;
+    if (purchasing.current) {
+      // Never ignore a tap silently while developing: say that the earlier purchase is still being worked on.
+      if (__DEV__) Alert.alert('購入', '前の購入の処理が、まだ終わっていません。(開発用の表示)');
+      return;
+    }
     purchasing.current = true;
     let askAge = false;
     try {
