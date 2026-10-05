@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setAudioModeAsync } from 'expo-audio';
 import { createManagedAudioPlayer, type ManagedAudioPlayer as AudioPlayer } from './audioPlayer';
 import { audioAssets, type AudioId, type BgmId } from '../data/audioAssets';
-import { bgmTarget, canPlaySfx, DEFAULT_AUDIO_SETTINGS, fadeVolumes, normalizeAudioSettings, resolveAudioScene, type AudioSettings } from './audioLogic';
+import { bgmTarget, canPlaySfx, DEFAULT_AUDIO_SETTINGS, fadeVolumes, isMainBgmTrack, nextMainTrack, normalizeAudioSettings, resolveAudioScene, type AudioSettings } from './audioLogic';
 
 const KEY = 'mobidou.audio.v1';
 let settings = DEFAULT_AUDIO_SETTINGS;
@@ -14,6 +14,9 @@ let writes = Promise.resolve();
 let unlocked = Platform.OS !== 'web';
 let foreground = AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
 let desired: BgmId = 'bgm_main';
+/** While the main scene is wanted, which of the three main tracks plays; a new one is drawn when it ends or the scene is entered. */
+let mainTrack: BgmId = nextMainTrack();
+const wanted = (): BgmId => desired === 'bgm_main' ? mainTrack : desired;
 let current: { id: BgmId; player: AudioPlayer } | undefined;
 const outgoing = new Set<AudioPlayer>();
 let fade: ReturnType<typeof setInterval> | undefined;
@@ -42,14 +45,18 @@ function syncBgm() {
   if (!unlocked || !foreground || !settings.bgmEnabled) {
     stopFade(); if (current) safe(() => current!.player.pause()); return;
   }
-  if (current?.id === desired) { safe(() => { current!.player.volume = target(); current!.player.play(); }); return; }
+  const id = wanted();
+  if (current?.id === id) { safe(() => { current!.player.volume = target(); current!.player.play(); }); return; }
   stopFade();
   const old = current?.player;
   const oldVolume = old?.volume ?? 0;
   try {
-    const player = createManagedAudioPlayer(audioAssets[desired]);
-    player.loop = desired !== 'bgm_walk_award'; player.volume = 0; player.play();
-    current = { id: desired, player };
+    const player = createManagedAudioPlayer(audioAssets[id]);
+    const inRotation = isMainBgmTrack(id) && desired === 'bgm_main';
+    // Main tracks do not loop: when one ends, the next (random) one starts.
+    player.loop = !inRotation && id !== 'bgm_walk_award'; player.volume = 0; player.play();
+    if (inRotation) player.addListener('playbackStatusUpdate', status => { if (status.didJustFinish && current?.player === player && desired === 'bgm_main') { mainTrack = nextMainTrack(mainTrack); syncBgm(); } });
+    current = { id, player };
     if (old) outgoing.add(old);
     const begun = Date.now();
     fade = setInterval(() => {
@@ -64,6 +71,7 @@ function syncBgm() {
 export function unlockAudio() { unlocked = true; void initAudio().then(syncBgm); }
 export function setBgm(id: BgmId) {
   if (desired !== id) {
+    if (id === 'bgm_main') mainTrack = nextMainTrack(mainTrack);
     if (duckTimer) clearTimeout(duckTimer);
     if (duckFade) clearInterval(duckFade);
     duckTimer = undefined; duckFade = undefined; duck = 1; duckUntil = 0;

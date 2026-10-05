@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bgmTarget, canPlaySfx, fadeVolumes, normalizeAudioSettings, resolveAudioScene } from '../src/services/audioLogic.ts';
+import { bgmTarget, canPlaySfx, fadeVolumes, MAIN_BGM_TRACKS, nextMainTrack, normalizeAudioSettings, resolveAudioScene } from '../src/services/audioLogic.ts';
 test('SFX accepts first hit, rejects repetition within 80ms and seventh voice', () => {
   assert.equal(canPlaySfx(undefined, 0, 0), true);
   assert.equal(canPlaySfx(100, 179, 5), false);
@@ -26,4 +26,11 @@ test('Scene transitions restore lower-priority BGM after closing an overlay', ()
   assert.equal(resolveAudioScene([main, gacha], 'main'), 'gacha');
   assert.equal(resolveAudioScene([main], 'main'), 'main');
   assert.equal(resolveAudioScene([], 'main'), 'main');
+});
+
+test('the main BGM rotates over three tracks and never repeats the one that just ended', () => {
+  assert.equal(MAIN_BGM_TRACKS.length, 3);
+  for (const previous of MAIN_BGM_TRACKS) for (const roll of [0, .3, .5, .99]) assert.notEqual(nextMainTrack(previous, () => roll), previous);
+  assert.deepEqual(new Set(MAIN_BGM_TRACKS.map(previous => nextMainTrack(previous, () => 0))).size > 1, true);
+  assert.ok((MAIN_BGM_TRACKS as readonly string[]).includes(nextMainTrack(undefined, () => .99)));
 });
