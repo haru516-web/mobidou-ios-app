@@ -202,6 +202,5 @@ export const STAMP_IMAGES = {
   sorashiori: require('../../assets/goshuin/sorashiori.png'),
   natsukage: require('../../assets/goshuin/natsukage.png'),
   tsuzuri: require('../../assets/goshuin/tsuzuri.png'),
-  // TEMPORARY: replace with assets/goshuin/hatsumobi.webp when the first-step images arrive (docs/codex-first-step-assets.md).
-  hatsumobi: require('../../assets/goshuin/rain.webp'),
+  hatsumobi: require('../../assets/goshuin/hatsumobi.webp'),
 } as const;
