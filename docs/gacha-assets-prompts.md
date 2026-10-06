@@ -581,3 +581,19 @@ Avoid: velvet, silk gloss, elaborate valance, flags, heraldic details, busy fabr
 
 プロンプト:
 > Use case: stylized-concept. Create one isolated production Japanese game UI asset, guide-arrow-down, on genuinely transparent alpha background. Square canvas. Exactly one downward V-shaped chevron, bilaterally symmetric, no shaft. Thick hand-painted Japanese brush strokes, warm ivory white near #FFF8E9, with subtle dry-brush grain and slight washi-like pigment bleeding confined to the strokes. A very fine faint dark burnt-brown contour gives legibility against dark #302D25 and light tan #C79A62. Rounded lower point and softly rounded stroke ends. Center the chevron, occupy about 76 percent of canvas width and 45 percent height, keep at least 10 percent fully transparent margin on every side. Refined tactile restrained handmade finish matching Japanese watercolor game props, natural wood and vermilion aesthetic, but the arrow itself stays warm white. Flat pigment, no lighting effects. No text, letters, numbers, additional symbols, shaft, cast shadow, drop shadow, glow, background color, paper rectangle, checkerboard, border, watermark. Transparent empty space everywhere outside the single chevron.
+
+
+## 2026-10-06 プラスプラン用の金色の札
+
+- 出力: `assets/ui-round3/tickets/ticket-plus-plan-gold-v1.webp`
+- 生成: built-in image_gen、transparent_background: true。参照は引換券v2（編集対象）とガチャ木札（作風参照）。
+- 後処理: 生成アルファを保持し、1024×1536から指定の1023×1535へリサイズ、WebP quality 88 / alphaQuality 100 / effort 6。
+- 確認: {"format":"webp","width":1023,"height":1535,"corners":[0,0,0,0],"bytes":300936,"referenceBytes":533672,"silhouetteIoU":0.9924545343880878}
+- 暗色 #302D25・明色 #C79A62、参照との縮小並列・半透明重ね合わせを目視確認。指定日本語5行、丸印の＋、金泥の質感、穴・点線・切り欠き・草と道を確認。
+- audit-image-assets.cjs は参照検査用でアルファ検査機能がないため、保存後WebPをSharpで再読込して寸法・四隅・容量を検査。
+
+送信プロンプト:
+
+~~~text
+Edit target: first reference ticket-keychain-drop-v2.webp. Second reference is style context only, wooden gacha tag. Create exactly one gold Plus Plan ticket by precise editing of first image. Preserve exact canvas aspect 1023x1535, ticket position and margins, silhouette, edge, upper hole and hardware, lower perforations and notches, washi texture, winding road and grasses silhouettes, and exact irregular shape of right teal pigment field. Recolor ALL deep teal pigment (right field, road and grass) to restrained matte gold near #B8923F, preserving grain and distressed ink texture; thin edge line brighter gold #D8B867. Keep cream paper unchanged, warm copper seal and hole fitting harmonious. All lettering dark brown #4A3318. Keep upper small two lines exactly "MOBIDOU" and "旅の授与札" in same position. Replace large three-line title with ONE horizontal large line exactly "プラスプラン", centered within original title area. Beneath it one small line exactly "ミニチュアが必ず授かる". Bottom small sentence exactly "ご縁を、いつも手元に". All Japanese complete legible and correctly spelled. On upper-left copper round seal preserve keychain emblem and add a large simple clear plus symbol beside it. No extra text. True transparent alpha outside ticket and in hole, preserve original transparency. No background or baked checkerboard, no shadows, no shiny metallic glare, no yellow plastic. Do not redesign or shift any ticket structural element. Fine tactile Japanese game illustration matching reference. Output portrait 1023x1535.
+~~~

@@ -8,8 +8,8 @@ import { SlicedArt } from './SlicedArt';
 const STATUS_ICONS = {
   tickets: require('../../assets/ui-round6/icons/icon-gacha-tag.webp'),
   miniaturePasses: require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp'),
-  // Placeholder until the gold plus-plan ticket is delivered (docs/codex-plus-plan-ticket.md).
-  plusPlan: require('../../assets/ui-round3/tickets/ticket-keychain-drop-v2.webp'),
+
+  plusPlan: require('../../assets/ui-round3/tickets/ticket-plus-plan-gold-v1.webp'),
 };
 
 export function HomeStatusBar({ tickets, miniaturePasses, plusActive = false, show = 'both', onAddTickets, onAddPasses }: {
