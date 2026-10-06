@@ -76,7 +76,7 @@ export function resumeRoute(active: Progress, saved: Progress): Progress {
   const steps = Math.max(active.steps, active.highWater ?? 0);
   const credit = creditedSteps(saved);
   // Preserve earned partial steps, even when the device corrected its count downward.
-  return { ...saved, steps: active.steps, totalSteps: saved.totalSteps ?? active.totalSteps ?? active.steps, routeSteps: credit, highWater: Math.max(steps, credit), baseline: Math.max(0, steps - credit) };
+  return { ...saved, steps: active.steps, totalSteps: saved.totalSteps ?? active.totalSteps ?? active.steps, routeSteps: credit, highWater: steps, baseline: Math.max(0, steps - credit) };
 }
 export function startRoute(routeId: string, steps = 0, date = new Date(), totalSteps = steps): Progress {
   if (!getPilgrimage(routeId)) throw new Error('Unknown pilgrimage');

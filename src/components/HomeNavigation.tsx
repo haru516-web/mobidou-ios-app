@@ -315,27 +315,27 @@ export function MobyPickerPopup({ selectedPet, isOwned, onGacha, freePulls = 0, 
 }
 
 /** Shown once, right after the very first goshuin: which one the home card should show. */
-export function HomeGoshuinPickPopup({ shrines, ownedIds, selectedId, onConfirm, onClose }: { shrines: readonly Shrine[]; ownedIds: readonly string[]; selectedId: string; onConfirm: (shrineId: string) => void; onClose: () => void }) {
+export function HomeGoshuinPickPopup({ shrines, ownedIds, selectedId, required = false, onConfirm, onClose }: { shrines: readonly Shrine[]; ownedIds: readonly string[]; selectedId: string; required?: boolean; onConfirm: (shrineId: string) => void; onClose: () => void }) {
   const reduced = useReducedMotion();
   const [animation, closeAnimation] = usePopupAnimation(reduced);
   const [draft, setDraft] = useState(selectedId);
   const closePopup = useCallback(() => closeAnimation(onClose), [closeAnimation, onClose]);
-  usePopupBackHandler(closePopup);
+  usePopupBackHandler(required ? () => {} : closePopup);
   const owned = shrines.filter(shrine => ownedIds.includes(shrine.id));
   return <PopupRoot modalLabel="ホームに飾る御朱印を選ぶ" style={[S.mobyRoot, FULL_POPUP_BOUNDS, FIXED_POPUP_ROOT]}>
-    <Animated.View style={[S.popupCard, S.mobyCard, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
+    <Animated.View style={[S.popupCard, S.mobyCard, S.goshuinPickCard, { opacity: animation.opacity, transform: [{ translateY: animation.translateY }, { scale: animation.scale }] }]}>
       <WashiArt />
-      <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>ホームに飾る御朱印</Text><Text style={S.popupSubtitle}>ホームの御朱印カードに表示します。あとから変更もできます</Text></View></View>
+      <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>ホームに飾る御朱印</Text></View></View>
       <ScrollView horizontal contentContainerStyle={S.mobyGrid} showsHorizontalScrollIndicator={false} directionalLockEnabled style={S.mobyScroll}>
         {owned.map(shrine => {
           const selected = draft === shrine.id;
-          return <Pressable key={shrine.id} artwork={false} accessibilityRole="radio" accessibilityLabel={`${shrine.name}の御朱印`} accessibilityState={{ selected }} onPress={() => setDraft(shrine.id)} style={S.mobyCardOption}>
-            <Image source={STAMP_IMAGES[shrine.id]} style={S.mobyThumb} contentFit="contain" /><Text style={S.mobyName}>{shrine.name}</Text>{selected && <SlicedArt name="focusFrame" corner={14} />}
+          return <Pressable key={shrine.id} artwork={false} accessibilityRole="radio" accessibilityLabel={`${shrine.name}の御朱印`} accessibilityState={{ selected }} onPress={() => setDraft(shrine.id)} style={[S.goshuinPickOption, selected && S.goshuinPickOptionSelected]}>
+            <Image source={STAMP_IMAGES[shrine.id]} style={S.goshuinPickImage} contentFit="contain" /><Text style={S.mobyName}>{shrine.name}</Text>
           </Pressable>;
         })}
       </ScrollView>
       <View style={S.popupFooter}>
-        <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="あとで" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>あとで</Text></Pressable>
+        {!required && <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="戻る" onPress={closePopup} style={[S.popupFooterButton, S.popupFooterSecondary]}><Text style={S.popupFooterSecondaryText}>戻る</Text></Pressable>}
         <Pressable plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel="決定" onPress={() => closeAnimation(() => onConfirm(draft))} style={[S.popupFooterButton, S.popupFooterPrimary]}><Text style={S.popupFooterPrimaryText}>決定</Text></Pressable>
       </View>
     </Animated.View>
@@ -398,6 +398,10 @@ const S = StyleSheet.create({
   popupFooterPrimary: { backgroundColor: C.red },
   popupFooterSecondaryText: { color: C.red, fontFamily: BRUSH, fontSize: 14 },
   popupFooterPrimaryText: { color: '#FFF9EF', fontFamily: BRUSH, fontSize: 14 },
+  goshuinPickCard: { height: 440, bottom: 70 },
+  goshuinPickOption: { width: 190, height: 270, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 8, borderRadius: 14, borderWidth: 2, borderColor: 'transparent' },
+  goshuinPickOptionSelected: { borderColor: '#A54E42' },
+  goshuinPickImage: { width: 176, height: 236 },
   mobyScroll: { flexGrow: 0, marginTop: 10 },
   mobyGrid: { flexDirection: 'row', gap: 9, paddingVertical: 3 },
   mobyCardOption: { width: 112, height: 116, alignItems: 'center', justifyContent: 'flex-end', paddingVertical: 6, paddingHorizontal: 3, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#E2DACC', backgroundColor: '#FFF9F0' },

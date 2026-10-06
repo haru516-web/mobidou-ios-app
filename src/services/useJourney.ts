@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, DevSettings } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { creditMissedDays, freshProgress, isSyncMark, localDay, normalizeProgress, rollDay, updateSteps, startRoute, startReplay, resumeRoute, type Progress, type SyncMark } from './progress';
+import { creditedSteps, creditMissedDays, routeTargets, freshProgress, isSyncMark, localDay, normalizeProgress, rollDay, updateSteps, startRoute, startReplay, resumeRoute, type Progress, type SyncMark } from './progress';
 import { getPilgrimage } from '../data/pilgrimages';
 import { normalizeDayLog, recordDay, type DayLog } from './weekly';
 import { connectSteps, readMissedDays, readTodaySteps, type StepSource } from './steps';
@@ -375,7 +375,14 @@ export function useJourney() {
       if (active.routeId === routeId) { const replay = startReplay(active); return replay === active ? p : { ...p, [field]: replay }; }
       const routes = { ...p.routes, [field + ':' + (active.routeId ?? 'legacy')]: active };
       const saved = routes[field + ':' + routeId];
-      const restored = saved ? rollDay(saved) : startRoute(routeId, active.steps, new Date(), active.totalSteps ?? active.steps);
+      let restored = saved ? rollDay(saved) : startRoute(routeId, active.steps, new Date(), active.totalSteps ?? active.steps);
+      if (!saved) {
+        // The first route counts today's steps already walked; a later one starts with what the cleared route did not use.
+        const firstRoute = !active.routeId && active.rewards.length === 0;
+        const credit = firstRoute ? Math.max(active.steps, active.highWater ?? 0)
+          : active.routeId && active.completedAt && active.lapBase === undefined ? Math.max(0, creditedSteps(active) - (routeTargets(active).at(-1) ?? 0)) : 0;
+        if (credit > 0) restored = updateSteps({ ...restored, routeSteps: credit }, restored.steps);
+      }
       return { ...p, routes, [field]: startReplay(resumeRoute(active, restored)) };
     }),
     /** The first pick becomes the starter; afterwards only a Mobby the player owns can be chosen. */

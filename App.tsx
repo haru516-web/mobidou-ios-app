@@ -148,6 +148,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [featured, setFeatured] = useState(0);
   const [detail, setDetail] = useState<Shrine | null>(null);
   const [detailStampPreview, setDetailStampPreview] = useState(false);
+  // Opened from the home goshuin card, so the person can swap which goshuin it shows.
+  const [detailFromHome, setDetailFromHome] = useState(false);
   const detailPopupProgress = useRef(new Animated.Value(0)).current;
   const detailStampPreviewProgress = useRef(new Animated.Value(0)).current;
   const openDetailPopup = () => {
@@ -163,6 +165,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       detailStampPreviewProgress.setValue(0);
       setDetailStampPreview(false);
       setDetail(null);
+      setDetailFromHome(false);
       afterClose?.();
     });
   };
@@ -511,6 +514,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     playSfx('sfx_route_advance');
     if (nextRouteId) selectPilgrimageRoute(nextRouteId);
   };
+  // A cleared map hands straight over to the next unfinished one, with no way to put it off.
+  const dueRouteId = activeRoute && progress.completedAt && progress.lapBase === undefined && !onboardingPreview
+    ? getNextPilgrimageId(activeRoute.id, Object.entries(routeRecords).filter(([, record]) => !!record.completedAt).map(([routeId]) => routeId))
+    : undefined;
+  const dueRoute = dueRouteId && !routeRecords[dueRouteId]?.completedAt ? getPilgrimage(dueRouteId) : undefined;
+  const routeAdvanceVisible = !!dueRoute && !pending && data.onboarded && firstRunStage === null && openingHomeReady && !openingVisible && !settings && !detail && !homePopup && !omikujiModal && !gachaOpen && !overlayBusy;
   const selectPilgrimageRoute = (routeId: string) => {
     const beginningFirstRun = firstRunStage === 'route';
     if (beginningFirstRun) setFirstRunStage('homeCompanion');
@@ -547,9 +556,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const detailBookIndex = detail ? activeShrines.findIndex(shrine => shrine.id === detail.id) : -1;
   // Home cards are shortcuts: each one opens the real screen directly instead
   // of a second, smaller copy of it.
+  // The card never follows the route: it shows what the person chose, or the first goshuin they ever received.
+  const homeGoshuinFor = (slot: number) => COLLECTION_SHRINES.find(shrine => shrine.id === data.homeWidgetItems[slot])
+    ?? COLLECTION_SHRINES.find(shrine => collectionRewardIds.includes(shrine.id)) ?? latest;
+  const homeGoshuinSlot = data.homeWidgetOrder.indexOf('goshuin');
   const renderHomeWidget = (widget: CustomHomeWidgetId, slot: number) => {
-    const selectedShrine = COLLECTION_SHRINES.find(shrine => shrine.id === data.homeWidgetItems[slot]) ?? latest;
-    if (widget === 'goshuin') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-goshuin-${slot}`} artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${selectedShrine.name}の御朱印。詳しく見る`} onPress={() => openDetail(selectedShrine)} style={[S.homeWidgetCard, { height: homeCardHeight }, S.homeGoshuinOnlyCard, homeDropTarget === slot && S.homeWidgetDropTarget]}>
+    const selectedShrine = homeGoshuinFor(slot);
+    if (widget === 'goshuin') return <Pressable key={`${widget}-${slot}`} nativeID={`home-widget-goshuin-${slot}`} artwork={false} onLongPress={editHomeCards} delayLongPress={450} {...cardInteractionProps} accessibilityRole="button" accessibilityLabel={`${selectedShrine.name}の御朱印。詳しく見る`} onPress={() => { openDetail(selectedShrine); setDetailFromHome(true); }} style={[S.homeWidgetCard, { height: homeCardHeight }, S.homeGoshuinOnlyCard, homeDropTarget === slot && S.homeWidgetDropTarget]}>
       <HomeGoshuinArtwork source={STAMP_IMAGES[selectedShrine.id]} owned={collectionRewardIds.includes(selectedShrine.id)} background={currentBackground.image} />
       {homeDropTarget === slot && <View pointerEvents="none" style={S.homeDropOverlay} />}
     </Pressable>;
@@ -861,7 +874,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
-    {homePopup === 'goshuinPick' && <HomeGoshuinPickPopup shrines={COLLECTION_SHRINES} ownedIds={collectionRewardIds} selectedId={latest.id} onConfirm={shrineId => { journey.saveHomeWidgetItems(data.homeWidgetItems.map((item, slot) => data.homeWidgetOrder[slot] === 'goshuin' ? shrineId : item) as HomeWidgetItems); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
+    {homePopup === 'goshuinPick' && <HomeGoshuinPickPopup shrines={COLLECTION_SHRINES} ownedIds={collectionRewardIds} selectedId={homeGoshuinFor(Math.max(0, homeGoshuinSlot)).id} required={!detailFromHome && !data.homeWidgetItems.some(Boolean)} onConfirm={shrineId => { journey.saveHomeWidgetItems(data.homeWidgetItems.map((item, slot) => data.homeWidgetOrder[slot] === 'goshuin' ? shrineId : item) as HomeWidgetItems); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} isOwned={!hasStarter(data.mobbies) ? undefined : (id => ownsMobby(data.mobbies, id))} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     <TourAnchor id="nav" onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
       <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} onGacha={hasStarter(data.mobbies) && !onboardingPreview ? () => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); setGachaOpen(true); } : undefined} freePulls={ticketCount(data.mobbies)} />
@@ -918,6 +931,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               {detailBookIndex >= 0 && tab !== 'book' && <Button title="御朱印帳でこのページをひらく" onPress={() => closeDetailPopup(() => openBookPage(detailBookIndex))} secondary />}
             </View>
             {!detailStampPreview && <View style={S.detailPopupClose}><Close onPress={() => closeDetailPopup()} /></View>}
+            {!detailStampPreview && detailFromHome && homeGoshuinSlot >= 0 && <Pressable plate="round" accessibilityRole="button" accessibilityLabel="ホームに飾る御朱印を変える" onPress={() => closeDetailPopup(() => setHomePopup('goshuinPick'))} style={S.detailPopupEdit}><Icon name="create-outline" /></Pressable>}
           </Animated.View>
         </View>}
         {detailStampPreview && detail && <View style={S.stampPreviewOverlay} accessibilityViewIsModal>
@@ -1031,6 +1045,15 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {weeklyOpen && <WeeklyReview visible summary={weeklySummary} petName={pet.name} petImage={pet.image} places={weeklyPlaces} onClose={() => { journey.markWeekSeen(weekStartDay()); setWeeklyOpen(false); }} />}
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
     <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={ticketCount(data.mobbies)} passes={journey.special.passes.keychainDrop} refundDebt={refundDebt} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={drawTickets} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={ticketCount(data.mobbies)} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={(__DEV__ || gachaOnShop) && firstRunStage !== 'gacha'} startOnShop={gachaOnShop} onBuy={buyProduct} onRestore={restorePurchases} plusActive={data.keychainPlan === 'plus'} />}</Modal>
+    <Modal transparent visible={routeAdvanceVisible} animationType="fade" onRequestClose={() => {}}>
+      {routeAdvanceVisible && dueRoute && <View style={S.detailModalBackdrop}><View style={S.routeAdvanceWrap}><View accessibilityViewIsModal style={S.routeAdvanceCard}>
+        <Image source={GOSHUIN_DETAIL_BACKGROUND} contentFit="cover" style={StyleSheet.absoluteFillObject} accessible={false} pointerEvents="none" />
+        <Text accessibilityRole="header" style={S.routeAdvanceTitle}>次の巡礼へ</Text>
+        <Text style={S.routeAdvanceName}>{dueRoute.name}</Text>
+        <Text style={S.routeAdvanceBody}>余った歩数は、そのまま次の巡礼に引き継がれます。</Text>
+        <Button title="次の巡礼へ進む" icon="map-outline" onPress={advanceToNextRoute} />
+      </View></View></View>}
+    </Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); openBookPage(index); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
   </SafeAreaView></View>;
 }
@@ -1086,5 +1109,8 @@ const S = StyleSheet.create({
   nextPilgrimageAction: { position: 'relative', alignSelf: 'stretch', alignItems: 'center', paddingTop: 56, marginTop: 58 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
   tourPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   walkMinimal: { flex: 1, alignItems: 'center', paddingTop: 2, paddingBottom: 6 },
-  detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 12, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: BRUSH, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: BRUSH, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 26, color: '#6D6354', textAlign: 'center', marginTop: 8 },   detailModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#241D17A8' }, detailPopupLayout: { ...StyleSheet.absoluteFillObject, zIndex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 }, detailPopupCard: { position: 'relative', width: '90%', maxWidth: 500, height: '88%', maxHeight: 820, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#201810', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .3, shadowRadius: 22, elevation: 16 }, detailPopupScroll: { flex: 1 }, detailPopupContent: { paddingHorizontal: 22, paddingTop: 52, paddingBottom: 18 }, detailPopupClose: { position: 'absolute', top: 12, right: 12, zIndex: 10 }, detailStampTapTarget: { flex: 1, minHeight: 90, aspectRatio: 2 / 3, maxWidth: 290, alignSelf: 'center', marginVertical: 12 }, stampPreviewOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: 24 }, stampPreviewBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#211A16D9' }, stampPreviewFrame: { width: '88%', maxWidth: 360, shadowColor: '#160F0B', shadowOffset: { width: 0, height: 12 }, shadowOpacity: .45, shadowRadius: 20, elevation: 18 }, stampPreviewCard: { width: '100%', aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 9, borderWidth: 1, borderColor: '#E1D3BB', backgroundColor: '#F5EFDF' }, stampPreviewClose: { position: 'absolute', top: 12, right: 12, zIndex: 2 },
+  detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 12, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: BRUSH, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: BRUSH, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 26, color: '#6D6354', textAlign: 'center', marginTop: 8 },   detailModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#241D17A8' }, detailPopupLayout: { ...StyleSheet.absoluteFillObject, zIndex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 }, detailPopupCard: { position: 'relative', width: '90%', maxWidth: 500, height: '88%', maxHeight: 820, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#201810', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .3, shadowRadius: 22, elevation: 16 }, detailPopupScroll: { flex: 1 }, detailPopupContent: { paddingHorizontal: 22, paddingTop: 52, paddingBottom: 18 }, detailPopupEdit: { position: 'absolute', top: 12, left: 12, zIndex: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' },
+  routeAdvanceWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }, routeAdvanceCard: { width: '100%', maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', backgroundColor: C.paper, overflow: 'hidden', padding: 28, gap: 12, alignItems: 'center' },
+  routeAdvanceTitle: { fontFamily: BRUSH, fontSize: 26, color: C.red }, routeAdvanceName: { fontFamily: BRUSH, fontSize: 30, color: C.ink, textAlign: 'center' }, routeAdvanceBody: { fontFamily: SERIF, fontSize: 14, lineHeight: 24, color: '#6D6354', textAlign: 'center', marginBottom: 6 },
+  detailPopupClose: { position: 'absolute', top: 12, right: 12, zIndex: 10 }, detailStampTapTarget: { flex: 1, minHeight: 90, aspectRatio: 2 / 3, maxWidth: 290, alignSelf: 'center', marginVertical: 12 }, stampPreviewOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: 24 }, stampPreviewBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#211A16D9' }, stampPreviewFrame: { width: '88%', maxWidth: 360, shadowColor: '#160F0B', shadowOffset: { width: 0, height: 12 }, shadowOpacity: .45, shadowRadius: 20, elevation: 18 }, stampPreviewCard: { width: '100%', aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 9, borderWidth: 1, borderColor: '#E1D3BB', backgroundColor: '#F5EFDF' }, stampPreviewClose: { position: 'absolute', top: 12, right: 12, zIndex: 2 },
   });
