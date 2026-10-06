@@ -571,8 +571,8 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
       <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={S.tab}><SlicedArt art={shopOpen ? GACHA_UI_ART.tabOff : GACHA_UI_ART.tabOn} /><Text style={[S.tabText, !shopOpen && S.tabTextOn]}>購入</Text></Pressable>
     </View>}
 
-    {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={freePulls} miniaturePasses={passes} plusActive={plusActive} show={shopOpen ? 'tickets' : 'both'} /></View>}
-    {!guided && !playing && shopOpen && <View pointerEvents="box-none" style={[S.statusLeft, { top: 26 + insets.top }]}><HomeStatusBar tickets={freePulls} miniaturePasses={passes} plusActive={plusActive} show="passes" /></View>}
+    {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={freePulls} miniaturePasses={passes} plusActive={plusActive} show={shopOpen ? 'shopRight' : 'both'} /></View>}
+    {!guided && !playing && shopOpen && <View pointerEvents="box-none" style={[S.statusLeft, { top: 26 + insets.top }]}><HomeStatusBar tickets={freePulls} miniaturePasses={passes} plusActive={plusActive} show="shopLeft" /></View>}
 
     {/* Once the Mobby has been revealed, one tap shows it large and another tap puts it back. */}
     {canZoom && <Pressable accessibilityRole="button" accessibilityLabel={zoomed ? 'モビーを小さく戻す' : 'モビーを大きく見る'} onPress={() => setZoomed(value => !value)} style={StyleSheet.absoluteFillObject}>

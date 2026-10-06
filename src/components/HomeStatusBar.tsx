@@ -17,8 +17,8 @@ export function HomeStatusBar({ tickets, miniaturePasses, plusActive = false, sh
   miniaturePasses: number;
   /** Plus plan running: the pass card takes "契約中" in place of its + (the plan cannot be bought twice). */
   plusActive?: boolean;
-  /** Which cards to draw: the shop moves the ticket card to the other side of its title. */
-  show?: 'both' | 'tickets' | 'passes';
+  /** 'both' is the home bar, where the pass card swaps on tap. The shop splits around its title: 'shopLeft' is the exchange tickets, 'shopRight' the tag count and the plan state. */
+  show?: 'both' | 'shopLeft' | 'shopRight';
   /** The + inside each card: both lead to the purchase screen. */
   onAddTickets?: () => void;
   onAddPasses?: () => void;
@@ -33,8 +33,10 @@ export function HomeStatusBar({ tickets, miniaturePasses, plusActive = false, sh
     </View>
   </View>;
   return <View pointerEvents="box-none" style={S.bar}>
-    {show !== 'passes' && badge('木札', tickets, <Image accessible={false} source={STATUS_ICONS.tickets} contentFit="contain" style={S.icon} />, onAddTickets)}
-    {show !== 'tickets' && (plusView
+    {show !== 'shopLeft' && badge('木札', tickets, <Image accessible={false} source={STATUS_ICONS.tickets} contentFit="contain" style={S.icon} />, onAddTickets)}
+    {show === 'shopRight' && badge('プラスプラン', 0, <Image accessible={false} source={STATUS_ICONS.plusPlan} contentFit="contain" style={S.icon} />, undefined, plusActive ? '契約中' : '未契約')}
+    {show === 'shopLeft' && badge('交換券', miniaturePasses, <Image accessible={false} source={STATUS_ICONS.miniaturePasses} contentFit="contain" style={S.icon} />)}
+    {show === 'both' && (plusView
       ? badge('プラスプラン', 0, <Image accessible={false} source={STATUS_ICONS.plusPlan} contentFit="contain" style={S.icon} />, undefined, plusActive ? '契約中' : '未契約', () => setPlusView(false))
       : badge('交換券', miniaturePasses, <Image accessible={false} source={STATUS_ICONS.miniaturePasses} contentFit="contain" style={S.icon} />, plusActive ? undefined : onAddPasses, undefined, () => setPlusView(true)))}
   </View>;
