@@ -45,6 +45,12 @@ export interface Gift {
   tickets?: number;
   freePulls?: number;
   paidPulls?: number;
+  /** What the app shows and grants on the device (木札 and ミニチュア引換券). The server only guards against claiming twice. */
+  message?: string;
+  from?: string;
+  sentAt?: string;
+  expiresAt?: string;
+  items?: { kind: 'gachaTicket' | 'keychainDrop'; quantity: number }[];
 }
 
 export interface ProductDefinition {

@@ -80,7 +80,8 @@ function configuredGifts(env: Env): Gift[] {
   const gifts = configuredJson<Gift[]>(env.GIFTS_JSON, []);
   const validAmount = (amount: number | undefined): boolean => amount === undefined || (Number.isSafeInteger(amount) && amount >= 0);
   if (!Array.isArray(gifts) || gifts.some((gift) => typeof gift.id !== "string" || !gift.id || typeof gift.title !== "string" || !gift.title ||
-    !validAmount(gift.tickets) || !validAmount(gift.freePulls) || !validAmount(gift.paidPulls)) ||
+    !validAmount(gift.tickets) || !validAmount(gift.freePulls) || !validAmount(gift.paidPulls) ||
+    (gift.items !== undefined && (!Array.isArray(gift.items) || gift.items.some((item) => (item?.kind !== "gachaTicket" && item?.kind !== "keychainDrop") || !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 100)))) ||
     new Set(gifts.map((gift) => gift.id)).size !== gifts.length) {
     throw new HttpError(500, "invalid_gift_configuration");
   }

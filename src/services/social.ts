@@ -2,20 +2,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isPetId, type PetId } from '../petCatalog';
 import type { PassKind } from './specialRewards';
 import { formatFriendCode, isFriendCode, normalizeFriendCode, readFriendRequests, readFriends, requestFailure, type RequestFailure } from './friends';
-import { authedRequest } from './server';
+import { authedRequest, request } from './server';
 
 /*
  * Social features: presents and friends.
  *
- * Friends talk to the Cloudflare server (profile, friend codes, requests). Presents still need a delivery
- * backend, so they stay sample data in 体験モード and empty otherwise. What a friend can see is only a name and
- * the main Mobby.
+ * Friends talk to the Cloudflare server (profile, friend codes, requests). Presents come from the server's
+ * published list and are sample data in 体験モード. What a friend can see is only a name and the main Mobby.
  *
- * The friend features are on in development builds only. To switch them on for everyone, make this `true`
- * (see docs/design-v3-monetization-server.md, section 6).
+ * Friends and presents are on for everyone. Presents are a static list published on the server; the server
+ * records each claim so an account takes a present only once.
  */
 
-export const SOCIAL_ONLINE = typeof __DEV__ !== 'undefined' && __DEV__;
+export const SOCIAL_ONLINE = true;
 
 /** `gachaTicket` is a 木札: one pull of the gacha. */
 export type GiftItem = { kind: PassKind | 'gachaTicket'; quantity: number };
@@ -59,9 +58,27 @@ async function writeIdSet(key: string, ids: Set<string>) {
   await AsyncStorage.setItem(key, JSON.stringify([...ids])).catch(() => undefined);
 }
 
-/** SERVER: GET /gifts. Sample presents only in 体験モード for now. */
+/** The presents the operator has published (a static list on the server); samples in 体験モード. Expired ones are left out. */
 export async function fetchGifts({ demo }: { demo: boolean }): Promise<readonly Gift[]> {
-  return demo ? SAMPLE_GIFTS : [];
+  if (demo) return SAMPLE_GIFTS;
+  const reply = await request('/gifts.json', { method: 'GET' });
+  const list: unknown = reply?.status === 200 ? reply.data : null;
+  if (!Array.isArray(list)) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  return list.flatMap((entry): Gift[] => {
+    const gift = entry as Partial<Gift> | null;
+    if (!gift || typeof gift.id !== 'string' || typeof gift.title !== 'string' || !Array.isArray(gift.items) || gift.items.length === 0) return [];
+    const items = gift.items.filter((item): item is GiftItem => !!item && (item.kind === 'gachaTicket' || item.kind === 'keychainDrop') && Number.isInteger(item.quantity) && item.quantity > 0);
+    if (!items.length || (typeof gift.expiresAt === 'string' && gift.expiresAt < today)) return [];
+    return [{ id: gift.id, title: gift.title, message: typeof gift.message === 'string' ? gift.message : '', from: typeof gift.from === 'string' ? gift.from : 'もび道 運営', items, sentAt: typeof gift.sentAt === 'string' ? gift.sentAt : today, ...(typeof gift.expiresAt === 'string' ? { expiresAt: gift.expiresAt } : {}) }];
+  });
+}
+
+/** Claim a present on the server, which lets each account take it only once (also after a reinstall). */
+export async function claimGiftOnServer(id: string): Promise<'claimed' | 'already' | 'offline'> {
+  const reply = await authedRequest('/gifts/' + encodeURIComponent(id) + '/claim', { method: 'POST', body: {} });
+  if (!reply || reply.status !== 200) return 'offline';
+  return reply.data?.status === 'claimed' ? 'claimed' : 'already';
 }
 
 export const readReceivedGiftIds = () => readIdSet(RECEIVED_GIFTS_KEY);

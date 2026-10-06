@@ -45,7 +45,7 @@ import { FeatureTour, TourAnchor } from './src/components/FeatureTour';
 import type { TourSelection } from './src/data/featureTour';
 import { FitToHeight } from './src/components/PagedBody';
 import { countsAsUnread, FriendsSheet, NotificationsSheet, PresentBoxSheet, type AppNotice } from './src/components/SocialSheets';
-import { fetchGifts, markGiftReceived, markNoticesRead, readReadNoticeIds, readReceivedGiftIds, type Gift } from './src/services/social';
+import { claimGiftOnServer, fetchGifts, markGiftReceived, markNoticesRead, readReadNoticeIds, readReceivedGiftIds, type Gift } from './src/services/social';
 import type { CustomHomeWidgetId, HomeWidgetItems } from './src/services/homePreferences';
 import { OmikujiExperience } from './src/components/OmikujiExperience';
 import { affinityStageFor, type ReactionContext } from './src/data/reactions';
@@ -602,7 +602,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const seen = notices.filter(notice => notice.kind !== 'status').map(notice => notice.id);
     void markNoticesRead(seen).then(() => setReadNoticeIds(previous => new Set([...previous, ...seen])));
   };
-  const receiveGift = (gift: Gift) => {
+  const receiveGift = async (gift: Gift) => {
     if (gift.id === TUTORIAL_GIFT.id) {
       // The guide's own present: not saved as received, so an interrupted guide can hand it over again.
       setSocialSheet(null);
@@ -613,6 +613,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       return;
     }
     if (receivedGiftIds.has(gift.id)) return;
+    if (!data.demo) {
+      // The server lets each account take a present once; only a fresh claim hands the items over.
+      const claim = await claimGiftOnServer(gift.id);
+      if (claim === 'offline') { Alert.alert('プレゼント', 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。'); return; }
+      if (claim === 'already') { setReceivedGiftIds(previous => new Set([...previous, gift.id])); void markGiftReceived(gift.id); return; }
+    }
     gift.items.forEach(item => {
       if (item.kind === 'gachaTicket') journey.grantTickets(item.quantity);
       else for (let count = 0; count < item.quantity; count++) journey.grantPass(item.kind);
@@ -628,7 +634,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     { id: 'mobbyFriends', label: 'フレンド', icon: 'people', onPress: () => setSocialSheet('friends') },
   ];
   useEffect(() => { void readReadNoticeIds().then(setReadNoticeIds); void readReceivedGiftIds().then(setReceivedGiftIds); }, []);
-  useEffect(() => { let active = true; void fetchGifts({ demo: data.demo }).then(list => { if (active) setGifts(list); }); return () => { active = false; }; }, [data.demo]);
+  useEffect(() => { let active = true; void fetchGifts({ demo: data.demo }).then(list => { if (active) setGifts(list); }); return () => { active = false; }; }, [data.demo, socialSheet === 'presents']);
   useEffect(() => {
     if (!accountPreview || !journey.ready) return;
     setOpeningVisible(false);
