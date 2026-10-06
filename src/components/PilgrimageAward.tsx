@@ -9,12 +9,13 @@ import type { Pilgrimage } from '../data/pilgrimages';
 import { PRAYER_ACTION_ORDER, PRAYER_ATLASES } from '../data/prayerAtlasesV2';
 import rawMetrics from '../data/pilgrimageSpriteMetrics.json';
 import { BRUSH, Button, C, SERIF, useReducedMotion } from '../components';
-import { WashiArt } from './Washi';
 import { FitToHeight } from './PagedBody';
 import { STAMP_IMAGES } from '../data/shrines';
 import { AwardFx, BURST_AT } from './AwardFx';
 import { InkReveal } from './InkReveal';
 import type { SpecialCollection } from '../services/specialRewards';
+import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
+import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 
 const PHASES = [
   { key: 'approach', frames: 18, label: '鳥居へ、とことこ' },
@@ -60,6 +61,9 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const [width, setWidth] = useState(380);
   const [loaded, setLoaded] = useState<Record<string, boolean>>({});
   const [revealDone, setRevealDone] = useState(false);
+  // The goshuin is shown first; the miniature draw has its own page after the next button.
+  const [page, setPage] = useState<'goshuin' | 'miniature'>('goshuin');
+  const miniature = useRef(new Animated.Value(0)).current;
   const reveal = useRef(new Animated.Value(0)).current;
   const paint = useRef(new Animated.Value(0)).current;
   const revealHapticSent = useRef(false);
@@ -139,12 +143,24 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   useEffect(() => { onArrive(shrine.id); }, [onArrive, shrine.id]);
   const arrival = special.arrival?.shrineId === shrine.id ? special.arrival : null;
   useEffect(() => {
-    if (revealDone && (arrival?.outcome === 'won' || arrival?.outcome === 'ticket')) { playSfx('sfx_keychain_get'); playJingle('sfx_special_reveal'); }
-  }, [revealDone, arrival?.outcome]);
+    if (page === 'miniature' && (arrival?.outcome === 'won' || arrival?.outcome === 'ticket')) { playSfx('sfx_keychain_get'); playJingle('sfx_special_reveal'); }
+  }, [page, arrival?.outcome]);
+  useEffect(() => {
+    if (page !== 'miniature') return;
+    miniature.setValue(0);
+    const animation = Animated.timing(miniature, { toValue: 1, duration: 1100, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    animation.start();
+    return () => animation.stop();
+  }, [page, miniature, arrival?.outcome]);
   const ticketCount = special.passes.keychainDrop;
-  const canUseTicket = revealDone && arrival?.outcome === 'missed' && ticketCount > 0;
+  const canUseTicket = page === 'miniature' && arrival?.outcome === 'missed' && ticketCount > 0;
   const keychainStatus = arrival?.outcome === 'owned' ? 'もう持ってるよ' : arrival?.outcome === 'won' ? '獲得しました' : arrival?.outcome === 'ticket' ? '券で獲得しました' : 'ドロップなし';
   const keychainInstruction = arrival?.outcome === 'owned' ? 'このミニチュアは、もう持っています。' : arrival?.outcome === 'won' ? 'ミニチュアキーホルダーを授かりました。' : arrival?.outcome === 'ticket' ? '交換券を使って授かりました。' : ticketCount > 0 ? '外れました。この場で交換券を使って受け取れます。' : '今回はご縁がありませんでした。次の参拝でまた挑戦できます。';
+  const keychainArt = COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
+  const gotKeychain = arrival?.outcome === 'won' || arrival?.outcome === 'ticket' || arrival?.outcome === 'owned';
+  // The Mobby chosen on the home screen looks glum when nothing dropped.
+  const sadSource = PULL_REACTION_FRAMES[pet.id as keyof typeof PULL_REACTION_FRAMES]?.[3] ?? pet.image;
+  const miniatureScale = miniature.interpolate({ inputRange: [0, 1], outputRange: [.82, 1] });
   const useTicket = () => { if (canUseTicket) onRedeemKeychainTicket(shrine.id); };
   const rewardCardOpacity = reveal.interpolate({ inputRange: [0, .03, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' });
   const sealOpacity = paint.interpolate({ inputRange: [0, .94, 1], outputRange: [0, 0, 1], extrapolate: 'clamp' });
@@ -152,16 +168,14 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const copyLift = reveal.interpolate({ inputRange: [0, .66, .8, 1], outputRange: [10, 10, 0, 0], extrapolate: 'clamp' });
   const guaranteeOpacity = reveal.interpolate({ inputRange: [0, .7, .82, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
   const guaranteeLift = reveal.interpolate({ inputRange: [0, .7, .84, 1], outputRange: [8, 8, 0, 0], extrapolate: 'clamp' });
-  const specialOpacity = reveal.interpolate({ inputRange: [0, .78, .92, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
-  const specialLift = reveal.interpolate({ inputRange: [0, .78, .94, 1], outputRange: [12, 12, 0, 0], extrapolate: 'clamp' });
   const sprites = [
     { id: 'walk', source: walkSource, frame: phase.local % 4, visible: walking },
     { id: 'rei', source: prayer?.rei, frame: prayerFrame % 8, visible: !walking && action === 'rei' },
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];
-  return <SafeAreaView style={S.page}><FitToHeight key={showAward ? 'award' : 'walk'} style={S.fit}><View style={S.content}>
+  return <SafeAreaView style={S.page}><FitToHeight key={showAward ? 'award-' + page : 'walk'} style={S.fit}><View style={S.content}>
     <Text style={S.eyebrow}>{demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>
-    <Text accessibilityRole="header" style={S.title}>{showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>
+    <Text accessibilityRole="header" style={S.title}>{showAward && page === 'miniature' ? (arrival ? gotKeychain ? (arrival.outcome === 'owned' ? 'もう持っているミニチュア' : 'ミニチュアを授かりました') : 'ミニチュアはドロップしませんでした' : 'ミニチュアの抽選') : showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>
     <View style={[S.stage, { height: width * 2 / 3 }, showAward && S.stageHidden]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
       <Image source={STAGE} contentFit="fill" style={StyleSheet.absoluteFillObject} onLoad={() => markLoaded('stage')} />
       <View style={{ position: 'absolute', left: 0, top: 0, width: 600, height: 400, transformOrigin: 'top left', transform: [{ scale: k }] }}>
@@ -177,7 +191,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
       </View>
     </View>
     {!showAward && <><View style={S.phaseTrack}>{PHASES.map(p => <View key={p.key} style={[S.phaseDot, { backgroundColor: phase.key === p.key ? '#D4B387' : '#685C49' }]} />)}</View><Button title="演出を省略して御朱印をみる" secondary onPress={() => setFrame(TOTAL_FRAMES)} style={S.skip} /></>}
-    {showAward && <>
+    {showAward && page === 'goshuin' && <>
       <View style={S.rewardScene}>
         <AwardFx />
         <Animated.View style={[S.reward, { opacity: rewardCardOpacity, }]}>
@@ -194,22 +208,20 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
         <Text style={S.recordText}>{route.name} · {stopIndex + 1} / {route.ids.length}地点に到達</Text>
         {complete && <><Text style={S.recordGift}>{route.gift}</Text><Text style={S.recordText}>「{route.title}」</Text><Text style={S.recordText}>旅の証を、御朱印帳に綴りました。</Text>{!demo && <Text style={S.recordText}>ガチャを1回、無料で引けます。</Text>}</>}
       </Animated.View>}
-      <Animated.View style={[S.specialCard, { opacity: specialOpacity, transform: [{ translateY: specialLift }] }]}>
-        <WashiArt />
-        <Text style={S.specialEyebrow}>{arrival ? `追加の抽選 · 当選率 ${Math.round(arrival.rate * 100)}%` : '追加の抽選'}</Text>
-        <Text style={S.specialTitle}>ミニチュアの抽選結果</Text>
-        {arrival ? <View style={S.specialRows}>
-          <View style={S.specialRow}><Text style={S.specialLabel}>ミニチュアキーホルダー</Text><Text style={[S.specialStatus, (arrival.outcome === 'won' || arrival.outcome === 'ticket') && S.specialWon]}>{keychainStatus}</Text></View>
-        </View> : <Text style={S.specialWaiting}>ドロップ結果を確認しています…</Text>}
-        {arrival && <Text style={S.specialInstruction}>{keychainInstruction}</Text>}
-        <Text style={S.passOwned}>交換券 {ticketCount}枚</Text>
-        {canUseTicket && <View style={S.exchangeActions}><Button title="券を使って受け取る" secondary onPress={useTicket} style={S.specialButton} /></View>}
-      </Animated.View>
     </>}
+    {showAward && page === 'miniature' && <Animated.View style={[S.miniatureScene, { opacity: miniature, transform: [{ scale: miniatureScale }] }]}>
+      {!arrival ? <Text style={S.specialWaiting}>ドロップ結果を確認しています…</Text> : gotKeychain
+        ? (keychainArt ? <Image source={keychainArt} contentFit="contain" accessibilityLabel="ミニチュアキーホルダー" style={S.miniatureImage} /> : null)
+        : <Image source={sadSource} contentFit="contain" accessibilityLabel={pet.name + 'は残念そう'} style={S.miniatureImage} />}
+      {arrival && <Text style={S.specialStatus}>{keychainStatus}</Text>}
+      {arrival && <Text style={S.specialInstruction}>{arrival.outcome === 'missed' && ticketCount === 0 ? 'ドロップしなかったよ。次の参拝でまた挑戦できます。' : keychainInstruction}</Text>}
+      <Text style={S.passOwned}>交換券 {ticketCount}枚</Text>
+      {canUseTicket && <View style={S.exchangeActions}><Button title="券を使って受け取る" secondary onPress={useTicket} style={S.specialButton} /></View>}
+    </Animated.View>}
   </View></FitToHeight>
   {/* Outside the scaled area, so it keeps its size and stays tappable however tall the content is. */}
   {/* Always present, so the room left for the scaled content does not change when the button appears. */}
-  <View style={S.closeBar}>{showAward && <Button title={revealDone ? '御朱印帳にしまう' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={onClose} style={{ width: '100%', maxWidth: 350 }} />}</View>
+  <View style={S.closeBar}>{showAward && <Button title={page === 'miniature' ? 'ホームへ' : revealDone ? '次へ' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={page === 'miniature' ? onClose : () => setPage('miniature')} style={{ width: '100%', maxWidth: 350 }} />}</View>
   </SafeAreaView>;
 }
 const S = StyleSheet.create({
@@ -222,6 +234,7 @@ const S = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#302D25' }, content: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 24, gap: 15 },
   eyebrow: { color: '#D5BD98', fontSize: 11, letterSpacing: 2 }, title: { color: '#FFF8E9', fontFamily: BRUSH, fontSize: 23, textAlign: 'center', minHeight: 32 }, stage: { width: '100%', maxWidth: 520, overflow: 'hidden', borderRadius: 14, backgroundColor: '#D9CAB2' },
   phaseTrack: { flexDirection: 'row', gap: 9, padding: 7 }, phaseDot: { height: 4, width: 18, borderRadius: 2 }, skip: { backgroundColor: '#FFF5E8', maxWidth: 350, minHeight: 44 }, rewardScene: { width: '100%', maxWidth: 350, minHeight: 420, alignItems: 'center', justifyContent: 'center', position: 'relative' }, particle: { position: 'absolute', left: '50%', top: '50%', width: 30, height: 30, marginLeft: -15, marginTop: -15, textAlign: 'center', fontWeight: '700' }, reward: { width: 264, alignItems: 'center', zIndex: 2 }, rewardRays: { position: 'absolute', pointerEvents: 'none', width: 340, height: 340 }, shineClip: { position: 'absolute', width: 212, aspectRatio: 2 / 3, overflow: 'hidden', borderRadius: 5 }, shine: { position: 'absolute', top: -60, bottom: -60, left: '50%', width: 46, marginLeft: -23, backgroundColor: '#FFF4D2AA' }, stampFrame: { width: 264, height: 340, alignItems: 'center', justifyContent: 'center' }, inkRing: { position: 'absolute', alignSelf: 'center', top: 44, width: 250, height: 250, borderRadius: 125, borderWidth: 2, borderColor: C.red }, seal: { position: 'absolute', right: 4, bottom: 9, borderWidth: 3, borderColor: C.red, padding: 6, transform: [{ rotate: '-10deg' }], backgroundColor: '#FFF6E8DD' }, sealText: { color: C.red, fontFamily: BRUSH, fontSize: 19 }, copyGroup: { alignItems: 'center', gap: 2 }, name: { color: '#FFF5E2', fontFamily: BRUSH, fontSize: 21, textAlign: 'center' }, theme: { color: '#E6D8C5', fontSize: 12, lineHeight: 22, textAlign: 'center' }, guaranteeBadge: { borderWidth: 1, borderColor: '#C69B72', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 5, backgroundColor: '#5C493B', marginTop: 2 }, guaranteeText: { color: '#F6D9A3', fontFamily: SERIF, fontSize: 11, letterSpacing: 1 }, completion: { paddingVertical: 26, paddingHorizontal: 24, alignItems: 'center', overflow: 'hidden', width: '100%', maxWidth: 350, gap: 8 }, completionTitle: { fontFamily: BRUSH, fontSize: 24, letterSpacing: 2, color: C.red }, completionText: { fontFamily: SERIF, fontSize: 13, lineHeight: 21, letterSpacing: .6, color: C.ink, textAlign: 'center' },
+  miniatureScene: { width: '100%', maxWidth: 350, alignItems: 'center', gap: 10, paddingVertical: 8 }, miniatureImage: { width: 240, height: 240 },
   specialCard: { width: '100%', maxWidth: 350, paddingVertical: 12, paddingHorizontal: 18, overflow: 'hidden' }, specialEyebrow: { color: '#9a6851', fontFamily: SERIF, fontSize: 11, letterSpacing: 1.4, textAlign: 'center' }, specialTitle: { color: C.ink, fontFamily: BRUSH, fontSize: 15, letterSpacing: 1, marginTop: 4, marginBottom: 7, textAlign: 'center' }, specialRows: { gap: 7 }, specialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, specialLabel: { color: '#5f503e', fontFamily: SERIF, fontSize: 13, flex: 1 }, specialStatus: { color: '#8a7e6e', fontFamily: SERIF, fontSize: 13 }, specialWon: { color: '#a24c3e', fontFamily: SERIF }, specialWaiting: { color: '#806f5b', fontFamily: SERIF, fontSize: 12, lineHeight: 17, textAlign: 'center', paddingVertical: 5 }, specialInstruction: { color: '#6f5f4b', fontFamily: SERIF, fontSize: 12, lineHeight: 19, marginTop: 7, textAlign: 'center' }, passOwned: { color: '#776957', fontFamily: SERIF, fontSize: 11, lineHeight: 15, marginTop: 11, textAlign: 'center' }, exchangeActions: { gap: 7, marginTop: 10 }, specialButton: { minHeight: 42 }, noPass: { color: '#806f5b', fontSize: 11, lineHeight: 16, marginTop: 10, textAlign: 'center' }, purchaseActions: { gap: 6, marginTop: 8 }, purchaseButton: { minHeight: 40 }, fakePurchase: { color: '#998a76', fontSize: 11, textAlign: 'center', marginTop: 7 },
 });
 import { duckBgm, playJingle, playSfx, useSceneBgm } from '../services/audio';

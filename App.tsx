@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Linking, Easing, Modal, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from './src/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -128,6 +128,7 @@ export default function App() {
 }
 
 function Main({ fontsReady }: { fontsReady: boolean }) {
+  const safeBottom = useSafeAreaInsets().bottom;
   const journey = useJourney();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { data, progress } = journey;
@@ -771,7 +772,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, [detail]);
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
-  return <View style={S.desktop}><SafeAreaView style={S.app}>
+  return <View style={S.desktop}><SafeAreaView style={S.app} edges={['top', 'left', 'right']}>
     {tab === 'collection' ? <CollectionBackdrop scrollY={scrollY} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
       <Animated.View pointerEvents="none" style={S.backgroundScrollLayer}>
         <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, tab === 'book' && S.bookBackgroundTrack, { transform: [{ translateY: tab === 'book' ? 0 : scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
@@ -877,7 +878,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {homePopup === 'goshuinPick' && <HomeGoshuinPickPopup shrines={COLLECTION_SHRINES} ownedIds={collectionRewardIds} selectedId={homeGoshuinFor(Math.max(0, homeGoshuinSlot)).id} required={!detailFromHome && !data.homeWidgetItems.some(Boolean)} onConfirm={shrineId => { journey.saveHomeWidgetItems(data.homeWidgetItems.map((item, slot) => data.homeWidgetOrder[slot] === 'goshuin' ? shrineId : item) as HomeWidgetItems); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     {homePopup === 'moby' && <MobyPickerPopup selectedPet={tutorialPreviewPet ?? data.pet} isOwned={!hasStarter(data.mobbies) ? undefined : (id => ownsMobby(data.mobbies, id))} onConfirm={selectedPet => { if (onboardingPreview) setTutorialPreviewPet(selectedPet); else journey.choosePet(selectedPet); setPetSelectionReaction(value => value + 1); setHomePopup(null); }} onClose={() => setHomePopup(null)} />}
     <TourAnchor id="nav" onLayout={({ nativeEvent }) => { const height = Math.round(nativeEvent.layout.height); setNavHeight(previous => previous === height ? previous : height); }}>
-      <HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} onGacha={hasStarter(data.mobbies) && !onboardingPreview ? () => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); setGachaOpen(true); } : undefined} freePulls={ticketCount(data.mobbies)} />
+      <View style={{ marginBottom: Math.max(0, safeBottom - 26) }}><HomeBottomNavigation tab={tab} onNavigate={move} disabled={!!homePopup || firstRunStage !== null} onGacha={hasStarter(data.mobbies) && !onboardingPreview ? () => { setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); setGachaOpen(true); } : undefined} freePulls={ticketCount(data.mobbies)} /></View>
     </TourAnchor>
     {/* Keep the floating Mobby mounted through the fortune-card step so closing its menu cannot cancel an active drag. */}
     {(firstRunStage === null || firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag' || firstRunStage === 'homeOmikuji') && !homePopup && <>
@@ -1054,7 +1055,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <Button title="次の巡礼へ進む" icon="map-outline" onPress={advanceToNextRoute} />
       </View></View></View>}
     </Modal>
-    <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); openBookPage(index); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
+    <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); setFeatured(index); move('home'); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
   </SafeAreaView></View>;
 }
 
