@@ -13,5 +13,12 @@
   },
   "cli": {
     "appVersionSource": "remote"
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6818779795"
+      }
+    }
   }
 }
