@@ -1,6 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { playPageTurn } from '../services/audio';
-import { captureRef } from 'react-native-view-shot';
+import { captureView } from '../services/captureView';
 import { Animated, Easing, PanResponder, Platform, StyleSheet, View, type PanResponderGestureState, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from '../components';
 import { NativeBookPageTurn, isNativePageCurlAvailable, type NativeBookPage } from './NativeBookPageTurn';
@@ -269,7 +269,7 @@ const SnapshotCurlBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProp
         for (let index = 0; index < itemCount; index += 1) {
           const target = shots.current[index];
           if (!target) throw new Error('spread view missing');
-          taken.push(await captureRef(target, { format: 'png', quality: 1, result: 'tmpfile' }));
+          taken.push(await captureView(target));
         }
         if (!cancelled) setUris(taken);
       } catch {
