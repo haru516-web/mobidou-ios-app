@@ -123,7 +123,8 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
     if (Platform.OS !== 'web') return undefined;
     const node = (displayScroll.current as any)?.getScrollableNode?.() as HTMLElement | undefined;
     if (!node?.addEventListener) return undefined;
-    const onDomScroll = () => snapWhenSettled(node.scrollLeft);
+    // The web ScrollView drops scroll events (it throttles them), so the picture follows the raw DOM scroll to stay exactly with the displays.
+    const onDomScroll = () => { scrollXValue.setValue(node.scrollLeft); snapWhenSettled(node.scrollLeft); };
     node.addEventListener('scroll', onDomScroll);
     return () => node.removeEventListener('scroll', onDomScroll);
   });
