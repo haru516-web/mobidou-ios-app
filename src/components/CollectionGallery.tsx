@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import { Image } from './AppImage';
 import { BRUSH, Icon } from '../components';
 import { SHRINES, STAMP_IMAGES, type Shrine } from '../data/shrines';
@@ -12,25 +12,11 @@ import { CollectionRoom } from './CollectionRoom';
 import { ScrollPopup } from './ScrollPopup';
 import type { SpecialCollection } from '../services/specialRewards';
 import { PagedShrineGrid } from './GoshuinBook';
+import { roomArtGeometry } from './collectionRoomArt';
 
 const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.webp');
 const WALL_HOOK = require('../../assets/ui-round3/collection/collection-wall-hook-v2.webp');
-const COLLECTION_BACKDROP = require('../../assets/ui-round3/collection/collection-room-harmony-v3.webp');
 const SERIF = 'Shippori';
-// The room picture (collection-room-harmony-v3, 1024x1536): the rail the keychains hang from and the shelf top the goshuin stand on,
-// as fractions of its height. The wall between them is always on screen; the picture is centred on it and only scaled up when the room is taller than the picture.
-const ROOM_ART_ASPECT = 1536 / 1024;
-const RAIL_Y = 0.1947;
-const SHELF_TOP_Y = 0.7956;
-const BAND_CENTER_Y = (RAIL_Y + SHELF_TOP_Y) / 2;
-
-function roomArtGeometry(viewportWidth: number, roomHeight: number) {
-  const width = Math.max(viewportWidth, roomHeight / ROOM_ART_ASPECT);
-  const height = width * ROOM_ART_ASPECT;
-  const top = roomHeight / 2 - height * BAND_CENTER_Y;
-  return { width, height, left: (viewportWidth - width) / 2, top, railY: top + height * RAIL_Y, shelfY: top + height * SHELF_TOP_Y };
-}
-
 export const COLLECTION_SHRINES: Shrine[] = Array.from(new Set(PILGRIMAGES.flatMap(route => route.ids.map(id => id.split('~')[0]))))
   .map(id => SHRINES.find(shrine => shrine.id === id))
   .filter((shrine): shrine is Shrine => !!shrine);
@@ -120,28 +106,14 @@ function DisplayedStamp({ shrine, owned, sparkleCount, width, bottom, compact = 
   </View>;
 }
 
-function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWidth: number; viewportWidth: number; roomHeight: number }) {
-  // Every tile is one viewport wide, keeping the background aligned with the
-  // room in both the three-item and one-item layouts.
-  const tileWidth = Math.max(1, viewportWidth);
-  const tileCount = Math.ceil(trackWidth / tileWidth) + 1;
-  const tileStripWidth = tileCount * tileWidth;
-  const art = roomArtGeometry(viewportWidth, roomHeight);
-  return <View pointerEvents="none" style={[S.collectionBackdropLayer, { left: 0, width: trackWidth, height: roomHeight }]}>
-    <View style={[S.collectionBackdropTrack, { width: tileStripWidth, height: roomHeight }]}>
-      {Array.from({ length: tileCount }, (_, index) => <View key={index} style={{ width: tileWidth, height: roomHeight, flexShrink: 0, overflow: 'hidden', transform: [{ scaleX: index % 2 === 1 ? -1 : 1 }] }}><Image source={COLLECTION_BACKDROP} contentFit="fill" style={{ position: 'absolute', left: art.left, top: art.top, width: art.width, height: art.height }} /></View>)}
-    </View>
-  </View>;
-}
-
 /** The 3D wooden cabinet (shelves, pillars, hooks, stands) behind the collection. Off for now; set to true to bring it back. */
 const SHOW_CABINET = false;
 
 export type CollectionPage = 'room' | 'goshuin' | 'miniatures';
 
 /** The collection room and its paged goshuin / miniature lists. */
-export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, special, zoom, onZoomChange, page, onSelectGoshuin, onClosePage }: { shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void; onClosePage: () => void }) {
-  const { width } = useWindowDimensions();
+export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, rewardDates = {}, special, zoom, onZoomChange, page, onSelectGoshuin, onClosePage }: { scrollX: Animated.Value; shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void; onClosePage: () => void }) {
+  const { width, height: windowHeight } = useWindowDimensions();
   const viewportWidth = Math.min(480, Math.max(1, width));
   // Nothing scrolls vertically: the page fills the space under the pop buttons.
   const [areaHeight, setAreaHeight] = useState(0);
@@ -159,9 +131,13 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
   const displayCellHeight = roomHeight;
   const roomLabelFontSize = Math.max(8, Math.min(11, (pageWidth - 24) / 8));
   const roomLabelHeight = roomLabelFontSize + 3;
-  const art = roomArtGeometry(viewportWidth, roomHeight);
-  const roomLabelTop = Math.max(0, art.railY - roomLabelHeight - 36);
-  const goshuinBottom = roomHeight - art.shelfY;
+  // The picture fills the window, so the rail and the shelf are placed by their window position minus where this room starts.
+  const [roomTopInWindow, setRoomTopInWindow] = useState(0);
+  const root = useRef<View>(null);
+  const art = roomArtGeometry(viewportWidth, windowHeight);
+  const railY = art.railY - roomTopInWindow;
+  const roomLabelTop = Math.max(0, railY - roomLabelHeight - 36);
+  const goshuinBottom = roomHeight - (art.shelfY - roomTopInWindow);
   const rewarded = useMemo(() => new Set(rewardIds), [rewardIds]);
 
   const selectZoom = (next: CollectionZoom) => {
@@ -198,9 +174,9 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
   };
 
   return (
-    <View style={{ flex: 1 }} onLayout={({ nativeEvent }) => setAreaHeight(previous => Math.abs(previous - nativeEvent.layout.height) < 1 ? previous : nativeEvent.layout.height)}>
+    <View ref={root} style={{ flex: 1 }} onLayout={({ nativeEvent }) => { setAreaHeight(previous => Math.abs(previous - nativeEvent.layout.height) < 1 ? previous : nativeEvent.layout.height); root.current?.measureInWindow((_x, y) => setRoomTopInWindow(previous => Math.abs(previous - y) < 1 ? previous : y)); }}>
       {<View onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={[S.roomStage, { width: viewportWidth, height: roomHeight, marginHorizontal: -24 }]}>
-        <ScrollView
+        <Animated.ScrollView
           ref={displayScroll}
           horizontal
           decelerationRate="fast"
@@ -213,12 +189,11 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
           style={[S.displayScroller, { height: roomHeight, zIndex: 1 }]}
           contentContainerStyle={[S.rail, { width: trackWidth, height: roomHeight }]}
           scrollEventThrottle={16}
-          onScroll={({ nativeEvent }) => { const step = Math.max(1, viewportWidth / 2); const next = Math.floor(nativeEvent.contentOffset.x / step) * step; setScrollX(previous => previous === next ? previous : next); }}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollXValue } } }], { useNativeDriver: Platform.OS !== 'web', listener: (event: any) => { const step = Math.max(1, viewportWidth / 2); const next = Math.floor(event.nativeEvent.contentOffset.x / step) * step; setScrollX(previous => previous === next ? previous : next); } })}
           onScrollBeginDrag={() => setSwayImpulse(value => value + 1)}
           onMomentumScrollEnd={() => setSwayImpulse(value => value + 1)}
         >
           <View style={[S.roomTrack, { width: trackWidth, height: roomHeight }]}>
-            <CollectionBackdrop trackWidth={trackWidth} viewportWidth={viewportWidth} roomHeight={roomHeight} />
             {SHOW_CABINET && <CollectionRoom key={`${zoom}:${trackWidth}:${pageWidth}`} itemCount={trackCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={trackWidth} cellWidth={pageWidth} scrollX={scrollX} />}
             <View style={[S.displayRow, { width: trackWidth, height: roomHeight }]}>
               {showcase.map((shrine, index) => {
@@ -230,13 +205,13 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
                 const hookHeightEstimate = Math.min(65, keychainSize * .5) * (1145 / 1374);
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight }]}>
                   <View style={[S.roomLabel, { top: roomLabelTop, height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
-                  <KeychainArtwork shrine={shrine} locked={keychainCount === 0} count={keychainCount} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={art.railY - hookHeightEstimate * .405} />
+                  <KeychainArtwork shrine={shrine} locked={keychainCount === 0} count={keychainCount} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
                   <DisplayedStamp shrine={shrine} owned={stampOwned} sparkleCount={sparkleCount} width={stampWidth} bottom={goshuinBottom} />
                 </View>;
               })}
             </View>
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
       </View>}
       <ScrollPopup visible={page === 'goshuin'} title="御朱印" onClose={onClosePage}>
         {paper => <PagedShrineGrid bare kind="goshuin" title="" shrines={showcase} ownedIds={[...rewarded]} onSelect={onSelectGoshuin} height={paper.height} />}
@@ -274,7 +249,7 @@ const S = StyleSheet.create({
   sectionNote: { color: '#786A58', fontSize: 13 },
   rail: { paddingRight: 0 }, displayScroller: { width: '100%', backgroundColor: 'transparent' }, roomTrack: { position: 'relative' }, collectionBackdropLayer: { position: 'absolute', top: 0, overflow: 'hidden' }, collectionBackdropTrack: { position: 'absolute', left: 0, top: 0, flexDirection: 'row' }, displayRow: { position: 'absolute', left: 0, top: 0, flexDirection: 'row', zIndex: 2 }, displayCell: { position: 'relative', flexShrink: 0 },
   roomStage: { position: 'relative', overflow: 'hidden', backgroundColor: 'transparent' },
-  roomLabel: { position: 'absolute', left: 4, right: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', zIndex: 2 }, roomNumber: { color: '#f2c681', letterSpacing: 0.75, flexShrink: 0 }, roomName: { color: '#fff1d8', fontFamily: BRUSH, flexShrink: 1, minWidth: 0 },
+  roomLabel: { position: 'absolute', left: 4, right: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', zIndex: 2 }, roomNumber: { color: '#A63A2C', letterSpacing: 0.75, flexShrink: 0 }, roomName: { color: '#5A3426', fontFamily: BRUSH, flexShrink: 1, minWidth: 0 },
   keychainWrap: { position: 'absolute', alignSelf: 'center', width: 186, height: 255, zIndex: 1 }, detailKeychainWrap: { width: 260, height: 390, marginTop: 6 }, keychainButton: { flex: 1 }, keychain: { width: '100%', height: '100%' }, keychainLocked: { opacity: .28 }, hookContactClip: { position: 'absolute', overflow: 'hidden', zIndex: 3 }, shrineCharm: { position: 'absolute', width: 46, height: 46, borderRadius: 23, left: 70, bottom: 49, borderWidth: 2, backgroundColor: '#fff9ed', overflow: 'hidden', padding: 4 }, shrineCharmLarge: { width: 62, height: 62, borderRadius: 31, left: 99, bottom: 73 }, shrineCharmImage: { width: '100%', height: '100%' }, lock: { position: 'absolute', right: 7, bottom: 28, width: 30, height: 30, borderRadius: 15, backgroundColor: '#6f5540cc', alignItems: 'center', justifyContent: 'center' }, quantity: { position: 'absolute', right: 5, bottom: 27, borderRadius: 12, backgroundColor: '#fff7e8e8', borderWidth: 1, borderColor: '#b38b58', paddingHorizontal: 7, paddingVertical: 4 }, quantityText: { color: '#70462f', fontFamily: SERIF, fontSize: 11 },
   stampStand: { position: 'absolute', bottom: 14, alignSelf: 'center', width: 96, height: 120, overflow: 'hidden' }, stamp: { width: '100%', height: '100%' }, sparkleGlow: { position: 'absolute', inset: -8, borderRadius: 18, backgroundColor: '#ffd87578', shadowColor: '#ffd15a', shadowOpacity: .8, shadowRadius: 14 }, sparkleSweep: { position: 'absolute', top: -12, bottom: -12, width: 23, backgroundColor: '#FFFDF2B8' }, sparkleBadge: { position: 'absolute', right: 0, top: 0, flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 12, backgroundColor: '#fff0bce8', borderWidth: 1, borderColor: '#d0a343', paddingHorizontal: 5, paddingVertical: 3 }, sparkleText: { color: '#7a531e', fontSize: 11, fontWeight: '700' },
   backdrop: { flex: 1, backgroundColor: '#241b15b8', justifyContent: 'center', padding: 20 }, detailCard: { minHeight: 650, maxHeight: '92%', overflow: 'hidden', borderRadius: 26, borderWidth: 1, borderColor: '#ead6ba', alignItems: 'center', padding: 24 }, detailWash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#fff7e480' }, close: { position: 'absolute', top: 14, right: 14, zIndex: 4, width: 42, height: 42, borderRadius: 21, backgroundColor: '#fffaf0e8', alignItems: 'center', justifyContent: 'center' },

@@ -1,8 +1,9 @@
 import React from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { Image } from './AppImage';
+import { roomArtGeometry } from './collectionRoomArt';
 
-const COLLECTION_BACKDROP = require('../../assets/ui-round3/collection/collection-room-home-harmony-v1.webp');
+const COLLECTION_BACKDROP = require('../../assets/ui-round3/collection/collection-room-harmony-v4.webp');
 const HOME_SCENE_BACKGROUND = require('../../assets/backgrounds/mobidou-home-cushion-background-extended-v2.webp');
 const HOME_BACKGROUND_SOURCE_HEIGHT = 2880;
 const HOME_BACKGROUND_FLOOR_SOURCE_Y = 862;
@@ -10,15 +11,15 @@ const HOME_BACKGROUND_CUSHION_SOURCE_Y = 820;
 const HOME_BACKGROUND_FLOOR_RATIO = HOME_BACKGROUND_FLOOR_SOURCE_Y / HOME_BACKGROUND_SOURCE_HEIGHT;
 const HOME_BACKGROUND_CUSHION_OFFSET_RATIO = (HOME_BACKGROUND_FLOOR_SOURCE_Y - HOME_BACKGROUND_CUSHION_SOURCE_Y) / HOME_BACKGROUND_SOURCE_HEIGHT;
 
-export function CollectionBackdrop({ scrollY, viewportWidth, viewportHeight }: { scrollY: Animated.Value; viewportWidth: number; viewportHeight: number }) {
-  const tileWidth = Math.max(1, Math.round(viewportHeight * (1024 / 1536)));
-  const initialInset = Math.max(0, Math.floor((tileWidth - viewportWidth) / 2));
-  const backgroundWidth = viewportWidth + initialInset + tileWidth;
-  const tileCount = Math.ceil(backgroundWidth / tileWidth) + 1;
-  const translateY = scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' });
-  return <View pointerEvents="none" style={S.collectionBackdropViewport}>
-    <Animated.View style={[S.collectionBackdropTrack, { left: -initialInset, width: tileCount * tileWidth }, { transform: [{ translateY }] }]}>
-      {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} contentFit="cover" style={[{ width: tileWidth, height: '100%', flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
+/** The collection room picture over the whole window; it slides sideways with the room's scroll position. */
+export function CollectionBackdrop({ scrollX, viewportWidth, windowHeight, topInset, tileCount }: { scrollX: Animated.Value; viewportWidth: number; windowHeight: number; topInset: number; tileCount: number }) {
+  const art = roomArtGeometry(viewportWidth, windowHeight);
+  const translateX = Animated.multiply(scrollX, -1);
+  return <View pointerEvents="none" style={[S.collectionBackdropViewport, { top: -topInset, bottom: undefined, width: viewportWidth, height: windowHeight }]}>
+    <Animated.View style={[S.collectionBackdropTrack, { width: tileCount * viewportWidth, bottom: 0 }, { transform: [{ translateX }] }]}>
+      {Array.from({ length: tileCount }, (_, index) => <View key={index} style={{ width: viewportWidth, height: windowHeight, flexShrink: 0, overflow: 'hidden', transform: [{ scaleX: index % 2 === 1 ? -1 : 1 }] }}>
+        <Image source={COLLECTION_BACKDROP} contentFit="fill" style={{ position: 'absolute', left: art.left, top: art.top, width: art.width, height: art.height }} />
+      </View>)}
     </Animated.View>
   </View>;
 }

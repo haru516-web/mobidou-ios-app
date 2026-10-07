@@ -128,7 +128,8 @@ export default function App() {
 }
 
 function Main({ fontsReady }: { fontsReady: boolean }) {
-  const safeBottom = useSafeAreaInsets().bottom;
+  const safeInsets = useSafeAreaInsets();
+  const safeBottom = safeInsets.bottom;
   const journey = useJourney();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { data, progress } = journey;
@@ -318,6 +319,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [homeStageLayout, setHomeStageLayout] = useState<HomeLayout | null>(null);
   const openingHomeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const collectionScrollX = useRef(new Animated.Value(0)).current;
   const pet = getPetCharacter(tutorialPreviewPet ?? data.pet);
   const nextRoutePeekMetric = PILGRIMAGE_PEEK_METRICS[pet.id];
   const nextRoutePeekScale = Math.min(132 / nextRoutePeekMetric.width, 132 / nextRoutePeekMetric.height);
@@ -377,7 +379,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, [omikujiModal]); // eslint-disable-line react-hooks/exhaustive-deps
   const openGachaShop = () => { setMobbyMenuOpen(false); setGachaOnShop(true); setGachaOpen(true); };
   useEffect(() => { if (!gachaOpen) setGachaOnShop(false); }, [gachaOpen]);
-  const move = (value: Tab) => {  setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); scrollY.setValue(0); setTab(value); };
+  const move = (value: Tab) => {  setHomePopup(null); setOmikujiModal(false); setMobbyMenuOpen(false); scrollY.setValue(0); collectionScrollX.setValue(0); setTab(value); };
   const openHomePopup = (kind: Exclude<HomePopup, null>) => { setMobbyMenuOpen(false); setHomePopup(kind); setTab('home'); scrollY.setValue(0); };
   const handleTutorialCompanionBond = () => {
     journey.bond();
@@ -779,7 +781,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
   return <View style={S.desktop}><SafeAreaView style={S.app} edges={['top', 'left', 'right']}>
-    {tab === 'collection' ? <CollectionBackdrop scrollY={scrollY} viewportWidth={Math.min(480, Math.max(1, windowWidth))} viewportHeight={Math.max(1, windowHeight)} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
+    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} viewportWidth={Math.min(480, Math.max(1, windowWidth))} windowHeight={Math.max(1, windowHeight)} topInset={safeInsets.top} tileCount={collectionZoom === 'close' ? COLLECTION_SHRINES.length + 1 : Math.ceil(COLLECTION_SHRINES.length / 3) + 1} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
       <Animated.View pointerEvents="none" style={S.backgroundScrollLayer}>
         <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, tab === 'book' && S.bookBackgroundTrack, { transform: [{ translateY: tab === 'book' ? 0 : scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
           <Image source={tab === 'book' ? GOSHUIN_BOOK_BACKGROUND : tab === 'walk' ? OUTING_BACKGROUND : currentBackground.image} contentFit="cover" style={[S.backgroundArt, (tab === 'book' || tab === 'walk') && S.bookBackgroundArt]} />
@@ -877,7 +879,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <TourAnchor id="collection-tabs" style={S.jumpRow}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />)}
         </TourAnchor>
-        <CollectionGallery shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={openDetail} onClosePage={() => setCollectionPage('room')} />
+        <CollectionGallery scrollX={collectionScrollX} shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={openDetail} onClosePage={() => setCollectionPage('room')} />
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
