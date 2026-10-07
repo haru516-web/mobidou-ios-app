@@ -50,7 +50,7 @@ function routeForShrine(shrineId: string) {
   return PILGRIMAGES.find(route => (route.ids as readonly string[]).includes(shrineId));
 }
 
-function KeychainArtwork({ shrine, locked, count, impulse, onPress, large = false, top, size, compact = false }: { shrine: Shrine; locked: boolean; count: number; impulse: number; onPress?: () => void; large?: boolean; top?: number; size?: number; compact?: boolean }) {
+function KeychainArtwork({ shrine, locked, impulse, onPress, large = false, top, size, compact = false }: { shrine: Shrine; locked: boolean; impulse: number; onPress?: () => void; large?: boolean; top?: number; size?: number; compact?: boolean }) {
   const sway = useRef(new Animated.Value(0)).current;
   const swing = () => {
     sway.stopAnimation();
@@ -82,7 +82,6 @@ function KeychainArtwork({ shrine, locked, count, impulse, onPress, large = fals
       {!large && <View pointerEvents="none" style={[S.hookContactClip, { left: hookLeft, top: hookContactTop, width: hookWidth, height: hookContactHeight }]}><Image source={WALL_HOOK} contentFit="fill" style={{ position: 'absolute', left: 0, top: -hookHeight * .38, width: hookWidth, height: hookHeight }} /></View>}
       <Image source={artwork} contentFit="contain" tintColor={locked ? SILHOUETTE : undefined} style={locked ? S.keychainSilhouette : S.keychain} />
       {!locked && !dedicatedArtwork && <View pointerEvents="none" style={[S.shrineCharm, large && S.shrineCharmLarge, { width: charmSize, height: charmSize, borderRadius: charmSize / 2, left: large ? 99 : 70 * scale, bottom: large ? 73 : 49 * scale, borderColor: shrine.color }]}><Image source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.shrineCharmImage} /></View>}
-      {!large && !compact && (locked ? null : <View style={[S.quantity, { right: 5 * scale, bottom: 27 * scale, borderRadius: 12 * scale, paddingHorizontal: 7 * scale, paddingVertical: 4 * scale }]}><Text style={[S.quantityText, { fontSize: Math.max(8, 11 * scale) }]}>×{count}</Text></View>)}
     </Pressable>
   </Animated.View>;
 }
@@ -215,7 +214,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
                 const hookHeightEstimate = Math.min(65, keychainSize * .5) * (1145 / 1374);
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight, left: shiftX }]}>
                   <View style={[S.roomLabel, { top: roomLabelTop, height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
-                  <KeychainArtwork shrine={shrine} locked={keychainCount === 0} count={keychainCount} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
+                  <KeychainArtwork shrine={shrine} locked={keychainCount === 0} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
                   <DisplayedStamp shrine={shrine} owned={stampOwned} sparkleCount={sparkleCount} width={stampWidth} bottom={goshuinBottom} />
                 </View>;
               })}
@@ -236,7 +235,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
             <View style={S.detailWash} /><WashiArt />
             <WashiPressable plate="round" accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => setDetail(null)} style={S.close}><Icon name="close" size={20} color="#7f302d" /></WashiPressable>
             {detail && <>
-              <KeychainArtwork shrine={detail} locked={(special.keychains[detail.id] ?? 0) === 0} count={special.keychains[detail.id] ?? 0} impulse={0} large />
+              <KeychainArtwork shrine={detail} locked={(special.keychains[detail.id] ?? 0) === 0} impulse={0} large />
               <Text style={S.detailReading}>{detail.reading}</Text>
               <Text style={S.detailName}>{detail.name}</Text>
               <Text style={S.detailRoute}>{routeForShrine(detail.id)?.name ?? 'もび道の巡礼'}</Text>
