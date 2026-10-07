@@ -3,7 +3,7 @@
  * This takes the scrolling over: wheel and drag move the position by hand, and the position is written to the ScrollView and to `onMove` in the same step,
  * so the displays and the picture are drawn together. It also settles on whole pages, one page at a time.
  */
-export function attachSnapScroll(node: HTMLElement, options: { page: () => number; max: () => number; onMove: (x: number) => void }) {
+export function attachSnapScroll(node: HTMLElement, options: { page: () => number; max: () => number; onMove: (x: number) => void; onSettle?: () => void }) {
   let position = node.scrollLeft;
   let frame = 0;
   let idle: ReturnType<typeof setTimeout> | null = null;
@@ -19,7 +19,8 @@ export function attachSnapScroll(node: HTMLElement, options: { page: () => numbe
     const step = (now: number) => {
       const t = Math.min(1, (now - begun) / duration);
       set(from + (to - from) * (1 - Math.pow(1 - t, 3)));
-      frame = t < 1 ? requestAnimationFrame(step) : 0;
+      if (t < 1) frame = requestAnimationFrame(step);
+      else { frame = 0; options.onSettle?.(); }
     };
     frame = requestAnimationFrame(step);
   };

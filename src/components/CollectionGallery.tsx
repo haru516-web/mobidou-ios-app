@@ -55,15 +55,11 @@ function KeychainArtwork({ shrine, locked, impulse, onPress, large = false, top,
   const sway = useRef(new Animated.Value(0)).current;
   const swing = () => {
     sway.stopAnimation();
-    sway.setValue(0);
-    Animated.sequence([
-      Animated.timing(sway, { toValue: 1, duration: 120, useNativeDriver: true }),
-      Animated.timing(sway, { toValue: -0.65, duration: 180, useNativeDriver: true }),
-      Animated.spring(sway, { toValue: 0, friction: 4.2, tension: 46, useNativeDriver: true }),
-    ]).start();
+    // Pushed to one side, then let go: it swings back and forth around the hook and dies down.
+    sway.setValue(1);
+    Animated.spring(sway, { toValue: 0, friction: 2, tension: 20, useNativeDriver: true }).start();
   };
   useEffect(() => { if (impulse > 0) swing(); }, [impulse]);
-  const lift = sway.interpolate({ inputRange: [-1, 0, 1], outputRange: [2, 0, -2] });
   const dedicatedArtwork = COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
   const artwork = dedicatedArtwork ?? KEYCHAIN;
   const baseWidth = large ? 260 : 186;
@@ -75,13 +71,17 @@ function KeychainArtwork({ shrine, locked, impulse, onPress, large = false, top,
   const hookWidth = compact ? renderWidth : Math.min(65, renderWidth * .5);
   const hookHeight = hookWidth * (1145 / 1374);
   const hookTop = -hookHeight * .25;
+  // The keychain swings around the hook it hangs from, a little below the top of its box.
+  const swingPivot = renderHeight / 2 - (hookTop + hookHeight * .5);
   const hookContactTop = hookTop + hookHeight * .38;
   const hookContactHeight = hookHeight * .55;
   const hookLeft = (renderWidth - hookWidth) / 2 + (compact ? 0 : renderWidth <= 130 ? 3 : 0);
-  return <Animated.View style={[large ? S.detailKeychainWrap : S.keychainWrap, { width: renderWidth, height: renderHeight }, top !== undefined && { top }, { transform: [{ translateY: lift }] }]}>
+  return <Animated.View style={[large ? S.detailKeychainWrap : S.keychainWrap, { width: renderWidth, height: renderHeight }, top !== undefined && { top }]}>
     <Pressable disabled={locked || !onPress} accessibilityState={{ disabled: locked || !onPress }} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={locked ? '未取得のミニチュア' : onPress ? `${shrine.name}のキーホルダーを詳しく見る` : undefined} onPress={locked ? undefined : () => { swing(); onPress?.(); }} style={S.keychainButton}>
       {!large && <View pointerEvents="none" style={[S.hookContactClip, { left: hookLeft, top: hookContactTop, width: hookWidth, height: hookContactHeight }]}><Image source={WALL_HOOK} contentFit="fill" style={{ position: 'absolute', left: 0, top: -hookHeight * .38, width: hookWidth, height: hookHeight }} /></View>}
-      <Image source={artwork} contentFit="contain" tintColor={locked ? SILHOUETTE : undefined} style={locked ? S.keychainSilhouette : S.keychain} />
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 1, transform: [{ translateY: -swingPivot }, { rotate: sway.interpolate({ inputRange: [-1, 1], outputRange: ['-9deg', '9deg'] }) }, { translateY: swingPivot }] }]}>
+        <Image source={artwork} contentFit="contain" tintColor={locked ? SILHOUETTE : undefined} style={locked ? S.keychainSilhouette : S.keychain} />
+      </Animated.View>
       {!locked && !dedicatedArtwork && <View pointerEvents="none" style={[S.shrineCharm, large && S.shrineCharmLarge, { width: charmSize, height: charmSize, borderRadius: charmSize / 2, left: large ? 99 : 70 * scale, bottom: large ? 73 : 49 * scale, borderColor: shrine.color }]}><Image source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.shrineCharmImage} /></View>}
     </Pressable>
   </Animated.View>;
@@ -125,7 +125,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
     if (Platform.OS !== 'web') return undefined;
     const node = (displayScroll.current as any)?.getScrollableNode?.() as HTMLElement | undefined;
     if (!node?.addEventListener) return undefined;
-    return attachSnapScroll(node, { page: () => webScrollLimits.current.page, max: () => webScrollLimits.current.max, onMove: x => scrollXValue.setValue(x) });
+    return attachSnapScroll(node, { page: () => webScrollLimits.current.page, max: () => webScrollLimits.current.max, onMove: x => scrollXValue.setValue(x), onSettle: () => setSwayImpulse(value => value + 1) });
   }, [scrollXValue]);
   const displayCellHeight = roomHeight;
   const roomLabelFontSize = Math.max(8, Math.min(11, (pageWidth - 24) / 8));
@@ -190,7 +190,6 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
           contentContainerStyle={[S.rail, { width: trackWidth, height: roomHeight }]}
           scrollEventThrottle={16}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollXValue } } }], { useNativeDriver: Platform.OS !== 'web', listener: (event: any) => { const step = Math.max(1, viewportWidth / 2); const next = Math.floor(event.nativeEvent.contentOffset.x / step) * step; setScrollX(previous => previous === next ? previous : next); } })}
-          onScrollBeginDrag={() => setSwayImpulse(value => value + 1)}
           onMomentumScrollEnd={() => setSwayImpulse(value => value + 1)}
         >
           <View style={[S.roomTrack, { width: trackWidth, height: roomHeight }]}>
