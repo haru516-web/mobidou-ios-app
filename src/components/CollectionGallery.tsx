@@ -111,6 +111,23 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
   const [pinching, setPinching] = useState(false);
   const [scrollX, setScrollX] = useState(0);
   const displayScroll = useRef<ScrollView>(null);
+  // The web ScrollView ignores snapToInterval: once the scrolling stops, move to the nearest page by hand (the phone snaps by itself).
+  const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapWhenSettled = (x: number) => {
+    if (Platform.OS !== 'web') return;
+    if (snapTimer.current) clearTimeout(snapTimer.current);
+    const page = zoom === 'close' ? pageWidth : pageWidth * 3;
+    snapTimer.current = setTimeout(() => { const target = Math.round(x / page) * page; if (Math.abs(target - x) > 1) displayScroll.current?.scrollTo({ x: target, animated: true }); }, 140);
+  };
+  useEffect(() => {
+    if (Platform.OS !== 'web') return undefined;
+    const node = (displayScroll.current as any)?.getScrollableNode?.() as HTMLElement | undefined;
+    if (!node?.addEventListener) return undefined;
+    const onDomScroll = () => snapWhenSettled(node.scrollLeft);
+    node.addEventListener('scroll', onDomScroll);
+    return () => node.removeEventListener('scroll', onDomScroll);
+  });
+  useEffect(() => () => { if (snapTimer.current) clearTimeout(snapTimer.current); }, []);
   const pinchState = useRef({ active: false, startDistance: 0, startZoom: zoom });
   const showcase = shrines.length ? shrines : SHRINES.slice(0, 6);
   const trackCount = Math.max(3, showcase.length);
