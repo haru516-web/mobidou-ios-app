@@ -81,7 +81,7 @@ function KeychainArtwork({ shrine, locked, count, impulse, onPress, large = fals
       {!locked && <Image source={artwork} contentFit="contain" style={S.keychain} />}
       {!large && <View pointerEvents="none" style={[S.hookContactClip, { left: hookLeft, top: hookContactTop, width: hookWidth, height: hookContactHeight }]}><Image source={WALL_HOOK} contentFit="fill" style={{ position: 'absolute', left: 0, top: -hookHeight * .38, width: hookWidth, height: hookHeight }} /></View>}
       {!locked && !dedicatedArtwork && <View pointerEvents="none" style={[S.shrineCharm, large && S.shrineCharmLarge, { width: charmSize, height: charmSize, borderRadius: charmSize / 2, left: large ? 99 : 70 * scale, bottom: large ? 73 : 49 * scale, borderColor: shrine.color }]}><Image source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.shrineCharmImage} /></View>}
-      {!large && !compact && (locked ? <LockTag size={Math.max(24, 36 * scale)} style={{ position: 'absolute', right: 4 * scale, bottom: 24 * scale }} /> : <View style={[S.quantity, { right: 5 * scale, bottom: 27 * scale, borderRadius: 12 * scale, paddingHorizontal: 7 * scale, paddingVertical: 4 * scale }]}><Text style={[S.quantityText, { fontSize: Math.max(8, 11 * scale) }]}>×{count}</Text></View>)}
+      {!large && !compact && (locked ? <LockTag size={Math.min(56, renderWidth * .42)} style={{ position: 'absolute', left: (renderWidth - Math.min(56, renderWidth * .42)) / 2, top: hookTop + hookHeight * .85 }} /> : <View style={[S.quantity, { right: 5 * scale, bottom: 27 * scale, borderRadius: 12 * scale, paddingHorizontal: 7 * scale, paddingVertical: 4 * scale }]}><Text style={[S.quantityText, { fontSize: Math.max(8, 11 * scale) }]}>×{count}</Text></View>)}
     </Pressable>
   </Animated.View>;
 }
@@ -101,7 +101,7 @@ function DisplayedStamp({ shrine, owned, sparkleCount, width, bottom, compact = 
   }, [owned, compact, shimmer, sparkleCount]);
   return <View accessible accessibilityLabel={owned ? `${shrine.name}の御朱印` : '未取得の御朱印'} accessibilityState={{ disabled: !owned }} style={[S.stampStand, { width: renderWidth, height: renderHeight }, bottom !== undefined && { bottom }]}>
     {owned && !compact && sparkleCount > 0 && <Animated.View style={[S.sparkleGlow, { opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [.35, .88] }), transform: [{ scale: shimmer.interpolate({ inputRange: [0, 1], outputRange: [.97, 1.06] }) }] }]} />}
-    {owned ? <Image accessible={false} source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.stamp} /> : <LockTag size={Math.min(40, renderWidth)} />}
+    {owned ? <Image accessible={false} source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.stamp} /> : <LockTag size={Math.min(56, renderWidth * .5)} style={{ position: 'absolute', left: (renderWidth - Math.min(56, renderWidth * .5)) / 2, bottom: 2 }} />}
     {owned && !compact && sparkleCount > 0 && <><Animated.View pointerEvents="none" style={[S.sparkleSweep, { opacity: shimmer, transform: [{ translateX: shimmer.interpolate({ inputRange: [0, 1], outputRange: [-renderWidth * .56, renderWidth * .7] }) }, { rotate: '18deg' }] }]} /><View style={S.sparkleBadge}><Icon name="sparkles" size={12} color="#8b5920" /><Text style={S.sparkleText}>×{sparkleCount}</Text></View></>}
   </View>;
 }
