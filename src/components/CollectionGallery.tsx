@@ -240,7 +240,6 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
               <Text style={S.detailName}>{detail.name}</Text>
               <Text style={S.detailRoute}>{routeForShrine(detail.id)?.name ?? 'もび道の巡礼'}</Text>
               <Text style={S.detailTheme}>{detail.theme}</Text>
-              <Text style={S.detailOwned}>キーホルダー ×{special.keychains[detail.id] ?? 0}　キラキラ御朱印 ×{special.sparkles[detail.id] ?? 0}</Text>
               <Text style={S.detailDate}>{rewardDates[detail.id] ? `${rewardDates[detail.id]} に御朱印を授かりました` : 'まだ御朱印を授かっていません'}</Text>
               <WashiPressable accessibilityRole="button" onPress={() => setDetail(null)} style={S.returnButton}><Text style={S.returnText}>とじる</Text></WashiPressable>
             </>}
