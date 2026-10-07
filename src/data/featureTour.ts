@@ -38,7 +38,7 @@ export const TOUR_SECTIONS: readonly TourSection[] = [
     steps: [
       { anchor: 'home-companion', title: 'ホームのモビー', detail: 'ほっぺを引っぱると伸びるよ。タップすると二礼二拍手一礼のお参りをするよ。' },
       { anchor: 'home-steps', title: '歩数のカード', detail: '今日の歩数と、次の御朱印までの道のりが見られるよ。タップするとおでかけが開くよ。' },
-      { anchor: 'home-widgets', title: 'ホームのカード', detail: 'おみくじは一日一回、タップで全画面で引けるよ。カードは長押しか設定から、好きな並びに変えられるよ。' },
+      { anchor: 'home-widgets', title: 'ホームのカード', detail: 'おみくじは一日一回、タップで全画面で引けるよ。カードは長押しで、好きな並びに変えられるよ。' },
       { title: '画面のモビー', detail: '画面の端にいる小さなモビーをタップすると、キャラ変更・通知・プレゼント・フレンドのメニューが開くよ。ドラッグで好きな場所へ動かせるよ。' },
       { anchor: 'header-settings', title: '設定', detail: '歩数の連携やホームの編集、アカウント管理はここから。このチュートリアルもここで見返せるよ。' },
     ],

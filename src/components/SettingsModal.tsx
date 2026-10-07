@@ -33,14 +33,13 @@ type Props = {
   onDismiss: () => void;
   onClose: () => void;
   onOpenAccount: () => void;
-  onEditHome: () => void;
   onToggleDemo: () => void;
   /** Whether the gacha tab is on the bar; its part of the tour is offered only then. */
   gacha: boolean;
   onStartTour: (selection: TourSelection) => void;
 };
 
-export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss, onClose, onOpenAccount, onEditHome, onToggleDemo, gacha, onStartTour }: Props) {
+export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss, onClose, onOpenAccount, onToggleDemo, gacha, onStartTour }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const { data } = journey;
   const audio = useAudioSettings();
@@ -91,11 +90,6 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
             {data.source === 'none' && <Button title="歩数を連携する" disabled={journey.busy} onPress={() => void journey.connect()} />}
             {Platform.OS === 'ios' && <Button title="iPhoneの設定をひらく" secondary onPress={() => void Linking.openSettings().catch(() => {})} style={{ marginTop: 10 }} />}
           </View>
-        </View>
-        <View key="home">
-          <Section title="ホーム" />
-          <Text style={M.settingHelp}>ホームのカードは長押しでも編集できます。</Text>
-          <Button title="ホームのカードを編集" icon="grid-outline" secondary onPress={onEditHome} />
         </View>
         <ScrollView key="haptics" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[S.row, { gap: 20, paddingVertical: 4 }]} accessibilityLabel="音と振動。横にスクロールして設定">
           {(['bgm', 'sfx'] as const).map(kind => {
