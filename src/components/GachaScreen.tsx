@@ -182,6 +182,9 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
   const startedAt = useRef<number | null>(null);
   const openedAt = useRef<number | null>(null);
   const drawRequested = useRef(false);
+  /** After a pull the rope slides back up and out of sight; it comes back with the next lobby. */
+  const ropeShift = useRef(new Animated.Value(0)).current;
+  const [ropeGone, setRopeGone] = useState(false);
   /** From the second Mobby of a batch on, the box is already in place and the show starts at the board. */
   const skipIntro = useRef(false);
   /** The player skipped this Mobby's show; the running timers must not play it again. */
@@ -383,16 +386,16 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
     drawRequested.current = true;
     playSfx('sfx_ticket_use');
     const drawn = onDraw(batch);
-    if (drawn && typeof drawn.then === 'function') void drawn.then(done => { if (done === false) { drawRequested.current = false; setStage('lobby'); } });
+    if (drawn && typeof drawn.then === 'function') void drawn.then(done => { if (done === false) { drawRequested.current = false; ropeShift.setValue(0); setRopeGone(false); setStage('lobby'); } });
   }, [playing, freePulls, batch, onDraw]);
 
   const ropePan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady,
-    onMoveShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady,
+    onStartShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady && !drawRequested.current,
+    onMoveShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady && !drawRequested.current,
     onPanResponderMove: (_, gesture) => { playSfx('sfx_rope_pull', { rate: .7 + Math.min(1, gesture.dy / PULL_TO_DRAW), debounceMs: 180, gain: .4 }); setPull(Math.max(0, Math.min(maxPull, gesture.dy))); },
-    onPanResponderRelease: (_, gesture) => { playSfx(gesture.dy >= PULL_TO_DRAW ? 'sfx_rope_catch' : 'sfx_rope_cancel'); setPull(0); if (gesture.dy >= PULL_TO_DRAW) requestDraw(); },
+    onPanResponderRelease: (_, gesture) => { playSfx(gesture.dy >= PULL_TO_DRAW ? 'sfx_rope_catch' : 'sfx_rope_cancel'); if (gesture.dy < PULL_TO_DRAW) { setPull(0); return; } requestDraw(); if (drawRequested.current) { const drop = Math.min(maxPull, gesture.dy); Animated.timing(ropeShift, { toValue: -(Math.min(300, height * .48) + maxPull + drop), duration: 420, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => { setRopeGone(true); setPull(0); }); } else setPull(0); },
     onPanResponderTerminate: () => setPull(0),
-  }), [playing, freePulls, ropeReady, requestDraw, maxPull]);
+  }), [playing, freePulls, ropeReady, requestDraw, maxPull, height, ropeShift]);
 
   const next = () => {
     playSfx('sfx_card_flip');
@@ -408,6 +411,8 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
   };
   const finish = () => {
     setSummary(null);
+    ropeShift.setValue(0);
+    setRopeGone(false);
     setPlaying(false);
     setIndex(0);
     resetScene();
@@ -557,8 +562,8 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
     </View>}
 
     {/* The cord to pull. */}
-    {!playing && !shopOpen && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + maxPull }]}>
-      <Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + maxPull) / 4, height: Math.min(300, height * .48) + maxPull, top: -maxPull + (pull > 0 ? pull : bob) }]} />
+    {!playing && !shopOpen && !ropeGone && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + maxPull }]}>
+      <Animated.View style={{ transform: [{ translateY: ropeShift }] }}><Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + maxPull) / 4, height: Math.min(300, height * .48) + maxPull, top: -maxPull + (pull > 0 ? pull : bob) }]} /></Animated.View>
     </View>}
     {!playing && !shopOpen && freePulls > 0 && ropeReady && <View pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 90, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}><Text style={S.ropeHintText}>下にひっぱってね</Text><MotionArrow direction="down" /></View>}
 
