@@ -1,6 +1,5 @@
-import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { useImperativeHandle, useMemo, useRef } from 'react';
 import { playPageTurn, playSfx } from '../services/audio';
-import { Asset } from 'expo-asset';
 import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modules-core';
 import type { BookPageTurnHandle } from './BookPageTurn';
 import type { NativeBookPageTurnProps } from './NativeBookPageTurn';
@@ -22,43 +21,14 @@ const CurlNativeView = isNativePageCurlAvailable
   ? requireNativeViewManager<CurlNativeViewProps>('MobiPageCurl')
   : null;
 
-export function NativeBookPageTurn({ pages, selectedIndex, onCommit, onBusyChange, onOpenDetail, style, forwardedRef }: NativeBookPageTurnProps) {
+export function NativeBookPageTurn({ spreadUris, selectedIndex, onCommit, onBusyChange, onOpenDetail, style, forwardedRef }: NativeBookPageTurnProps) {
   const nativeRef = useRef<CurlNativeViewRef>(null);
-  const [imageUris, setImageUris] = useState<Record<number, string>>({});
-  const sourceKey = pages.map(page => page.imageSource).join(',');
-
-  useEffect(() => {
-    let cancelled = false;
-    setImageUris({});
-    void Promise.all(pages.map(async (page, index) => {
-      if (!page.acquired) return [index, ''] as const;
-      // One failed image should blank only its own page, not every page.
-      try {
-        const asset = await Asset.fromModule(page.imageSource).downloadAsync();
-        return [index, asset.localUri ?? asset.uri] as const;
-      } catch {
-        return [index, ''] as const;
-      }
-    })).then(entries => {
-      if (!cancelled) setImageUris(Object.fromEntries(entries));
-    }).catch(() => {
-      if (!cancelled) setImageUris({});
-    });
-    return () => { cancelled = true; };
-  }, [sourceKey, pages.map(page => page.acquired).join(',')]);
 
   useImperativeHandle(forwardedRef, (): BookPageTurnHandle => ({
     turn: direction => { void nativeRef.current?.turn(direction); },
   }), []);
 
-  const pagesJson = useMemo(() => JSON.stringify(pages.map((page, index) => ({
-    name: page.name,
-    reading: page.reading,
-    theme: page.theme,
-    place: page.place,
-    acquired: page.acquired,
-    imageUri: imageUris[index] || null,
-  }))), [pages, imageUris]);
+  const pagesJson = useMemo(() => JSON.stringify(spreadUris.map(imageUri => ({ imageUri }))), [spreadUris]);
 
   if (!CurlNativeView) return null;
   return <CurlNativeView

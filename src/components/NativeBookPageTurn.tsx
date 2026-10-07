@@ -12,7 +12,8 @@ export type NativeBookPage = {
 };
 
 export type NativeBookPageTurnProps = {
-  pages: NativeBookPage[];
+  /** One picture per open spread (file URIs), drawn by the app so the curl shows the same book as everywhere else. */
+  spreadUris: string[];
   selectedIndex: number;
   onCommit: (index: number) => void;
   onBusyChange?: (busy: boolean) => void;

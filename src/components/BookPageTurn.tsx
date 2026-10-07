@@ -1,5 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { playPageTurn } from '../services/audio';
+import { captureRef } from 'react-native-view-shot';
 import { Animated, Easing, PanResponder, Platform, StyleSheet, View, type PanResponderGestureState, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from '../components';
 import { NativeBookPageTurn, isNativePageCurlAvailable, type NativeBookPage } from './NativeBookPageTurn';
@@ -243,24 +244,59 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
  * (the illustrated paper, the stamp on the left, the text on the right). Until it is made to draw the same spread, the app's own
  * page turn is used on every platform so the book looks the same.
  */
-const USE_NATIVE_PAGE_CURL = false;
+const USE_NATIVE_PAGE_CURL = true;
+
+/**
+ * The iOS page curl turning the app's own book: every spread is drawn once by the app (off screen), saved as a picture, and the
+ * curl turns halves of those pictures. Until the pictures exist, or if taking them fails, the app's own page turn is shown.
+ */
+const SnapshotCurlBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function SnapshotCurlBookPageTurn(props, ref) {
+  const { itemCount, renderSpread, contentKey, style } = props;
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [uris, setUris] = useState<string[] | null>(null);
+  const shots = useRef<(View | null)[]>([]);
+  const signature = `${contentKey ?? ''}|${itemCount}|${(props.nativePages ?? []).map(page => `${page.name}:${page.acquired}`).join(',')}|${Math.round(size.width)}x${Math.round(size.height)}`;
+  const renderSpreadRef = useRef(renderSpread);
+  renderSpreadRef.current = renderSpread;
+
+  useEffect(() => {
+    if (size.width <= 0 || size.height <= 0 || itemCount < 2) return undefined;
+    let cancelled = false;
+    // Let the pictures inside the spreads load before they are photographed.
+    const timer = setTimeout(async () => {
+      try {
+        const taken: string[] = [];
+        for (let index = 0; index < itemCount; index += 1) {
+          const target = shots.current[index];
+          if (!target) throw new Error('spread view missing');
+          taken.push(await captureRef(target, { format: 'png', quality: 1, result: 'tmpfile' }));
+        }
+        if (!cancelled) setUris(taken);
+      } catch {
+        if (!cancelled) setUris(null);
+      }
+    }, 900);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [signature]);
+
+  return <View style={style} onLayout={event => { const { width, height } = event.nativeEvent.layout; setSize(previous => Math.abs(previous.width - width) < 1 && Math.abs(previous.height - height) < 1 ? previous : { width, height }); }}>
+    {uris && uris.length === itemCount
+      ? <NativeBookPageTurn forwardedRef={ref} spreadUris={uris} selectedIndex={props.selectedIndex} onCommit={props.onCommit} onBusyChange={props.onBusyChange} onOpenDetail={props.onOpenDetail} style={S.fill} />
+      : <SimulatedBookPageTurn {...props} ref={ref} style={S.fill} />}
+    {size.width > 0 && <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={[S.offscreen, { left: size.width + 40, width: size.width }]}>
+      {Array.from({ length: itemCount }, (_, index) => <View key={index} ref={node => { shots.current[index] = node; }} collapsable={false} style={{ width: size.width, height: size.height }}>{renderSpreadRef.current(index)}</View>)}
+    </View>}
+  </View>;
+});
 
 export const BookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function BookPageTurn(props, ref) {
-  if (USE_NATIVE_PAGE_CURL && Platform.OS === 'ios' && isNativePageCurlAvailable && props.nativePages) {
-    return <NativeBookPageTurn
-      forwardedRef={ref}
-      pages={props.nativePages}
-      selectedIndex={props.selectedIndex}
-      onCommit={props.onCommit}
-      onBusyChange={props.onBusyChange}
-      onOpenDetail={props.onOpenDetail}
-      style={props.style}
-    />;
-  }
+  if (USE_NATIVE_PAGE_CURL && Platform.OS === 'ios' && isNativePageCurlAvailable) return <SnapshotCurlBookPageTurn {...props} ref={ref} />;
   return <SimulatedBookPageTurn {...props} ref={ref} />;
 });
 
 const S = StyleSheet.create({
+  fill: { alignSelf: 'stretch', minHeight: 340 },
+  offscreen: { position: 'absolute', top: 0 },
   viewport: { position: 'relative', overflow: 'hidden' },
   overlay: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', zIndex: 4 },
   targetUnderlay: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },

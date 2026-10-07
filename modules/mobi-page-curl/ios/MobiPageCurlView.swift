@@ -1,13 +1,9 @@
 import ExpoModulesCore
 import UIKit
 
+/// One open spread of the book, drawn by the app as a picture (left page, right page); the curl turns halves of it.
 private struct GoshuinPage: Decodable {
-  let name: String
-  let reading: String
-  let theme: String
-  let place: String
   let imageUri: String?
-  let acquired: Bool
 }
 
 private final class WashiPageView: UIView {
@@ -46,75 +42,25 @@ private final class GoshuinFaceController: UIViewController {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
 
+  /// Even faces are the left half of a spread, odd faces the right half.
+  private func halfImage() -> UIImage? {
+    guard let uri = page.imageUri, let url = URL(string: uri), url.isFileURL,
+          let full = UIImage(contentsOfFile: url.path), let cg = full.cgImage else { return nil }
+    let half = cg.width / 2
+    let rect = CGRect(x: faceIndex % 2 == 1 ? half : 0, y: 0, width: half, height: cg.height)
+    guard let part = cg.cropping(to: rect) else { return nil }
+    return UIImage(cgImage: part, scale: full.scale, orientation: .up)
+  }
+
   override func loadView() {
-    let paper = WashiPageView()
-    let isRight = faceIndex % 2 == 1
-    paper.gutterOnLeft = isRight
+    let paper = UIImageView()
+    paper.backgroundColor = UIColor(red: 0.985, green: 0.967, blue: 0.922, alpha: 1)
+    paper.contentMode = .scaleToFill
+    paper.clipsToBounds = true
+    paper.image = halfImage()
+    paper.isUserInteractionEnabled = true
+    paper.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openDetail)))
     view = paper
-    guard isRight else { return } // The reverse of each sheet is plain washi.
-
-    let inset = UIView()
-    inset.translatesAutoresizingMaskIntoConstraints = false
-    paper.addSubview(inset)
-    NSLayoutConstraint.activate([
-      inset.leadingAnchor.constraint(equalTo: paper.leadingAnchor, constant: 9),
-      inset.trailingAnchor.constraint(equalTo: paper.trailingAnchor, constant: -12),
-      inset.topAnchor.constraint(equalTo: paper.topAnchor, constant: 12),
-      inset.bottomAnchor.constraint(equalTo: paper.bottomAnchor, constant: -12)
-    ])
-
-    let image = UIImageView()
-    image.translatesAutoresizingMaskIntoConstraints = false
-    image.contentMode = .scaleAspectFit
-    image.clipsToBounds = true
-    if page.acquired, let uri = page.imageUri, let url = URL(string: uri), url.isFileURL {
-      image.image = UIImage(contentsOfFile: url.path)
-    }
-
-    let title = UILabel()
-    title.translatesAutoresizingMaskIntoConstraints = false
-    title.text = page.acquired ? page.name : "まだ見ぬご縁"
-    title.textAlignment = .center
-    title.textColor = UIColor(red: 0.32, green: 0.23, blue: 0.18, alpha: 1)
-    title.font = UIFont(name: "HiraMinProN-W6", size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
-    title.numberOfLines = 2
-
-    let detail = UIButton(type: .system)
-    detail.translatesAutoresizingMaskIntoConstraints = false
-    detail.setTitle(page.acquired ? "このご縁をみる" : "まだ見ぬご縁をみる", for: .normal)
-    detail.setTitleColor(UIColor(red: 0.54, green: 0.25, blue: 0.21, alpha: 1), for: .normal)
-    detail.titleLabel?.font = UIFont.systemFont(ofSize: 10)
-    detail.accessibilityLabel = "\(page.name)の詳細を見る"
-    detail.addTarget(self, action: #selector(openDetail), for: .touchUpInside)
-
-    inset.addSubview(image)
-    inset.addSubview(title)
-    inset.addSubview(detail)
-    NSLayoutConstraint.activate([
-      image.leadingAnchor.constraint(equalTo: inset.leadingAnchor),
-      image.trailingAnchor.constraint(equalTo: inset.trailingAnchor),
-      image.topAnchor.constraint(equalTo: inset.topAnchor, constant: 8),
-      image.bottomAnchor.constraint(equalTo: title.topAnchor, constant: -8),
-      title.leadingAnchor.constraint(equalTo: inset.leadingAnchor),
-      title.trailingAnchor.constraint(equalTo: inset.trailingAnchor),
-      title.bottomAnchor.constraint(equalTo: detail.topAnchor, constant: -3),
-      detail.leadingAnchor.constraint(equalTo: inset.leadingAnchor),
-      detail.trailingAnchor.constraint(equalTo: inset.trailingAnchor),
-      detail.bottomAnchor.constraint(equalTo: inset.bottomAnchor),
-      detail.heightAnchor.constraint(equalToConstant: 30)
-    ])
-    if !page.acquired {
-      let watermark = UILabel()
-      watermark.translatesAutoresizingMaskIntoConstraints = false
-      watermark.text = "和紙"
-      watermark.textColor = UIColor(red: 0.63, green: 0.55, blue: 0.42, alpha: 0.15)
-      watermark.font = UIFont(name: "HiraMinProN-W6", size: 33) ?? .systemFont(ofSize: 33)
-      image.addSubview(watermark)
-      NSLayoutConstraint.activate([
-        watermark.centerXAnchor.constraint(equalTo: image.centerXAnchor),
-        watermark.centerYAnchor.constraint(equalTo: image.centerYAnchor)
-      ])
-    }
   }
 
   @objc private func openDetail() { onOpen(faceIndex / 2) }
