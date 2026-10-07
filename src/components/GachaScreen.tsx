@@ -563,7 +563,7 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
 
     {/* The cord to pull. */}
     {!playing && !shopOpen && !ropeGone && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + maxPull }]}>
-      <Animated.View style={{ transform: [{ translateY: ropeShift }] }}><Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + maxPull) / 4, height: Math.min(300, height * .48) + maxPull, top: -maxPull + (pull > 0 ? pull : bob) }]} /></Animated.View>
+      <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center', transform: [{ translateY: ropeShift }] }}><Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + maxPull) / 4, height: Math.min(300, height * .48) + maxPull, top: -maxPull + (pull > 0 ? pull : bob) }]} /></Animated.View>
     </View>}
     {!playing && !shopOpen && freePulls > 0 && ropeReady && <View pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 90, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}><Text style={S.ropeHintText}>下にひっぱってね</Text><MotionArrow direction="down" /></View>}
 
