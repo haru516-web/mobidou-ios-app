@@ -19,6 +19,8 @@ type CollectionRoomProps = {
   roomHeight: number;
   contentWidth: number;
   cellWidth: number;
+  /** Horizontal scroll position, in coarse steps. Only the chunks near it get a GL canvas, so a long shelf never holds a dozen GL contexts at once. */
+  scrollX?: number;
 };
 
 const WORLD_WIDTH = 10;
@@ -134,7 +136,7 @@ function RoomGeometry({ itemCount, zoom, viewportWidth, roomHeight, contentWidth
   </>;
 }
 
-export function CollectionRoom({ itemCount, zoom, viewportWidth, roomHeight, contentWidth, cellWidth }: CollectionRoomProps) {
+export function CollectionRoom({ itemCount, zoom, viewportWidth, roomHeight, contentWidth, cellWidth, scrollX = 0 }: CollectionRoomProps) {
   const chunkSize = ROOM_CHUNK_CELLS;
   const chunks = Array.from({ length: Math.ceil(itemCount / chunkSize) }, (_, chunkIndex) => {
     const start = chunkIndex * chunkSize;
@@ -142,7 +144,7 @@ export function CollectionRoom({ itemCount, zoom, viewportWidth, roomHeight, con
     return { start, itemCount: chunkItemCount, width: cellWidth * chunkItemCount };
   });
   return <View pointerEvents="none" style={[S.roomLayer, { width: contentWidth, height: roomHeight }]}>
-    {chunks.map(chunk => {
+    {chunks.filter(chunk => chunk.start * cellWidth < scrollX + viewportWidth * 2 && chunk.start * cellWidth + chunk.width > scrollX - viewportWidth).map(chunk => {
       const worldWidth = WORLD_WIDTH * chunk.width / Math.max(1, viewportWidth);
       const worldHeight = WORLD_WIDTH * roomHeight / Math.max(1, viewportWidth);
       return <View key={chunk.start} pointerEvents="none" style={[S.roomChunk, { left: chunk.start * cellWidth, width: chunk.width, height: roomHeight }]}>

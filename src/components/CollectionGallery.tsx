@@ -140,6 +140,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
   const [swayImpulse, setSwayImpulse] = useState(0);
   const [detail, setDetail] = useState<Shrine | null>(null);
   const [pinching, setPinching] = useState(false);
+  const [scrollX, setScrollX] = useState(0);
   const displayScroll = useRef<ScrollView>(null);
   const pinchState = useRef({ active: false, startDistance: 0, startZoom: zoom });
   const showcase = shrines.length ? shrines : SHRINES.slice(0, 6);
@@ -202,12 +203,13 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
           style={[S.displayScroller, { height: roomHeight, zIndex: 1 }]}
           contentContainerStyle={[S.rail, { width: trackWidth, height: roomHeight }]}
           scrollEventThrottle={16}
+          onScroll={({ nativeEvent }) => { const step = Math.max(1, viewportWidth / 2); const next = Math.floor(nativeEvent.contentOffset.x / step) * step; setScrollX(previous => previous === next ? previous : next); }}
           onScrollBeginDrag={() => setSwayImpulse(value => value + 1)}
           onMomentumScrollEnd={() => setSwayImpulse(value => value + 1)}
         >
           <View style={[S.roomTrack, { width: trackWidth, height: roomHeight }]}>
             <CollectionBackdrop trackWidth={trackWidth} viewportWidth={viewportWidth} roomHeight={roomHeight} />
-            <CollectionRoom key={`${zoom}:${trackWidth}:${pageWidth}`} itemCount={trackCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={trackWidth} cellWidth={pageWidth} />
+            <CollectionRoom key={`${zoom}:${trackWidth}:${pageWidth}`} itemCount={trackCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={trackWidth} cellWidth={pageWidth} scrollX={scrollX} />
             <View style={[S.displayRow, { width: trackWidth, height: roomHeight }]}>
               {showcase.map((shrine, index) => {
                 const keychainCount = special.keychains[shrine.id] ?? 0;

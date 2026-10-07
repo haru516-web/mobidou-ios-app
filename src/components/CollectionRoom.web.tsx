@@ -19,6 +19,7 @@ type CollectionRoomProps = {
   roomHeight: number;
   contentWidth: number;
   cellWidth: number;
+  scrollX?: number;
 };
 
 const WORLD_WIDTH = 10;
