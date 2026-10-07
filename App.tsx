@@ -781,7 +781,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
   return <View style={S.desktop}><SafeAreaView style={S.app} edges={['top', 'left', 'right']}>
-    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} viewportWidth={Math.min(480, Math.max(1, windowWidth))} windowHeight={Math.max(1, windowHeight)} topInset={safeInsets.top} tileCount={collectionZoom === 'close' ? COLLECTION_SHRINES.length + 1 : Math.ceil(COLLECTION_SHRINES.length / 3) + 1} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
+    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} viewportWidth={Math.min(480, Math.max(1, windowWidth))} windowHeight={Math.max(1, windowHeight)} tileCount={collectionZoom === 'close' ? COLLECTION_SHRINES.length + 1 : Math.ceil(COLLECTION_SHRINES.length / 3) + 1} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
       <Animated.View pointerEvents="none" style={S.backgroundScrollLayer}>
         <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, tab === 'book' && S.bookBackgroundTrack, { transform: [{ translateY: tab === 'book' ? 0 : scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
           <Image source={tab === 'book' ? GOSHUIN_BOOK_BACKGROUND : tab === 'walk' ? OUTING_BACKGROUND : currentBackground.image} contentFit="cover" style={[S.backgroundArt, (tab === 'book' || tab === 'walk') && S.bookBackgroundArt]} />

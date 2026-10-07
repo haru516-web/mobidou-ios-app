@@ -280,12 +280,12 @@ const SnapshotCurlBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProp
   }, [signature]);
 
   return <View style={style} onLayout={event => { const { width, height } = event.nativeEvent.layout; setSize(previous => Math.abs(previous.width - width) < 1 && Math.abs(previous.height - height) < 1 ? previous : { width, height }); }}>
+    {size.width > 0 && <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={[S.offscreen, { left: 0, width: size.width }]}>
+      {Array.from({ length: itemCount }, (_, index) => <View key={index} ref={node => { shots.current[index] = node; }} collapsable={false} style={{ position: 'absolute', left: 0, top: 0, width: size.width, height: size.height }}>{renderSpreadRef.current(index)}</View>)}
+    </View>}
     {uris && uris.length === itemCount
       ? <NativeBookPageTurn forwardedRef={ref} spreadUris={uris} selectedIndex={props.selectedIndex} onCommit={props.onCommit} onBusyChange={props.onBusyChange} onOpenDetail={props.onOpenDetail} style={S.fill} />
       : <SimulatedBookPageTurn {...props} ref={ref} style={S.fill} />}
-    {size.width > 0 && <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={[S.offscreen, { left: size.width + 40, width: size.width }]}>
-      {Array.from({ length: itemCount }, (_, index) => <View key={index} ref={node => { shots.current[index] = node; }} collapsable={false} style={{ width: size.width, height: size.height }}>{renderSpreadRef.current(index)}</View>)}
-    </View>}
   </View>;
 });
 
