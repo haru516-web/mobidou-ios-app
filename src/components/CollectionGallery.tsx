@@ -168,7 +168,8 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
           ref={displayScroll}
           horizontal
           decelerationRate="fast"
-          snapToInterval={pageWidth}
+          snapToInterval={zoom === 'close' ? pageWidth : pageWidth * 3}
+          disableIntervalMomentum
           snapToAlignment="start"
           showsHorizontalScrollIndicator={false}
           accessibilityLabel="コレクション展示室。横にスワイプして地点を巡る"
