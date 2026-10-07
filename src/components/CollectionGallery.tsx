@@ -15,19 +15,21 @@ import { PagedShrineGrid } from './GoshuinBook';
 
 const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.webp');
 const WALL_HOOK = require('../../assets/ui-round3/collection/collection-wall-hook-v2.webp');
-const COLLECTION_BACKDROP = require('../../assets/ui-round3/collection/collection-room-home-harmony-v1.webp');
+const COLLECTION_BACKDROP = require('../../assets/ui-round3/collection/collection-room-harmony-v3.webp');
 const SERIF = 'Shippori';
-// Positions in the room picture (collection-room-home-harmony-v1), as fractions of its size: the brass knobs on the rail, and the shelf top.
-const RAIL_KNOB_Y = 0.207;
-const RAIL_KNOB_X = [0.15, 0.49, 0.848];
-const SHELF_TOP_Y = 0.63;
-// CabinetWorld's upper beam is centered at y=0.445, or 5.5% down from the top.
-const ROOM_LABEL_RAIL_CENTER_Y = 0.5 - 0.445;
-const GOSHUIN_STANDARD_BASE_BOTTOM = 1 - SHELF_TOP_Y;
-const GOSHUIN_CLOSE_BASE_BOTTOM = 1 - SHELF_TOP_Y;
-const GOSHUIN_DROP_PX = 0;
-const GOSHUIN_STANDARD_LIFT_PX = 0;
-const GOSHUIN_CLOSE_LIFT_PX = 0;
+// The room picture (collection-room-harmony-v3, 1024x1536): the rail the keychains hang from and the shelf top the goshuin stand on,
+// as fractions of its height. The wall between them is always on screen; the picture is centred on it and only scaled up when the room is taller than the picture.
+const ROOM_ART_ASPECT = 1536 / 1024;
+const RAIL_Y = 0.1947;
+const SHELF_TOP_Y = 0.7956;
+const BAND_CENTER_Y = (RAIL_Y + SHELF_TOP_Y) / 2;
+
+function roomArtGeometry(viewportWidth: number, roomHeight: number) {
+  const width = Math.max(viewportWidth, roomHeight / ROOM_ART_ASPECT);
+  const height = width * ROOM_ART_ASPECT;
+  const top = roomHeight / 2 - height * BAND_CENTER_Y;
+  return { width, height, left: (viewportWidth - width) / 2, top, railY: top + height * RAIL_Y, shelfY: top + height * SHELF_TOP_Y };
+}
 
 export const COLLECTION_SHRINES: Shrine[] = Array.from(new Set(PILGRIMAGES.flatMap(route => route.ids.map(id => id.split('~')[0]))))
   .map(id => SHRINES.find(shrine => shrine.id === id))
@@ -124,9 +126,10 @@ function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWi
   const tileWidth = Math.max(1, viewportWidth);
   const tileCount = Math.ceil(trackWidth / tileWidth) + 1;
   const tileStripWidth = tileCount * tileWidth;
+  const art = roomArtGeometry(viewportWidth, roomHeight);
   return <View pointerEvents="none" style={[S.collectionBackdropLayer, { left: 0, width: trackWidth, height: roomHeight }]}>
     <View style={[S.collectionBackdropTrack, { width: tileStripWidth, height: roomHeight }]}>
-      {Array.from({ length: tileCount }, (_, index) => <Image key={index} source={COLLECTION_BACKDROP} contentFit="fill" style={[{ width: tileWidth, height: roomHeight, flexShrink: 0 }, index % 2 === 1 && { transform: [{ scaleX: -1 }] }]} />)}
+      {Array.from({ length: tileCount }, (_, index) => <View key={index} style={{ width: tileWidth, height: roomHeight, flexShrink: 0, overflow: 'hidden', transform: [{ scaleX: index % 2 === 1 ? -1 : 1 }] }}><Image source={COLLECTION_BACKDROP} contentFit="fill" style={{ position: 'absolute', left: art.left, top: art.top, width: art.width, height: art.height }} /></View>)}
     </View>
   </View>;
 }
@@ -156,8 +159,9 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
   const displayCellHeight = roomHeight;
   const roomLabelFontSize = Math.max(8, Math.min(11, (pageWidth - 24) / 8));
   const roomLabelHeight = roomLabelFontSize + 3;
-  const roomLabelTop = Math.max(0, roomHeight * ROOM_LABEL_RAIL_CENTER_Y - roomLabelHeight / 2);
-  const goshuinBottom = roomHeight * (zoom === 'close' ? GOSHUIN_CLOSE_BASE_BOTTOM : GOSHUIN_STANDARD_BASE_BOTTOM) - GOSHUIN_DROP_PX + (zoom === 'close' ? GOSHUIN_CLOSE_LIFT_PX : GOSHUIN_STANDARD_LIFT_PX);
+  const art = roomArtGeometry(viewportWidth, roomHeight);
+  const roomLabelTop = Math.max(0, art.railY - roomLabelHeight - 36);
+  const goshuinBottom = roomHeight - art.shelfY;
   const rewarded = useMemo(() => new Set(rewardIds), [rewardIds]);
 
   const selectZoom = (next: CollectionZoom) => {
@@ -223,17 +227,10 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
                 const stampOwned = rewarded.has(shrine.id);
                 const keychainSize = zoom === 'close' ? 142 : Math.max(42, Math.min(170, pageWidth * .86));
                 const stampWidth = zoom === 'close' ? 96 : Math.max(34, Math.min(112, pageWidth * .56));
-                // Each tile of the picture is one viewport wide (every other one mirrored): line the cell up with the knob nearest its slot.
-                const perPage = zoom === 'close' ? 1 : 3;
-                const slot = index % perPage;
-                const mirrored = Math.floor(index / perPage) % 2 === 1;
-                const knobX = perPage === 1 ? RAIL_KNOB_X[1] : RAIL_KNOB_X[slot];
-                const knobFraction = mirrored ? 1 - (perPage === 1 ? RAIL_KNOB_X[1] : RAIL_KNOB_X[2 - slot]) : knobX;
-                const shiftX = knobFraction * viewportWidth - (slot + .5) * pageWidth;
                 const hookHeightEstimate = Math.min(65, keychainSize * .5) * (1145 / 1374);
-                return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight, left: shiftX }]}>
+                return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight }]}>
                   <View style={[S.roomLabel, { top: roomLabelTop, height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
-                  <KeychainArtwork shrine={shrine} locked={keychainCount === 0} count={keychainCount} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={roomHeight * RAIL_KNOB_Y - hookHeightEstimate * .405} />
+                  <KeychainArtwork shrine={shrine} locked={keychainCount === 0} count={keychainCount} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={art.railY - hookHeightEstimate * .405} />
                   <DisplayedStamp shrine={shrine} owned={stampOwned} sparkleCount={sparkleCount} width={stampWidth} bottom={goshuinBottom} />
                 </View>;
               })}
