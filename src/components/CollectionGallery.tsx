@@ -86,23 +86,11 @@ function KeychainArtwork({ shrine, locked, impulse, onPress, large = false, top,
   </Animated.View>;
 }
 
-function DisplayedStamp({ shrine, owned, sparkleCount, width, bottom, compact = false }: { shrine: Shrine; owned: boolean; sparkleCount: number; width?: number; bottom?: number; compact?: boolean }) {
-  const shimmer = useRef(new Animated.Value(0)).current;
+function DisplayedStamp({ shrine, owned, width, bottom }: { shrine: Shrine; owned: boolean; width?: number; bottom?: number; compact?: boolean }) {
   const renderWidth = width ?? 96;
   const renderHeight = renderWidth * 1.5;
-  useEffect(() => {
-    if (!owned || compact || sparkleCount <= 0) return;
-    const animation = Animated.loop(Animated.sequence([
-      Animated.timing(shimmer, { toValue: 1, duration: 1150, useNativeDriver: true }),
-      Animated.timing(shimmer, { toValue: 0, duration: 1150, useNativeDriver: true }),
-    ]));
-    animation.start();
-    return () => animation.stop();
-  }, [owned, compact, shimmer, sparkleCount]);
   return <View accessible accessibilityLabel={owned ? `${shrine.name}の御朱印` : '未取得の御朱印'} accessibilityState={{ disabled: !owned }} style={[S.stampStand, { width: renderWidth, height: renderHeight }, bottom !== undefined && { bottom }]}>
-    {owned && !compact && sparkleCount > 0 && <Animated.View style={[S.sparkleGlow, { opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [.35, .88] }), transform: [{ scale: shimmer.interpolate({ inputRange: [0, 1], outputRange: [.97, 1.06] }) }] }]} />}
     {owned ? <Image accessible={false} source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.stamp} /> : <Image accessible={false} source={STAMP_IMAGES[shrine.id]} contentFit="contain" tintColor={SILHOUETTE} style={S.stampSilhouette} />}
-    {owned && !compact && sparkleCount > 0 && <><Animated.View pointerEvents="none" style={[S.sparkleSweep, { opacity: shimmer, transform: [{ translateX: shimmer.interpolate({ inputRange: [0, 1], outputRange: [-renderWidth * .56, renderWidth * .7] }) }, { rotate: '18deg' }] }]} /><View style={S.sparkleBadge}><Icon name="sparkles" size={12} color="#8b5920" /><Text style={S.sparkleText}>×{sparkleCount}</Text></View></>}
   </View>;
 }
 
@@ -198,7 +186,6 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
             <View style={[S.displayRow, { width: trackWidth, height: roomHeight }]}>
               {showcase.map((shrine, index) => {
                 const keychainCount = special.keychains[shrine.id] ?? 0;
-                const sparkleCount = special.sparkles[shrine.id] ?? 0;
                 const stampOwned = rewarded.has(shrine.id);
                 // As large as the cell allows, and small enough that the hanging keychain (1.37x its width tall) and the standing goshuin (1.5x) never meet between the rail and the shelf.
                 const fit = Math.max(40, (art.shelfY - art.railY - 24) / (1.37 + 1.5 * .95));
@@ -215,7 +202,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight, left: shiftX }]}>
                   <View style={[S.roomLabel, { top: roomLabelTop, height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
                   <KeychainArtwork shrine={shrine} locked={keychainCount === 0} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
-                  <DisplayedStamp shrine={shrine} owned={stampOwned} sparkleCount={sparkleCount} width={stampWidth} bottom={goshuinBottom} />
+                  <DisplayedStamp shrine={shrine} owned={stampOwned} width={stampWidth} bottom={goshuinBottom} />
                 </View>;
               })}
             </View>
