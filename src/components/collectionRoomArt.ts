@@ -1,12 +1,12 @@
 /**
- * The collection room picture (collection-room-harmony-v5, 1024x2240) fills the whole screen behind the top buttons and the bottom bar.
+ * The collection room picture (collection-room-harmony-v6, 1024x2240) fills the whole screen behind the top buttons and the bottom bar.
  * The rail the keychains hang from and the shelf top the goshuin stand on sit at fixed heights of the picture.
  */
 /** Where the wall between the two pillars starts and ends, as fractions of the picture width. */
 export const ROOM_WALL_LEFT = 0.082;
 export const ROOM_WALL_RIGHT = 0.914;
 
-export const ROOM_ART = { width: 1024, height: 2240, railY: 0.3094, shelfY: 0.8194 } as const;
+export const ROOM_ART = { width: 1024, height: 2240, railY: 0.2824, shelfY: 0.82 } as const;
 
 /** Where the picture lies in a window of the given size: scaled to the width (or up to the height), centred, and squeezed a little on short screens. */
 export function roomArtGeometry(viewportWidth: number, windowHeight: number) {
