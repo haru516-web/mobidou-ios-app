@@ -12,7 +12,7 @@ import { CollectionRoom } from './CollectionRoom';
 import { ScrollPopup } from './ScrollPopup';
 import type { SpecialCollection } from '../services/specialRewards';
 import { PagedShrineGrid } from './GoshuinBook';
-import { roomArtGeometry } from './collectionRoomArt';
+import { ROOM_WALL_LEFT, ROOM_WALL_RIGHT, roomArtGeometry } from './collectionRoomArt';
 
 const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.webp');
 const WALL_HOOK = require('../../assets/ui-round3/collection/collection-wall-hook-v2.webp');
@@ -89,7 +89,7 @@ function KeychainArtwork({ shrine, locked, count, impulse, onPress, large = fals
 function DisplayedStamp({ shrine, owned, sparkleCount, width, bottom, compact = false }: { shrine: Shrine; owned: boolean; sparkleCount: number; width?: number; bottom?: number; compact?: boolean }) {
   const shimmer = useRef(new Animated.Value(0)).current;
   const renderWidth = width ?? 96;
-  const renderHeight = renderWidth * 1.25;
+  const renderHeight = renderWidth * 1.5;
   useEffect(() => {
     if (!owned || compact || sparkleCount <= 0) return;
     const animation = Animated.loop(Animated.sequence([
@@ -200,10 +200,19 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
                 const keychainCount = special.keychains[shrine.id] ?? 0;
                 const sparkleCount = special.sparkles[shrine.id] ?? 0;
                 const stampOwned = rewarded.has(shrine.id);
-                const keychainSize = zoom === 'close' ? 142 : Math.max(42, Math.min(170, pageWidth * .86));
-                const stampWidth = zoom === 'close' ? 96 : Math.max(34, Math.min(112, pageWidth * .56));
+                // As large as the cell allows, and small enough that the hanging keychain (1.37x its width tall) and the standing goshuin (1.5x) never meet between the rail and the shelf.
+                const fit = Math.max(40, (art.shelfY - art.railY - 24) / (1.37 + 1.5 * .95));
+                // The pillars take the sides of each tile: the cells share the wall between them.
+                const perPage = zoom === 'close' ? 1 : 3;
+                const slot = index % perPage;
+                const wallLeft = art.left + ROOM_WALL_LEFT * art.width;
+                const wallWidth = (ROOM_WALL_RIGHT - ROOM_WALL_LEFT) * art.width;
+                const slotWidth = wallWidth / perPage;
+                const shiftX = wallLeft + (slot + .5) * slotWidth - (slot + .5) * pageWidth;
+                const keychainSize = Math.min(slotWidth * 1.4, fit, 260); // the artwork fills only about two thirds of its box
+                const stampWidth = Math.min(slotWidth * .92, fit * .95);
                 const hookHeightEstimate = Math.min(65, keychainSize * .5) * (1145 / 1374);
-                return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight }]}>
+                return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight, left: shiftX }]}>
                   <View style={[S.roomLabel, { top: roomLabelTop, height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
                   <KeychainArtwork shrine={shrine} locked={keychainCount === 0} count={keychainCount} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
                   <DisplayedStamp shrine={shrine} owned={stampOwned} sparkleCount={sparkleCount} width={stampWidth} bottom={goshuinBottom} />
