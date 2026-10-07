@@ -163,6 +163,8 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
   const navShown = !!nav && !ropeReady;
   const lobbyBottom = navShown ? navH + insets.bottom + 6 : 12 + insets.bottom;
   const waitingTo = height - panelH - lobbyBottom - 8;
+  // The rope can be dragged down to just above the bottom panel.
+  const maxPull = Math.max(MAX_PULL, Math.round(waitingTo - Math.min(300, height * .48)));
   const waitingSize = Math.round(Math.min(width * .6, waitingTo - waitingFrom));
   const waitingTop = Math.round(waitingFrom + (waitingTo - waitingFrom - waitingSize) / 2);
   const [zoomT, setZoomT] = useState(0);
@@ -387,10 +389,10 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
   const ropePan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady,
     onMoveShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady,
-    onPanResponderMove: (_, gesture) => { playSfx('sfx_rope_pull', { rate: .7 + Math.min(1, gesture.dy / PULL_TO_DRAW), debounceMs: 180, gain: .4 }); setPull(Math.max(0, Math.min(MAX_PULL, gesture.dy))); },
+    onPanResponderMove: (_, gesture) => { playSfx('sfx_rope_pull', { rate: .7 + Math.min(1, gesture.dy / PULL_TO_DRAW), debounceMs: 180, gain: .4 }); setPull(Math.max(0, Math.min(maxPull, gesture.dy))); },
     onPanResponderRelease: (_, gesture) => { playSfx(gesture.dy >= PULL_TO_DRAW ? 'sfx_rope_catch' : 'sfx_rope_cancel'); setPull(0); if (gesture.dy >= PULL_TO_DRAW) requestDraw(); },
     onPanResponderTerminate: () => setPull(0),
-  }), [playing, freePulls, ropeReady, requestDraw]);
+  }), [playing, freePulls, ropeReady, requestDraw, maxPull]);
 
   const next = () => {
     playSfx('sfx_card_flip');
@@ -555,8 +557,8 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
     </View>}
 
     {/* The cord to pull. */}
-    {!playing && !shopOpen && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + MAX_PULL }]}>
-      <Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + MAX_PULL) / 4, height: Math.min(300, height * .48) + MAX_PULL, top: -MAX_PULL + (pull > 0 ? pull : bob) }]} />
+    {!playing && !shopOpen && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + maxPull }]}>
+      <Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + maxPull) / 4, height: Math.min(300, height * .48) + maxPull, top: -maxPull + (pull > 0 ? pull : bob) }]} />
     </View>}
     {!playing && !shopOpen && freePulls > 0 && ropeReady && <View pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 90, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}><Text style={S.ropeHintText}>下にひっぱってね</Text><MotionArrow direction="down" /></View>}
 
