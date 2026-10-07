@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from './AppImage';
-import Svg, { Circle, Ellipse, G, Path, Image as SvgImage } from 'react-native-svg';
-import { UI_ART } from '../data/uiArt';
+import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 import { PILGRIMAGES, type Pilgrimage } from '../data/pilgrimages';
 import { EventSlot } from './EventSlot';
 import { PILGRIMAGE_IMAGES } from '../data/pilgrimageImages';
@@ -67,6 +66,7 @@ function walkedFootprints(path: MapPoint[]) {
 }
 
 export function RouteMap({ route, count, progress, pet, onStop, showSpeech = false, viewportHeight }: { route: Pilgrimage; count: number; progress?: Progress; pet?: Pick<PetCharacter, 'id' | 'image' | 'name'>; onStop?: (shrine: Shrine, index: number) => void; showSpeech?: boolean; viewportHeight?: number }) {
+  const [mapWidth, setMapWidth] = useState(310);
   const stops = pilgrimageShrines(route);
   const naturalHeight = 120 + stops.length * 78;
   // These anchors follow the road painted into the generated map plate. Route
@@ -76,9 +76,9 @@ export function RouteMap({ route, count, progress, pet, onStop, showSpeech = fal
     { x: .62, y: .61 }, { x: .92, y: .81 },
   ];
   const peekAsset = pet ? PILGRIMAGE_PEEK_IMAGES[pet.id] : undefined;
-  const peekClearance = peekAsset ? (showSpeech ? 92 : 135) : 0;
+  const peekClearance = peekAsset ? (showSpeech ? 62 : 135) : 0;
   const height = showSpeech && viewportHeight
-    ? Math.min(naturalHeight, Math.max(280, viewportHeight - peekClearance - 12))
+    ? Math.min(naturalHeight, Math.max(280, viewportHeight - peekClearance - 40))
     : naturalHeight;
   const points = stops.map((_, i) => {
     const t = stops.length <= 1 ? 0 : i / (stops.length - 1);
@@ -98,18 +98,19 @@ export function RouteMap({ route, count, progress, pet, onStop, showSpeech = fal
   const end = points[position.end] ?? start;
   const currentX = start.x + (end.x - start.x) * position.ratio;
   const currentY = start.y + (end.y - start.y) * position.ratio;
-  const legend = route.type === '神域参詣' ? '大社・本宮へ続く社をたどる' : route.type === '山岳修行' ? '山系の稜線と社寺をたどる' : route.type === '札所周回' ? '水辺の札所を輪にして巡る' : route.type === '観音巡礼' ? '月影と観音堂をたどる' : route.type === '七願掛け' ? '灯りと願掛け社をたどる' : route.type === '門前宿場巡り' ? '河川と宿場の社寺をたどる' : '川辺の景色を物語としてたどる';
+  // The moby stands on the top edge of the frame of the stop it is walking to.
+  const cardLeft = (i: number) => Math.max(12, Math.min(mapWidth - 128 - 12, points[i].x / 310 * mapWidth - 64));
+  const cardTop = (i: number) => Math.max(46, points[i].y - 21);
+  const standOn = Math.min(count, points.length - 1);
   return <View style={[S.mapFrame, { height: height + peekClearance, paddingTop: peekClearance }]}>
-    <View style={[S.map, { height }]}>
+    <View onLayout={event => setMapWidth(Math.round(event.nativeEvent.layout.width))} style={[S.map, { height }]}>
       <Image source={PILGRIMAGE_MAP_IMAGE} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-      <View style={S.mapHeader}><Text style={S.mapTitle}>巡礼絵図</Text><Text style={S.mapSubtitle}>{legend}</Text></View>
       <Svg width="100%" height={height} viewBox={`0 0 310 ${height}`} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
         {points.slice(0, Math.max(1, Math.min(points.length, count + 1))).map((p, i, visible) => i < visible.length - 1 ? <Path key={`done-${i}`} d={`M ${p.x} ${p.y} Q ${visible[i + 1].x} ${visible[i + 1].y} ${visible[i + 1].x} ${visible[i + 1].y}`} fill="none" stroke={route.color} strokeWidth={4} opacity={.3} strokeDasharray="2 7" strokeLinecap="round" /> : null)}
         {walkedFootprints([...points.slice(0, Math.min(points.length, count + 1)), ...(count < points.length - 1 ? [{ x: currentX, y: currentY }] : [])])}
-        {points.map((p, i) => <SvgImage key={`node-${i}`} href={(i < count ? UI_ART.routeNodeDone : UI_ART.routeNodeTodo).source} x={p.x - 15} y={p.y - 15} width={30} height={30} preserveAspectRatio="xMidYMid meet" />)}
       </Svg>
-      {pet && <View pointerEvents="none" accessibilityLabel={`${pet.name}の現在地。${position.steps.toLocaleString()}歩`} style={[S.mapPet, { left: `${Math.max(2, Math.min(88, currentX / 310 * 100 - 5.5))}%`, top: Math.max(8, Math.min(height - 52, currentY - 38)) }]}><Image source={pet.image} contentFit="contain" style={S.mapPetImage} /></View>}
-      {stops.map((s, i) => <Pressable key={`${s.id}-${i}`} accessibilityRole="button" disabled={i >= count} accessibilityState={{ disabled: i >= count }} accessibilityLabel={i < count ? `${i + 1}番 ${s.name} 参拝済み` : '未取得の御朱印'} onPress={i < count ? () => onStop?.(s, i) : undefined} style={{ position: 'absolute', top: Math.max(i === 0 ? 60 : 21, points[i].y - 21), left: `${Math.max(18, Math.min(82, points[i].x / 310 * 100))}%`, width: 128, marginLeft: -64, minHeight: 40, padding: 8, borderRadius: 6, alignItems: 'center', backgroundColor: '#FFF9EBEA', borderWidth: i === count ? 2 : 0, borderColor: route.color }}><Text style={{ color: route.color, fontSize: 11, fontFamily: BRUSH, textAlign: 'center' }}>{i < count ? '✓' : `${i + 1}`} {i < count ? s.name : 'まだ見ぬご縁'}</Text>{i === count && <Text style={{ fontSize: 11, color: C.red }}>現在の目的地</Text>}</Pressable>)}
+      {pet && <View pointerEvents="none" accessibilityLabel={`${pet.name}の現在地。${position.steps.toLocaleString()}歩`} style={[S.mapPet, { left: cardLeft(standOn) + 64 - 22, top: Math.max(0, cardTop(standOn) - 40) }]}><Image source={pet.image} contentFit="contain" style={S.mapPetImage} /></View>}
+      {stops.map((s, i) => <Pressable key={`${s.id}-${i}`} accessibilityRole="button" disabled={i >= count} accessibilityState={{ disabled: i >= count }} accessibilityLabel={i < count ? `${i + 1}番 ${s.name} 参拝済み` : '未取得の御朱印'} onPress={i < count ? () => onStop?.(s, i) : undefined} style={{ position: 'absolute', top: cardTop(i), left: cardLeft(i), width: 128, minHeight: 40, padding: 8, borderRadius: 6, alignItems: 'center', backgroundColor: '#FFF9EBEA', borderWidth: i === count ? 2 : 0, borderColor: route.color }}><Text style={{ color: route.color, fontSize: 11, fontFamily: BRUSH, textAlign: 'center' }}>{i < count ? '✓' : `${i + 1}`} {i < count ? s.name : 'まだ見ぬご縁'}</Text>{i === count && <Text style={{ fontSize: 11, color: C.red }}>現在の目的地</Text>}</Pressable>)}
       <Text style={S.mapStatus}>{pet ? `${pet.name} · ${position.steps.toLocaleString()}歩` : '現在地は歩数に合わせて進みます'}</Text>
       <Text style={S.mapFootnote}>もびの世界の巡礼絵図 · 実際の地図ではありません</Text>
     </View>

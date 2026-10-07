@@ -161,7 +161,9 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
   const waitingFrom = Math.min(300, height * .48) + BOB_PX + 12;
   // Panels stand above the navigation bar while it is shown.
   const navShown = !!nav && !ropeReady;
-  const lobbyBottom = navShown ? navH + insets.bottom + 6 : 12 + insets.bottom;
+  // The same bottom margin the home screen gives its bar, so the bar does not jump when the gacha opens.
+  const navInset = Math.max(0, insets.bottom - 26);
+  const lobbyBottom = navShown ? navH + navInset + 6 : 12 + insets.bottom;
   const waitingTo = height - panelH - lobbyBottom - 8;
   // The rope can be dragged down to just above the bottom panel.
   const maxPull = Math.max(MAX_PULL, Math.round(waitingTo - Math.min(300, height * .48)));
@@ -621,7 +623,7 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
       {!guided && !nav && <Button title="とじる" secondary onPress={onClose} style={S.wide} />}
     </View>}
 
-    {navShown && !playing && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setNavH(previous => previous === next ? previous : next); }} style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom }}>{nav}</View>}
+    {navShown && !playing && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setNavH(previous => previous === next ? previous : next); }} style={{ position: 'absolute', left: 0, right: 0, bottom: navInset }}>{nav}</View>}
 
     {detailOpen && <GachaDetail onClose={() => setDetailOpen(false)} freePulls={freePulls} />}
 
