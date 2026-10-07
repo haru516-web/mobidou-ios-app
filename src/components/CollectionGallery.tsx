@@ -128,6 +128,9 @@ function CollectionBackdrop({ trackWidth, viewportWidth, roomHeight }: { trackWi
   </View>;
 }
 
+/** The 3D wooden cabinet (shelves, pillars, hooks, stands) behind the collection. Off for now; set to true to bring it back. */
+const SHOW_CABINET = false;
+
 export type CollectionPage = 'room' | 'goshuin' | 'miniatures';
 
 /** The collection room and its paged goshuin / miniature lists. */
@@ -209,7 +212,7 @@ export function CollectionGallery({ shrines, rewardIds, rewardDates = {}, specia
         >
           <View style={[S.roomTrack, { width: trackWidth, height: roomHeight }]}>
             <CollectionBackdrop trackWidth={trackWidth} viewportWidth={viewportWidth} roomHeight={roomHeight} />
-            <CollectionRoom key={`${zoom}:${trackWidth}:${pageWidth}`} itemCount={trackCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={trackWidth} cellWidth={pageWidth} scrollX={scrollX} />
+            {SHOW_CABINET && <CollectionRoom key={`${zoom}:${trackWidth}:${pageWidth}`} itemCount={trackCount} zoom={zoom} viewportWidth={viewportWidth} roomHeight={roomHeight} contentWidth={trackWidth} cellWidth={pageWidth} scrollX={scrollX} />}
             <View style={[S.displayRow, { width: trackWidth, height: roomHeight }]}>
               {showcase.map((shrine, index) => {
                 const keychainCount = special.keychains[shrine.id] ?? 0;
