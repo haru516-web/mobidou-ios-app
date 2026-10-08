@@ -11,6 +11,7 @@ Generated with the built-in image_gen tool. WebP quality 90; alpha retained. No 
 | pop-buttons/event-home.webp | 512×512 | 80028 | yes | previews/event-home.webp (256×256) | A charming original small tin toy sedan with round headlights, softly rounded body, indigo paint and muted gold trim, three-quarter view. No recognizable real car design. |
 | pop-buttons/event-book.webp | 512×512 | 77618 | yes | previews/event-book.webp (256×256) | An indigo cloth bound Japanese accordion goshuin book, blank front cover, cream pages, cream binding and small muted gold bookmark. No writing. |
 | pop-buttons/event-gacha.webp | 512×512 | 71836 | yes | previews/event-gacha.webp (256×256) | One small wooden Japanese reward tag, natural wood grain, indigo cord, indigo and muted gold rim; entirely blank face. |
+| pop-buttons/event-walk.webp | 512×512 | 94316 | yes | previews/event-walk.webp (256×256) | A short gently winding cream path through soft green hills ending at a tiny original shrine roof, no recognizable shrine. |
 
 ## Button prompt set
 
@@ -21,3 +22,4 @@ Use case: stylized-concept. Edit the reference washi circular app button into ON
 - event-home: A charming original small tin toy sedan with round headlights, softly rounded body, indigo paint and muted gold trim, three-quarter view. No recognizable real car design.
 - event-book: An indigo cloth bound Japanese accordion goshuin book, blank front cover, cream pages, cream binding and small muted gold bookmark. No writing.
 - event-gacha: One small wooden Japanese reward tag, natural wood grain, indigo cord, indigo and muted gold rim; entirely blank face.
+- event-walk: A short gently winding cream path through soft green hills ending at a tiny original shrine roof, no recognizable shrine.
