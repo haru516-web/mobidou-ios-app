@@ -84,3 +84,17 @@ Reference: `assets/goshuin-book-covers/circuit.webp`.
 Final prompt:
 
 Use case: product-mockup. Edit reference into an original event goshuin book cover. Portrait 1024x1536, opaque. Preserve reference front-view closed book shape, size in canvas, binding spine, realistic tactile quality and soft background shadow. Replace vermilion decorated cover with deep indigo #2F4A6B woven cloth and a slender gold #C9A24B frame. Center one small elegant gold-line emblem pairing a fictional round-headlight tin toy sedan and an open clamshell mobile phone, linked by a very fine winding journey line, representing Showa to Heisei. Restrained detail and generous indigo cloth whitespace. Remove ALL title labels, writing and existing floral medallions. Absolutely no lettering, numbers, logos, manufacturer motifs, real car model or carrier identity. Not an actual branded automobile. Gold fine embroidery/foil rather than neon. Traditional Japanese handmade collectible finish.
+
+### ticket-event-tag
+
+| File | Dimensions | Bytes | Alpha |
+|---|---|---:|---|
+| ticket-event-tag.webp | 256×384 | 30934 | yes |
+| previews/ticket-event-tag.webp | 128×192 | 10758 | yes |
+| previews/compare-ticket-event-tag.webp | 800×640 | 43044 | no |
+
+Reference: `assets/ui-round6/tickets/ticket-gacha-tag-v1.webp`.
+
+Final prompt:
+
+Use case: precise-object-edit. Edit reference reward wooden tag. Keep EXACT reference silhouette, shape, proportions, framing, wood grain, hole position, braided rope placement, restrained attached shadow and transparent outer margin. Output 256x384 transparent background. Change red-and-white cord to indigo #2F4A6B and cream braided cord. Add thin muted gold #C9A24B edging around wood tag. Replace central red circle with indigo circular disk retaining fine gold outline. No text, letters, numbers, logos, icons or watermark. Same real handcrafted worn wood texture and subtle light as reference. One tag only.
