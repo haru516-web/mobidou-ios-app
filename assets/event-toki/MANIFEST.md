@@ -139,3 +139,4 @@ Each side tag carries one black subject pictogram, no text. All eight are 1024×
 | keychains/keychain-showa-sento-v1-transparent.webp | 1024×1536 | 329904 | yes | previews/keychain-showa-sento.webp |
 | keychains/keychain-showa-record-v1-transparent.webp | 1024×1536 | 441158 | yes | previews/keychain-showa-record.webp |
 | keychains/keychain-heisei-park-v1-transparent.webp | 1024×1536 | 273386 | yes | previews/keychain-heisei-park.webp |
+| keychains/keychain-heisei-pager-v1-transparent.webp | 1024×1536 | 364800 | yes | previews/keychain-heisei-pager.webp |
