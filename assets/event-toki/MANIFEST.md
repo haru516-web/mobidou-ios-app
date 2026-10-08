@@ -13,6 +13,7 @@ Generated with the built-in image_gen tool. WebP quality 90; alpha retained. No 
 | pop-buttons/event-gacha.webp | 512×512 | 71836 | yes | previews/event-gacha.webp (256×256) | One small wooden Japanese reward tag, natural wood grain, indigo cord, indigo and muted gold rim; entirely blank face. |
 | pop-buttons/event-walk.webp | 512×512 | 94316 | yes | previews/event-walk.webp (256×256) | A short gently winding cream path through soft green hills ending at a tiny original shrine roof, no recognizable shrine. |
 | pop-buttons/event-normal.webp | 512×512 | 72202 | yes | previews/event-normal.webp (256×256) | One simple vermilion red torii representing normal pilgrimage, handmade watercolor illustration. |
+| pop-buttons/event-collection.webp | 512×512 | 79220 | yes | previews/event-collection.webp (256×256) | A small two-level wooden display shelf with three tiny nostalgic miniatures: round-headlight tin car, black rotary phone, folded clamshell phone. Simplified and clearly legible. |
 
 ## Button prompt set
 
@@ -25,3 +26,4 @@ Use case: stylized-concept. Edit the reference washi circular app button into ON
 - event-gacha: One small wooden Japanese reward tag, natural wood grain, indigo cord, indigo and muted gold rim; entirely blank face.
 - event-walk: A short gently winding cream path through soft green hills ending at a tiny original shrine roof, no recognizable shrine.
 - event-normal: One simple vermilion red torii representing normal pilgrimage, handmade watercolor illustration.
+- event-collection: A small two-level wooden display shelf with three tiny nostalgic miniatures: round-headlight tin car, black rotary phone, folded clamshell phone. Simplified and clearly legible.
