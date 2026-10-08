@@ -3,15 +3,22 @@ import { AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text, View }
 import Svg, { Circle, Path } from 'react-native-svg';
 import { EVENTS, type PilgrimageEvent } from '../data/events';
 import { BRUSH, C } from '../components';
+import type { PetCharacter } from '../petCatalog';
+import { eventProgress, teamSteps } from '../services/eventTeam';
+import { useEventTeam } from '../services/eventTeamStore';
+import { EventScreen } from './EventScreen';
 import { LockTag } from './LockTag';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
 
 const useNativeDriver = Platform.OS !== 'web';
 
-export function EventSlot({ event = EVENTS[0] }: { event?: PilgrimageEvent }) {
+export function EventSlot({ event = EVENTS[0], pet }: { event?: PilgrimageEvent; pet?: Pick<PetCharacter, 'id' | 'image' | 'name'> }) {
   const nudge = useRef(new Animated.Value(0)).current;
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [sheet, setSheet] = useState(false);
+  const team = useEventTeam(event.id);
   const locked = event.status === 'locked';
+  const joinable = event.status === 'open' && !!pet;
 
   useEffect(() => {
     void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
@@ -20,6 +27,7 @@ export function EventSlot({ event = EVENTS[0] }: { event?: PilgrimageEvent }) {
   }, []);
 
   const onPress = () => {
+    if (joinable) { setSheet(true); return; }
     if (!locked || reduceMotion) return;
     nudge.stopAnimation();
     nudge.setValue(0);
@@ -32,7 +40,10 @@ export function EventSlot({ event = EVENTS[0] }: { event?: PilgrimageEvent }) {
   };
 
   const title = event.status === 'ended' ? '旅を終えた道' : event.name;
-  const statusLabel = event.status === 'locked' ? '未開放' : event.status === 'ended' ? '終了' : '開催中';
+  const cleared = !!team && team.status !== 'recruiting' && eventProgress(event, teamSteps(team)).cleared;
+  const teamLabel = !team ? '参加受付中' : team.status === 'recruiting' ? 'メンバー募集中' : cleared ? '結願' : '巡礼中';
+  const statusLabel = event.status === 'locked' ? '未開放' : event.status === 'ended' ? '終了' : teamLabel;
+  const detail = event.status === 'open' ? `${event.minMembers ?? 2}〜${event.maxMembers ?? 4}人のチームで、みんなの歩数を合わせて進みます。` : '日付や旅の内容は、まだ決まっていません。';
   const accessibilityLabel = `イベント巡礼「${title}」。${statusLabel}`;
 
   return <Animated.View style={{ transform: [{ translateX: nudge.interpolate({ inputRange: [-1, 1], outputRange: [-3, 3] }) }] }}>
@@ -40,9 +51,9 @@ export function EventSlot({ event = EVENTS[0] }: { event?: PilgrimageEvent }) {
       artwork={false}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityHint={locked ? 'タップすると鍵札が小さく揺れます。現在は出発できません' : undefined}
-      accessibilityState={{ disabled: !locked }}
-      disabled={!locked}
+      accessibilityHint={locked ? 'タップすると鍵札が小さく揺れます。現在は出発できません' : joinable ? 'タップするとイベントの画面を開きます' : undefined}
+      accessibilityState={{ disabled: !locked && !joinable }}
+      disabled={!locked && !joinable}
       onPress={onPress}
       style={S.card}
     >
@@ -51,10 +62,10 @@ export function EventSlot({ event = EVENTS[0] }: { event?: PilgrimageEvent }) {
         <View style={S.copy}>
           <View style={S.topline}>
             <Text style={S.eyebrow}>EVENT PILGRIMAGE</Text>
-            <View style={S.status}><Text style={S.statusText}>{statusLabel}</Text><LockTag size={21} /></View>
+            <View style={S.status}><Text style={S.statusText}>{statusLabel}</Text>{locked && <LockTag size={21} />}</View>
           </View>
           <Text numberOfLines={2} style={S.title}>{title}</Text>
-          <Text style={S.detail}>日付や旅の内容は、まだ決まっていません。</Text>
+          <Text style={S.detail}>{detail}</Text>
         </View>
         <View accessible={false} style={S.scene}>
           <Svg width="100%" height="100%" viewBox="0 0 112 82" preserveAspectRatio="xMidYMid meet">
@@ -66,10 +77,11 @@ export function EventSlot({ event = EVENTS[0] }: { event?: PilgrimageEvent }) {
             <Circle cx="102" cy="46" r="3.5" fill="#9A6B4C" />
             <Path d="M20 34 C15 26 21 21 26 24 C27 18 35 20 35 26 C40 21 45 26 41 32 C36 37 27 38 20 34Z" fill="#B98176" opacity=".76" />
           </Svg>
-          <View pointerEvents="none" style={S.sceneLock}><LockTag size={28} /></View>
+          {locked && <View pointerEvents="none" style={S.sceneLock}><LockTag size={28} /></View>}
         </View>
       </View>
     </Pressable>
+    {pet && <EventScreen visible={sheet} onClose={() => setSheet(false)} event={event} pet={pet} />}
   </Animated.View>;
 }
 

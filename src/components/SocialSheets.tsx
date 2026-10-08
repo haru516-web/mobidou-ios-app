@@ -134,7 +134,7 @@ export function PresentBoxSheet({ visible, gifts, receivedIds, demo, onReceive, 
 
 // ---- フレンド ---------------------------------------------------------------
 
-function PetAvatar({ petId, size = 52 }: { petId: PetCharacter['id']; size?: number }) {
+export function PetAvatar({ petId, size = 52 }: { petId: PetCharacter['id']; size?: number }) {
   const pet = getPetCharacter(petId);
   const outer = size * 1.15, inner = outer * .8;
   return <View style={{ width: outer, height: outer, alignItems: 'center', justifyContent: 'center' }}>
