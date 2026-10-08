@@ -112,3 +112,17 @@ Reference: `assets/collection/keychains/keychain-akane-v1-transparent.webp`.
 Final prompt:
 
 Use case: product-mockup. Edit reference into one original nostalgic tin toy sedan miniature keychain. Output portrait 1024x1536 with genuine transparent background including inside keyring; remove reference atmospheric background completely. Match reference gold hinged circular keyring at top, short connected gold chain/jump-ring construction, miniature craft finish, detailed realistic shadows ON object and canvas framing/margins. Replace the entire shrine miniature with ONE charming unbranded original small tin toy sedan with round headlights, imaginative softly rounded compact body, indigo #2F4A6B paint and restrained gold #C9A24B trim. Three-quarter view, large miniature body lower in frame; keyring and chain clearly attached at roof hook. Paint rubs, tiny scratches, tin seams, believable wheels and nostalgic toy craftsmanship. Indigo/cream cord accent. If small secondary wooden tag retained, entirely blank with thin gold rim. Absolutely no writing, numbers, logos, manufacturer emblem, real automotive model design, real shrine, branded character, person, delinquent culture or floating external ground shadow. Match reference object scale and premium handmade material realism, NOT flat cartoon.
+
+### goshuin-showa-shoutengai
+
+| File | Dimensions | Bytes | Alpha |
+|---|---|---:|---|
+| goshuin/showa-shoutengai.webp | 1024×1536 | 641418 | no |
+| previews/goshuin-showa-shoutengai.webp | 512×768 | 186216 | no |
+| previews/compare-goshuin-showa-shoutengai.webp | 800×640 | 185740 | no |
+
+Reference: `assets/goshuin/akane.webp`.
+
+Final prompt:
+
+Use case: illustration-story. Edit reference into an original fictional goshuin for ひだまり商店街の小社. Portrait 1024x1536 opaque. Match reference warm yellowed fibrous washi paper, bold dry-brush black calligraphy down left side, large distressed vermilion circular seal behind writing, layered woodblock watercolor scenery on right and lower region. Remove existing character and existing text completely. EXACT only permitted black ink text, written vertically in two parallel readable columns (right column first): right column 『ひだまり商店街』, left column 『の小社』. Together reads exactly ひだまり商店街の小社. No other writing, no date, no imitation seal text. Red circular seal contains a SMALL simplified generic round-headlight tin sedan motif instead of letters. Right-side scenery a peaceful fictional Showa shopping street with blank cloth awnings and warm sunlight, a tiny original shrine roof shadow, charming unbranded tin toy sedan vignette at lower right with indigo body and gold trim. No fuzzy mascot; thematic collectible is sedan. Add subtle fine indigo #2F4A6B edge and muted gold #C9A24B accent, keep sacred ink/seal and reference paper/art composition dominant. Fictional original sedan, no real car model, logo, manufacturer, carrier, recognizable real shrine, delinquent or biker depictions. Only the prescribed goshuin black ink name may be text.
