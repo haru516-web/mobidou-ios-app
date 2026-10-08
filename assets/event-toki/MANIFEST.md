@@ -156,3 +156,4 @@ All eight include the shrine name, subject seal and lower-left もび seal. Show
 | goshuin/showa-sento.webp | 1024×1536 | 521268 | no | previews/goshuin-showa-sento.webp |
 | goshuin/showa-record.webp | 1024×1536 | 570286 | no | previews/goshuin-showa-record.webp |
 | goshuin/heisei-park.webp | 1024×1536 | 612244 | no | previews/goshuin-heisei-park.webp |
+| goshuin/heisei-pager.webp | 1024×1536 | 607364 | no | previews/goshuin-heisei-pager.webp |
