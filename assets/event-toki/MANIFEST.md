@@ -98,3 +98,17 @@ Reference: `assets/ui-round6/tickets/ticket-gacha-tag-v1.webp`.
 Final prompt:
 
 Use case: precise-object-edit. Edit reference reward wooden tag. Keep EXACT reference silhouette, shape, proportions, framing, wood grain, hole position, braided rope placement, restrained attached shadow and transparent outer margin. Output 256x384 transparent background. Change red-and-white cord to indigo #2F4A6B and cream braided cord. Add thin muted gold #C9A24B edging around wood tag. Replace central red circle with indigo circular disk retaining fine gold outline. No text, letters, numbers, logos, icons or watermark. Same real handcrafted worn wood texture and subtle light as reference. One tag only.
+
+### keychain-showa-shoutengai
+
+| File | Dimensions | Bytes | Alpha |
+|---|---|---:|---|
+| keychains/keychain-showa-shoutengai-v1-transparent.webp | 1024×1536 | 363372 | yes |
+| previews/keychain-showa-shoutengai.webp | 512×768 | 119228 | yes |
+| previews/compare-keychain-showa-shoutengai.webp | 800×640 | 93844 | no |
+
+Reference: `assets/collection/keychains/keychain-akane-v1-transparent.webp`.
+
+Final prompt:
+
+Use case: product-mockup. Edit reference into one original nostalgic tin toy sedan miniature keychain. Output portrait 1024x1536 with genuine transparent background including inside keyring; remove reference atmospheric background completely. Match reference gold hinged circular keyring at top, short connected gold chain/jump-ring construction, miniature craft finish, detailed realistic shadows ON object and canvas framing/margins. Replace the entire shrine miniature with ONE charming unbranded original small tin toy sedan with round headlights, imaginative softly rounded compact body, indigo #2F4A6B paint and restrained gold #C9A24B trim. Three-quarter view, large miniature body lower in frame; keyring and chain clearly attached at roof hook. Paint rubs, tiny scratches, tin seams, believable wheels and nostalgic toy craftsmanship. Indigo/cream cord accent. If small secondary wooden tag retained, entirely blank with thin gold rim. Absolutely no writing, numbers, logos, manufacturer emblem, real automotive model design, real shrine, branded character, person, delinquent culture or floating external ground shadow. Match reference object scale and premium handmade material realism, NOT flat cartoon.
