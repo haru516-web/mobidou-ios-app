@@ -165,3 +165,6 @@ export function duplicateCrowd(collection: MobbyCollection, limit = 8): { petIds
     .flatMap(([id, copies]) => Array.from({ length: copies - 1 }, () => id));
   return { petIds: all.slice(0, Math.max(0, limit)), more: Math.max(0, all.length - Math.max(0, limit)) };
 }
+
+/** How many more premium pulls until the guaranteed one (1 means the very next premium pull is it). */
+export const premiumPullsUntilGuarantee = (paidPulls: number) => PAID_PITY_INTERVAL - (Math.max(0, Math.floor(paidPulls)) % PAID_PITY_INTERVAL);

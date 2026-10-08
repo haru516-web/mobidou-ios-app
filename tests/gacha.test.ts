@@ -6,6 +6,7 @@ import {
   duplicateCount,
   duplicateCrowd,
   emptyMobbyCollection,
+  premiumPullsUntilGuarantee,
   gachaOdds,
   grantFreePullForClear,
   hasStarter,
@@ -146,4 +147,11 @@ test('the crowd has one small Mobby per duplicate copy, in a stable order, cappe
   assert.equal(many.petIds.length, 8);
   assert.equal(many.more, 3);
   assert.deepEqual(duplicateCrowd(emptyMobbyCollection()), { petIds: [], more: 0 });
+});
+
+test('premiumPullsUntilGuarantee counts down to every 25th premium pull', () => {
+  assert.equal(premiumPullsUntilGuarantee(0), 25);
+  assert.equal(premiumPullsUntilGuarantee(10), 15);
+  assert.equal(premiumPullsUntilGuarantee(24), 1);
+  assert.equal(premiumPullsUntilGuarantee(25), 25);
 });

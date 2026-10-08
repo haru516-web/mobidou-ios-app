@@ -15,8 +15,8 @@ export const GACHA_UI_ART = {
 export type GachaUiArtName = keyof typeof GACHA_UI_ART;
 
 export const SHOP_PRODUCT_ART: Record<ShopProduct['id'], number> = {
-  pull1: require('../../assets/ui-round5/shop/product-pull1-tag.webp'),
-  pull5: require('../../assets/ui-round5/shop/product-pull5-tag.webp'),
+  pull1: require('../../assets/ui-round9/premium-tag/product-premium-pull1-tag-v2.webp'),
+  pull5: require('../../assets/ui-round9/premium-tag/product-premium-pull5-tag-v2.webp'),
   plus: require('../../assets/ui-round3/tickets/ticket-plus-plan-gold-v1.webp'),
 };
 

@@ -597,3 +597,73 @@ Avoid: velvet, silk gloss, elaborate valance, flags, heraldic details, busy fabr
 ~~~text
 Edit target: first reference ticket-keychain-drop-v2.webp. Second reference is style context only, wooden gacha tag. Create exactly one gold Plus Plan ticket by precise editing of first image. Preserve exact canvas aspect 1023x1535, ticket position and margins, silhouette, edge, upper hole and hardware, lower perforations and notches, washi texture, winding road and grasses silhouettes, and exact irregular shape of right teal pigment field. Recolor ALL deep teal pigment (right field, road and grass) to restrained matte gold near #B8923F, preserving grain and distressed ink texture; thin edge line brighter gold #D8B867. Keep cream paper unchanged, warm copper seal and hole fitting harmonious. All lettering dark brown #4A3318. Keep upper small two lines exactly "MOBIDOU" and "旅の授与札" in same position. Replace large three-line title with ONE horizontal large line exactly "プラスプラン", centered within original title area. Beneath it one small line exactly "ミニチュアが必ず授かる". Bottom small sentence exactly "ご縁を、いつも手元に". All Japanese complete legible and correctly spelled. On upper-left copper round seal preserve keychain emblem and add a large simple clear plus symbol beside it. No extra text. True transparent alpha outside ticket and in hole, preserve original transparency. No background or baked checkerboard, no shadows, no shiny metallic glare, no yellow plastic. Do not redesign or shift any ticket structural element. Fine tactile Japanese game illustration matching reference. Output portrait 1023x1535.
 ~~~
+
+## 2026-10-08 プレミアム木札
+
+生成: built-in image_gen、transparent_background: true。元画像を編集対象、プラスプラン札を金の質感参照として使用。文字なし。生成アルファを保持して元寸法にリサイズ、WebP quality 86 / alphaQuality 100 / effort 6。
+
+### icon-premium-tag-v1
+
+~~~text
+Precise color-only edit of first reference image (icon). Second image is GOLD MATERIAL reference only. Preserve the first reference EXACT silhouette, framing, margins, proportions, edge shape, hole, cord geometry, knots, shadows, grain and arrangement.  Change only wooden faces to restrained matte antique gold near #B8923F, thin edge #D8B867, subtle gold-pigment/gold-leaf grain matching second reference, retaining original grain. Cord vermilion to burgundy, same original cord shape. Preserve existing vermilion circular seal and add ONE simple small dark burgundy five-point star embossed at its center, legible at 192px. No lettering or numbers. True transparent background and hole, no checkerboard, no ground. Do not redesign, rotate, enlarge, recenter or alter silhouette. No shiny metal, glare, glitter, extra ornament. Output same aspect ratio as first reference.
+~~~
+
+### ticket-premium-tag-v1
+
+~~~text
+Precise color-only edit of first reference image (ticket). Second image is GOLD MATERIAL reference only. Preserve the first reference EXACT silhouette, framing, margins, proportions, edge shape, hole, cord geometry, knots, shadows, grain and arrangement.  Change only wooden faces to restrained matte antique gold near #B8923F, thin edge #D8B867, subtle gold-pigment/gold-leaf grain matching second reference, retaining original grain. Cord vermilion to burgundy, same original cord shape. Preserve existing vermilion circular seal and add ONE simple small dark burgundy five-point star embossed at its center, legible at 192px. No lettering or numbers. True transparent background and hole, no checkerboard, no ground. Do not redesign, rotate, enlarge, recenter or alter silhouette. No shiny metal, glare, glitter, extra ornament. Output same aspect ratio as first reference.
+~~~
+
+### product-premium-pull1-tag-v1
+
+~~~text
+Precise color-only edit of first reference image (pull1). Second image is GOLD MATERIAL reference only. Preserve the first reference EXACT silhouette, framing, margins, proportions, edge shape, hole, cord geometry, knots, shadows, grain and arrangement.  Change only wooden faces to restrained matte antique gold near #B8923F, thin edge #D8B867, subtle gold-pigment/gold-leaf grain matching second reference, retaining original grain. Cord vermilion to burgundy, same original cord shape. Preserve existing vermilion circular seal and add ONE simple small dark burgundy five-point star embossed at its center, legible at 192px. No lettering or numbers. True transparent background and hole, no checkerboard, no ground. Do not redesign, rotate, enlarge, recenter or alter silhouette. No shiny metal, glare, glitter, extra ornament. Output same aspect ratio as first reference.
+~~~
+
+### product-premium-pull5-tag-v1
+
+~~~text
+Precise color-only edit of first reference image (pull5). Second image is GOLD MATERIAL reference only. Preserve the first reference EXACT silhouette, framing, margins, proportions, edge shape, hole, cord geometry, knots, shadows, grain and arrangement. Preserve all FIVE wooden tags in their exact original overlapping arrangement. Change only wooden faces to restrained matte antique gold near #B8923F, thin edge #D8B867, subtle gold-pigment/gold-leaf grain matching second reference, retaining original grain. Cord vermilion to burgundy, same original cord shape. Preserve existing vermilion circular seal and add ONE simple small dark burgundy five-point star embossed at its center, legible at 192px. No lettering or numbers. True transparent background and hole, no checkerboard, no ground. Do not redesign, rotate, enlarge, recenter or alter silhouette. No shiny metal, glare, glitter, extra ornament. Output same aspect ratio as first reference.
+~~~
+
+検証: `docs/gacha-assets-verification/premium-tag-audit.json`、暗色・明色と元画像並列の `premium-tag-preview.webp`。audit-image-assets.cjs は参照検査用のため、四隅のアルファ・寸法・容量は保存したWebPをSharpで再読込して確認。
+
+- icon-premium-tag-v1.webp: 192×192, 10526 bytes, corners 0,0,0,0
+- ticket-premium-tag-v1.webp: 256×384, 27250 bytes, corners 0,0,0,0
+- product-premium-pull1-tag-v1.webp: 256×256, 12804 bytes, corners 0,0,0,0
+- product-premium-pull5-tag-v1.webp: 256×256, 17234 bytes, corners 0,0,0,0
+
+## 2026-10-08 プレミアム木札 v2
+
+生成: built-in image_gen / transparent_background: true。各 v1 を編集対象に使用。生成アルファを保持し、Sharp で指定寸法へ縮小、WebP quality 88 / alphaQuality 100 / effort 6。コード変更なし。
+
+### icon-premium-tag-v2
+
+~~~text
+Use case: precise-object-edit. Edit the supplied v1 asset into a luxurious Japanese premium ema tag. Preserve EXACT original pentagonal tag silhouette, dimensions within canvas, framing, margins, hole position, rope paths and arrangement; no enlargement, rotation or recentering. Bright clear gold-leaf wooden surface #E8C45A, luminous #FFF0A8 highlights and #9A6F1E shadows, faint wood grain under genuine gold leaf sheen and restrained diagonal light streaks; not plastic or chrome. Double gold perimeter border (fine bright inner line and thicker dark gold outer line), small ornamental gold corner fittings at four corners. Replace red circle/star with a large deep burgundy #7A1F2B circular seal containing a clear GOLD SIXTEEN-PETAL CHRYSANTHEMUM stamp, about 45% of tag width, not a star. All cords braided deep purple #4B2A6B and gold threads, with small GOLD tassels at existing cord ends. Visibly purple cord even at 48px. No lettering, numbers, watermark. Genuinely transparent background and hole, preserve clean alpha, no ground or checkerboard. Same aspect ratio as reference. Icon: ONE small four-point sparkle outside tag outline, large clear stamp.
+~~~
+
+### ticket-premium-tag-v2
+
+~~~text
+Use case: precise-object-edit. Edit the supplied v1 asset into a luxurious Japanese premium ema tag. Preserve EXACT original pentagonal tag silhouette, dimensions within canvas, framing, margins, hole position, rope paths and arrangement; no enlargement, rotation or recentering. Bright clear gold-leaf wooden surface #E8C45A, luminous #FFF0A8 highlights and #9A6F1E shadows, faint wood grain under genuine gold leaf sheen and restrained diagonal light streaks; not plastic or chrome. Double gold perimeter border (fine bright inner line and thicker dark gold outer line), small ornamental gold corner fittings at four corners. Replace red circle/star with a large deep burgundy #7A1F2B circular seal containing a clear GOLD SIXTEEN-PETAL CHRYSANTHEMUM stamp, about 45% of tag width, not a star. All cords braided deep purple #4B2A6B and gold threads, with small GOLD tassels at existing cord ends. Visibly purple cord even at 48px. No lettering, numbers, watermark. Genuinely transparent background and hole, preserve clean alpha, no ground or checkerboard. Same aspect ratio as reference. Three to four small four-point sparkles around the tag, never obscuring outline.
+~~~
+
+### product-premium-pull1-tag-v2
+
+~~~text
+Use case: precise-object-edit. Edit the supplied v1 asset into a luxurious Japanese premium ema tag. Preserve EXACT original pentagonal tag silhouette, dimensions within canvas, framing, margins, hole position, rope paths and arrangement; no enlargement, rotation or recentering. Bright clear gold-leaf wooden surface #E8C45A, luminous #FFF0A8 highlights and #9A6F1E shadows, faint wood grain under genuine gold leaf sheen and restrained diagonal light streaks; not plastic or chrome. Double gold perimeter border (fine bright inner line and thicker dark gold outer line), small ornamental gold corner fittings at four corners. Replace red circle/star with a large deep burgundy #7A1F2B circular seal containing a clear GOLD SIXTEEN-PETAL CHRYSANTHEMUM stamp, about 45% of tag width, not a star. All cords braided deep purple #4B2A6B and gold threads, with small GOLD tassels at existing cord ends. Visibly purple cord even at 48px. No lettering, numbers, watermark. Genuinely transparent background and hole, preserve clean alpha, no ground or checkerboard. Same aspect ratio as reference. Three to four small four-point sparkles around the tag, never obscuring outline.
+~~~
+
+### product-premium-pull5-tag-v2
+
+~~~text
+Use case: precise-object-edit. Edit the supplied v1 asset into a luxurious Japanese premium ema tag. Preserve EXACT original pentagonal tag silhouette, dimensions within canvas, framing, margins, hole position, rope paths and arrangement; no enlargement, rotation or recentering. Bright clear gold-leaf wooden surface #E8C45A, luminous #FFF0A8 highlights and #9A6F1E shadows, faint wood grain under genuine gold leaf sheen and restrained diagonal light streaks; not plastic or chrome. Double gold perimeter border (fine bright inner line and thicker dark gold outer line), small ornamental gold corner fittings at four corners. Replace red circle/star with a large deep burgundy #7A1F2B circular seal containing a clear GOLD SIXTEEN-PETAL CHRYSANTHEMUM stamp, about 45% of tag width, not a star. All cords braided deep purple #4B2A6B and gold threads, with small GOLD tassels at existing cord ends. Visibly purple cord even at 48px. No lettering, numbers, watermark. Genuinely transparent background and hole, preserve clean alpha, no ground or checkerboard. Same aspect ratio as reference. Exactly FIVE tags in their original overlapping arrangement with front tag largest. Three to four small four-point sparkles around group, never obscuring outline.
+~~~
+
+検証プレビュー: `docs/gacha-assets-verification/premium-tag-v2-preview.webp`。上段は暗色 #302D25、下段は明色 #C79A62。列は icon / ticket / pull1 / pull5。各列下部は通常札（左）と v2（右）をそれぞれ48×48で比較。
+
+- icon-premium-tag-v2.webp: 192×192, 13334 bytes, WebP, alpha corners 0,0,0,0
+- ticket-premium-tag-v2.webp: 256×384, 33718 bytes, WebP, alpha corners 0,0,0,0
+- product-premium-pull1-tag-v2.webp: 256×256, 20494 bytes, WebP, alpha corners 0,0,0,0
+- product-premium-pull5-tag-v2.webp: 256×256, 25368 bytes, WebP, alpha corners 0,0,0,0

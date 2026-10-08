@@ -13,9 +13,10 @@ import { GachaSummary } from './GachaSummary';
 import { HomeStatusBar } from './HomeStatusBar';
 import { WashiPressable } from './Washi';
 import { SlicedArt } from './SlicedArt';
+import { PREMIUM_TAG_ICON } from '../data/premiumTagArt';
 import { GACHA_PANEL_ART, GACHA_UI_ART } from '../data/gachaUiArt';
 import type { ShopProduct } from '../data/shop';
-import { gachaOdds, type PullResult } from '../services/gacha';
+import { gachaOdds, premiumPullsUntilGuarantee, type PullResult } from '../services/gacha';
 import { carrierAt, dustFrameAt, placeBox } from './gachaCart';
 import { AFTER_OPEN_MS, CONFETTI_COLORS, MAX_DIM, bloomAt, confettiAt, blossomsAt, burstAt, fallAt, lightTintAt, motesAt, seasonRateAt, canOpen, dimAt, dustAt, flashAt, gatherAt, curtainAt, INTRO_END_MS, glowAfterOpen, glowWhileLifting, HAPTIC_BEATS, landingShake, mobbyAfterOpen, phaseOf, pillarAt, popAt, resolveRelease, ROLL_MS, rumbleAt, seamGlow, SETTLED_AT_MS, settleAt, shimmerAt, silhouetteAt, sparklesAt, tempoAt } from './gachaTimeline';
 
@@ -26,7 +27,7 @@ const OPEN_TWEEN_MS = 260;
 const BOB_PX = 14;
 
 /** What the player can learn before drawing: the pool and its odds, and how 木札 work. */
-function GachaDetail({ onClose, freePulls }: { onClose: () => void; freePulls: number }) {
+function GachaDetail({ onClose, freePulls, premiumPulls }: { onClose: () => void; freePulls: number; premiumPulls: number }) {
   const odds = gachaOdds(PET_CHARACTERS.map(pet => pet.id));
   const percent = odds.length ? Math.round(odds[0].rate * 1000) / 10 : 0;
   return <View accessibilityViewIsModal style={S.detailRoot}>
@@ -40,8 +41,8 @@ function GachaDetail({ onClose, freePulls }: { onClose: () => void; freePulls: n
         {PET_CHARACTERS.map(pet => <RNImage key={pet.id} accessible accessibilityLabel={pet.name} source={pet.image} resizeMode="contain" style={S.detailPet} />)}
       </View>
       <Text style={S.detailHead}>木札について</Text>
-      <Text style={S.detailBody}>・木札1枚で、1回引けます。10回は、木札10枚を使って続けて引きます。{'\n'}・新しい巡礼を初めて結願すると、木札が1枚もらえます。{'\n'}・同じモビーが出たときは、小さなモビーとしてそばに来ます。</Text>
-      <Text style={S.detailNote}>いまの木札：{freePulls}枚</Text>
+      <Text style={S.detailBody}>・木札1枚で、1回引けます。10回は、木札10枚を使って続けて引きます。{'\n'}・新しい巡礼を初めて結願すると、木札が1枚もらえます。{'\n'}・購入した木札は「プレミアム木札」です。木札とは別に数え、引くたびに、どちらを使うか選べます。{'\n'}・プレミアム木札で25回引くごとに、まだ出会っていないモビーが必ず1体出ます（全員そろっているときは、通常どおり抽選）。木札では数えません。{'\n'}・同じモビーが出たときは、小さなモビーとしてそばに来ます。</Text>
+      <Text style={S.detailNote}>いまの木札：{freePulls}枚 ／ プレミアム木札：{premiumPulls}枚</Text>
       <Button title="とじる" secondary onPress={onClose} style={S.wide} />
     </View>
   </View>;
@@ -68,8 +69,12 @@ function MotionArrow({ direction, size = 44 }: { direction: 'up' | 'down'; size?
 const BOB_MS = 1700;
 
 type Props = {
-  /** Free pulls the player can still use. */
+  /** Ordinary 木札 the player can still use (earned by walking). */
   freePulls: number;
+  /** Premium 木札 (bought), spent on the server. */
+  premiumPulls?: number;
+  /** Premium pulls made so far; the guarantee comes every 25th. */
+  paidPulls?: number;
   /** Results already drawn and waiting to be shown (persisted by the caller). */
   unrevealed: readonly PullResult[];
   haptics: boolean;
@@ -79,7 +84,7 @@ type Props = {
   /** Tickets owed back after a refund, shown in the shop. */
   refundDebt?: number;
   /** Draw `count` pulls. May answer later; `false` means nothing was drawn and no 木札 was spent. */
-  onDraw: (count: number) => void | Promise<boolean>;
+  onDraw: (count: number, source: 'normal' | 'premium') => void | Promise<boolean>;
   /** The app's bottom navigation, shown while the player is choosing how to draw and hidden once the cord is up. */
   nav?: React.ReactNode;
   /** Every waiting result has been shown. */
@@ -110,12 +115,18 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false }: Props) {
+export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false }: Props) {
   useSceneBgm('bgm_gacha', true, 20);
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
   // The lobby is where the player picks how many to draw; the cord only works once a draw has been chosen. The first-run guide goes straight to the cord.
   const [stage, setStage] = useState<'lobby' | 'rope'>(guided ? 'rope' : 'lobby');
   const [batch, setBatch] = useState(1);
+  // Which 木札 the next draw spends. With no premium 木札 the ordinary ones are used without asking; with none of the ordinary ones, the premium ones.
+  const [chosenSource, setChosenSource] = useState<'normal' | 'premium'>('normal');
+  const source: 'normal' | 'premium' = chosenSource === 'premium' && premiumPulls > 0 ? 'premium' : normalPulls > 0 ? 'normal' : premiumPulls > 0 ? 'premium' : 'normal';
+  /** What the chosen kind of 木札 has left; everything below that gates a draw uses this. */
+  const freePulls = source === 'premium' ? premiumPulls : normalPulls;
+  const untilGuarantee = premiumPullsUntilGuarantee(paidPulls);
   const [detailOpen, setDetailOpen] = useState(false);
   const [navH, setNavH] = useState(72);
   const ropeReady = stage === 'rope';
@@ -388,9 +399,9 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
     if (playing || freePulls < batch || drawRequested.current) return;
     drawRequested.current = true;
     playSfx('sfx_ticket_use');
-    const drawn = onDraw(batch);
+    const drawn = onDraw(batch, source);
     if (drawn && typeof drawn.then === 'function') void drawn.then(done => { if (done === false) { drawRequested.current = false; ropeShift.setValue(0); setRopeGone(false); setStage('lobby'); } });
-  }, [playing, freePulls, batch, onDraw]);
+  }, [playing, freePulls, batch, onDraw, source]);
 
   const ropePan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady && !drawRequested.current,
@@ -581,8 +592,8 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
       <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={S.tab}><SlicedArt art={shopOpen ? GACHA_UI_ART.tabOff : GACHA_UI_ART.tabOn} /><Text style={[S.tabText, !shopOpen && S.tabTextOn]}>購入</Text></Pressable>
     </View>}
 
-    {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={freePulls} miniaturePasses={passes} plusActive={plusActive} show="shopRight" /></View>}
-    {!guided && !playing && <View pointerEvents="box-none" style={[S.statusLeft, { top: 26 + insets.top }]}><HomeStatusBar tickets={freePulls} miniaturePasses={passes} plusActive={plusActive} show="shopLeft" /></View>}
+    {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} miniaturePasses={passes} plusActive={plusActive} show="shopRight" /></View>}
+    {!guided && !playing && <View pointerEvents="box-none" style={[S.statusLeft, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} premiumTickets={premiumPulls} miniaturePasses={passes} plusActive={plusActive} show="shopLeft" /></View>}
 
     {/* Once the Mobby has been revealed, one tap shows it large and another tap puts it back. */}
     {canZoom && <Pressable accessibilityRole="button" accessibilityLabel={zoomed ? 'モビーを小さく戻す' : 'モビーを大きく見る'} onPress={() => setZoomed(value => !value)} style={StyleSheet.absoluteFillObject}>
@@ -594,7 +605,7 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
 
     {shopOpen && !navShown && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} /><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 
-    {!playing && !shopOpen && freePulls <= 0 && companion && waitingSize > 40 && <RNImage accessible={false} source={companion.image} resizeMode="contain" style={{ position: 'absolute', width: waitingSize, height: waitingSize, left: (width - waitingSize) / 2, top: waitingTop }} />}
+    {!playing && !shopOpen && normalPulls + premiumPulls <= 0 && companion && waitingSize > 40 && <RNImage accessible={false} source={companion.image} resizeMode="contain" style={{ position: 'absolute', width: waitingSize, height: waitingSize, left: (width - waitingSize) / 2, top: waitingTop }} />}
 
     {!playing && !shopOpen && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setPanelH(previous => previous === next ? previous : next); }} style={[S.bottom, { bottom: lobbyBottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
       {unrevealed.length > 0 && !guided
@@ -604,7 +615,12 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
         </>
         : freePulls > 0
         ? <>
-          <Text style={S.small}>ガチャ木札 {freePulls}枚</Text>
+          {premiumPulls > 0 && normalPulls > 0 && !ropeReady
+            ? <View accessibilityRole="radiogroup" style={S.sourceRow}>
+              {([['normal', '木札', normalPulls], ['premium', 'プレミアム木札', premiumPulls]] as const).map(([id, label, n]) => <Pressable key={id} accessibilityRole="radio" accessibilityState={{ selected: source === id }} accessibilityLabel={`${label} ${n}枚`} onPress={() => setChosenSource(id)} style={[S.sourceChip, source === id && (id === 'premium' ? S.sourceChipPremium : S.sourceChipOn)]}>{id === 'premium' && <RNImage accessible={false} source={PREMIUM_TAG_ICON} resizeMode="contain" style={S.sourceIcon} />}<Text style={[S.sourceText, source === id && S.sourceTextOn]}>{label} {n}枚</Text></Pressable>)}
+            </View>
+            : <Text style={S.small}>{source === 'premium' ? 'プレミアム木札' : '木札'} {freePulls}枚</Text>}
+          {source === 'premium' && <Text style={S.small}>{untilGuarantee === 1 ? '次の1回で、まだ出会っていないモビーが必ず出ます。' : `あと${untilGuarantee}回で、まだ出会っていないモビーが必ず出ます。`}</Text>}
           {!ropeReady && <>
             <View style={S.drawRow}>
               <Button title="詳細" secondary onPress={() => setDetailOpen(true)} style={S.drawDetail} />
@@ -625,7 +641,7 @@ export function GachaScreen({ freePulls, passes = 0, refundDebt = 0, unrevealed,
 
     {navShown && !playing && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setNavH(previous => previous === next ? previous : next); }} style={{ position: 'absolute', left: 0, right: 0, bottom: navInset }}>{nav}</View>}
 
-    {detailOpen && <GachaDetail onClose={() => setDetailOpen(false)} freePulls={freePulls} />}
+    {detailOpen && <GachaDetail onClose={() => setDetailOpen(false)} freePulls={normalPulls} premiumPulls={premiumPulls} />}
 
     {/* Swiping up anywhere on the screen lifts the board, not just on the board itself. */}
     {boardEnabled && <View {...boardPan.panHandlers} style={StyleSheet.absoluteFillObject} />}
@@ -677,6 +693,13 @@ const S = StyleSheet.create({
   hint: { color: '#BFA982', fontSize: 11, letterSpacing: 1.5, textAlign: 'center' },
   badge: { color: '#F6D9A3', fontFamily: SERIF, fontSize: 13, letterSpacing: 1, textAlign: 'center' },
   wide: { width: '100%', maxWidth: 350 },
+  sourceRow: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+  sourceChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: '#C9B79A', backgroundColor: '#FFF8E8' },
+  sourceChipOn: { borderColor: '#9B443C', backgroundColor: '#F3DFCF' },
+  sourceChipPremium: { borderColor: '#C99A2E', borderWidth: 2, backgroundColor: '#FBEFC2' },
+  sourceIcon: { width: 16, height: 16, marginRight: 4 },
+  sourceText: { color: '#6F6252', fontSize: 12 },
+  sourceTextOn: { color: '#3B2A1A', fontWeight: '700' },
   drawRow: { flexDirection: 'row', gap: 8, width: '100%', maxWidth: 350 },
   drawDetail: { flex: 0.8, paddingHorizontal: 6 },
   drawOne: { flex: 1, paddingHorizontal: 6 },

@@ -87,12 +87,12 @@ function KeychainArtwork({ shrine, locked, impulse, onPress, large = false, top,
   </Animated.View>;
 }
 
-function DisplayedStamp({ shrine, owned, width, bottom }: { shrine: Shrine; owned: boolean; width?: number; bottom?: number; compact?: boolean }) {
+function DisplayedStamp({ shrine, owned, width, bottom, onPress }: { shrine: Shrine; owned: boolean; width?: number; bottom?: number; compact?: boolean; onPress?: () => void }) {
   const renderWidth = width ?? 96;
   const renderHeight = renderWidth * 1.5;
-  return <View accessible accessibilityLabel={owned ? `${shrine.name}の御朱印` : '未取得の御朱印'} accessibilityState={{ disabled: !owned }} style={[S.stampStand, { width: renderWidth, height: renderHeight }, bottom !== undefined && { bottom }]}>
+  return <Pressable disabled={!owned || !onPress} accessibilityRole={owned && onPress ? 'button' : undefined} accessibilityLabel={owned ? `${shrine.name}の御朱印を詳しく見る` : '未取得の御朱印'} accessibilityState={{ disabled: !owned }} onPress={owned ? onPress : undefined} style={[S.stampStand, { width: renderWidth, height: renderHeight }, bottom !== undefined && { bottom }]}>
     {owned ? <Image accessible={false} source={STAMP_IMAGES[shrine.id]} contentFit="contain" style={S.stamp} /> : <Image accessible={false} source={STAMP_IMAGES[shrine.id]} contentFit="contain" tintColor={SILHOUETTE} style={S.stampSilhouette} />}
-  </View>;
+  </Pressable>;
 }
 
 /** The 3D wooden cabinet (shelves, pillars, hooks, stands) behind the collection. Off for now; set to true to bring it back. */
@@ -213,7 +213,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight, left: shiftX }]}>
                   <View style={[S.roomLabel, { top: roomLabelTop, height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
                   <KeychainArtwork shrine={shrine} locked={keychainCount === 0} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
-                  <DisplayedStamp shrine={shrine} owned={stampOwned} width={stampWidth} bottom={goshuinBottom} />
+                  <DisplayedStamp shrine={shrine} owned={stampOwned} width={stampWidth} bottom={goshuinBottom} onPress={() => onSelectGoshuin(shrine)} />
                 </View>;
               })}
             </View>

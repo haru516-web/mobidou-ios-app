@@ -1,0 +1,54 @@
+[
+  {
+    "file": "icon-premium-tag-v1.webp",
+    "width": 192,
+    "height": 192,
+    "bytes": 10526,
+    "corners": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "format": "webp"
+  },
+  {
+    "file": "ticket-premium-tag-v1.webp",
+    "width": 256,
+    "height": 384,
+    "bytes": 27250,
+    "corners": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "format": "webp"
+  },
+  {
+    "file": "product-premium-pull1-tag-v1.webp",
+    "width": 256,
+    "height": 256,
+    "bytes": 12804,
+    "corners": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "format": "webp"
+  },
+  {
+    "file": "product-premium-pull5-tag-v1.webp",
+    "width": 256,
+    "height": 256,
+    "bytes": 17234,
+    "corners": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "format": "webp"
+  }
+]
