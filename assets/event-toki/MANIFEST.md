@@ -1,8 +1,8 @@
-# Toki event assets — A/B approval batch
+# Toki event assets
 
 Branch: `codex/event-assets`; base: `639cf695f4b05e97006e27c850ad4d893eb70d57` (`claude/events`).
 
-Generated with the built-in image_gen tool. WebP quality 90; alpha retained. No nine-slice. Buttons: generated alpha bounds normalized to reference bounds (14,21)-(500,497) on 512x512 canvas; no artwork clipping. Previews are review-only. C–F await user approval.
+Generated with the built-in image_gen tool. WebP quality 90; alpha retained. No nine-slice. Buttons: generated alpha bounds normalized to reference bounds (14,21)-(500,497) on 512x512 canvas; no artwork clipping. Previews are review-only. A/B approved. C/D and first E/F samples await user approval; the remaining seven keychains and seven goshuin are not generated.
 
 ## Assets
 
@@ -66,3 +66,21 @@ Edit image1 map using image2 as STRICT ROAD GEOMETRY guide. Output 1024x1536. Ke
 ### Pass 4
 
 Edit this map with ONLY local architectural/detail changes to make the Showa-to-Heisei transition visually clear. STRICTLY keep the entire winding road geometry and framing pixel positions unchanged. Keep cream paper and indigo/gold border. Keep delicate watercolor; reduce scenery contrast. At the very bottom roadside shops replace traditional tiled buildings with tiny Showa wooden shops with faded blank striped cloth awnings and blank storefronts. At right side of road bend around x350,y1106 near existing chimney: clear modest Showa bathhouse chimney with light steam. At x220,y840 add a very tiny Showa roadside drive-in building with a plain flat canopy, no lettering, and one miniature generic original sedan, no brand. Around x680,y810 place small record shop with a blank black circular vinyl disc graphic in window, no writing. Upper near x850,y550 depict small Heisei neighborhood park with a tiny simple swing and bench beside roof shadow. Near x614,y338 preserve bridge and add a few tiny late-20th-century plain low-rise houses behind it. Top x880,y154 scenic lookout. This is a peaceful late20th-century nostalgic Japanese town not an ancient feudal village. Tiny discreet details only. No text, labels, numbers, logos, real manufacturer models, real shrine designs, people or delinquent culture. Output 1024x1536. All these changes adjacent to road, DO NOT move road.
+
+## C–F first-item approval samples
+
+Built-in image_gen, WebP quality 90. No nine-slice or cropping; D resized from generated 1024×1536 to 256×384. Reference comparison previews have labels and checkerboard backgrounds for alpha review; these are not app assets.
+
+### book-cover
+
+| File | Dimensions | Bytes | Alpha |
+|---|---|---:|---|
+| book-cover.webp | 1024×1536 | 480974 | no |
+| previews/book-cover.webp | 512×768 | 121936 | no |
+| previews/compare-book-cover.webp | 800×640 | 126518 | no |
+
+Reference: `assets/goshuin-book-covers/circuit.webp`.
+
+Final prompt:
+
+Use case: product-mockup. Edit reference into an original event goshuin book cover. Portrait 1024x1536, opaque. Preserve reference front-view closed book shape, size in canvas, binding spine, realistic tactile quality and soft background shadow. Replace vermilion decorated cover with deep indigo #2F4A6B woven cloth and a slender gold #C9A24B frame. Center one small elegant gold-line emblem pairing a fictional round-headlight tin toy sedan and an open clamshell mobile phone, linked by a very fine winding journey line, representing Showa to Heisei. Restrained detail and generous indigo cloth whitespace. Remove ALL title labels, writing and existing floral medallions. Absolutely no lettering, numbers, logos, manufacturer motifs, real car model or carrier identity. Not an actual branded automobile. Gold fine embroidery/foil rather than neon. Traditional Japanese handmade collectible finish.
