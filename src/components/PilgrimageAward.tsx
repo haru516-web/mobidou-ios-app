@@ -4,7 +4,6 @@ import { Image } from './AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import type { PetCharacter } from '../petCatalog';
-import type { Shrine } from '../data/shrines';
 import type { Pilgrimage } from '../data/pilgrimages';
 import { PRAYER_ACTION_ORDER, PRAYER_ATLASES } from '../data/prayerAtlasesV2';
 import rawMetrics from '../data/pilgrimageSpriteMetrics.json';
@@ -16,6 +15,9 @@ import { InkReveal } from './InkReveal';
 import type { SpecialCollection } from '../services/specialRewards';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
+
+/** Set when the ceremony is for an event spot: the event's own goshuin and miniature, and no keychain roll (every spot gives its miniature). */
+export type EventAwardInfo = { name: string; goshuinImage: ImageSourcePropType; keychainImage: ImageSourcePropType; reached: number; total: number; complete: boolean; reward?: string };
 
 const PHASES = [
   { key: 'approach', frames: 18, label: '鳥居へ、とことこ' },
@@ -51,7 +53,7 @@ function Sprite({ source, metric, frame, size, onLoad }: { source: ImageSourcePr
   </View>;
 }
 
-export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route, stopIndex, special, goshuinOwned = false, onArrive, onRedeemKeychainTicket, onClose }: { shrine: Shrine; pet: PetCharacter; walkSource?: ImageSourcePropType; demo: boolean; haptics: boolean; route?: Pilgrimage; stopIndex: number; special: SpecialCollection; goshuinOwned?: boolean; onArrive: (shrineId: string) => void; onRedeemKeychainTicket: (shrineId: string) => void; onClose: () => void }) {
+export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route, stopIndex, special, goshuinOwned = false, event, onArrive, onRedeemKeychainTicket, onClose }: { event?: EventAwardInfo; shrine: { id: string; name: string; theme: string }; pet: PetCharacter; walkSource?: ImageSourcePropType; demo: boolean; haptics: boolean; route?: Pilgrimage; stopIndex: number; special: SpecialCollection; goshuinOwned?: boolean; onArrive: (shrineId: string) => void; onRedeemKeychainTicket: (shrineId: string) => void; onClose: () => void }) {
   // This is the core acquisition ceremony, so keep the authored sequence
   // visible even when the browser has prefers-reduced-motion enabled. Users
   // who want to leave early can use the explicit skip control below.
@@ -79,7 +81,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   }, [phase.key, phase.local]);
   const prayer = PRAYER_ATLASES[pet.id];
   // The clear reward belongs to the first finish only; a later lap is just a visit.
-  const complete = !!route && stopIndex === route.ids.length - 1 && !goshuinOwned;
+  const complete = event ? event.complete && !goshuinOwned : !!route && stopIndex === route.ids.length - 1 && !goshuinOwned;
   // Keep the authored ceremony playback unchanged. Reduce Motion is scoped
   // to the post-prayer reveal layer below so it never changes a prayer frame.
   const revealReducedMotion = useReducedMotion();
@@ -140,8 +142,9 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const facingLeft = phase.key === 'return' || phase.key === 'leave';
   const showAward = phase.key === 'reveal';
   // The keychain is rolled once when this ceremony opens (never again for the same visit).
-  useEffect(() => { onArrive(shrine.id); }, [onArrive, shrine.id]);
-  const arrival = special.arrival?.shrineId === shrine.id ? special.arrival : null;
+  useEffect(() => { if (!event) onArrive(shrine.id); }, [onArrive, shrine.id, event]);
+  // An event spot always gives its miniature, so there is nothing to roll.
+  const arrival: { shrineId: string; outcome: string } | null = event ? { shrineId: shrine.id, outcome: 'won' } : special.arrival?.shrineId === shrine.id ? special.arrival : null;
   useEffect(() => {
     if (page === 'miniature' && (arrival?.outcome === 'won' || arrival?.outcome === 'ticket')) { playSfx('sfx_keychain_get'); playJingle('sfx_special_reveal'); }
   }, [page, arrival?.outcome]);
@@ -152,11 +155,11 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     animation.start();
     return () => animation.stop();
   }, [page, miniature, arrival?.outcome]);
-  const ticketCount = special.passes.keychainDrop;
+  const ticketCount = event ? 0 : special.passes.keychainDrop;
   const canUseTicket = page === 'miniature' && arrival?.outcome === 'missed' && ticketCount > 0;
   const keychainStatus = arrival?.outcome === 'owned' ? 'もう持ってるよ' : arrival?.outcome === 'won' ? '獲得しました' : arrival?.outcome === 'ticket' ? '券で獲得しました' : 'ドロップなし';
   const keychainInstruction = arrival?.outcome === 'owned' ? 'このミニチュアは、もう持っています。' : arrival?.outcome === 'won' ? 'ミニチュアキーホルダーを授かりました。' : arrival?.outcome === 'ticket' ? '交換券を使って授かりました。' : ticketCount > 0 ? '外れました。この場で交換券を使って受け取れます。' : '今回はご縁がありませんでした。次の参拝でまた挑戦できます。';
-  const keychainArt = COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
+  const keychainArt = event?.keychainImage ?? COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
   const gotKeychain = arrival?.outcome === 'won' || arrival?.outcome === 'ticket' || arrival?.outcome === 'owned';
   // The Mobby chosen on the home screen looks glum when nothing dropped.
   const sadSource = PULL_REACTION_FRAMES[pet.id as keyof typeof PULL_REACTION_FRAMES]?.[3] ?? pet.image;
@@ -174,7 +177,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];
   return <SafeAreaView style={S.page}><FitToHeight key={showAward ? 'award-' + page : 'walk'} style={S.fit}><View style={S.content}>
-    <Text style={S.eyebrow}>{demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>
+    <Text style={S.eyebrow}>{event ? event.name : demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>
     <Text accessibilityRole="header" style={S.title}>{showAward && page === 'miniature' ? (arrival ? gotKeychain ? (arrival.outcome === 'owned' ? 'もう持っているミニチュア' : 'ミニチュアを授かりました') : 'ミニチュアはドロップしませんでした' : 'ミニチュアの抽選') : showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>
     <View style={[S.stage, { height: width * 2 / 3 }, showAward && S.stageHidden]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
       <Image source={STAGE} contentFit="fill" style={StyleSheet.absoluteFillObject} onLoad={() => markLoaded('stage')} />
@@ -196,13 +199,18 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
         <AwardFx />
         <Animated.View style={[S.reward, { opacity: rewardCardOpacity, }]}>
           <View style={S.stampFrame}>
-            <InkReveal source={STAMP_IMAGES[shrine.id]} progress={paint} />
+            <InkReveal source={event?.goshuinImage ?? STAMP_IMAGES[shrine.id as keyof typeof STAMP_IMAGES]} progress={paint} />
           </View>
           <Animated.View style={[S.seal, { opacity: sealOpacity, transform: [{ rotate: '-10deg' }] }]}><Text style={S.sealText}>{complete ? '結願' : '結縁'}</Text></Animated.View>
         </Animated.View>
       </View>
-      <Animated.View style={[S.copyGroup, { opacity: copyOpacity, transform: [{ translateY: copyLift }] }]}><Text style={S.name}>{shrine.name}</Text><Text style={S.theme}>{route?.chapters[stopIndex] ?? shrine.theme}</Text></Animated.View>
+      <Animated.View style={[S.copyGroup, { opacity: copyOpacity, transform: [{ translateY: copyLift }] }]}><Text style={S.name}>{shrine.name}</Text><Text style={S.theme}>{event ? shrine.theme : route?.chapters[stopIndex] ?? shrine.theme}</Text></Animated.View>
       <Animated.View style={[S.guaranteeBadge, { opacity: guaranteeOpacity, transform: [{ translateY: guaranteeLift }] }]}><Text style={S.guaranteeText}>{goshuinOwned ? 'この御朱印は、御朱印帳に綴られています' : '歩いた証として、御朱印を授かりました'}</Text></Animated.View>
+      {event && <Animated.View style={[S.journeyRecord, { opacity: guaranteeOpacity }]}>
+        <Text style={S.recordTitle}>ここまで歩いた記録</Text>
+        <Text style={S.recordText}>{event.name} · {event.reached} / {event.total}地点に到達</Text>
+        {complete && <><Text style={S.recordText}>イベントの道を、みんなで歩き終えました。</Text>{!!event.reward && <Text style={S.recordGift}>{event.reward}</Text>}<Text style={S.recordText}>報酬は、イベント画面から受け取れます。</Text></>}
+      </Animated.View>}
       {route && <Animated.View style={[S.journeyRecord, { opacity: guaranteeOpacity }]}>
         <Text style={S.recordTitle}>ここまで歩いた記録</Text>
         <Text style={S.recordText}>{route.name} · {stopIndex + 1} / {route.ids.length}地点に到達</Text>
@@ -215,7 +223,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
         : <Image source={sadSource} contentFit="contain" accessibilityLabel={pet.name + 'は残念そう'} style={S.miniatureImage} />}
       {arrival && <Text style={S.specialStatus}>{keychainStatus}</Text>}
       {arrival && <Text style={S.specialInstruction}>{arrival.outcome === 'missed' && ticketCount === 0 ? 'ドロップしなかったよ。次の参拝でまた挑戦できます。' : keychainInstruction}</Text>}
-      <Text style={S.passOwned}>交換券 {ticketCount}枚</Text>
+      {!event && <Text style={S.passOwned}>交換券 {ticketCount}枚</Text>}
       {canUseTicket && <View style={S.exchangeActions}><Button title="券を使って受け取る" secondary onPress={useTicket} style={S.specialButton} /></View>}
     </Animated.View>}
   </View></FitToHeight>

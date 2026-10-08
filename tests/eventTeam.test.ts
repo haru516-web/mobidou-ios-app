@@ -4,7 +4,7 @@ import { TOKI_MEGURU } from '../src/data/events.ts';
 import { canJoin, canLeave, eventProgress, isTeamCode, startBlocker, teamCodeFromUrl, teamInviteLink, teamSteps, type EventTeam } from '../src/services/eventTeam.ts';
 
 const member = (id: string, steps = 0) => ({ id, name: id, petId: 'mobibou', steps });
-const team = (status: EventTeam['status'], n: number): EventTeam => ({ code: 'ABCDEF', status, members: Array.from({ length: n }, (_, i) => member(`m${i}`)), claimed: false });
+const team = (status: EventTeam['status'], n: number): EventTeam => ({ code: 'ABCDEF', status, members: Array.from({ length: n }, (_, i) => member(`m${i}`)), claimed: false, seen: 0 });
 
 test('the first event is a fixed-goal map of 2 to 4 people with rising spot thresholds', () => {
   assert.equal(TOKI_MEGURU.minMembers, 2);

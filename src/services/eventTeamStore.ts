@@ -14,6 +14,8 @@ export type EventTeamApi = {
   start(event: PilgrimageEvent): { ok: true } | { ok: false; reason: 'too_few' | 'not_recruiting' | 'no_team' };
   leave(eventId: string, userId: string): boolean;
   claim(event: PilgrimageEvent): boolean;
+  /** The arrival ceremony for the next unseen spot has been shown. */
+  acknowledgeSpot(eventId: string): void;
 };
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -26,7 +28,7 @@ const emit = () => listeners.forEach(fn => fn());
 const mockApi: EventTeamApi = {
   get: eventId => teams.get(eventId) ?? null,
   create(event, me) {
-    const team: EventTeam = { code: randomCode(), status: 'recruiting', members: [{ ...me, steps: 0 }], claimed: false };
+    const team: EventTeam = { code: randomCode(), status: 'recruiting', members: [{ ...me, steps: 0 }], claimed: false, seen: 0 };
     teams.set(event.id, team);
     emit();
     return team;
@@ -66,6 +68,12 @@ const mockApi: EventTeamApi = {
     teams.set(event.id, { ...team, status: 'cleared', claimed: true });
     emit();
     return true;
+  },
+  acknowledgeSpot(eventId) {
+    const team = teams.get(eventId);
+    if (!team) return;
+    teams.set(eventId, { ...team, seen: team.seen + 1 });
+    emit();
   },
 };
 

@@ -45,7 +45,8 @@ import { EventMap } from './src/components/EventScreen';
 import { EventBookSheet, EventCollection, EventGachaSheet, EVENT_COLLECTION_PAGES } from './src/components/EventBook';
 import { TOKI_MEGURU } from './src/data/events';
 import { eventProgress, teamSteps } from './src/services/eventTeam';
-import { useEventTeam } from './src/services/eventTeamStore';
+import { eventTeamApi, useEventTeam } from './src/services/eventTeamStore';
+import { EVENT_GOSHUIN_IMAGES, EVENT_KEYCHAIN_IMAGES } from './src/data/eventImages';
 import { HomeStatusBar } from './src/components/HomeStatusBar';
 import { FeatureTour, TourAnchor } from './src/components/FeatureTour';
 import type { TourSelection } from './src/data/featureTour';
@@ -384,7 +385,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Already holding this goshuin (another lap, or the same shrine in another route) makes the visit short.
   const pendingGoshuinOwned = !!pending && (progress.lapBase !== undefined || Object.entries(routeRecords).some(([routeId, record]) => routeId !== activeRoute?.id && record.rewards.some(reward => reward.id === pending.id)));
   // Not while the first-run tutorial is guiding the player: closing the award jumps to the book, which would strand the tutorial on the wrong screen.
-  const awardVisible = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal;
+  const awardVisibleBase = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal;
+  // The team reaching an event spot plays the same arrival ceremony as a pilgrimage stop, once the ordinary one and the event screen are out of the way.
+  const eventAwardSpot = eventState && eventTeam && eventTeam.seen < eventState.reached ? TOKI_MEGURU.spots?.[eventTeam.seen] ?? null : null;
+  const eventAwardVisible = !!eventAwardSpot && !awardVisibleBase && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !gachaOpen;
+  const awardVisible = awardVisibleBase;
   // Like a UITabBarController, each tab keeps the sub-screen it was left on.
   // Local testing: closing the omikuji after a draw makes it drawable again (see devUnlock.ts).
   useEffect(() => { if (firstRunStage === 'presentBox') { setOmikujiModal(false); setMobbyMenuOpen(false); setSocialSheet('presents'); } }, [firstRunStage]);
@@ -1108,6 +1113,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <Button title="次の巡礼へ進む" icon="map-outline" onPress={advanceToNextRoute} />
       </View></View></View>}
     </Modal>
+    <Modal visible={eventAwardVisible} animationType="fade" onRequestClose={() => {}}>{eventAwardVisible && eventAwardSpot && eventState && <PilgrimageAward key={`event-${eventAwardSpot.id}`} shrine={{ id: eventAwardSpot.id, name: eventAwardSpot.name, theme: `${eventAwardSpot.chapter} · ${eventAwardSpot.miniature}` }} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={false} haptics={data.haptics} stopIndex={eventTeam?.seen ?? 0} special={journey.special} event={{ name: TOKI_MEGURU.name, goshuinImage: EVENT_GOSHUIN_IMAGES[eventAwardSpot.id], keychainImage: EVENT_KEYCHAIN_IMAGES[eventAwardSpot.id], reached: (eventTeam?.seen ?? 0) + 1, total: TOKI_MEGURU.spots?.length ?? 0, complete: (eventTeam?.seen ?? 0) + 1 >= (TOKI_MEGURU.spots?.length ?? 0), reward: TOKI_MEGURU.reward }} onArrive={() => {}} onRedeemKeychainTicket={() => {}} onClose={() => eventTeamApi.acknowledgeSpot(TOKI_MEGURU.id)} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); setFeatured(index); move('home'); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
   </SafeAreaView></View>;
 }

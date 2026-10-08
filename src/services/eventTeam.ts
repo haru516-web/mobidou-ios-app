@@ -7,7 +7,8 @@ import type { EventSpot, PilgrimageEvent } from '../data/events';
 
 export type TeamStatus = 'recruiting' | 'active' | 'cleared';
 export type TeamMember = { id: string; name: string; petId: string; steps: number };
-export type EventTeam = { code: string; status: TeamStatus; members: TeamMember[]; claimed: boolean };
+/** `seen`: how many reached spots the arrival ceremony has already been shown for. */
+export type EventTeam = { code: string; status: TeamStatus; members: TeamMember[]; claimed: boolean; seen: number };
 
 /** Team code alphabet: same as friend codes (no 0/O/1/I). */
 const CODE = /^[A-HJ-NP-Z2-9]{6}$/;
