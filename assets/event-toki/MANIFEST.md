@@ -143,3 +143,11 @@ Each side tag carries one black subject pictogram, no text. All eight are 1024×
 | keychains/keychain-heisei-century-v1-transparent.webp | 1024×1536 | 406292 | yes | previews/keychain-heisei-century.webp |
 
 E all-eight review: `previews/keychains-all.webp` (1104×868).
+
+## F generated goshuin inventory
+
+All eight include the shrine name, subject seal and lower-left もび seal. Showa five use strong yellow washi; Heisei three use brighter whiter washi. 1024×1536 opaque WebP quality 90. No cropping/nine-slice. Small stamp was generated toward reference bbox (51,1309)-(170,1468); a 10–20px variation remains on some images. Exact source-stamp compositing is awaiting explicit user choice.
+
+| File | Dimensions | Bytes | Alpha | Preview |
+|---|---|---:|---|---|
+| goshuin/showa-shoutengai.webp | 1024×1536 | 523298 | no | previews/goshuin-showa-shoutengai.webp |
