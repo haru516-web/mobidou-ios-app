@@ -2,7 +2,7 @@
 
 Branch: `codex/event-assets`; base: `639cf695f4b05e97006e27c850ad4d893eb70d57` (`claude/events`).
 
-Generated with the built-in image_gen tool. WebP quality 90; alpha retained. No nine-slice. Buttons: generated alpha bounds normalized to reference bounds (14,21)-(500,497) on 512x512 canvas; no artwork clipping. Previews are review-only. A/B approved. C/D and first E/F samples await user approval; the remaining seven keychains and seven goshuin are not generated.
+Generated with the built-in image_gen tool. WebP quality 90; alpha retained. No nine-slice. Buttons: generated alpha bounds normalized to reference bounds (14,21)-(500,497) on 512x512 canvas; no artwork clipping. Previews are review-only. A–D approved. E all eight complete. F all eight generated; exact reference-stamp compositing awaits user choice.
 
 ## Assets
 
@@ -103,9 +103,9 @@ Use case: precise-object-edit. Edit reference reward wooden tag. Keep EXACT refe
 
 | File | Dimensions | Bytes | Alpha |
 |---|---|---:|---|
-| keychains/keychain-showa-shoutengai-v1-transparent.webp | 1024×1536 | 363372 | yes |
-| previews/keychain-showa-shoutengai.webp | 512×768 | 119228 | yes |
-| previews/compare-keychain-showa-shoutengai.webp | 800×640 | 93844 | no |
+| keychains/keychain-showa-shoutengai-v1-transparent.webp | 1024×1536 | 317536 | yes |
+| previews/keychain-showa-shoutengai.webp | 512×768 | 114834 | yes |
+| previews/compare-keychain-showa-shoutengai.webp | 800×640 | 94370 | no |
 
 Reference: `assets/collection/keychains/keychain-akane-v1-transparent.webp`.
 
@@ -117,12 +117,20 @@ Use case: product-mockup. Edit reference into one original nostalgic tin toy sed
 
 | File | Dimensions | Bytes | Alpha |
 |---|---|---:|---|
-| goshuin/showa-shoutengai.webp | 1024×1536 | 641418 | no |
-| previews/goshuin-showa-shoutengai.webp | 512×768 | 186216 | no |
-| previews/compare-goshuin-showa-shoutengai.webp | 800×640 | 185740 | no |
+| goshuin/showa-shoutengai.webp | 1024×1536 | 523298 | no |
+| previews/goshuin-showa-shoutengai.webp | 512×768 | 177308 | no |
+| previews/compare-goshuin-showa-shoutengai.webp | 800×640 | 183820 | no |
 
 Reference: `assets/goshuin/akane.webp`.
 
 Final prompt:
 
 Use case: illustration-story. Edit reference into an original fictional goshuin for ひだまり商店街の小社. Portrait 1024x1536 opaque. Match reference warm yellowed fibrous washi paper, bold dry-brush black calligraphy down left side, large distressed vermilion circular seal behind writing, layered woodblock watercolor scenery on right and lower region. Remove existing character and existing text completely. EXACT only permitted black ink text, written vertically in two parallel readable columns (right column first): right column 『ひだまり商店街』, left column 『の小社』. Together reads exactly ひだまり商店街の小社. No other writing, no date, no imitation seal text. Red circular seal contains a SMALL simplified generic round-headlight tin sedan motif instead of letters. Right-side scenery a peaceful fictional Showa shopping street with blank cloth awnings and warm sunlight, a tiny original shrine roof shadow, charming unbranded tin toy sedan vignette at lower right with indigo body and gold trim. No fuzzy mascot; thematic collectible is sedan. Add subtle fine indigo #2F4A6B edge and muted gold #C9A24B accent, keep sacred ink/seal and reference paper/art composition dominant. Fictional original sedan, no real car model, logo, manufacturer, carrier, recognizable real shrine, delinquent or biker depictions. Only the prescribed goshuin black ink name may be text.
+
+## E final keychain inventory
+
+Each side tag carries one black subject pictogram, no text. All eight are 1024×1536 transparent WebP quality 90. No cropping/nine-slice. Built-in image_gen; approved miniature construction and finish used as reference.
+
+| File | Dimensions | Bytes | Alpha | Preview |
+|---|---|---:|---|---|
+| keychains/keychain-showa-shoutengai-v1-transparent.webp | 1024×1536 | 317536 | yes | previews/keychain-showa-shoutengai.webp |
