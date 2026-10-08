@@ -137,3 +137,4 @@ Each side tag carries one black subject pictogram, no text. All eight are 1024×
 | keychains/keychain-showa-toge-v1-transparent.webp | 1024×1536 | 395768 | yes | previews/keychain-showa-toge.webp |
 | keychains/keychain-showa-drivein-v1-transparent.webp | 1024×1536 | 375940 | yes | previews/keychain-showa-drivein.webp |
 | keychains/keychain-showa-sento-v1-transparent.webp | 1024×1536 | 329904 | yes | previews/keychain-showa-sento.webp |
+| keychains/keychain-showa-record-v1-transparent.webp | 1024×1536 | 441158 | yes | previews/keychain-showa-record.webp |
