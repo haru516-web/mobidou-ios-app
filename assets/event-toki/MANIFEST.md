@@ -154,3 +154,4 @@ All eight include the shrine name, subject seal and lower-left もび seal. Show
 | goshuin/showa-toge.webp | 1024×1536 | 537582 | no | previews/goshuin-showa-toge.webp |
 | goshuin/showa-drivein.webp | 1024×1536 | 592730 | no | previews/goshuin-showa-drivein.webp |
 | goshuin/showa-sento.webp | 1024×1536 | 521268 | no | previews/goshuin-showa-sento.webp |
+| goshuin/showa-record.webp | 1024×1536 | 570286 | no | previews/goshuin-showa-record.webp |
