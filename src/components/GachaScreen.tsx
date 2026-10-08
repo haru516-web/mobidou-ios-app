@@ -106,6 +106,8 @@ type Props = {
   guided?: boolean;
   /** Open on the shop tab (the + beside the 木札 or the pass on the home screen). */
   startOnShop?: boolean;
+  /** Button for the event gacha, shown in the free corner while choosing how to draw. */
+  eventButton?: React.ReactNode;
 };
 
 /** Render supplied artwork without stretching its canvas. */
@@ -115,7 +117,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false }: Props) {
+export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false, eventButton }: Props) {
   useSceneBgm('bgm_gacha', true, 20);
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
   // The lobby is where the player picks how many to draw; the cord only works once a draw has been chosen. The first-run guide goes straight to the cord.
@@ -595,6 +597,8 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
     {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} miniaturePasses={passes} plusActive={plusActive} show="shopRight" /></View>}
     {!guided && !playing && <View pointerEvents="box-none" style={[S.statusLeft, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} premiumTickets={premiumPulls} miniaturePasses={passes} plusActive={plusActive} show="shopLeft" /></View>}
 
+    {!guided && !playing && !!eventButton && <View pointerEvents="box-none" style={[S.eventButton, { top: 96 + insets.top }]}>{eventButton}</View>}
+
     {/* Once the Mobby has been revealed, one tap shows it large and another tap puts it back. */}
     {canZoom && <Pressable accessibilityRole="button" accessibilityLabel={zoomed ? 'モビーを小さく戻す' : 'モビーを大きく見る'} onPress={() => setZoomed(value => !value)} style={StyleSheet.absoluteFillObject}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#05030A', opacity: .78 * zoomT }]} />
@@ -674,7 +678,7 @@ const S = StyleSheet.create({
   ropeHintText: { textAlign: 'center', color: '#FFF8E9', fontFamily: BRUSH, fontSize: 30, letterSpacing: 2, textShadowColor: '#000000CC', textShadowRadius: 8 },
   skip: { position: 'absolute', right: 16, minWidth: 96, minHeight: 36, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
   skipText: { color: '#8F3F36', fontFamily: BRUSH, fontSize: 14, letterSpacing: 1 },
-  status: { position: 'absolute', right: 12, zIndex: 5 }, statusLeft: { position: 'absolute', left: 12, zIndex: 5 },
+  status: { position: 'absolute', right: 12, zIndex: 5 }, statusLeft: { position: 'absolute', left: 12, zIndex: 5 }, eventButton: { position: 'absolute', right: 12, zIndex: 5 },
   tabs: { position: 'absolute', left: 0, right: 0, top: 76, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   tabGap: { width: 56 },
   tab: { minWidth: 104, minHeight: 40, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },

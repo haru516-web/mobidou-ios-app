@@ -40,6 +40,12 @@ import { HomeGoshuinArtwork, HomeMapArtwork, HomeOmikujiArtwork, HomeStepsArtwor
 import { StepProgressRing } from './src/components/StepProgressRing';
 import { FloatingMobby, type MobbyMenuItem, type MobbySpot } from './src/components/FloatingMobby';
 import { PopButton } from './src/components/PopButton';
+import { EventScreen } from './src/components/EventScreen';
+import { EventMap } from './src/components/EventScreen';
+import { EventBookSheet, EventCollection, EventGachaSheet, EVENT_COLLECTION_PAGES } from './src/components/EventBook';
+import { TOKI_MEGURU } from './src/data/events';
+import { eventProgress, teamSteps } from './src/services/eventTeam';
+import { useEventTeam } from './src/services/eventTeamStore';
 import { HomeStatusBar } from './src/components/HomeStatusBar';
 import { FeatureTour, TourAnchor } from './src/components/FeatureTour';
 import type { TourSelection } from './src/data/featureTour';
@@ -307,6 +313,18 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [gifts, setGifts] = useState<readonly Gift[]>([]);
   const [receivedGiftIds, setReceivedGiftIds] = useState<ReadonlySet<string>>(new Set());
   const [mapOpen, setMapOpen] = useState(false);
+  // Event mode: the walk and collection tabs can switch to the event's version (the team's steps, map and things).
+  const [eventWalk, setEventWalk] = useState(false);
+  const [eventCollection, setEventCollection] = useState(false);
+  const [eventCollectionPage, setEventCollectionPage] = useState<'room' | 'goshuin' | 'miniatures'>('room');
+  const [eventSheet, setEventSheet] = useState<null | 'main' | 'book' | 'gacha'>(null);
+  const eventTeam = useEventTeam(TOKI_MEGURU.id);
+  const eventUnderway = !!eventTeam && eventTeam.status !== 'recruiting';
+  const eventState = eventUnderway ? eventProgress(TOKI_MEGURU, teamSteps(eventTeam)) : null;
+  const inEventWalk = eventWalk && eventUnderway;
+  const inEventCollection = eventCollection && eventUnderway;
+  // Without a team that has set out there is nothing to show yet, so the event buttons open the event screen to make or join one.
+  const enterEvent = (set: (on: boolean) => void) => { if (eventUnderway) set(true); else setEventSheet('main'); };
   const [collectionPage, setCollectionPage] = useState<CollectionPage>('room');
   const [navHeight, setNavHeight] = useState(60);
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
@@ -795,7 +813,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <View style={S.header}>
       {tab === 'home'
         ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
-        : tab === 'walk' ? <View /> : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
+        : tab === 'walk' ? <View />
+        : tab === 'collection' ? (inEventCollection
+          ? <PopButton id="eventNormal" label="通常" icon="home" size={54} phase={0} onPress={() => setEventCollection(false)} />
+          : <PopButton id="eventCollection" label="イベント" icon="flag" size={54} phase={0} onPress={() => enterEvent(setEventCollection)} />)
+        : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
         {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} premiumTickets={data.mobbies.paidTickets} miniaturePasses={journey.special.passes.keychainDrop} plusActive={data.keychainPlan === 'plus'} onAddTickets={openGachaShop} onAddPasses={openGachaShop} />}
         {data.demo && <Pressable plate="pill" artwork={false} accessibilityRole="button" accessibilityLabel="体験モード中。タップで体験を終えて実記録にもどる" onPress={() => journey.enter(false)} style={S.demoBadge}><View style={S.dot} /><Text style={S.demoBadgeText}>体験中</Text><Icon name="close" size={13} color="#8A6950" /></Pressable>}
@@ -817,6 +839,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               </TutorialTarget>
             </TourAnchor>
           </>}
+        {firstRunStage === null && hasStarter(data.mobbies) && <View pointerEvents="box-none" style={[S.homeEventButton, { top: (homeCompanionLayout?.y ?? 80) + (homeCompanionLayout?.height ?? 220) * .38 }]}><PopButton id="eventHome" label="イベント" icon="flag" size={58} phase={.3} onPress={() => setEventSheet('main')} /></View>}
         <View style={S.homeCardGroup} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCardGroupLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>
           {firstRunStage !== 'homeOmikuji' && <TourAnchor id="home-steps" style={S.homeStepsSlot} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeStepsSlotLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>{renderHomeStepsCard()}</TourAnchor>}
           <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby' ? true : undefined} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
@@ -827,6 +850,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
       {tab === 'book' && <>
         <View style={[S.pageTop, S.bookTop]}>
+          <View style={S.bookEventSlot}><PopButton id="eventBook" label="イベント" icon="book" size={54} phase={.5} onPress={() => setEventSheet('book')} /></View>
           <TourAnchor id="book-top" style={S.tourPair}>
             <PopButton id="bookIndex" label="目次" icon="list" size={54} phase={0} onPress={() => setBookIndexOpen(true)} />
           </TourAnchor>
@@ -847,14 +871,26 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       {tab === 'walk' && <>
         <View style={S.pageTop}>
           {/* Same width as the button on the right, so the name sits in the middle of the screen as on the goshuin book page. */}
-          {activeRoute && <View style={{ width: 54 }} />}
+          {inEventWalk
+            ? <PopButton id="eventNormal" label="通常" icon="home" size={54} phase={.5} onPress={() => { setEventWalk(false); setMapOpen(false); }} />
+            : <PopButton id="eventWalk" label="イベント" icon="flag" size={54} phase={.5} onPress={() => { setMapOpen(false); enterEvent(setEventWalk); }} />}
           <View style={[S.pageTopText, S.pageTopPlate, { alignItems: 'center' }]}><WashiArt />
-            <Text style={S.pageEyebrow}>{mapOpen ? '巡礼絵図' : '今日の歩数'}</Text>
-            <Text numberOfLines={2} style={[S.pageLead, { textAlign: 'center' }]}>{activeRoute?.name ?? '巡礼を選びましょう'}</Text>
+            <Text style={S.pageEyebrow}>{inEventWalk ? (mapOpen ? 'イベント絵図' : 'チーム合計の歩数') : mapOpen ? '巡礼絵図' : '今日の歩数'}</Text>
+            <Text numberOfLines={2} style={[S.pageLead, { textAlign: 'center' }]}>{inEventWalk ? TOKI_MEGURU.name : activeRoute?.name ?? '巡礼を選びましょう'}</Text>
           </View>
-          {activeRoute && <TourAnchor id="walk-top"><PopButton id="walkMap" label={mapOpen ? '歩数' : '絵図'} icon={mapOpen ? 'footsteps' : 'map'} size={54} phase={0} onPress={() => setMapOpen(open => !open)} /></TourAnchor>}
+          {(activeRoute || inEventWalk) && <TourAnchor id="walk-top"><PopButton id="walkMap" label={mapOpen ? '歩数' : '絵図'} icon={mapOpen ? 'footsteps' : 'map'} size={54} phase={0} onPress={() => setMapOpen(open => !open)} /></TourAnchor>}
         </View>
-        {mapOpen && activeRoute
+        {inEventWalk && eventState
+          ? <View style={[S.walkMinimal, { marginTop: -12 }]}>
+            {mapOpen
+              ? <EventMap event={TOKI_MEGURU} steps={eventState.steps} pet={pet} maxHeight={Math.max(300, scrollViewportHeight - 60)} />
+              : <>
+                <StepProgressRing steps={eventState.steps} goal={eventState.next?.at ?? TOKI_MEGURU.goalSteps ?? 1} size={walkRingSize} />
+                <PillText textStyle={S.walkCaption}>{eventState.cleared ? '結願しました。イベント画面で報酬を受け取りましょう。' : eventState.next ? `次は ${eventState.next.name} · あと ${fmt(eventState.next.at - eventState.steps)}歩` : ''}</PillText>
+                <View style={S.nextPilgrimageAction}><Button title="イベントの画面をひらく" icon="flag-outline" onPress={() => setEventSheet('main')} style={S.walkActionButton} /></View>
+              </>}
+          </View>
+        : mapOpen && activeRoute
           ? <View style={[S.walkMinimal, { marginTop: -12 }]}>
             <RouteMap route={activeRoute} count={view.rewards.length} progress={view} pet={pet} showSpeech viewportHeight={Math.max(300, scrollViewportHeight - 60)} onStop={(shrine, index) => { setFeatured(index); openDetail(shrine); }} />
           </View>
@@ -875,7 +911,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           </View>}
       </>}
 
-      {tab === 'collection' && <>
+      {tab === 'collection' && inEventCollection && <>
+        <View style={[S.jumpRow, { marginTop: 10 }]}>
+          {EVENT_COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : 'collectionMiniature'} label={entry.label} icon={entry.icon === 'cube' ? 'cube' : entry.icon} size={48} phase={index / 4} selected={eventCollectionPage === entry.id} onPress={() => setEventCollectionPage(entry.id)} style={{ flex: 1 }} />)}
+        </View>
+        <EventCollection event={TOKI_MEGURU} page={eventCollectionPage} />
+      </>}
+      {tab === 'collection' && !inEventCollection && <>
         <TourAnchor id="collection-tabs" style={S.jumpRow}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />)}
         </TourAnchor>
@@ -897,6 +939,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
+    <EventScreen visible={eventSheet === 'main'} onClose={() => setEventSheet(null)} event={TOKI_MEGURU} pet={pet} />
+    <EventBookSheet visible={eventSheet === 'book'} onClose={() => setEventSheet(null)} event={TOKI_MEGURU} />
+    <EventGachaSheet visible={eventSheet === 'gacha'} onClose={() => setEventSheet(null)} event={TOKI_MEGURU} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
     <BookIndexPopup visible={bookIndexOpen} title="目次" subtitle={activeRoute?.name} shrines={activeShrines} ownedIds={collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
     {firstRunStage === 'homeCompanion' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="1 / 7" title="ホームのモビーとふれあおう" detail="ほっぺを引っぱると伸びるよ。タップで二礼二拍手一礼。" />}
@@ -1053,7 +1098,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <ConnectStepsPrompt visible={firstRunStage === 'connectSteps'} busy={journey.busy} error={journey.error} onConnect={() => void journey.connect().then(() => setFirstRunStage(null))} onLater={() => setFirstRunStage(null)} />
     {weeklyOpen && <WeeklyReview visible summary={weeklySummary} petName={pet.name} petImage={pet.image} places={weeklyPlaces} onClose={() => { journey.markWeekSeen(weekStartDay()); setWeeklyOpen(false); }} />}
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
-    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} premiumPulls={data.mobbies.paidTickets} paidPulls={data.mobbies.paidPulls} passes={journey.special.passes.keychainDrop} refundDebt={refundDebt} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={drawTickets} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={ticketCount(data.mobbies)} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={firstRunStage !== 'gacha'} startOnShop={gachaOnShop} onBuy={buyProduct} onRestore={restorePurchases} plusActive={data.keychainPlan === 'plus'} />}</Modal>
+    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} premiumPulls={data.mobbies.paidTickets} paidPulls={data.mobbies.paidPulls} passes={journey.special.passes.keychainDrop} refundDebt={refundDebt} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={drawTickets} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={ticketCount(data.mobbies)} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={firstRunStage !== 'gacha'} startOnShop={gachaOnShop} onBuy={buyProduct} onRestore={restorePurchases} plusActive={data.keychainPlan === 'plus'} eventButton={<PopButton id="eventGacha" label="イベント" icon="flag" size={54} phase={.2} onPress={() => setEventSheet('gacha')} />} />}</Modal>
     <Modal transparent visible={routeAdvanceVisible} animationType="fade" onRequestClose={() => {}}>
       {routeAdvanceVisible && dueRoute && <View style={S.detailModalBackdrop}><View style={S.routeAdvanceWrap}><View accessibilityViewIsModal style={S.routeAdvanceCard}>
         <Image source={GOSHUIN_DETAIL_BACKGROUND} contentFit="cover" style={StyleSheet.absoluteFillObject} accessible={false} pointerEvents="none" />
@@ -1117,6 +1162,8 @@ const S = StyleSheet.create({
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 110, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF9EFE6' }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 },
   nextPilgrimageAction: { position: 'relative', alignSelf: 'stretch', alignItems: 'center', paddingTop: 56, marginTop: 58 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
   tourPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  homeEventButton: { position: 'absolute', left: 10, zIndex: 25 },
+  bookEventSlot: { marginRight: 'auto' },
   walkMinimal: { flex: 1, alignItems: 'center', paddingTop: 2, paddingBottom: 6 },
   detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 12, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: BRUSH, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: BRUSH, fontSize: 19, color: C.red, textAlign: 'center' }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 26, color: '#6D6354', textAlign: 'center', marginTop: 8 },   detailModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#241D17A8' }, detailPopupLayout: { ...StyleSheet.absoluteFillObject, zIndex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 }, detailPopupCard: { position: 'relative', width: '90%', maxWidth: 500, height: '88%', maxHeight: 820, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#201810', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .3, shadowRadius: 22, elevation: 16 }, detailPopupScroll: { flex: 1 }, detailPopupContent: { paddingHorizontal: 22, paddingTop: 52, paddingBottom: 18 }, detailPopupEdit: { position: 'absolute', top: 12, left: 12, zIndex: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' },
   routeAdvanceWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }, routeAdvanceCard: { width: '100%', maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', backgroundColor: C.paper, overflow: 'hidden', padding: 28, gap: 12, alignItems: 'center' },

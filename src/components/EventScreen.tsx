@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import { Image } from './AppImage';
 import type { PilgrimageEvent } from '../data/events';
-import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
+import { EVENT_MAP_IMAGE } from '../data/eventImages';
 import type { PetCharacter } from '../petCatalog';
 import { BRUSH, Button, C, Icon } from '../components';
 import { PaperCard, WashiArt, WashiPressable as Pressable } from './Washi';
@@ -25,41 +25,37 @@ const JOIN_MESSAGES: Record<JoinFailure, string> = {
 
 type Pet = Pick<PetCharacter, 'id' | 'image' | 'name'>;
 
-/** The winding road: fixed anchors laid out for up to eight spots, left to right and bottom to top. */
-function spotPoints(count: number, width: number, height: number) {
-  const anchors = [{ x: .1, y: .84 }, { x: .34, y: .72 }, { x: .16, y: .56 }, { x: .42, y: .46 }, { x: .72, y: .54 }, { x: .84, y: .36 }, { x: .6, y: .22 }, { x: .86, y: .1 }];
-  return Array.from({ length: count }, (_, i) => {
-    const t = count <= 1 ? 0 : i / (count - 1) * (anchors.length - 1);
-    const a = anchors[Math.floor(t)], b = anchors[Math.min(anchors.length - 1, Math.floor(t) + 1)], m = t - Math.floor(t);
-    return { x: (a.x + (b.x - a.x) * m) * width, y: (a.y + (b.y - a.y) * m) * height };
-  });
-}
+/** Where the 8 spots sit on the map art (fractions of its width and height), bottom-left to top-right. */
+const SPOT_ANCHORS = [{ x: .10, y: .84 }, { x: .34, y: .72 }, { x: .16, y: .56 }, { x: .42, y: .46 }, { x: .72, y: .54 }, { x: .84, y: .36 }, { x: .60, y: .22 }, { x: .86, y: .10 }];
 
-function EventMap({ event, steps, pet }: { event: PilgrimageEvent; steps: number; pet: Pet }) {
-  const [width, setWidth] = useState(310);
+/** The map art is 2:3; it is drawn as large as fits in `maxHeight` and the spots follow the road painted into it. */
+export function EventMap({ event, steps, pet, maxHeight }: { event: PilgrimageEvent; steps: number; pet: Pet; maxHeight: number }) {
+  const [available, setAvailable] = useState(310);
   const spots = event.spots ?? [];
-  const height = 210;
+  const width = Math.max(120, Math.min(available, maxHeight / 1.5));
+  const height = width * 1.5;
   const progress = eventProgress(event, steps);
-  const points = spotPoints(spots.length, width, height);
+  const points = spots.map((_, i) => ({ x: SPOT_ANCHORS[Math.min(i, SPOT_ANCHORS.length - 1)].x * width, y: SPOT_ANCHORS[Math.min(i, SPOT_ANCHORS.length - 1)].y * height }));
   const from = points[Math.max(0, progress.reached - 1)] ?? points[0];
   const to = points[Math.min(points.length - 1, progress.reached)] ?? from;
-  // Before the first spot the moby walks in from the first stop's own position; after the last it stands on it.
-  const here = progress.next ? { x: from.x + (to.x - from.x) * progress.ratio, y: from.y + (to.y - from.y) * progress.ratio } : points[points.length - 1];
-  const road = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  return <View onLayout={e => setWidth(Math.round(e.nativeEvent.layout.width))} style={[S.map, { height }]}>
-    <Image source={PILGRIMAGE_MAP_IMAGE} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-    <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={StyleSheet.absoluteFill}>
-      <Path d={road} fill="none" stroke="#9A6B4C" strokeWidth={3} strokeDasharray="2 7" strokeLinecap="round" opacity={.7} />
-      {points.map((p, i) => {
-        const reached = i < progress.reached, next = i === progress.reached && !progress.cleared;
-        return <React.Fragment key={spots[i].id}>
-          <Circle cx={p.x} cy={p.y} r={next ? 13 : 11} fill={reached ? '#B5432F' : '#FFF9EB'} stroke={next ? '#B5432F' : '#9A6B4C'} strokeWidth={next ? 3 : 1.5} />
-          <SvgText x={p.x} y={p.y + 4} fontSize={11} fontWeight="700" textAnchor="middle" fill={reached ? '#FFF4DE' : '#6B5A46'}>{reached ? '✓' : i + 1}</SvgText>
-        </React.Fragment>;
-      })}
-    </Svg>
-    <View pointerEvents="none" accessibilityLabel={`${pet.name}の現在地`} style={[S.mapPet, { left: here.x - 22, top: here.y - 52 }]}><Image source={pet.image} contentFit="contain" style={S.mapPetImage} /></View>
-    <Text style={S.mapStatus}>チーム合計 {progress.steps.toLocaleString()}歩</Text>
+  // Before the first spot the moby stands on it; after the last it stays there.
+  const here = progress.next && progress.reached > 0 ? { x: from.x + (to.x - from.x) * progress.ratio, y: from.y + (to.y - from.y) * progress.ratio } : points[progress.next ? 0 : points.length - 1] ?? from;
+  const scale = width / 310;
+  return <View onLayout={e => setAvailable(Math.round(e.nativeEvent.layout.width))} style={{ width: '100%', alignItems: 'center' }}>
+    <View style={[S.map, { width, height }]}>
+      <Image source={EVENT_MAP_IMAGE} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+      <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={StyleSheet.absoluteFill}>
+        {points.map((p, i) => {
+          const reached = i < progress.reached, next = i === progress.reached && !progress.cleared;
+          return <React.Fragment key={spots[i].id}>
+            <Circle cx={p.x} cy={p.y} r={(next ? 13 : 11) * scale} fill={reached ? '#2F4A6B' : '#FFF9EB'} stroke={next ? '#C9A24B' : '#2F4A6B'} strokeWidth={(next ? 3 : 1.5) * scale} />
+            <SvgText x={p.x} y={p.y + 4 * scale} fontSize={11 * scale} fontWeight="700" textAnchor="middle" fill={reached ? '#FFF4DE' : '#2F4A6B'}>{reached ? '✓' : i + 1}</SvgText>
+          </React.Fragment>;
+        })}
+      </Svg>
+      <View pointerEvents="none" accessibilityLabel={`${pet.name}の現在地`} style={[S.mapPet, { left: here.x - 22, top: here.y - 50 }]}><Image source={pet.image} contentFit="contain" style={S.mapPetImage} /></View>
+      <Text style={S.mapStatus}>チーム合計 {progress.steps.toLocaleString()}歩</Text>
+    </View>
   </View>;
 }
 
@@ -128,7 +124,7 @@ export function EventScreen({ visible, onClose, event, pet }: { visible: boolean
     </View>);
   } else {
     const progress = eventProgress(event, teamSteps(team));
-    body.push(<View key="map"><EventMap event={event} steps={progress.steps} pet={pet} />
+    body.push(<View key="map"><EventMap event={event} steps={progress.steps} pet={pet} maxHeight={330} />
       <Text style={S.target}>{progress.cleared ? '結願。時をめぐる旅が終わりました。' : progress.next ? `次は「${progress.next.name}」· あと${(progress.next.at - progress.steps).toLocaleString()}歩` : ''}</Text>
     </View>);
     body.push(<PaperCard key="collected">
@@ -176,7 +172,7 @@ const S = StyleSheet.create({
   secondarySmallText: { color: C.red, fontFamily: BRUSH, fontSize: 13 },
   leave: { alignSelf: 'center', minHeight: 38, paddingHorizontal: 14, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D6BFB0' },
   disabled: { opacity: .45 },
-  map: { width: '100%', overflow: 'hidden', borderRadius: 12, backgroundColor: '#F2E7CF' },
+  map: { overflow: 'hidden', borderRadius: 12, backgroundColor: '#F2E7CF' },
   mapPet: { position: 'absolute', width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   mapPetImage: { width: 40, height: 40 },
   mapStatus: { position: 'absolute', right: 10, bottom: 10, fontSize: 11, color: '#4E4034', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7, overflow: 'hidden', backgroundColor: '#FBF4E4F2' },

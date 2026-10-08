@@ -3,7 +3,6 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Image } from './AppImage';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 import { PILGRIMAGES, type Pilgrimage } from '../data/pilgrimages';
-import { EventSlot } from './EventSlot';
 import { PILGRIMAGE_IMAGES } from '../data/pilgrimageImages';
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from '../data/pilgrimagePeekImages';
@@ -152,7 +151,6 @@ export function PilgrimagePicker({ activeId, onSelect, onClose, records, pet, gu
         <Text key="lead" style={S.body}>{guidedRouteId ? 'さまざまな巡礼マップがあります。最初は「木漏れ日の奥宮へ」から始めましょう。' : '森の奥へ。雲の上へ。それとも、いつもの社へ。\n今の気持ちに合う巡礼を選んでください。'}</Text>
         {rows.map((row, rowIndex) => <View key={`row-${rowIndex}`} style={S.gridRow}>{row.map((route, column) => routeCard(route, rowIndex * 2 + column))}</View>)}
         <Text key="note" style={S.small}>登場する寺社や景色は、もびの世界の創作です。</Text>
-        <EventSlot key="event-slot" pet={pet} />
       </>}
     </PagedBody>
     {preview && <View style={[S.footer, bare && S.footerBare]}>
