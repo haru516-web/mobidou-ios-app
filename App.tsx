@@ -49,7 +49,7 @@ import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
 import { eventProgress, teamSteps } from './src/services/eventTeam';
-import { eventTeamApi, useEventTeam } from './src/services/eventTeamStore';
+import { devEventTeam, eventTeamApi, useEventTeam } from './src/services/eventTeamStore';
 import { EVENT_GOSHUIN_IMAGES, EVENT_KEYCHAIN_IMAGES } from './src/data/eventImages';
 import { HomeStatusBar } from './src/components/HomeStatusBar';
 import { FeatureTour, TourAnchor } from './src/components/FeatureTour';
@@ -326,6 +326,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [eventSheet, setEventSheet] = useState<null | 'main'>(null);
   const [eventGachaOpen, setEventGachaOpen] = useState(false);
   const eventTeam = useEventTeam(TOKI_MEGURU.id);
+  // Development on the web only: ?event-preview=150000 opens with a team that has already walked that far.
+  useEffect(() => {
+    if (!__DEV__ || Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const raw = new URLSearchParams(window.location.search).get('event-preview');
+    if (!raw) return;
+    const steps = Math.max(0, Math.min(TOKI_MEGURU.goalSteps ?? 0, Number(raw) > 1 ? Number(raw) : 150000));
+    devEventTeam.seedPreview(TOKI_MEGURU, steps, { id: 'me', name: 'あなた', petId: 'mobibou' });
+  }, []);
   const eventUnderway = !!eventTeam && eventTeam.status !== 'recruiting';
   const eventState = eventUnderway ? eventProgress(TOKI_MEGURU, teamSteps(eventTeam)) : null;
   const inEventWalk = eventWalk && eventUnderway;

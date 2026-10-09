@@ -96,6 +96,12 @@ export const devEventTeam = {
     emit();
   },
   reset(eventId: string) { teams.delete(eventId); emit(); },
+  /** A team that has already set out with `steps` walked, its arrival ceremonies already seen: for looking at the screens. */
+  seedPreview(event: PilgrimageEvent, steps: number, me: Omit<TeamMember, 'steps'>) {
+    const reached = eventProgress(event, steps).reached;
+    teams.set(event.id, { code: 'PREVW2', status: 'active', claimed: false, seen: reached, members: [{ ...me, steps: Math.round(steps * .6) }, { id: 'dev-friend', name: '友だち', petId: 'mobibou', steps: steps - Math.round(steps * .6) }] });
+    emit();
+  },
 };
 
 export function useEventTeam(eventId: string): EventTeam | null {
