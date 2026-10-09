@@ -17,12 +17,14 @@ const KEYCHAINS: Record<string, ImageSourcePropType> = {
   'heisei-keitai': require('../../assets/event-toki/keychains/keychain-heisei-keitai-v1-transparent.webp'),
   'heisei-strap': require('../../assets/event-toki/keychains/keychain-heisei-strap-v1-transparent.webp'),
   'heisei-pager': require('../../assets/event-toki/keychains/keychain-heisei-pager-v1-transparent.webp'),
+  'heisei-loose': require('../../assets/event-toki/keychains/keychain-heisei-loose-v1-transparent.webp'),
+  'heisei-boots': require('../../assets/event-toki/keychains/keychain-heisei-boots-v1-transparent.webp'),
   'heisei-century': require('../../assets/event-toki/keychains/keychain-heisei-century-v1-transparent.webp'),
   'heisei-park': require('../../assets/event-toki/keychains/keychain-heisei-park-v1-transparent.webp'),
 };
 const KEYCHAIN_FALLBACK: Record<string, string> = {
   'heisei-md': 'heisei-century', 'heisei-cd': 'heisei-pager', 'heisei-sticker': 'heisei-park', 'heisei-phs': 'heisei-park',
-  'heisei-loose': 'heisei-park', 'heisei-boots': 'heisei-century', 'heisei-digicam': 'heisei-century',
+  'heisei-digicam': 'heisei-century',
 };
 export const EVENT_KEYCHAIN_IMAGES: Record<string, ImageSourcePropType> = { ...KEYCHAINS, ...Object.fromEntries(Object.entries(KEYCHAIN_FALLBACK).map(([id, other]) => [id, KEYCHAINS[other]])) };
 
