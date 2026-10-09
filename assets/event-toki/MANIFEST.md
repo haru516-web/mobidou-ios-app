@@ -247,3 +247,5 @@ Generation prompt (normalized): Portrait 8:9 rounded rectangular mobile-event il
 Final edit prompt: Preserve composition, objects, colors, character identities, road and rounded indigo/gold frame with transparent outside corners. Change only the three central friends into three-quarter rear/side walking poses toward the upper-right pastel shrine, with heads and feet pointing in the travel direction, no looking back at the camera; preserve their large size and side-by-side row. No text, logos or extra embellishments.
 
 Validation: RGBA WebP; alpha range 0-255. Four corner alpha values of the main asset are 0,0,1,0 (the value 1 is a near-transparent antialiasing sample); preview corners are all 0. Visually reviewed the 375px derivative for character count, direction, period-object readability and no lettering. Only the new key visual, its two previews and this manifest are included in its commit; pre-existing changes are retained.
+
+- key-visual.webp: replaced on 2026-10-09 by the variant the user chose (three friends facing front, 1000x1125, alpha). Same 8:9 ratio as the first version.
