@@ -43,6 +43,7 @@ import { PopButton } from './src/components/PopButton';
 import { EventScreen } from './src/components/EventScreen';
 import { EventMap } from './src/components/EventScreen';
 import { EventGachaSheet } from './src/components/EventBook';
+import { EventListPopup } from './src/components/EventListPopup';
 import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
@@ -326,7 +327,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const eventUnderway = !!eventTeam && eventTeam.status !== 'recruiting';
   const eventState = eventUnderway ? eventProgress(TOKI_MEGURU, teamSteps(eventTeam)) : null;
   const inEventWalk = eventWalk && eventUnderway;
-  const inEventCollection = eventCollection && eventUnderway;
+  // The collection can be looked at before the team has set out (everything is still locked).
+  const inEventCollection = eventCollection;
+  const [eventListOpen, setEventListOpen] = useState(false);
+  const eventStatusLabel = !eventTeam ? '参加受付中' : eventTeam.status === 'recruiting' ? 'メンバー募集中' : eventState?.cleared ? '結願' : '巡礼中';
   const inEventBook = eventBook && eventUnderway;
   const collectionShownCount = inEventCollection ? EVENT_SHRINES.length : COLLECTION_SHRINES.length;
   const eventReached = eventState?.reached ?? 0;
@@ -931,7 +935,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       {tab === 'collection' && <>
         <View style={S.collectionModes}>
           <PopButton id="eventNormal" label="通常" icon="home" plaqueOnly selected={!inEventCollection} faded={inEventCollection} onPress={() => { setCollectionPage('room'); setEventCollection(false); }} />
-          <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => { setCollectionPage('room'); enterEvent(setEventCollection); }} />
+          <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => setEventListOpen(true)} />
         </View>
         <TourAnchor id="collection-tabs" style={S.jumpRow}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />)}
@@ -955,6 +959,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
     <EventScreen visible={eventSheet === 'main'} onClose={() => setEventSheet(null)} event={TOKI_MEGURU} pet={pet} />
+    <EventListPopup visible={eventListOpen} onClose={() => setEventListOpen(false)} event={TOKI_MEGURU} statusLabel={eventStatusLabel} onViewCollection={() => { setEventListOpen(false); setCollectionPage('room'); setEventCollection(true); }} />
     <EventGachaSheet visible={eventSheet === 'gacha'} onClose={() => setEventSheet(null)} event={TOKI_MEGURU} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
     <BookIndexPopup visible={bookIndexOpen} title="目次" subtitle={inEventBook ? TOKI_MEGURU.name : activeRoute?.name} shrines={inEventBook ? EVENT_SHRINES : activeShrines} ownedIds={inEventBook ? EVENT_SHRINES.slice(0, eventReached).map(shrine => shrine.id) : collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
