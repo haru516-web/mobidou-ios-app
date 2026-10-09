@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | 平成 | 翔太モビー（チャラ男） | `shotamobby` | `reference/event/shotamobby-source.webp` | 茶髪のロン毛、サングラスを頭に、ヒョウ柄の襟のライダース、チェーンとペンダント、厚底スニーカー、ストラップつきのケータイ |
 | 平成 | さとみモビー（ギャル） | `satomimobby` | `reference/event/satomimobby-source.webp` | 金髪とピンクのメッシュ、ハイビスカス、ピンクのサングラス、ヒョウ柄とビーズのブレスレット、ヒョウ柄のファーサンダル |
-| 昭和 | のりこモビー（やんちゃ女） | `norikomobby` | `reference/event/norikomobby-source.webp` | 黒い巻き髪のリーゼント風、リボン、サングラス、白いロングコート、黒のプリーツスカート、エナメルの靴 |
+| 昭和 | のりこモビー（やんちゃ女） | `norikomobby` | `reference/event/norikomobby-source.webp` | 黒い巻き髪のリーゼント風、リボン、サングラス、金の刺繍と金ボタンの白いジャケット、黒のプリーツスカート、エナメルの靴 |
 | 昭和 | やすモビー（角刈りヤンキー） | `yasumobby` | `reference/event/yasumobby-source.webp` | 角刈り、サングラス、白い上着に黒いボンタン風のズボン、チェーン、エナメルの靴 |
 
 ## 共通の作り（既存のモビーを崩さない）
