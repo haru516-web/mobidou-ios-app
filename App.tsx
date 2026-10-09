@@ -908,7 +908,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               : <>
                 <StepProgressRing steps={eventState.steps} goal={eventState.next?.at ?? TOKI_MEGURU.goalSteps ?? 1} size={walkRingSize} />
                 <PillText textStyle={S.walkCaption}>{eventState.cleared ? '結願しました。イベント画面で報酬を受け取りましょう。' : eventState.next ? `次は ${eventState.next.name} · あと ${fmt(eventState.next.at - eventState.steps)}歩` : ''}</PillText>
-                <View style={S.nextPilgrimageAction}><Button title="イベントの画面をひらく" icon="flag-outline" onPress={() => setEventSheet('main')} style={S.walkActionButton} /></View>
+                <View style={S.nextPilgrimageAction}>
+                  <Button title="イベントの画面をひらく" icon="flag-outline" onPress={() => setEventSheet('main')} style={S.walkActionButton} />
+                  {/* The companion peeks over the button, as on the ordinary outing screen. */}
+                  <View pointerEvents="none" accessibilityLabel={`${pet.name}がボタンの上から覗いている`} style={[S.nextPilgrimagePeek, { top: 56 - nextRoutePeekBottom + 6, height: nextRoutePeekHeight }]}>
+                    <Image source={PILGRIMAGE_PEEK_IMAGES[pet.id]} contentFit="contain" style={[S.nextPilgrimagePeekImage, { width: nextRoutePeekWidth, height: nextRoutePeekHeight, left: (190 - nextRoutePeekWidth) / 2 }]} />
+                  </View>
+                </View>
               </>}
           </View>
         : mapOpen && activeRoute
