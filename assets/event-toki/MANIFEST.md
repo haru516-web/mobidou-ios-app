@@ -394,3 +394,11 @@ Map final WebP circular waypoint centroid audit (pixel coordinates, color flood 
 | goshuin/showa-tv.webp | 1024×1536 | 567508 |
 | goshuin/legacy-poster/showa-mirrorball.webp | 1024×1536 | 423452 |
 | goshuin/showa-mirrorball.webp | 1024×1536 | 604696 |
+
+| File | Dimensions | Bytes |
+|---|---|---:|
+| goshuin/legacy-poster/showa-record.webp | 1024×1536 | 570286 |
+| goshuin/showa-record.webp | 1024×1536 | 588454 |
+| goshuin/heisei-md.webp | 1024×1536 | 640588 |
+| goshuin/heisei-cd.webp | 1024×1536 | 624038 |
+| goshuin/heisei-sticker.webp | 1024×1536 | 668518 |
