@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { playPageTurn, playSfx } from '../services/audio';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { Image } from './AppImage';
 import { BRUSH, C, Icon } from '../components';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
@@ -23,10 +23,11 @@ export function BookIndexPopup({ visible, title, subtitle, shrines, ownedIds, on
   </ScrollPopup>;
 }
 
-export function GoshuinBookCover({ route, onOpen }: { route: Pilgrimage; onOpen: () => void }) {
+export function GoshuinBookCover({ route, onOpen, event }: { route?: Pilgrimage; onOpen: () => void; /** The event's book: its own name and cover in place of a route's. */ event?: { name: string; image: ImageSourcePropType } }) {
+  const name = event?.name ?? route?.name ?? '';
   return <View style={S.coverStage}>
-        <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel={`${route.name}の御朱印帳をひらく`} accessibilityHint="御朱印帳の見開きを表示します" onPress={() => { playSfx('sfx_book_open'); onOpen(); }} style={S.cover}>
-          <Image source={getGoshuinBookCover(route.id)} contentFit="contain" style={S.coverImage} />
+        <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel={`${name}の御朱印帳をひらく`} accessibilityHint="御朱印帳の見開きを表示します" onPress={() => { playSfx('sfx_book_open'); onOpen(); }} style={S.cover}>
+          <Image source={event?.image ?? getGoshuinBookCover(route?.id ?? '')} contentFit="contain" style={S.coverImage} />
     </Pressable>
   </View>;
 }

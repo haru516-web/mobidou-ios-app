@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from './AppImage';
-import { EVENT_BOOK_COVER, EVENT_GOSHUIN_IMAGES, EVENT_KEYCHAIN_IMAGES, EVENT_TICKET_IMAGE } from '../data/eventImages';
+import { EVENT_GOSHUIN_IMAGES, EVENT_KEYCHAIN_IMAGES, EVENT_TICKET_IMAGE } from '../data/eventImages';
 import type { EventSpot, PilgrimageEvent } from '../data/events';
 import { BRUSH, Button, C } from '../components';
 import { eventProgress, teamSteps } from '../services/eventTeam';
@@ -46,23 +46,6 @@ function GoshuinDetail({ spot, onBack }: { spot: EventSpot; onBack: () => void }
     <Text style={S.detailName}>{spot.chapter} · {spot.name}</Text>
     <Button title="一覧にもどる" secondary onPress={onBack} />
   </View>;
-}
-
-/** The event's goshuin book: the cover and one goshuin per spot reached; the rest wait as blank pages. */
-export function EventBookSheet({ visible, onClose, event }: { visible: boolean; onClose: () => void; event: PilgrimageEvent }) {
-  const reached = useEventReached(event);
-  const [selected, setSelected] = useState<EventSpot | null>(null);
-  const spots = event.spots ?? [];
-  const close = () => { setSelected(null); onClose(); };
-  return <Sheet visible={visible} title="イベント御朱印帳" onClose={close}>
-    {selected
-      ? <GoshuinDetail key="detail" spot={selected} onBack={() => setSelected(null)} />
-      : <View key="cover" style={S.coverRow}>
-        <Image source={EVENT_BOOK_COVER} contentFit="contain" accessibilityLabel={`${event.name}の御朱印帳`} style={S.cover} />
-        <View style={S.coverCopy}><Text style={S.headline}>{event.name}</Text><Text style={S.body}>チームが社に着くたび、御朱印が1枚ずつ増えます。</Text><Text style={S.count}>{reached} / {spots.length}</Text></View>
-      </View>}
-    {!selected && <View key="grid"><SpotGrid spots={spots} render={(spot, index, width) => <GoshuinCell spot={spot} owned={index < reached} width={width} onPress={() => setSelected(spot)} />} /></View>}
-  </Sheet>;
 }
 
 type CollectionPage = 'room' | 'goshuin' | 'miniatures';

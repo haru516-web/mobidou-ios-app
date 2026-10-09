@@ -1,3 +1,6 @@
+import type { ImageSourcePropType } from 'react-native';
+import { EVENT_GOSHUIN_IMAGES } from './eventImages';
+
 function createShrine<Id extends string>(
   id: Id,
   name: string,
@@ -115,7 +118,7 @@ export const SHRINES = [
 
 export type Shrine = typeof SHRINES[number];
 
-export const STAMP_IMAGES = {
+const BASE_STAMP_IMAGES = {
   star: require('../../assets/goshuin/star.webp'),
   moon: require('../../assets/goshuin/moon.webp'),
   rain: require('../../assets/goshuin/rain.webp'),
@@ -204,3 +207,6 @@ export const STAMP_IMAGES = {
   tsuzuri: require('../../assets/goshuin/tsuzuri.png'),
   hatsumobi: require('../../assets/goshuin/hatsumobi.webp'),
 } as const;
+
+/** The event's goshuin are looked up the same way, by their spot id (see eventShrines.ts). */
+export const STAMP_IMAGES: typeof BASE_STAMP_IMAGES & Record<string, ImageSourcePropType> = { ...BASE_STAMP_IMAGES, ...EVENT_GOSHUIN_IMAGES };
