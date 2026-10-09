@@ -831,10 +831,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       {tab === 'home'
         ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
         : tab === 'walk' ? <View />
-        : tab === 'collection' ? <><View /><View pointerEvents="box-none" style={S.collectionModes}>
-          <PopButton id="eventNormal" label="通常" icon="home" plaqueOnly selected={!inEventCollection} faded={inEventCollection} onPress={() => { setCollectionPage('room'); setEventCollection(false); }} />
-          <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => { setCollectionPage('room'); enterEvent(setEventCollection); }} />
-        </View></>
+        : tab === 'collection' ? <View />
         : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
         {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} premiumTickets={data.mobbies.paidTickets} miniaturePasses={journey.special.passes.keychainDrop} plusActive={data.keychainPlan === 'plus'} onAddTickets={openGachaShop} onAddPasses={openGachaShop} />}
@@ -932,6 +929,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
 
       {tab === 'collection' && <>
+        <View style={S.collectionModes}>
+          <PopButton id="eventNormal" label="通常" icon="home" plaqueOnly selected={!inEventCollection} faded={inEventCollection} onPress={() => { setCollectionPage('room'); setEventCollection(false); }} />
+          <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => { setCollectionPage('room'); enterEvent(setEventCollection); }} />
+        </View>
         <TourAnchor id="collection-tabs" style={S.jumpRow}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} plaqueOnly selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />)}
         </TourAnchor>
@@ -1176,7 +1177,7 @@ const S = StyleSheet.create({
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 110, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF9EFE6' }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 },
   nextPilgrimageAction: { position: 'relative', alignSelf: 'stretch', alignItems: 'center', paddingTop: 56, marginTop: 58 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
   tourPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  collectionModes: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  collectionModes: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, marginBottom: 6 },
   homeEventButton: { position: 'absolute', left: 10, zIndex: 25 },
   bookEventSlot: { marginRight: 'auto' },
   walkMinimal: { flex: 1, alignItems: 'center', paddingTop: 2, paddingBottom: 6 },
