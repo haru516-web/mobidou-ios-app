@@ -7,33 +7,36 @@ export const EVENT_KEY_VISUAL: ImageSourcePropType = require('../../assets/event
 export const EVENT_BOOK_COVER: ImageSourcePropType = require('../../assets/event-toki/book-cover.webp');
 export const EVENT_TICKET_IMAGE: ImageSourcePropType = require('../../assets/event-toki/ticket-event-tag.webp');
 
-// TEMPORARY: the 15 spots reuse the first batch of 8 pictures until the redrawn set arrives (docs/codex-event-assets-taste.md).
-const FIRST_BATCH: Record<string, string> = {
-  'showa-car': 'showa-shoutengai', 'showa-bike': 'showa-toge', 'showa-tv': 'showa-sento', 'showa-mirrorball': 'showa-drivein', 'showa-record': 'showa-record',
-  'heisei-md': 'heisei-century', 'heisei-pager': 'heisei-pager', 'heisei-cd': 'heisei-pager', 'heisei-sticker': 'heisei-park', 'heisei-phs': 'heisei-park',
-  'heisei-loose': 'heisei-park', 'heisei-keitai': 'heisei-park', 'heisei-boots': 'heisei-century', 'heisei-digicam': 'heisei-century', 'heisei-strap': 'heisei-century',
-};
+// The redrawn pictures are used as they arrive (docs/codex-event-assets-taste.md). Spots whose picture is not drawn yet
+// borrow one from the first batch so the screens are never empty. TEMPORARY: remove FALLBACK as the rest arrive.
 const GOSHUIN: Record<string, ImageSourcePropType> = {
-  'showa-shoutengai': require('../../assets/event-toki/goshuin/showa-shoutengai.webp'),
-  'showa-toge': require('../../assets/event-toki/goshuin/showa-toge.webp'),
-  'showa-drivein': require('../../assets/event-toki/goshuin/showa-drivein.webp'),
-  'showa-sento': require('../../assets/event-toki/goshuin/showa-sento.webp'),
+  'showa-car': require('../../assets/event-toki/goshuin/showa-car.webp'),
+  'showa-bike': require('../../assets/event-toki/goshuin/showa-bike.webp'),
+  'showa-tv': require('../../assets/event-toki/goshuin/showa-tv.webp'),
+  'showa-mirrorball': require('../../assets/event-toki/goshuin/showa-mirrorball.webp'),
   'showa-record': require('../../assets/event-toki/goshuin/showa-record.webp'),
-  'heisei-park': require('../../assets/event-toki/goshuin/heisei-park.webp'),
+  'heisei-keitai': require('../../assets/event-toki/goshuin/heisei-keitai.webp'),
   'heisei-pager': require('../../assets/event-toki/goshuin/heisei-pager.webp'),
   'heisei-century': require('../../assets/event-toki/goshuin/heisei-century.webp'),
+  'heisei-park': require('../../assets/event-toki/goshuin/heisei-park.webp'),
 };
 const KEYCHAINS: Record<string, ImageSourcePropType> = {
-  'showa-shoutengai': require('../../assets/event-toki/keychains/keychain-showa-shoutengai-v1-transparent.webp'),
-  'showa-toge': require('../../assets/event-toki/keychains/keychain-showa-toge-v1-transparent.webp'),
-  'showa-drivein': require('../../assets/event-toki/keychains/keychain-showa-drivein-v1-transparent.webp'),
-  'showa-sento': require('../../assets/event-toki/keychains/keychain-showa-sento-v1-transparent.webp'),
+  'showa-car': require('../../assets/event-toki/keychains/keychain-showa-car-v1-transparent.webp'),
+  'showa-bike': require('../../assets/event-toki/keychains/keychain-showa-bike-v1-transparent.webp'),
+  'showa-tv': require('../../assets/event-toki/keychains/keychain-showa-tv-v1-transparent.webp'),
+  'showa-mirrorball': require('../../assets/event-toki/keychains/keychain-showa-mirrorball-v1-transparent.webp'),
   'showa-record': require('../../assets/event-toki/keychains/keychain-showa-record-v1-transparent.webp'),
-  'heisei-park': require('../../assets/event-toki/keychains/keychain-heisei-park-v1-transparent.webp'),
+  'heisei-keitai': require('../../assets/event-toki/keychains/keychain-heisei-keitai-v1-transparent.webp'),
+  'heisei-strap': require('../../assets/event-toki/keychains/keychain-heisei-strap-v1-transparent.webp'),
   'heisei-pager': require('../../assets/event-toki/keychains/keychain-heisei-pager-v1-transparent.webp'),
   'heisei-century': require('../../assets/event-toki/keychains/keychain-heisei-century-v1-transparent.webp'),
+  'heisei-park': require('../../assets/event-toki/keychains/keychain-heisei-park-v1-transparent.webp'),
 };
-const viaFirstBatch = (pictures: Record<string, ImageSourcePropType>) => Object.fromEntries(Object.entries(FIRST_BATCH).map(([id, old]) => [id, pictures[old]])) as Record<string, ImageSourcePropType>;
+const FALLBACK: Record<string, string> = {
+  'heisei-md': 'heisei-century', 'heisei-cd': 'heisei-pager', 'heisei-sticker': 'heisei-park', 'heisei-phs': 'heisei-park',
+  'heisei-loose': 'heisei-park', 'heisei-boots': 'heisei-century', 'heisei-digicam': 'heisei-century',
+};
+const withFallback = (pictures: Record<string, ImageSourcePropType>, extra: Record<string, string> = {}) => ({ ...pictures, ...Object.fromEntries(Object.entries({ ...FALLBACK, ...extra }).map(([id, other]) => [id, pictures[other]])) });
 
-export const EVENT_GOSHUIN_IMAGES = viaFirstBatch(GOSHUIN);
-export const EVENT_KEYCHAIN_IMAGES = viaFirstBatch(KEYCHAINS);
+export const EVENT_GOSHUIN_IMAGES = withFallback(GOSHUIN, { 'heisei-strap': 'heisei-keitai' });
+export const EVENT_KEYCHAIN_IMAGES = withFallback(KEYCHAINS);
