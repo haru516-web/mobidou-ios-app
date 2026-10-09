@@ -27,6 +27,10 @@ type PopButtonProps = {
   /** Staggers the bob so neighbouring buttons don't move in lockstep (0–1). */
   phase?: number;
   selected?: boolean;
+  /** Only the wooden label plate: no round seal above it, no bobbing. */
+  plaqueOnly?: boolean;
+  /** Washed out, for the choice that is not selected in a pair of plates. */
+  faded?: boolean;
   accessibilityHint?: string;
   style?: StyleProp<ViewStyle>;
 };
@@ -37,7 +41,7 @@ type PopButtonProps = {
  * When dedicated artwork is registered in POP_BUTTON_IMAGES it replaces the
  * drawn seal; the bob, press, badge and label stay the same.
  */
-export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phase = 0, selected = false, accessibilityHint, style, soundless = false }: PopButtonProps) {
+export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phase = 0, selected = false, plaqueOnly = false, faded = false, accessibilityHint, style, soundless = false }: PopButtonProps) {
   const reduced = useReducedMotion();
   const float = useRef(new Animated.Value(0)).current;
   const press = useRef(new Animated.Value(1)).current;
@@ -45,14 +49,14 @@ export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phas
   const artwork = POP_BUTTON_IMAGES[id];
 
   useEffect(() => {
-    if (reduced) { float.setValue(0); return undefined; }
+    if (reduced || plaqueOnly) { float.setValue(0); return undefined; }
     const loop = Animated.loop(Animated.sequence([
       Animated.timing(float, { toValue: 1, duration: FLOAT_HALF_PERIOD, easing: Easing.inOut(Easing.sin), useNativeDriver }),
       Animated.timing(float, { toValue: 0, duration: FLOAT_HALF_PERIOD, easing: Easing.inOut(Easing.sin), useNativeDriver }),
     ]));
     const timer = setTimeout(() => loop.start(), Math.round(phase * FLOAT_HALF_PERIOD * 2));
     return () => { clearTimeout(timer); loop.stop(); };
-  }, [float, phase, reduced, useNativeDriver]);
+  }, [float, phase, reduced, plaqueOnly, useNativeDriver]);
 
   const pressTo = (value: number) => Animated.spring(press, { toValue: value, damping: 12, stiffness: 320, mass: .6, useNativeDriver }).start();
   const ring = Math.max(2, Math.round(size * .045));
@@ -66,9 +70,9 @@ export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phas
     onPressIn={() => pressTo(.9)}
     onPressOut={() => pressTo(1)}
     hitSlop={6}
-    style={[S.root, { minWidth: size + 14 }, style]}
+    style={[S.root, plaqueOnly ? null : { minWidth: size + 14 }, faded && S.faded, style]}
   >
-    <Animated.View style={{ width: size, height: size, transform: [{ translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -FLOAT_DISTANCE] }) }, { scale: press }] }}>
+    {!plaqueOnly && <Animated.View style={{ width: size, height: size, transform: [{ translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -FLOAT_DISTANCE] }) }, { scale: press }] }}>
       {artwork
         ? <Image source={artwork} contentFit="contain" style={{ width: size, height: size }} />
         : <View style={[S.seal, { width: size, height: size, borderRadius: size / 2, borderWidth: ring }, selected && S.sealSelected]}>
@@ -77,8 +81,8 @@ export function PopButton({ id, label, icon, onPress, badge = 0, size = 60, phas
           <Icon name={icon} size={Math.round(size * .44)} color={C.red} />
         </View>}
       {badge > 0 && <View style={S.badge}><Image accessible={false} source={UI_ART.badgeCount.source} contentFit="fill" style={StyleSheet.absoluteFill} /><Text style={S.badgeText}>{badge > 99 ? '99+' : badge}</Text></View>}
-    </Animated.View>
-    <View style={[S.labelTab, selected && S.labelTabSelected]}>
+    </Animated.View>}
+    <View style={[S.labelTab, plaqueOnly && S.labelTabAlone, selected && S.labelTabSelected]}>
       <CroppedArt source={selected ? PLAQUE_ACTIVE : PLAQUE} bounds={selected ? PLAQUE_ACTIVE_BOUNDS : PLAQUE_BOUNDS} />
       <Text numberOfLines={1} style={[S.label, selected && S.labelSelected]}>{label}</Text>
     </View>
@@ -94,6 +98,8 @@ const S = StyleSheet.create({
   badgeText: { color: '#FFF9EF', fontSize: 11, fontWeight: '800' },
   labelTab: { marginTop: 6, minWidth: 66, minHeight: 28, paddingHorizontal: 17, paddingVertical: 5, justifyContent: 'center', alignItems: 'center' },
   labelTabSelected: {},
+  labelTabAlone: { marginTop: 0 },
+  faded: { opacity: .5 },
   label: { color: '#3B2A1B', fontFamily: BRUSH, fontSize: 12.5, letterSpacing: .4 },
   labelSelected: { color: '#3B2A1B' },
 });
