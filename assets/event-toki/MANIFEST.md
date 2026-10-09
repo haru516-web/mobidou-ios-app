@@ -402,3 +402,11 @@ Map final WebP circular waypoint centroid audit (pixel coordinates, color flood 
 | goshuin/heisei-md.webp | 1024×1536 | 640588 |
 | goshuin/heisei-cd.webp | 1024×1536 | 624038 |
 | goshuin/heisei-sticker.webp | 1024×1536 | 668518 |
+
+| File | Dimensions | Bytes |
+|---|---|---:|
+| goshuin/heisei-phs.webp | 1024×1536 | 646128 |
+| goshuin/heisei-loose.webp | 1024×1536 | 573198 |
+| goshuin/heisei-boots.webp | 1024×1536 | 576424 |
+| goshuin/heisei-strap.webp | 1024×1536 | 649960 |
+| previews/goshuin-f-12.webp | 1600×1920 | 1398042 |
