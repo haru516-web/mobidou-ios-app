@@ -5,12 +5,13 @@ import { creditedSteps, creditMissedDays, routeTargets, freshProgress, isSyncMar
 import { getPilgrimage } from '../data/pilgrimages';
 import { normalizeDayLog, recordDay, type DayLog } from './weekly';
 import { connectSteps, readMissedDays, readTodaySteps, type StepSource } from './steps';
-import { isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
+import { EVENT_PET_CHARACTERS, isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
 import { acknowledgePulls, applyServerPulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, setPaidTickets, type MobbyCollection, type PullResult } from './gacha';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
 import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
 import { localOmikujiDay } from '../data/omikuji';
+import { acknowledgeEventPulls, drawEventPulls, emptyEventGacha, grantEventTickets, normalizeEventGacha, type EventGachaState } from './eventGacha';
 import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
 import { adoptServerAccount, readServerAccount, syncServer, type ServerAccount } from './server';
 import { fetchPaidTickets } from './purchase';
@@ -20,7 +21,7 @@ import { isAppStorageKey } from './accountDeletion';
 const KEY = '@mobidou/journey/v1';
 const CORRUPTED_BACKUP_KEY = '@mobidou/journey/v1/corrupted-backup';
 export type BookDesigns = { owned: Record<string, boolean>; selected: Record<string, 'normal' | 'route'> };
-type Saved = { routes?: Record<string, Progress>; /** Last credited real step reading; the start of any catch-up for days the app was closed. */ lastSync?: SyncMark; /** Steps per local day, for the weekly look-back. */ dayLog?: DayLog; /** Start day of the week whose look-back was last shown or dismissed. */ weekSeen?: string; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; keychainPlan: KeychainPlan; mobbies: MobbyCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null };
+type Saved = { routes?: Record<string, Progress>; /** Last credited real step reading; the start of any catch-up for days the app was closed. */ lastSync?: SyncMark; /** Steps per local day, for the weekly look-back. */ dayLog?: DayLog; /** Start day of the week whose look-back was last shown or dismissed. */ weekSeen?: string; version: 1; onboarded: boolean; demo: boolean; real: Progress; trial: Progress; realSpecial: SpecialCollection; trialSpecial: SpecialCollection; keychainPlan: KeychainPlan; mobbies: MobbyCollection; bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns; pet: PetId; affection: Record<string, number>; haptics: boolean; source: StepSource; backgroundId: BackgroundId; homeWidgetOrder: HomeWidgetOrder; homeWidgetItems: HomeWidgetItems; omikujiDay: string | null; omikujiPetId: PetId | null; /** The event gacha's own 木札 and waiting results. */ eventGacha: EventGachaState };
 export type BookDesignStateInput = { bookDesigns?: unknown; realBookDesigns?: unknown; trialBookDesigns?: unknown; demo?: unknown };
 export type BookDesignState = { bookDesigns: BookDesigns; realBookDesigns: BookDesigns; trialBookDesigns: BookDesigns };
 
@@ -65,7 +66,7 @@ export function setActiveBookDesigns<T extends { demo: boolean; bookDesigns: Boo
 const initial = (): Saved => {
   const realBookDesigns = emptyBookDesigns();
   const trialBookDesigns = emptyBookDesigns();
-  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), keychainPlan: 'none', mobbies: emptyMobbyCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null, omikujiPetId: null };
+  return { version: 1, onboarded: false, demo: false, real: freshProgress(), trial: freshProgress(), realSpecial: emptySpecialCollection(), trialSpecial: emptySpecialCollection(), keychainPlan: 'none', mobbies: emptyMobbyCollection(), bookDesigns: cloneBookDesigns(realBookDesigns), realBookDesigns, trialBookDesigns, pet: 'mobibou', affection: {}, haptics: true, source: 'none', backgroundId: defaultBackgroundId(), homeWidgetOrder: [...DEFAULT_HOME_WIDGET_ORDER] as HomeWidgetOrder, homeWidgetItems: [...DEFAULT_HOME_WIDGET_ITEMS], omikujiDay: null, omikujiPetId: null, eventGacha: emptyEventGacha() };
 };
 
 /** Reaching the end of a route for the first time unlocks its own book cover. */
@@ -138,6 +139,7 @@ export function normalizeSaved(value: unknown): Saved {
     ...(isSyncMark(p.lastSync) ? { lastSync: { day: p.lastSync.day, steps: p.lastSync.steps } } : {}),
     omikujiDay: typeof p.omikujiDay === 'string' ? p.omikujiDay : null,
     omikujiPetId: isPetId(p.omikujiPetId) ? p.omikujiPetId : null,
+    eventGacha: normalizeEventGacha(p.eventGacha, isPetId),
   };
   // Covers now come from finishing a route, so unlock them for routes already finished.
   const finished = (saved: Progress[]) => saved.filter(record => record.routeId && record.completedAt).map(record => record.routeId!);
@@ -411,6 +413,14 @@ export function useJourney() {
       const mobbies = grantFreePullForClear(p.mobbies, 'welcome-gift');
       return mobbies === p.mobbies ? p : { ...p, mobbies };
     }),
+    /** The team has earned this many event 木札 in all (it only ever goes up). */
+    grantEventTickets: (total: number) => change(p => { const eventGacha = grantEventTickets(p.eventGacha, total); return eventGacha === p.eventGacha ? p : { ...p, eventGacha }; }),
+    /** Spend event 木札 on the event gacha; the Mobbies join the collection and wait in `eventGacha.unrevealed` for the reveal. */
+    drawEventMobby: (count = 1) => change(p => {
+      const drawn = drawEventPulls(p.eventGacha, p.mobbies.owned, EVENT_PET_CHARACTERS.map(character => character.id), count);
+      return drawn.drawn === 0 ? p : { ...p, eventGacha: drawn.state, mobbies: { ...p.mobbies, owned: drawn.owned } };
+    }),
+    acknowledgeEventPulls: () => change(p => { const eventGacha = acknowledgeEventPulls(p.eventGacha); return eventGacha === p.eventGacha ? p : { ...p, eventGacha }; }),
     /** The reveal is over. */
     acknowledgeMobbyPulls: () => change(p => { const mobbies = acknowledgePulls(p.mobbies); return mobbies === p.mobbies ? p : { ...p, mobbies }; }),
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),

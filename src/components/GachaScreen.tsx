@@ -27,8 +27,8 @@ const OPEN_TWEEN_MS = 260;
 const BOB_PX = 14;
 
 /** What the player can learn before drawing: the pool and its odds, and how 木札 work. */
-function GachaDetail({ onClose, freePulls, premiumPulls }: { onClose: () => void; freePulls: number; premiumPulls: number }) {
-  const odds = gachaOdds(PET_CHARACTERS.map(pet => pet.id));
+function GachaDetail({ onClose, freePulls, premiumPulls, pool, how }: { onClose: () => void; freePulls: number; premiumPulls: number; pool: readonly PetCharacter[]; /** Set for the event gacha: how its 木札 are earned, in place of the ordinary text. */ how?: string }) {
+  const odds = gachaOdds(pool.map(pet => pet.id));
   const percent = odds.length ? Math.round(odds[0].rate * 1000) / 10 : 0;
   return <View accessibilityViewIsModal style={S.detailRoot}>
     <Pressable accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000000AA' }]} />
@@ -38,11 +38,11 @@ function GachaDetail({ onClose, freePulls, premiumPulls }: { onClose: () => void
       <Text style={S.detailHead}>提供割合</Text>
       <Text style={S.detailBody}>全{odds.length}種のモビーが、すべて同じ確率（それぞれ {percent}％）で出ます。持っているモビーも、また出ます。</Text>
       <View style={S.detailGrid}>
-        {PET_CHARACTERS.map(pet => <RNImage key={pet.id} accessible accessibilityLabel={pet.name} source={pet.image} resizeMode="contain" style={S.detailPet} />)}
+        {pool.map(pet => <RNImage key={pet.id} accessible accessibilityLabel={pet.name} source={pet.image} resizeMode="contain" style={S.detailPet} />)}
       </View>
       <Text style={S.detailHead}>木札について</Text>
-      <Text style={S.detailBody}>・木札1枚で、1回引けます。10回は、木札10枚を使って続けて引きます。{'\n'}・新しい巡礼を初めて結願すると、木札が1枚もらえます。{'\n'}・購入した木札は「プレミアム木札」です。木札とは別に数え、引くたびに、どちらを使うか選べます。{'\n'}・プレミアム木札で25回引くごとに、まだ出会っていないモビーが必ず1体出ます（全員そろっているときは、通常どおり抽選）。木札では数えません。{'\n'}・同じモビーが出たときは、小さなモビーとしてそばに来ます。</Text>
-      <Text style={S.detailNote}>いまの木札：{freePulls}枚 ／ プレミアム木札：{premiumPulls}枚</Text>
+      {how ? <Text style={S.detailBody}>{how}</Text> : <Text style={S.detailBody}>・木札1枚で、1回引けます。10回は、木札10枚を使って続けて引きます。{'\n'}・新しい巡礼を初めて結願すると、木札が1枚もらえます。{'\n'}・購入した木札は「プレミアム木札」です。木札とは別に数え、引くたびに、どちらを使うか選べます。{'\n'}・プレミアム木札で25回引くごとに、まだ出会っていないモビーが必ず1体出ます（全員そろっているときは、通常どおり抽選）。木札では数えません。{'\n'}・同じモビーが出たときは、小さなモビーとしてそばに来ます。</Text>}
+      <Text style={S.detailNote}>{how ? `いまのイベント木札：${freePulls}枚` : `いまの木札：${freePulls}枚 ／ プレミアム木札：${premiumPulls}枚`}</Text>
       <Button title="とじる" secondary onPress={onClose} style={S.wide} />
     </View>
   </View>;
@@ -108,6 +108,10 @@ type Props = {
   startOnShop?: boolean;
   /** Button for the event gacha, shown in the free corner while choosing how to draw. */
   eventButton?: React.ReactNode;
+  /** The Mobbies this gacha can give (the odds list). The ordinary roster when left out. */
+  pool?: readonly PetCharacter[];
+  /** The event gacha: how the 木札 are earned, shown in the details. */
+  howToEarn?: string;
 };
 
 /** Render supplied artwork without stretching its canvas. */
@@ -117,7 +121,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false, eventButton }: Props) {
+export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false, eventButton, pool = PET_CHARACTERS, howToEarn }: Props) {
   useSceneBgm('bgm_gacha', true, 20);
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
   // The lobby is where the player picks how many to draw; the cord only works once a draw has been chosen. The first-run guide goes straight to the cord.
@@ -645,7 +649,7 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
 
     {navShown && !playing && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setNavH(previous => previous === next ? previous : next); }} style={{ position: 'absolute', left: 0, right: 0, bottom: navInset }}>{nav}</View>}
 
-    {detailOpen && <GachaDetail onClose={() => setDetailOpen(false)} freePulls={normalPulls} premiumPulls={premiumPulls} />}
+    {detailOpen && <GachaDetail onClose={() => setDetailOpen(false)} freePulls={normalPulls} premiumPulls={premiumPulls} pool={pool} how={howToEarn} />}
 
     {/* Swiping up anywhere on the screen lifts the board, not just on the board itself. */}
     {boardEnabled && <View {...boardPan.panHandlers} style={StyleSheet.absoluteFillObject} />}

@@ -9,6 +9,7 @@ import { BRUSH, Button, C, Icon } from '../components';
 import { PaperCard, WashiArt, WashiPressable as Pressable } from './Washi';
 import { WashiInput } from './WashiInput';
 import { PetAvatar, Sheet } from './SocialSheets';
+import { eventTicketsEarned, nextEventTicketAt } from '../services/eventGacha';
 import { eventProgress, inviteMessage, normalizeTeamCode, startBlocker, teamInviteLink, teamSteps, type EventTeam, type JoinFailure } from '../services/eventTeam';
 import { devEventTeam, eventTeamApi, useEventTeam } from '../services/eventTeamStore';
 import { SERVER_URL } from '../services/server';
@@ -127,6 +128,9 @@ export function EventScreen({ visible, onClose, event, pet }: { visible: boolean
     body.push(<View key="map"><EventMap event={event} steps={progress.steps} pet={pet} maxHeight={330} />
       <Text style={S.target}>{progress.cleared ? '結願。時をめぐる旅が終わりました。' : progress.next ? `次は「${progress.next.name}」· あと${(progress.next.at - progress.steps).toLocaleString()}歩` : ''}</Text>
     </View>);
+    const tickets = eventTicketsEarned(event.goalSteps, progress.steps);
+    const nextTicket = nextEventTicketAt(event.goalSteps, tickets);
+    body.push(<Text key="tickets" style={S.ticketLine}>イベント木札 {tickets} / 4{nextTicket ? ` · 次は ${nextTicket.toLocaleString()}歩で1枚` : ' · すべてもらいました'}</Text>);
     body.push(<PaperCard key="collected">
       <View style={S.rowBetween}><Text style={S.label}>集まった時代の宝物</Text><Text style={S.small}>{progress.reached} / {(event.spots ?? []).length}</Text></View>
       <Text style={S.body}>{(event.spots ?? []).map((s, i) => i < progress.reached ? s.miniature : '？').join(' · ')}</Text>
@@ -176,6 +180,7 @@ const S = StyleSheet.create({
   mapPet: { position: 'absolute', width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   mapPetImage: { width: 40, height: 40 },
   mapStatus: { position: 'absolute', right: 10, bottom: 10, fontSize: 11, color: '#4E4034', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7, overflow: 'hidden', backgroundColor: '#FBF4E4F2' },
+  ticketLine: { fontSize: 12, color: '#8D5847', textAlign: 'center' },
   target: { fontFamily: BRUSH, fontSize: 14, color: C.ink, textAlign: 'center', marginTop: 10 },
   dev: { gap: 6, paddingTop: 4, alignItems: 'center' },
   devLabel: { fontSize: 11, color: C.muted },
