@@ -383,3 +383,14 @@ Map final WebP circular waypoint centroid audit (pixel coordinates, color flood 
 | keychains/keychain-heisei-phs-v1-transparent.webp | 1024×1536 | 568506 |
 | keychains/keychain-heisei-digicam-v1-transparent.webp | 1024×1536 | 486014 |
 | keychains/keychain-showa-bike-v1-transparent.webp | 1024×1536 | 452776 |
+
+| File | Dimensions | Bytes |
+|---|---|---:|
+| goshuin/legacy-poster/showa-car.webp | 1024×1536 | 439806 |
+| goshuin/showa-car.webp | 1024×1536 | 603544 |
+| goshuin/legacy-poster/showa-bike.webp | 1024×1536 | 521976 |
+| goshuin/showa-bike.webp | 1024×1536 | 584314 |
+| goshuin/legacy-poster/showa-tv.webp | 1024×1536 | 320572 |
+| goshuin/showa-tv.webp | 1024×1536 | 567508 |
+| goshuin/legacy-poster/showa-mirrorball.webp | 1024×1536 | 423452 |
+| goshuin/showa-mirrorball.webp | 1024×1536 | 604696 |
