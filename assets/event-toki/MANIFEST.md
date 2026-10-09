@@ -364,3 +364,10 @@ Map final WebP circular waypoint centroid audit (pixel coordinates, color flood 
 | 13 | 614.40, 337.92 | 614.45, 336.49 | 1.43 |
 | 14 | 747.52, 245.76 | 746.63, 244.62 | 1.45 |
 | 15 | 880.64, 153.60 | 880.11, 153.01 | 0.79 |
+
+## Heisei keychains: loose socks and platform boots
+
+| File | Dimensions | Bytes |
+|---|---|---:|
+| keychains/keychain-heisei-loose-v1-transparent.webp | 1024×1536 | 359782 |
+| keychains/keychain-heisei-boots-v1-transparent.webp | 1024×1536 | 408446 |
