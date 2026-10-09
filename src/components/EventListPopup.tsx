@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Image } from './AppImage';
 import type { PilgrimageEvent } from '../data/events';
+import { EVENT_KEY_VISUAL } from '../data/eventImages';
 import { BRUSH, Button, C } from '../components';
 import { PopButton } from './PopButton';
 import { ScrollPopup } from './ScrollPopup';
@@ -13,7 +15,11 @@ export function EventListPopup({ visible, onClose, event, statusLabel, onViewCol
   const [list, setList] = useState<'now' | 'past'>('now');
   useEffect(() => { if (visible) setList('now'); }, [visible]);
   return <ScrollPopup visible={visible} title="イベント" onClose={onClose}>
-    {() => <View style={S.body}>
+    {paper => {
+      // The picture takes what is left between the tabs and the button, below it only the name and where the player stands.
+      const imageHeight = Math.max(120, paper.height - 46 - 52 - 62 - 36);
+      const imageWidth = Math.min(paper.width, imageHeight * 1024 / 1152);
+      return <View style={S.body}>
       <View style={S.tabs}>
         <PopButton id="eventNormal" label="開催中" icon="flag" plaqueOnly selected={list === 'now'} faded={list !== 'now'} onPress={() => setList('now')} />
         <PopButton id="eventNormal" label="過去" icon="time" plaqueOnly selected={list === 'past'} faded={list !== 'past'} onPress={() => setList('past')} />
@@ -21,15 +27,15 @@ export function EventListPopup({ visible, onClose, event, statusLabel, onViewCol
       {list === 'now'
         ? <>
           <View style={S.card}>
+            <Image source={EVENT_KEY_VISUAL} contentFit="contain" accessibilityLabel={`${event.name}のイメージ`} style={{ width: imageWidth, height: imageHeight }} />
             <Text style={S.status}>{statusLabel}</Text>
             <Text style={S.name}>{event.name}</Text>
-            <Text style={S.tagline}>{event.tagline}</Text>
-            <Text style={S.meta}>{event.minMembers ?? 2}〜{event.maxMembers ?? 4}人のチーム · ゴール {(event.goalSteps ?? 0).toLocaleString()}歩</Text>
           </View>
           <Button title="コレクションを見る" onPress={onViewCollection} />
         </>
         : <View style={S.empty}><Text style={S.emptyText}>過去に開催されたイベントはありません。</Text></View>}
-    </View>}
+      </View>;
+    }}
   </ScrollPopup>;
 }
 
@@ -39,8 +45,6 @@ const S = StyleSheet.create({
   card: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 6 },
   status: { color: C.red, fontFamily: BRUSH, fontSize: 13 },
   name: { color: C.ink, fontFamily: BRUSH, fontSize: 21, textAlign: 'center' },
-  tagline: { color: '#655B4D', fontSize: 12, lineHeight: 19, textAlign: 'center' },
-  meta: { color: '#857560', fontSize: 11, textAlign: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: '#655B4D', fontSize: 13, textAlign: 'center' },
 });
