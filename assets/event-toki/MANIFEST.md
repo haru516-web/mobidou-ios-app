@@ -410,3 +410,20 @@ Map final WebP circular waypoint centroid audit (pixel coordinates, color flood 
 | goshuin/heisei-boots.webp | 1024×1536 | 576424 |
 | goshuin/heisei-strap.webp | 1024×1536 | 649960 |
 | previews/goshuin-f-12.webp | 1600×1920 | 1398042 |
+
+## E1
+
+| File | Dimensions | Bytes |
+|---|---|---:|
+| feel/gacha/event-stage-bg.webp | 1170×2532 | 504836 |
+| feel/gacha/event-curtain-left.webp | 700×2532 | 221688 |
+| feel/gacha/event-curtain-right.webp | 700×2532 | 227534 |
+| feel/gacha/event-curtain-valance.webp | 1170×320 | 46072 |
+| feel/gacha/event-box-body.webp | 880×1280 | 103896 |
+| feel/gacha/event-box-front.webp | 880×1280 | 309448 |
+| feel/gacha/event-box-shadow.webp | 1024×300 | 20006 |
+| feel/gacha/event-rope.webp | 256×1024 | 36910 |
+| feel/gacha/event-glow-core.webp | 1024×1024 | 169038 |
+| feel/gacha/event-glow-rays.webp | 1024×1024 | 337658 |
+| feel/gacha/event-panel-dark.webp | 1024×512 | 80922 |
+| feel/e1-comparison.webp | 1680×1712 | 206306 |
