@@ -334,3 +334,32 @@ User approved initial sample direction and requested original vehicle geometry a
 - Preview derivatives: previews/batch1-showa-f-all.webp
 - Generated source: C:\Users\User\.codex\generated_images\01a11af9-b286-7401-9677-f00660143a49\exec-2fa78733-8e07-4b2e-8098-648354244e69.png
 - Generation prompt: 1024x1536 portrait. Pristine newly released Showa-era object, vivid candy colors, mirror chrome, sodium amber and magenta neon reflections, high contrast dramatic three-quarter composition. Absolutely no age, rust, wear, scratches, dirt, fading, grain, sepia, muted nostalgia. Fictional original design, no identifiable real model, brand, emblem, logos, labels, numbers or product names, people, gang imagery or dangerous driving. FULL BLEED opaque vertical collectible Showa poster/enamel sign card. NOT traditional goshuin: no washi, calligraphy, vermilion seal, shrine scene. Shared navy #2F4A6B slim gold line border, title across upper quarter, giant subject lower area, amber-magenta neon backdrop. Title exact 「レコード坂の御堂」 in FLAT sign-painter straight-stroke heavy condensed Japanese GOTHIC ENAMEL letters or single thin bent neon tube lines, crisp square corners, sharp strokes. NOT inflated, NOT rounded bubble type, NOT 3D extruded lettering, NOT beveled thick gold type. Ivory flat painted lettering with thin red accent line. Only title plus ONE small round gold-metal badge bottom left reading もび (7% width). No other writing. New glossy black VINYL RECORD partially out of saturated magenta teal abstract geometric record jacket, plain metallic GOLD center label with NO text, slim polished chrome tonearm and needle beside the disc. Visible pristine concentric grooves, no turntable manufacturer details.
+
+### Batch1 b-map
+
+- File: map.webp
+- 1024×1536; 604416 bytes; alpha: None
+- Preview derivatives: previews/batch1-map-layout-guide.webp, previews/batch1-map.webp
+- Generated source: C:\Users\User\.codex\generated_images\01a11af9-b286-7401-9677-f00660143a49\exec-3aadf477-186f-4fcd-a621-fef618e39030.png
+- Generation prompt: Edit supplied layout guide into polished illustrated event pilgrimage MAP, 1024x1536 opaque. Preserve EXACT supplied road centerline and all FIFTEEN small circular waypoint centers. No extra circular markers, no labels, no writing, no letters, logos or numbers. Coordinates normalized (x,y) from upper-left: (.10,.84),(.22,.78),(.34,.72),(.25,.64),(.16,.56),(.29,.51),(.42,.46),(.57,.50),(.72,.54),(.78,.45),(.84,.36),(.72,.29),(.60,.22),(.73,.16),(.86,.10). Single winding road connecting these IN ORDER, subtle gold edge, do not add branches. Clear quiet space around each circle for app card overlays, small gold circular pavement medallions at provided centers. Bottom Showa nighttime lively fresh showroom street and road climbing mountain curves, vivid sodium amber streetlights and blank magenta neon, original boxy generic car display/motorcycle showroom/wood cabinet television/disco/record motifs distributed small off-road. Above transition to bright Heisei daytime pastel blue pink sky, sparkling turquoise water, clean parks and pedestrian bridges, tiny hologram/sticker/portable audio/phone motif features around outskirts. Upper10 points Heisei, lower5 Showa; background smooth transition night to daylight. Bright saturated highlights but road surrounding calm readable open space. Clean detailed hand-painted aerial map illustration, no washi aging or muted sepia; modern vivid palette, no grain/dirt/rust/fading. No actual recognizable manufacturer products, branding, characters, people or dangerous driving. Fine indigo #2F4A6B and gold outer border. Road and gold marker positions are absolute requirements; preserve reference map layout instead of composing a different map.
+- Targeted edit prompt: Precise local cleanup of this finished map. Remove ALL tiny pseudo-lettering, lettering and text marks from building signs near bottom, especially glowing horizontal amber sign above television store at x750 y1334 and gold pavement letter-like marks below first waypoint at x150 y1330. Replace them with plain blank luminous rectangular signs and clean unlettered road. Preserve EXACT all fifteen circle centers, entire road shape, surrounding scenery, composition, colors, resolution1024x1536, border and lighting. No new text, no added objects. Everything except existing small letter-like marks stays visually identical.
+
+Map final WebP circular waypoint centroid audit (pixel coordinates, color flood region around each center):
+
+| # | Target | Measured | Error px |
+|---|---|---|---:|
+| 1 | 102.40, 1290.24 | 104.02, 1289.84 | 1.67 |
+| 2 | 225.28, 1198.08 | 225.83, 1197.71 | 0.66 |
+| 3 | 348.16, 1105.92 | 348.43, 1104.36 | 1.58 |
+| 4 | 256.00, 983.04 | 256.89, 982.33 | 1.14 |
+| 5 | 163.84, 860.16 | 164.13, 859.24 | 0.96 |
+| 6 | 296.96, 783.36 | 297.12, 782.77 | 0.62 |
+| 7 | 430.08, 706.56 | 430.76, 705.66 | 1.12 |
+| 8 | 583.68, 768.00 | 583.02, 767.49 | 0.84 |
+| 9 | 737.28, 829.44 | 736.50, 828.41 | 1.29 |
+| 10 | 798.72, 691.20 | 797.30, 690.61 | 1.54 |
+| 11 | 860.16, 552.96 | 859.68, 551.32 | 1.71 |
+| 12 | 737.28, 445.44 | 736.48, 444.75 | 1.06 |
+| 13 | 614.40, 337.92 | 614.45, 336.49 | 1.43 |
+| 14 | 747.52, 245.76 | 746.63, 244.62 | 1.45 |
+| 15 | 880.64, 153.60 | 880.11, 153.01 | 0.79 |
