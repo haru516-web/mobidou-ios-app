@@ -354,7 +354,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const scrollY = useRef(new Animated.Value(0)).current;
   const collectionScrollX = useRef(new Animated.Value(0)).current;
   const pet = getPetCharacter(tutorialPreviewPet ?? data.pet);
-  const nextRoutePeekMetric = PILGRIMAGE_PEEK_METRICS[pet.id];
+  // The event Mobbies have no peeking picture yet: they borrow a size and the peek is simply not drawn.
+  const nextRoutePeekMetric = PILGRIMAGE_PEEK_METRICS[pet.id] ?? { width: 1216, height: 1294, bottom: 0.8269 };
+  const nextRoutePeekImage = PILGRIMAGE_PEEK_IMAGES[pet.id];
   const nextRoutePeekScale = Math.min(132 / nextRoutePeekMetric.width, 132 / nextRoutePeekMetric.height);
   const nextRoutePeekWidth = nextRoutePeekMetric.width * nextRoutePeekScale;
   const nextRoutePeekHeight = nextRoutePeekMetric.height * nextRoutePeekScale;
@@ -912,7 +914,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
                   <Button title="イベントの画面をひらく" icon="flag-outline" onPress={() => setEventSheet('main')} style={S.walkActionButton} />
                   {/* The companion peeks over the button, as on the ordinary outing screen. */}
                   <View pointerEvents="none" accessibilityLabel={`${pet.name}がボタンの上から覗いている`} style={[S.nextPilgrimagePeek, { top: 56 - nextRoutePeekBottom + 6, height: nextRoutePeekHeight }]}>
-                    <Image source={PILGRIMAGE_PEEK_IMAGES[pet.id]} contentFit="contain" style={[S.nextPilgrimagePeekImage, { width: nextRoutePeekWidth, height: nextRoutePeekHeight, left: (190 - nextRoutePeekWidth) / 2 }]} />
+                    {!!nextRoutePeekImage && <Image source={nextRoutePeekImage} contentFit="contain" style={[S.nextPilgrimagePeekImage, { width: nextRoutePeekWidth, height: nextRoutePeekHeight, left: (190 - nextRoutePeekWidth) / 2 }]} />}
                   </View>
                 </View>
               </>}
@@ -932,7 +934,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
                   ? <Button title="体験で1,000歩あるく" icon="footsteps-outline" onPress={() => { playSfx('sfx_demo_walk'); journey.demoWalk(); }} style={S.walkActionButton} />
                   : <Button title={data.source === 'none' ? '歩数を連携する' : journey.busy ? '歩数を更新しています…' : '今日の歩数を更新'} icon="refresh" disabled={journey.busy} onPress={() => void (data.source === 'none' ? journey.connect() : journey.refresh())} style={S.walkActionButton} />}
               <View pointerEvents="none" accessibilityLabel={`${pet.name}がボタンの上から覗いている`} style={[S.nextPilgrimagePeek, { top: 56 - nextRoutePeekBottom + 6, height: nextRoutePeekHeight }]}>
-                <Image source={PILGRIMAGE_PEEK_IMAGES[pet.id]} contentFit="contain" style={[S.nextPilgrimagePeekImage, { width: nextRoutePeekWidth, height: nextRoutePeekHeight, left: (190 - nextRoutePeekWidth) / 2 }]} />
+                {!!nextRoutePeekImage && <Image source={nextRoutePeekImage} contentFit="contain" style={[S.nextPilgrimagePeekImage, { width: nextRoutePeekWidth, height: nextRoutePeekHeight, left: (190 - nextRoutePeekWidth) / 2 }]} />}
               </View>
             </TourAnchor>}
           </View>}

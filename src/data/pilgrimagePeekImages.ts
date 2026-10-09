@@ -1,9 +1,10 @@
 import type { ImageSourcePropType } from 'react-native';
-import type { PetId } from '../petCatalog';
+import type { EventPetId, RegularPetId } from '../petCatalog';
 
 // Each asset uses the character's original front-arm/hand design in the shared
 // chest-up pose. Hind legs and foot-pad details are excluded from every cutout.
-export const PILGRIMAGE_PEEK_IMAGES: Record<PetId, ImageSourcePropType> = {
+// The event Mobbies have no peeking picture yet, so they are optional here.
+export const PILGRIMAGE_PEEK_IMAGES: Record<RegularPetId, ImageSourcePropType> & Partial<Record<EventPetId, ImageSourcePropType>> = {
   babumoby: require('../../assets/mobies/pilgrimage-walk/babumoby-map-peek.webp'),
   bearmobby: require('../../assets/mobies/pilgrimage-walk/bearmobby-map-peek.webp'),
   boymobby: require('../../assets/mobies/pilgrimage-walk/boymobby-map-peek.webp'),
@@ -26,7 +27,7 @@ export const PILGRIMAGE_PEEK_IMAGES: Record<PetId, ImageSourcePropType> = {
 // Natural dimensions and the normalized bottom of each cutout. The map
 // component uses these values to keep every character's paws on the same map
 // edge even though the generated PNG canvases have different proportions.
-export const PILGRIMAGE_PEEK_METRICS: Record<PetId, { width: number; height: number; bottom: number }> = {
+export const PILGRIMAGE_PEEK_METRICS: Record<RegularPetId, { width: number; height: number; bottom: number }> & Partial<Record<EventPetId, { width: number; height: number; bottom: number }>> = {
   babumoby: { width: 1312, height: 1199, bottom: 0.9691 },
   bearmobby: { width: 1312, height: 1199, bottom: 0.9983 },
   boymobby: { width: 1484, height: 1060, bottom: 0.9689 },

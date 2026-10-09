@@ -1,5 +1,5 @@
 import type { ImageSourcePropType } from 'react-native';
-import type { PetId } from '../petCatalog';
+import type { EventPetId, RegularPetId } from '../petCatalog';
 
 export const PILGRIMAGE_WALK_FRAME_COUNT = 4;
 export const PILGRIMAGE_WALK_ATLAS_WIDTH = 1536;
@@ -8,7 +8,8 @@ export const PILGRIMAGE_WALK_FRAME_WIDTH = PILGRIMAGE_WALK_ATLAS_WIDTH / PILGRIM
 export const PILGRIMAGE_WALK_FRAME_HEIGHT = PILGRIMAGE_WALK_ATLAS_HEIGHT;
 // Horizontal four-frame sheets: contact, down, passing, up.
 // Each frame is 384 x 1024 with one shared baseline and real alpha transparency.
-export const PILGRIMAGE_WALK_ATLASES: Record<PetId, ImageSourcePropType> = {
+// The event Mobbies have no walking sheet yet, so they are optional here.
+export const PILGRIMAGE_WALK_ATLASES: Record<RegularPetId, ImageSourcePropType> & Partial<Record<EventPetId, ImageSourcePropType>> = {
   babumoby: require('../../assets/mobies/pilgrimage-walk/babumoby.webp'),
   bearmobby: require('../../assets/mobies/pilgrimage-walk/bearmobby.webp'),
   boymobby: require('../../assets/mobies/pilgrimage-walk/boymobby.webp'),

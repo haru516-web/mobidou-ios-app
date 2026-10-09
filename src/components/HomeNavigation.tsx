@@ -3,7 +3,7 @@ import { playSfx } from '../services/audio';
 import { Animated, BackHandler, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { Image } from './AppImage';
 import { BRUSH, C, Icon, useReducedMotion } from '../components';
-import { PET_CHARACTERS, type PetId } from '../petCatalog';
+import { EVENT_PET_CHARACTERS, PET_CHARACTERS, type PetId } from '../petCatalog';
 import { PET_BACKGROUNDS } from '../data/petBackgrounds';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
@@ -292,7 +292,8 @@ export function MobyPickerPopup({ selectedPet, isOwned, onGacha, freePulls = 0, 
       <View style={S.popupHeader}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={S.popupTitle}>モビーを選ぶ</Text><Text style={S.popupSubtitle}>いっしょに歩く相棒を選択</Text></View>{!guided && !!onGacha && <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel={freePulls > 0 ? `ガチャでモビーに出会う。無料で引けるのは${freePulls}回` : 'ガチャでモビーに出会う'} onPress={() => closeAnimation(onGacha)} style={S.gachaPill}><Text style={S.gachaPillText}>ガチャ{freePulls > 0 ? ` · 無料${freePulls}` : ''}</Text></Pressable>}{!guided && <PopupClose onPress={closePopup} />}</View>
       <TutorialTarget active={guided && guideStage === 'choose'} onRectChange={setTutorialRect} style={[S.mobyScroll, guided && guideStage === 'choose' && S.guidedMobyTarget]}>
         <ScrollView horizontal contentContainerStyle={S.mobyGrid} showsHorizontalScrollIndicator={false} directionalLockEnabled>
-          {PET_CHARACTERS.map(pet => {
+          {/* Event Mobbies show up here only once the player has them. */}
+          {(isOwned ? [...PET_CHARACTERS, ...EVENT_PET_CHARACTERS.filter(pet => isOwned(pet.id))] : PET_CHARACTERS).map(pet => {
             const selected = draftPet === pet.id;
             const locked = !!isOwned && !isOwned(pet.id);
             return <Pressable key={pet.id} artwork={false} disabled={locked} accessibilityRole="radio" accessibilityLabel={`${pet.name}。${locked ? 'まだ出会っていません' : pet.catchphrase}`} accessibilityState={{ selected, disabled: locked }} onPress={() => { setDraftPet(pet.id); if (guided) { setTutorialRect(null); setGuideStage('confirm'); } }} style={[S.mobyCardOption, selected && S.mobyCardOptionActive, locked && S.mobyCardOptionLocked]}>

@@ -17,7 +17,12 @@ export type PetId =
   | 'reamobby'
   | 'shikamobby'
   | 'uyumobby'
-  | 'wolfmobby';
+  | 'wolfmobby'
+  | EventPetId;
+
+/** Mobbies that belong to an event: kept out of the ordinary roster so they never enter the gacha pool or the starter pick. */
+export type EventPetId = 'shotamobby' | 'satomimobby' | 'norikomobby' | 'yasumobby';
+export type RegularPetId = Exclude<PetId, EventPetId>;
 
 export type PetCharacter = {
   id: PetId;
@@ -170,10 +175,52 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
   },
 ] as const;
 
+/**
+ * 「時をめぐる道」のイベントモビー。ふだんの PET_CHARACTERS には入れない（ガチャの抽選・最初の1体の選択に混ざらないように）。
+ * 手に入れたときだけ、モビーを選ぶ画面などに並ぶ。歩く・祈る・ガチャの反応などの専用画像は、まだない。
+ */
+export const EVENT_PET_CHARACTERS: readonly PetCharacter[] = [
+  {
+    id: 'shotamobby',
+    name: '翔太モビー',
+    catchphrase: 'ノリ軽めの平成チャラ男',
+    accent: '#C58A3E',
+    image: require('../assets/mobies/shotamobby.webp'),
+    meaningTemplates: ['{meaning}って意味っしょ！ これ覚えたら、ちょいイケてるっしょ？', '{meaning}ってこと。マジ使えるから、軽く覚えとこうぜ。'],
+  },
+  {
+    id: 'satomimobby',
+    name: 'さとみモビー',
+    catchphrase: 'ギャル全開のハッピー担当',
+    accent: '#F2A7C6',
+    image: require('../assets/mobies/satomimobby.webp'),
+    meaningTemplates: ['{meaning}って意味だよ〜！ ちょーかわいくない？♡', '{meaning}ってこと！ いっしょに覚えよ〜♪'],
+  },
+  {
+    id: 'norikomobby',
+    name: 'のりこモビー',
+    catchphrase: '義理人情にあつい昭和のおねえさん',
+    accent: '#CFC3B4',
+    image: require('../assets/mobies/norikomobby.webp'),
+    meaningTemplates: ['{meaning}って意味だよ。ちゃんと覚えときな。', '{meaning}ってことさ。わかったなら上出来だよ。'],
+  },
+  {
+    id: 'yasumobby',
+    name: 'やすモビー',
+    catchphrase: '硬派でまっすぐな昭和のあんちゃん',
+    accent: '#9AA3B5',
+    image: require('../assets/mobies/yasumobby.webp'),
+    meaningTemplates: ['{meaning}って意味だぜ。覚えとけよ。', '{meaning}ってことだ。ビシッと使っていこうぜ。'],
+  },
+] as const;
+
+/** The ordinary roster and the event Mobbies together: for looking a Mobby up by id. */
+export const ALL_PET_CHARACTERS: readonly PetCharacter[] = [...PET_CHARACTERS, ...EVENT_PET_CHARACTERS];
+
 export function isPetId(value: unknown): value is PetId {
-  return typeof value === 'string' && PET_CHARACTERS.some((pet) => pet.id === value);
+  return typeof value === 'string' && ALL_PET_CHARACTERS.some((pet) => pet.id === value);
 }
 
 export function getPetCharacter(id: PetId) {
-  return PET_CHARACTERS.find((pet) => pet.id === id) ?? PET_CHARACTERS[PET_CHARACTERS.length - 1];
+  return ALL_PET_CHARACTERS.find((pet) => pet.id === id) ?? PET_CHARACTERS[PET_CHARACTERS.length - 1];
 }

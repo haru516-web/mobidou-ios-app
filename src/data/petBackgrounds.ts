@@ -23,4 +23,8 @@ export const PET_BACKGROUNDS: Record<PetId, ImageSourcePropType> = {
   shikamobby: require('../../assets/ui-round3/backgrounds/summer-green.webp'),
   uyumobby: require('../../assets/ui-round3/backgrounds/spring-dawn.webp'),
   wolfmobby: require('../../assets/ui-round3/backgrounds/winter-clear.webp'),
+  shotamobby: require('../../assets/ui-round3/backgrounds/summer-evening.webp'),
+  satomimobby: require('../../assets/ui-round3/backgrounds/spring-dawn.webp'),
+  norikomobby: require('../../assets/ui-round3/backgrounds/autumn-maple.webp'),
+  yasumobby: require('../../assets/ui-round3/backgrounds/winter-clear.webp'),
 };
