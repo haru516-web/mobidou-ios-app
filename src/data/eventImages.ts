@@ -26,21 +26,22 @@ export const EVENT_KEYCHAIN_IMAGES: Record<string, ImageSourcePropType> = {
   'heisei-strap': require('../../assets/event-toki/keychains/keychain-heisei-strap-v1-transparent.webp'),
 };
 
-// GOSHUIN: the Japanese-style goshuin (washi, brush lettering, vermilion seal). Only the first eight exist so far;
-// each spot borrows the nearest one until its own is drawn. TEMPORARY: replace the borrowed ones as they arrive.
-const GOSHUIN: Record<string, ImageSourcePropType> = {
-  'showa-shoutengai': require('../../assets/event-toki/goshuin/showa-shoutengai.webp'),
-  'showa-toge': require('../../assets/event-toki/goshuin/showa-toge.webp'),
-  'showa-drivein': require('../../assets/event-toki/goshuin/showa-drivein.webp'),
-  'showa-sento': require('../../assets/event-toki/goshuin/showa-sento.webp'),
+// GOSHUIN: the Japanese-style goshuin (washi, brush lettering, vermilion seal), all fifteen drawn.
+// The gara-kei (heisei-keitai) and the compact camera (heisei-digicam) use the first batch's "放課後の公園ほこら" and "世紀末の見晴らし社".
+export const EVENT_GOSHUIN_IMAGES: Record<string, ImageSourcePropType> = {
+  'showa-car': require('../../assets/event-toki/goshuin/showa-car.webp'),
+  'showa-bike': require('../../assets/event-toki/goshuin/showa-bike.webp'),
+  'showa-tv': require('../../assets/event-toki/goshuin/showa-tv.webp'),
+  'showa-mirrorball': require('../../assets/event-toki/goshuin/showa-mirrorball.webp'),
   'showa-record': require('../../assets/event-toki/goshuin/showa-record.webp'),
-  'heisei-park': require('../../assets/event-toki/goshuin/heisei-park.webp'),
+  'heisei-md': require('../../assets/event-toki/goshuin/heisei-md.webp'),
+  'heisei-cd': require('../../assets/event-toki/goshuin/heisei-cd.webp'),
+  'heisei-sticker': require('../../assets/event-toki/goshuin/heisei-sticker.webp'),
+  'heisei-phs': require('../../assets/event-toki/goshuin/heisei-phs.webp'),
+  'heisei-loose': require('../../assets/event-toki/goshuin/heisei-loose.webp'),
+  'heisei-boots': require('../../assets/event-toki/goshuin/heisei-boots.webp'),
+  'heisei-strap': require('../../assets/event-toki/goshuin/heisei-strap.webp'),
   'heisei-pager': require('../../assets/event-toki/goshuin/heisei-pager.webp'),
-  'heisei-century': require('../../assets/event-toki/goshuin/heisei-century.webp'),
+  'heisei-keitai': require('../../assets/event-toki/goshuin/heisei-park.webp'),
+  'heisei-digicam': require('../../assets/event-toki/goshuin/heisei-century.webp'),
 };
-const GOSHUIN_SOURCE: Record<string, string> = {
-  'showa-car': 'showa-shoutengai', 'showa-bike': 'showa-toge', 'showa-tv': 'showa-sento', 'showa-mirrorball': 'showa-drivein', 'showa-record': 'showa-record',
-  'heisei-md': 'heisei-century', 'heisei-pager': 'heisei-pager', 'heisei-cd': 'heisei-pager', 'heisei-sticker': 'heisei-park', 'heisei-phs': 'heisei-park',
-  'heisei-loose': 'heisei-park', 'heisei-keitai': 'heisei-park', 'heisei-boots': 'heisei-century', 'heisei-digicam': 'heisei-century', 'heisei-strap': 'heisei-century',
-};
-export const EVENT_GOSHUIN_IMAGES: Record<string, ImageSourcePropType> = Object.fromEntries(Object.entries(GOSHUIN_SOURCE).map(([id, other]) => [id, GOSHUIN[other]]));
