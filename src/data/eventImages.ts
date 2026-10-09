@@ -7,26 +7,24 @@ export const EVENT_KEY_VISUAL: ImageSourcePropType = require('../../assets/event
 export const EVENT_BOOK_COVER: ImageSourcePropType = require('../../assets/event-toki/book-cover.webp');
 export const EVENT_TICKET_IMAGE: ImageSourcePropType = require('../../assets/event-toki/ticket-event-tag.webp');
 
-// MINIATURES (keychains): the redrawn pictures are used as they arrive (docs/codex-event-assets-taste.md).
-const KEYCHAINS: Record<string, ImageSourcePropType> = {
+// MINIATURES (keychains): all fifteen are drawn (docs/codex-event-assets-taste.md).
+export const EVENT_KEYCHAIN_IMAGES: Record<string, ImageSourcePropType> = {
   'showa-car': require('../../assets/event-toki/keychains/keychain-showa-car-v1-transparent.webp'),
   'showa-bike': require('../../assets/event-toki/keychains/keychain-showa-bike-v1-transparent.webp'),
   'showa-tv': require('../../assets/event-toki/keychains/keychain-showa-tv-v1-transparent.webp'),
   'showa-mirrorball': require('../../assets/event-toki/keychains/keychain-showa-mirrorball-v1-transparent.webp'),
   'showa-record': require('../../assets/event-toki/keychains/keychain-showa-record-v1-transparent.webp'),
-  'heisei-keitai': require('../../assets/event-toki/keychains/keychain-heisei-keitai-v1-transparent.webp'),
-  'heisei-strap': require('../../assets/event-toki/keychains/keychain-heisei-strap-v1-transparent.webp'),
+  'heisei-md': require('../../assets/event-toki/keychains/keychain-heisei-md-v1-transparent.webp'),
   'heisei-pager': require('../../assets/event-toki/keychains/keychain-heisei-pager-v1-transparent.webp'),
+  'heisei-cd': require('../../assets/event-toki/keychains/keychain-heisei-cd-v1-transparent.webp'),
+  'heisei-sticker': require('../../assets/event-toki/keychains/keychain-heisei-sticker-v1-transparent.webp'),
+  'heisei-phs': require('../../assets/event-toki/keychains/keychain-heisei-phs-v1-transparent.webp'),
   'heisei-loose': require('../../assets/event-toki/keychains/keychain-heisei-loose-v1-transparent.webp'),
+  'heisei-keitai': require('../../assets/event-toki/keychains/keychain-heisei-keitai-v1-transparent.webp'),
   'heisei-boots': require('../../assets/event-toki/keychains/keychain-heisei-boots-v1-transparent.webp'),
-  'heisei-century': require('../../assets/event-toki/keychains/keychain-heisei-century-v1-transparent.webp'),
-  'heisei-park': require('../../assets/event-toki/keychains/keychain-heisei-park-v1-transparent.webp'),
+  'heisei-digicam': require('../../assets/event-toki/keychains/keychain-heisei-digicam-v1-transparent.webp'),
+  'heisei-strap': require('../../assets/event-toki/keychains/keychain-heisei-strap-v1-transparent.webp'),
 };
-const KEYCHAIN_FALLBACK: Record<string, string> = {
-  'heisei-md': 'heisei-century', 'heisei-cd': 'heisei-pager', 'heisei-sticker': 'heisei-park', 'heisei-phs': 'heisei-park',
-  'heisei-digicam': 'heisei-century',
-};
-export const EVENT_KEYCHAIN_IMAGES: Record<string, ImageSourcePropType> = { ...KEYCHAINS, ...Object.fromEntries(Object.entries(KEYCHAIN_FALLBACK).map(([id, other]) => [id, KEYCHAINS[other]])) };
 
 // GOSHUIN: the Japanese-style goshuin (washi, brush lettering, vermilion seal). Only the first eight exist so far;
 // each spot borrows the nearest one until its own is drawn. TEMPORARY: replace the borrowed ones as they arrive.
