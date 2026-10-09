@@ -382,4 +382,4 @@ Map final WebP circular waypoint centroid audit (pixel coordinates, color flood 
 | keychains/keychain-heisei-sticker-v1-transparent.webp | 1024×1536 | 566272 |
 | keychains/keychain-heisei-phs-v1-transparent.webp | 1024×1536 | 568506 |
 | keychains/keychain-heisei-digicam-v1-transparent.webp | 1024×1536 | 486014 |
-| keychains/keychain-showa-bike-v1-transparent.webp | 1024×1536 | 506262 |
+| keychains/keychain-showa-bike-v1-transparent.webp | 1024×1536 | 452776 |
