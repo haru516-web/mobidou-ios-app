@@ -42,7 +42,7 @@ import { FloatingMobby, type MobbyMenuItem, type MobbySpot } from './src/compone
 import { PopButton } from './src/components/PopButton';
 import { EventScreen } from './src/components/EventScreen';
 import { EventMap } from './src/components/EventScreen';
-import { EventCollection, EventGachaSheet, EVENT_COLLECTION_PAGES } from './src/components/EventBook';
+import { EventGachaSheet } from './src/components/EventBook';
 import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
@@ -319,7 +319,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Event mode: the walk and collection tabs can switch to the event's version (the team's steps, map and things).
   const [eventWalk, setEventWalk] = useState(false);
   const [eventCollection, setEventCollection] = useState(false);
-  const [eventCollectionPage, setEventCollectionPage] = useState<'room' | 'goshuin' | 'miniatures'>('room');
   const [eventBook, setEventBook] = useState(false);
   const [eventFeatured, setEventFeatured] = useState(0);
   const [eventSheet, setEventSheet] = useState<null | 'main' | 'gacha'>(null);
@@ -329,7 +328,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const inEventWalk = eventWalk && eventUnderway;
   const inEventCollection = eventCollection && eventUnderway;
   const inEventBook = eventBook && eventUnderway;
+  const collectionShownCount = inEventCollection ? EVENT_SHRINES.length : COLLECTION_SHRINES.length;
   const eventReached = eventState?.reached ?? 0;
+  // What the event collection shows as owned: each reached spot gives its goshuin and its miniature.
+  const eventOwnedIds = EVENT_SHRINES.slice(0, eventReached).map(shrine => shrine.id);
+  const eventRewardDates = Object.fromEntries(eventOwnedIds.map(id => [id, displayDate(localDay())]));
+  const eventSpecial = { ...journey.special, keychains: Object.fromEntries(eventOwnedIds.map(id => [id, 1])) };
   // Without a team that has set out there is nothing to show yet, so the event buttons open the event screen to make or join one.
   const enterEvent = (set: (on: boolean) => void) => { if (eventUnderway) set(true); else setEventSheet('main'); };
   const [collectionPage, setCollectionPage] = useState<CollectionPage>('room');
@@ -812,7 +816,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
   return <View style={S.desktop}><SafeAreaView style={S.app} edges={['top', 'left', 'right']}>
-    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} viewportWidth={Math.min(480, Math.max(1, windowWidth))} windowHeight={Math.max(1, windowHeight)} tileCount={collectionZoom === 'close' ? COLLECTION_SHRINES.length + 1 : Math.ceil(COLLECTION_SHRINES.length / 3) + 1} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
+    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} viewportWidth={Math.min(480, Math.max(1, windowWidth))} windowHeight={Math.max(1, windowHeight)} tileCount={collectionZoom === 'close' ? collectionShownCount + 1 : Math.ceil(collectionShownCount / 3) + 1} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
       <Animated.View pointerEvents="none" style={S.backgroundScrollLayer}>
         <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, tab === 'book' && S.bookBackgroundTrack, { transform: [{ translateY: tab === 'book' ? 0 : scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
           <Image source={tab === 'book' ? GOSHUIN_BOOK_BACKGROUND : tab === 'walk' ? OUTING_BACKGROUND : currentBackground.image} contentFit="cover" style={[S.backgroundArt, (tab === 'book' || tab === 'walk') && S.bookBackgroundArt]} />
@@ -828,8 +832,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
         : tab === 'walk' ? <View />
         : tab === 'collection' ? (inEventCollection
-          ? <PopButton id="eventNormal" label="通常" icon="home" size={54} phase={0} onPress={() => setEventCollection(false)} />
-          : <PopButton id="eventCollection" label="イベント" icon="flag" size={54} phase={0} onPress={() => enterEvent(setEventCollection)} />)
+          ? <PopButton id="eventNormal" label="通常" icon="home" size={54} phase={0} onPress={() => { setCollectionPage('room'); setEventCollection(false); }} />
+          : <PopButton id="eventCollection" label="イベント" icon="flag" size={54} phase={0} onPress={() => { setCollectionPage('room'); enterEvent(setEventCollection); }} />)
         : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
         {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} premiumTickets={data.mobbies.paidTickets} miniaturePasses={journey.special.passes.keychainDrop} plusActive={data.keychainPlan === 'plus'} onAddTickets={openGachaShop} onAddPasses={openGachaShop} />}
@@ -926,17 +930,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           </View>}
       </>}
 
-      {tab === 'collection' && inEventCollection && <>
-        <View style={[S.jumpRow, { marginTop: 10 }]}>
-          {EVENT_COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : 'collectionMiniature'} label={entry.label} icon={entry.icon === 'cube' ? 'cube' : entry.icon} size={48} phase={index / 4} selected={eventCollectionPage === entry.id} onPress={() => setEventCollectionPage(entry.id)} style={{ flex: 1 }} />)}
-        </View>
-        <EventCollection event={TOKI_MEGURU} page={eventCollectionPage} />
-      </>}
-      {tab === 'collection' && !inEventCollection && <>
-        <TourAnchor id="collection-tabs" style={S.jumpRow}>
+      {tab === 'collection' && <>
+        <TourAnchor id="collection-tabs" style={[S.jumpRow, inEventCollection && { marginTop: 10 }]}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />)}
         </TourAnchor>
-        <CollectionGallery scrollX={collectionScrollX} shrines={COLLECTION_SHRINES} rewardIds={collectionRewardIds} rewardDates={collectionRewardDates} special={journey.special} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={openDetail} onClosePage={() => setCollectionPage('room')} />
+        <CollectionGallery scrollX={collectionScrollX} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} rewardDates={inEventCollection ? eventRewardDates : collectionRewardDates} special={inEventCollection ? eventSpecial : journey.special} eventName={inEventCollection ? TOKI_MEGURU.name : undefined} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={inEventCollection ? (shrine => { if (eventOwnedIds.includes(shrine.id)) setDetail(shrine); }) : openDetail} onClosePage={() => setCollectionPage('room')} />
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}

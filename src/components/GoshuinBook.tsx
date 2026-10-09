@@ -5,6 +5,7 @@ import { Image } from './AppImage';
 import { BRUSH, C, Icon } from '../components';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
+import { EVENT_KEYCHAIN_IMAGES } from '../data/eventImages';
 import type { Pilgrimage } from '../data/pilgrimages';
 import { getGoshuinBookCover } from '../data/goshuinBookCovers';
 import { WashiArt, WashiPressable as Pressable } from './Washi';
@@ -47,7 +48,7 @@ export function ShrineGrid({ kind, shrines, ownedIds, onSelect, showCount = true
       {shrines.map((shrine, index) => {
         const acquired = owned.has(shrine.id);
         const locked = !acquired;
-        const source = kind === 'goshuin' ? STAMP_IMAGES[shrine.id] : COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
+        const source = kind === 'goshuin' ? STAMP_IMAGES[shrine.id] : (COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS] ?? EVENT_KEYCHAIN_IMAGES[shrine.id]);
         return <Pressable artwork={false} key={`${shrine.id}-${index}`} accessibilityRole="button" accessibilityState={{ disabled: locked }} disabled={locked} accessibilityLabel={locked ? `未取得の${noun}` : `${shrine.name}の${noun}、${acquired ? '取得済み' : '未取得'}`} onPress={locked ? undefined : () => onSelect(shrine, index)} style={S.cell}>
           <View style={[S.tile, !acquired && S.tileUnacquired]}><SlicedArt name={acquired ? 'tileFrame' : 'tileFrameEmpty'} corner={9} />
             {source && !locked ? <Image source={source} contentFit="contain" style={[S.image, !acquired && S.imageUnacquired]} /> : null}
@@ -96,7 +97,7 @@ export function PagedShrineGrid({ kind, title, shrines, ownedIds, onSelect, heig
           const index = current * perPage + offset;
           const acquired = owned.has(shrine.id);
           const locked = !acquired;
-          const source = kind === 'goshuin' ? STAMP_IMAGES[shrine.id] : COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
+          const source = kind === 'goshuin' ? STAMP_IMAGES[shrine.id] : (COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS] ?? EVENT_KEYCHAIN_IMAGES[shrine.id]);
           return <Pressable soundless={soundless} artwork={false} key={shrine.id + '-' + index} accessibilityRole="button" accessibilityState={{ disabled: locked }} disabled={locked} accessibilityLabel={locked ? `未取得の${noun}` : shrine.name + 'の' + noun + '、' + (acquired ? '取得済み' : '未取得')} onPress={locked ? undefined : () => onSelect(shrine, index)} style={{ width: tileWidth }}>
             <View style={[S.tile, !acquired && S.tileUnacquired, { height: tileWidth / .82 }]}><SlicedArt name={acquired ? 'tileFrame' : 'tileFrameEmpty'} corner={9} />
               {source && !locked ? <Image source={source} contentFit="contain" style={[S.image, !acquired && S.imageUnacquired]} /> : null}

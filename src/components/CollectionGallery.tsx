@@ -6,6 +6,7 @@ import { SHRINES, STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { PILGRIMAGE_IMAGES } from '../data/pilgrimageImages';
 import { PILGRIMAGES } from '../data/pilgrimages';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
+import { EVENT_KEYCHAIN_IMAGES, EVENT_MAP_IMAGE } from '../data/eventImages';
 import { WashiArt, WashiPressable } from './Washi';
 import { CollectionRoom } from './CollectionRoom';
 import { ScrollPopup } from './ScrollPopup';
@@ -60,7 +61,7 @@ function KeychainArtwork({ shrine, locked, impulse, onPress, large = false, top,
     Animated.spring(sway, { toValue: 0, friction: 2, tension: 20, useNativeDriver: true }).start();
   };
   useEffect(() => { if (impulse > 0) swing(); }, [impulse]);
-  const dedicatedArtwork = COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS];
+  const dedicatedArtwork = COLLECTION_KEYCHAINS[shrine.id as keyof typeof COLLECTION_KEYCHAINS] ?? EVENT_KEYCHAIN_IMAGES[shrine.id];
   const artwork = dedicatedArtwork ?? KEYCHAIN;
   const baseWidth = large ? 260 : 186;
   const baseHeight = large ? 390 : 255;
@@ -101,7 +102,7 @@ const SHOW_CABINET = false;
 export type CollectionPage = 'room' | 'goshuin' | 'miniatures';
 
 /** The collection room and its paged goshuin / miniature lists. */
-export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, rewardDates = {}, special, zoom, onZoomChange, page, onSelectGoshuin, onClosePage }: { scrollX: Animated.Value; shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void; onClosePage: () => void }) {
+export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, rewardDates = {}, special, zoom, onZoomChange, page, onSelectGoshuin, onClosePage, eventName }: { /** Set when the gallery shows an event's things instead of the routes'. */ eventName?: string; scrollX: Animated.Value; shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void; onClosePage: () => void }) {
   const { width, height: windowHeight } = useWindowDimensions();
   const viewportWidth = Math.min(480, Math.max(1, width));
   // Nothing scrolls vertically: the page fills the space under the pop buttons.
@@ -229,14 +230,14 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
       <Modal visible={!!detail} transparent animationType="fade" onRequestClose={() => setDetail(null)}>
         <View style={S.backdrop}>
           <View style={S.detailCard}>
-            <Image source={PILGRIMAGE_IMAGES[routeForShrine(detail?.id ?? '')?.id ?? 'sanctuary']} style={StyleSheet.absoluteFill} contentFit="cover" />
+            <Image source={eventName ? EVENT_MAP_IMAGE : PILGRIMAGE_IMAGES[routeForShrine(detail?.id ?? '')?.id ?? 'sanctuary']} style={StyleSheet.absoluteFill} contentFit="cover" />
             <View style={S.detailWash} /><WashiArt />
             <WashiPressable plate="round" accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => setDetail(null)} style={S.close}><Icon name="close" size={20} color="#7f302d" /></WashiPressable>
             {detail && <>
               <KeychainArtwork shrine={detail} locked={(special.keychains[detail.id] ?? 0) === 0} impulse={0} large />
               <Text style={S.detailReading}>{detail.reading}</Text>
               <Text style={S.detailName}>{detail.name}</Text>
-              <Text style={S.detailRoute}>{routeForShrine(detail.id)?.name ?? 'もび道の巡礼'}</Text>
+              <Text style={S.detailRoute}>{eventName ?? routeForShrine(detail.id)?.name ?? 'もび道の巡礼'}</Text>
               <Text style={S.detailTheme}>{detail.theme}</Text>
               <Text style={S.detailDate}>{rewardDates[detail.id] ? `${rewardDates[detail.id]} に御朱印を授かりました` : 'まだ御朱印を授かっていません'}</Text>
               <WashiPressable accessibilityRole="button" onPress={() => setDetail(null)} style={S.returnButton}><Text style={S.returnText}>とじる</Text></WashiPressable>
