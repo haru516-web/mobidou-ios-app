@@ -15,9 +15,9 @@ export function useEventReached(event: PilgrimageEvent): number {
   return team && team.status !== 'recruiting' ? eventProgress(event, teamSteps(team)).reached : 0;
 }
 
-const COLUMNS = 4, GAP = 8;
+const COLUMNS = 5, GAP = 6;
 
-/** Four-column grid of the event's spots; `render` draws one cell at the given width. */
+/** Five-column grid of the event's spots; `render` draws one cell at the given width. */
 function SpotGrid({ spots, render }: { spots: EventSpot[]; render: (spot: EventSpot, index: number, width: number) => React.ReactNode }) {
   const [width, setWidth] = useState(300);
   const cell = Math.floor((width - GAP * (COLUMNS - 1)) / COLUMNS);

@@ -17,9 +17,9 @@ test('the first event is a fixed-goal map of 2 to 4 people with rising spot thre
 
 test('progress follows the summed steps and clears at the goal', () => {
   assert.deepEqual({ ...eventProgress(TOKI_MEGURU, 0), next: undefined }, { steps: 0, reached: 0, next: undefined, ratio: 0, cleared: false });
-  const mid = eventProgress(TOKI_MEGURU, 50000);
+  const mid = eventProgress(TOKI_MEGURU, 42000);
   assert.equal(mid.reached, 1);
-  assert.equal(mid.next?.id, 'showa-toge');
+  assert.equal(mid.next?.id, 'showa-bike');
   assert.equal(mid.ratio, .5);
   const done = eventProgress(TOKI_MEGURU, 999999);
   assert.equal(done.cleared, true);

@@ -25,8 +25,8 @@ const JOIN_MESSAGES: Record<JoinFailure, string> = {
 
 type Pet = Pick<PetCharacter, 'id' | 'image' | 'name'>;
 
-/** Where the 8 spots sit on the map art (fractions of its width and height), bottom-left to top-right. */
-const SPOT_ANCHORS = [{ x: .10, y: .84 }, { x: .34, y: .72 }, { x: .16, y: .56 }, { x: .42, y: .46 }, { x: .72, y: .54 }, { x: .84, y: .36 }, { x: .60, y: .22 }, { x: .86, y: .10 }];
+/** Where the 15 spots sit on the map art (fractions of its width and height), bottom-left to top-right. */
+const SPOT_ANCHORS = [{ x: .10, y: .84 }, { x: .22, y: .78 }, { x: .34, y: .72 }, { x: .25, y: .64 }, { x: .16, y: .56 }, { x: .29, y: .51 }, { x: .42, y: .46 }, { x: .57, y: .50 }, { x: .72, y: .54 }, { x: .78, y: .45 }, { x: .84, y: .36 }, { x: .72, y: .29 }, { x: .60, y: .22 }, { x: .73, y: .16 }, { x: .86, y: .10 }];
 
 /** The map art is 2:3; it is drawn as large as fits in `maxHeight` and the spots follow the road painted into it. */
 export function EventMap({ event, steps, pet, maxHeight }: { event: PilgrimageEvent; steps: number; pet: Pet; maxHeight: number }) {
@@ -48,8 +48,8 @@ export function EventMap({ event, steps, pet, maxHeight }: { event: PilgrimageEv
         {points.map((p, i) => {
           const reached = i < progress.reached, next = i === progress.reached && !progress.cleared;
           return <React.Fragment key={spots[i].id}>
-            <Circle cx={p.x} cy={p.y} r={(next ? 13 : 11) * scale} fill={reached ? '#2F4A6B' : '#FFF9EB'} stroke={next ? '#C9A24B' : '#2F4A6B'} strokeWidth={(next ? 3 : 1.5) * scale} />
-            <SvgText x={p.x} y={p.y + 4 * scale} fontSize={11 * scale} fontWeight="700" textAnchor="middle" fill={reached ? '#FFF4DE' : '#2F4A6B'}>{reached ? '✓' : i + 1}</SvgText>
+            <Circle cx={p.x} cy={p.y} r={(next ? 11 : 9) * scale} fill={reached ? '#2F4A6B' : '#FFF9EB'} stroke={next ? '#C9A24B' : '#2F4A6B'} strokeWidth={(next ? 3 : 1.5) * scale} />
+            <SvgText x={p.x} y={p.y + 4 * scale} fontSize={10 * scale} fontWeight="700" textAnchor="middle" fill={reached ? '#FFF4DE' : '#2F4A6B'}>{reached ? '✓' : i + 1}</SvgText>
           </React.Fragment>;
         })}
       </Svg>
