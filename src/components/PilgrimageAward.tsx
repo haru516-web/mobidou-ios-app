@@ -16,6 +16,8 @@ import { InkReveal } from './InkReveal';
 import type { SpecialCollection } from '../services/specialRewards';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
+import { SHRINE_SAYINGS } from '../data/shrineSayings';
+import { VerticalSaying } from './VerticalSaying';
 
 /** Set when the ceremony is for an event spot: the event's own goshuin and miniature, and no keychain roll (every spot gives its miniature). */
 export type EventAwardInfo = { name: string; goshuinImage: ImageSourcePropType; keychainImage: ImageSourcePropType; reached: number; total: number; complete: boolean; reward?: string };
@@ -65,7 +67,9 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const [loaded, setLoaded] = useState<Record<string, boolean>>({});
   const [revealDone, setRevealDone] = useState(false);
   // The goshuin is shown first; the miniature draw has its own page after the next button.
-  const [page, setPage] = useState<'goshuin' | 'miniature'>('goshuin');
+  const [page, setPage] = useState<'goshuin' | 'miniature' | 'saying'>('goshuin');
+  // The shrine's saying, written alone after the miniature. Event spots have none.
+  const saying = event ? undefined : SHRINE_SAYINGS[shrine.id];
   const miniature = useRef(new Animated.Value(0)).current;
   const reveal = useRef(new Animated.Value(0)).current;
   const paint = useRef(new Animated.Value(0)).current;
@@ -178,8 +182,8 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];
   return <SafeAreaView style={S.page}><FitToHeight key={showAward ? 'award-' + page : 'walk'} style={S.fit}><View style={S.content}>
-    <Text style={S.eyebrow}>{event ? event.name : demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>
-    <Text accessibilityRole="header" style={S.title}>{showAward && page === 'miniature' ? (arrival ? gotKeychain ? (arrival.outcome === 'owned' ? 'もう持っているミニチュア' : 'ミニチュアを授かりました') : 'ミニチュアはドロップしませんでした' : 'ミニチュアの抽選') : showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>
+    {page !== 'saying' && <Text style={S.eyebrow}>{event ? event.name : demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>}
+    {page !== 'saying' && <Text accessibilityRole="header" style={S.title}>{showAward && page === 'miniature' ? (arrival ? gotKeychain ? (arrival.outcome === 'owned' ? 'もう持っているミニチュア' : 'ミニチュアを授かりました') : 'ミニチュアはドロップしませんでした' : 'ミニチュアの抽選') : showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>}
     <View style={[S.stage, { height: width * 2 / 3 }, showAward && S.stageHidden]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
       <Image source={event ? EVENT_FEEL.ceremonyStage : STAGE} contentFit="fill" style={StyleSheet.absoluteFillObject} onLoad={() => markLoaded('stage')} />
       <View style={{ position: 'absolute', left: 0, top: 0, width: 600, height: 400, transformOrigin: 'top left', transform: [{ scale: k }] }}>
@@ -227,10 +231,12 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
       {!event && <Text style={S.passOwned}>交換券 {ticketCount}枚</Text>}
       {canUseTicket && <View style={S.exchangeActions}><Button title="券を使って受け取る" secondary onPress={useTicket} style={S.specialButton} /></View>}
     </Animated.View>}
+    {/* Like the ink painting of the goshuin, this slow opening is the point of the page, so it ignores the reduced-motion setting. */}
+    {showAward && page === 'saying' && !!saying && <VerticalSaying text={saying} />}
   </View></FitToHeight>
   {/* Outside the scaled area, so it keeps its size and stays tappable however tall the content is. */}
   {/* Always present, so the room left for the scaled content does not change when the button appears. */}
-  <View style={S.closeBar}>{showAward && <Button title={page === 'miniature' ? 'ホームへ' : revealDone ? '次へ' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={page === 'miniature' ? onClose : () => setPage('miniature')} style={{ width: '100%', maxWidth: 350 }} />}</View>
+  <View style={S.closeBar}>{showAward && <Button title={page === 'saying' || (page === 'miniature' && !saying) ? 'ホームへ' : page === 'miniature' || revealDone ? '次へ' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={page === 'saying' || (page === 'miniature' && !saying) ? onClose : page === 'miniature' ? () => setPage('saying') : () => setPage('miniature')} style={{ width: '100%', maxWidth: 350 }} />}</View>
   </SafeAreaView>;
 }
 const S = StyleSheet.create({
