@@ -10,6 +10,7 @@ import rawMetrics from '../data/pilgrimageSpriteMetrics.json';
 import { BRUSH, Button, C, SERIF, useReducedMotion } from '../components';
 import { FitToHeight } from './PagedBody';
 import { STAMP_IMAGES } from '../data/shrines';
+import { EVENT_FEEL } from '../data/eventImages';
 import { AwardFx, BURST_AT } from './AwardFx';
 import { InkReveal } from './InkReveal';
 import type { SpecialCollection } from '../services/specialRewards';
@@ -180,9 +181,9 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     <Text style={S.eyebrow}>{event ? event.name : demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>
     <Text accessibilityRole="header" style={S.title}>{showAward && page === 'miniature' ? (arrival ? gotKeychain ? (arrival.outcome === 'owned' ? 'もう持っているミニチュア' : 'ミニチュアを授かりました') : 'ミニチュアはドロップしませんでした' : 'ミニチュアの抽選') : showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>
     <View style={[S.stage, { height: width * 2 / 3 }, showAward && S.stageHidden]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
-      <Image source={STAGE} contentFit="fill" style={StyleSheet.absoluteFillObject} onLoad={() => markLoaded('stage')} />
+      <Image source={event ? EVENT_FEEL.ceremonyStage : STAGE} contentFit="fill" style={StyleSheet.absoluteFillObject} onLoad={() => markLoaded('stage')} />
       <View style={{ position: 'absolute', left: 0, top: 0, width: 600, height: 400, transformOrigin: 'top left', transform: [{ scale: k }] }}>
-        <Image source={GATE} onLoad={() => markLoaded('gate')} contentFit="contain" style={{ position: 'absolute', left: 126, bottom: 42, width: 154, height: 194, zIndex: 3 }} />
+        <Image source={event ? EVENT_FEEL.ceremonyGate : GATE} onLoad={() => markLoaded('gate')} contentFit="contain" style={{ position: 'absolute', left: 126, bottom: 42, width: 154, height: 194, zIndex: 3 }} />
         {!showAward && <View style={{ position: 'absolute', left: x - 70, top: y - 140, width: 140, height: 140, zIndex: 2, transform: [{ scaleX: facingLeft ? -1 : 1 }] }}>
           {sprites.map(sprite => {
             const metric = metrics[pet.id + '/' + sprite.id];

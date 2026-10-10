@@ -18,8 +18,8 @@ export type ShrineGridKind = 'goshuin' | 'miniature';
  * The book's table of contents, opened as a hanging scroll over the page
  * instead of a plain sheet.
  */
-export function BookIndexPopup({ visible, title, subtitle, shrines, ownedIds, onSelect, onClose }: { visible: boolean; title: string; subtitle?: string; shrines: readonly Shrine[]; ownedIds: readonly string[]; onSelect: (shrine: Shrine, index: number) => void; onClose: () => void }) {
-  return <ScrollPopup visible={visible} title={title} subtitle={subtitle} onClose={onClose}>
+export function BookIndexPopup({ visible, title, subtitle, shrines, ownedIds, onSelect, onClose, event = false }: { /** The event's own scroll. */ event?: boolean; visible: boolean; title: string; subtitle?: string; shrines: readonly Shrine[]; ownedIds: readonly string[]; onSelect: (shrine: Shrine, index: number) => void; onClose: () => void }) {
+  return <ScrollPopup event={event} visible={visible} title={title} subtitle={subtitle} onClose={onClose}>
     {paper => <PagedShrineGrid bare soundless kind="goshuin" title="" shrines={shrines} ownedIds={ownedIds} onSelect={(shrine, index) => { playPageTurn(true); onSelect(shrine, index); }} height={paper.height} />}
   </ScrollPopup>;
 }

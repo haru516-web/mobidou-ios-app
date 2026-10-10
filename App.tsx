@@ -50,7 +50,7 @@ import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
 import { eventProgress, teamSteps } from './src/services/eventTeam';
 import { devEventTeam, eventTeamApi, useEventTeam } from './src/services/eventTeamStore';
-import { EVENT_GOSHUIN_IMAGES, EVENT_KEYCHAIN_IMAGES } from './src/data/eventImages';
+import { EVENT_FEEL, EVENT_GOSHUIN_IMAGES, EVENT_KEYCHAIN_IMAGES } from './src/data/eventImages';
 import { HomeStatusBar } from './src/components/HomeStatusBar';
 import { FeatureTour, TourAnchor } from './src/components/FeatureTour';
 import type { TourSelection } from './src/data/featureTour';
@@ -127,9 +127,9 @@ const BOOK_CLOTH = require('./assets/ui-washi/goshuin/book-cover.webp');
 // The page art has transparent margins; crop each page to its paper so the two
 // halves meet at the spine and reach the cover edge.
 const BOOK_PAGE_PAPER = { left: { x0: .066, x1: .929, y0: .034, y1: .965 }, right: { x0: .059, x1: .939, y0: .028, y1: .970 } } as const;
-function BookPageArt({ side }: { side: 'left' | 'right' }) {
+function BookPageArt({ side, event = false }: { side: 'left' | 'right'; event?: boolean }) {
   return <View pointerEvents="none" style={[S.bookPageArt, side === 'left' ? { left: 0 } : { right: 0 }]}>
-    <CroppedArt source={side === 'left' ? BOOK_PAGE_LEFT : BOOK_PAGE_RIGHT} bounds={BOOK_PAGE_PAPER[side]} />
+    <CroppedArt source={event ? (side === 'left' ? EVENT_FEEL.pageLeft : EVENT_FEEL.pageRight) : side === 'left' ? BOOK_PAGE_LEFT : BOOK_PAGE_RIGHT} bounds={BOOK_PAGE_PAPER[side]} />
   </View>;
 }
 
@@ -405,6 +405,15 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const collectionRewardIds = collectionRewards.map(reward => reward.id);
   // A goshuin that has not been received yet never opens its detail, wherever it is tapped.
   const openDetail = (shrine: Shrine) => { if (collectionRewardIds.includes(shrine.id) || progress.rewards.some(reward => reward.id === shrine.id)) setDetail(shrine); };
+  // The goshuin list is a scroll in its own modal, which would cover the detail popup: close it while the detail is open and bring it back after.
+  const [listBehindDetail, setListBehindDetail] = useState(false);
+  const selectCollectionGoshuin = (shrine: Shrine) => {
+    const owned = inEventCollection ? eventOwnedIds.includes(shrine.id) : collectionRewardIds.includes(shrine.id) || progress.rewards.some(reward => reward.id === shrine.id);
+    if (!owned) return;
+    if (collectionPage === 'goshuin') { setListBehindDetail(true); setCollectionPage('room'); }
+    setDetail(shrine);
+  };
+  useEffect(() => { if (!detail && listBehindDetail) { setListBehindDetail(false); setCollectionPage('goshuin'); } }, [detail, listBehindDetail]);
   const ownedMiniatureIds = Object.keys(journey.special.keychains).filter(id => (journey.special.keychains[id] ?? 0) > 0);
   const collectionRewardDates = Object.fromEntries(collectionRewards.map(reward => [reward.id, displayDate(reward.date)]));
   const pointTargets = expandPointTargets(activeShrines.length, activeRoute?.targets ?? DAILY_TARGETS);
@@ -521,8 +530,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const book = (inEventBook ? EVENT_SHRINES : activeShrines)[index] ?? SHRINES[0];
     const reward = inEventBook ? (index < eventReached ? { id: book.id } : undefined) : progress.rewards.find(entry => entry.id === book.id);
     return <View style={S.openBook}>
-      <BookPageArt side="left" />
-      <BookPageArt side="right" />
+      <BookPageArt side="left" event={inEventBook} />
+      <BookPageArt side="right" event={inEventBook} />
       <View style={S.bookLeft}><Stamp shrine={book} locked={!reward} /></View>
       <View style={S.bookRight}>
         <FitLine text={book.reading} style={S.bookReading} base={11} spacing={1} /><FitLine text={book.name} style={S.bookName} base={21} min={12} /><View style={S.shortRule} /><FitLine text={book.theme} style={S.bookTheme} base={12} min={10} wrap /><Text style={S.bookDescription}>{book.description.split('\n').slice(1).join('\n')}</Text>
@@ -841,10 +850,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
   return <View style={S.desktop}><SafeAreaView style={S.app} edges={['top', 'left', 'right']}>
-    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} viewportWidth={Math.min(480, Math.max(1, windowWidth))} windowHeight={Math.max(1, windowHeight)} tileCount={collectionZoom === 'close' ? collectionShownCount + 1 : Math.ceil(collectionShownCount / 3) + 1} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
+    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} viewportWidth={Math.min(480, Math.max(1, windowWidth))} windowHeight={Math.max(1, windowHeight)} tileCount={collectionZoom === 'close' ? collectionShownCount + 1 : Math.ceil(collectionShownCount / 3) + 1} event={inEventCollection} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
       <Animated.View pointerEvents="none" style={S.backgroundScrollLayer}>
         <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, tab === 'book' && S.bookBackgroundTrack, { transform: [{ translateY: tab === 'book' ? 0 : scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
-          <Image source={tab === 'book' ? GOSHUIN_BOOK_BACKGROUND : tab === 'walk' ? OUTING_BACKGROUND : currentBackground.image} contentFit="cover" style={[S.backgroundArt, (tab === 'book' || tab === 'walk') && S.bookBackgroundArt]} />
+          <Image source={tab === 'book' ? (inEventBook ? EVENT_FEEL.bookBackground : GOSHUIN_BOOK_BACKGROUND) : tab === 'walk' ? (inEventWalk ? EVENT_FEEL.outingBackground : OUTING_BACKGROUND) : currentBackground.image} contentFit="cover" style={[S.backgroundArt, (tab === 'book' || tab === 'walk') && S.bookBackgroundArt]} />
           <View pointerEvents="none" style={[S.backgroundWash, tab === 'book' && S.bookBackgroundWash]} />
         </Animated.View>
       </Animated.View>
@@ -903,7 +912,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         </View>
         {(inEventBook || activeRoute) && !bookOpen && <GoshuinBookCover route={activeRoute} event={inEventBook ? { name: TOKI_MEGURU.name, image: EVENT_BOOK_COVER } : undefined} onOpen={() => setBookOpen(true)} />}
         {bookOpen && <><View style={[S.bookWrap, { marginTop: 14 }]}>
-          <View pointerEvents="none" style={[S.bookCoverEdge, inEventBook ? { backgroundColor: '#2F4A6B' } : activeRoute ? { backgroundColor: activeRoute.color } : null]}><Image accessible={false} source={BOOK_CLOTH} contentFit="cover" style={S.bookCloth} /></View>
+          <View pointerEvents="none" style={[S.bookCoverEdge, inEventBook ? { backgroundColor: '#2F4A6B' } : activeRoute ? { backgroundColor: activeRoute.color } : null]}><Image accessible={false} source={inEventBook ? EVENT_FEEL.bookCloth : BOOK_CLOTH} contentFit="cover" style={S.bookCloth} /></View>
           <BookPageTurn key={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={inEventBook ? eventFeatured % EVENT_SHRINES.length : selectedIndex} itemCount={inEventBook ? EVENT_SHRINES.length : activeShrines.length} contentKey={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={inEventBook ? setEventFeatured : setFeatured} onBusyChange={setTurning} onOpenDetail={index => inEventBook ? (index < eventReached ? setDetail(EVENT_SHRINES[index]) : undefined) : openDetail(activeShrines[index])} nativePages={inEventBook ? nativeEventBookPages : nativeBookPages} style={S.bookViewport} />
         </View>
         <View style={S.pager}><Pressable plate="round" accessibilityRole="button" accessibilityLabel="前の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><PillText textStyle={S.pageCounterText}>{String((inEventBook ? eventFeatured % EVENT_SHRINES.length : selectedIndex) + 1).padStart(2, '0')} / {String((inEventBook ? EVENT_SHRINES : activeShrines).length).padStart(2, '0')}</PillText><Pressable plate="round" accessibilityRole="button" accessibilityLabel="次の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
@@ -967,7 +976,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <TourAnchor id="collection-tabs" style={S.jumpRow}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />)}
         </TourAnchor>
-        <CollectionGallery scrollX={collectionScrollX} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} rewardDates={inEventCollection ? eventRewardDates : collectionRewardDates} special={inEventCollection ? eventSpecial : journey.special} eventName={inEventCollection ? TOKI_MEGURU.name : undefined} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={inEventCollection ? (shrine => { if (eventOwnedIds.includes(shrine.id)) setDetail(shrine); }) : openDetail} onClosePage={() => setCollectionPage('room')} />
+        <CollectionGallery scrollX={collectionScrollX} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} rewardDates={inEventCollection ? eventRewardDates : collectionRewardDates} special={inEventCollection ? eventSpecial : journey.special} eventName={inEventCollection ? TOKI_MEGURU.name : undefined} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={selectCollectionGoshuin} onClosePage={() => setCollectionPage('room')} />
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
@@ -988,7 +997,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <EventScreen visible={eventSheet === 'main'} onClose={() => setEventSheet(null)} event={TOKI_MEGURU} pet={pet} />
     <EventListPopup visible={eventListOpen} onClose={() => setEventListOpen(false)} event={TOKI_MEGURU} statusLabel={eventStatusLabel} onViewCollection={() => { setEventListOpen(false); setCollectionPage('room'); setEventCollection(true); }} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
-    <BookIndexPopup visible={bookIndexOpen} title="目次" subtitle={inEventBook ? TOKI_MEGURU.name : activeRoute?.name} shrines={inEventBook ? EVENT_SHRINES : activeShrines} ownedIds={inEventBook ? EVENT_SHRINES.slice(0, eventReached).map(shrine => shrine.id) : collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
+    <BookIndexPopup event={inEventBook} visible={bookIndexOpen} title="目次" subtitle={inEventBook ? TOKI_MEGURU.name : activeRoute?.name} shrines={inEventBook ? EVENT_SHRINES : activeShrines} ownedIds={inEventBook ? EVENT_SHRINES.slice(0, eventReached).map(shrine => shrine.id) : collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
     {firstRunStage === 'homeCompanion' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="1 / 7" title="ホームのモビーとふれあおう" detail="ほっぺを引っぱると伸びるよ。タップで二礼二拍手一礼。" />}
     {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="2 / 7" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
     {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="3 / 7" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
@@ -1017,7 +1026,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="御朱印詳細を閉じる" onPress={() => closeDetailPopup()} style={StyleSheet.absoluteFillObject} />
         {detail && <View pointerEvents="box-none" style={S.detailPopupLayout}>
           <Animated.View style={[S.detailPopupCard, { opacity: detailPopupProgress, transform: [{ translateY: detailPopupProgress.interpolate({ inputRange: [0, 1], outputRange: [480, 0] }) }] }]}>
-            <Image source={GOSHUIN_DETAIL_BACKGROUND} contentFit="cover" style={StyleSheet.absoluteFillObject} accessible={false} pointerEvents="none" />
+            <Image source={EVENT_SHRINES.some(shrine => shrine.id === detail.id) ? EVENT_FEEL.detailBackground : GOSHUIN_DETAIL_BACKGROUND} contentFit="cover" style={StyleSheet.absoluteFillObject} accessible={false} pointerEvents="none" />
             <View style={[S.detailPopupScroll, S.detailPopupContent]}>
               <Text style={S.detailReading}>{detail.reading}</Text>
               <Text style={S.detailName}>{detail.name}</Text>

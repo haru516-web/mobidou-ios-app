@@ -9,6 +9,7 @@ import { WashiArt, WashiPressable as Pressable } from './Washi';
 import { PagedBody } from './PagedBody';
 import { SlicedArt } from './SlicedArt';
 import { IMG7, UI_ART7 } from '../data/uiArtRound7';
+import { EVENT_FEEL } from '../data/eventImages';
 import { answerFriendRequest, fetchProfile, fetchSocialOverview, formatFriendCode, SAMPLE_FRIEND_CODE, saveProfile, sendFriendRequest, SOCIAL_ONLINE, type Friend, type FriendRequest, type Gift, type GiftItem } from '../services/social';
 import { friendInviteLink } from '../services/friends';
 import { SERVER_URL } from '../services/server';
@@ -24,13 +25,13 @@ const TICKET_NAMES: Record<GiftItem['kind'], string> = {
 };
 
 /** Page sheet shared by the social screens and the book index. */
-export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode }) {
+export function Sheet({ visible, title, onClose, children, event = false }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; /** The event's own paper and header. */ event?: boolean }) {
   return <Modal visible={visible} onShow={() => playSfx('sfx_open')} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
     <SafeAreaView style={S.sheet}>
-      <Image pointerEvents="none" accessible={false} source={IMG7.sheetBg} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-      <View style={S.sheetHeader}>
-        <SlicedArt art={UI_ART7.sheetHeader} />
-        <Text accessibilityRole="header" style={S.sheetTitle}>{title}</Text>
+      <Image pointerEvents="none" accessible={false} source={event ? EVENT_FEEL.sheetBackground : IMG7.sheetBg} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+      <View style={[S.sheetHeader, event && S.sheetHeaderEvent]}>
+        {event ? null : <SlicedArt art={UI_ART7.sheetHeader} />}
+        <Text accessibilityRole="header" style={[S.sheetTitle, event && S.sheetTitleEvent]}>{title}</Text>
         <Pressable soundless plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => { playSfx('sfx_close'); onClose(); }} style={S.close}><Icon name="close" size={21} /></Pressable>
       </View>
       <PagedBody style={S.sheetBody}>{children}</PagedBody>
@@ -254,6 +255,9 @@ const S = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: C.paper, width: '100%', maxWidth: 600, alignSelf: 'center' },
   sheetHeader: { paddingHorizontal: 22, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', overflow: 'hidden' },
   sheetTitle: { fontFamily: BRUSH, fontSize: 23, color: C.ink },
+  // The event sheet has no band of its own: the title sits on the event paper like the rest,.
+  sheetHeaderEvent: { paddingLeft: 40 },
+  sheetTitleEvent: { color: '#2F4A6B' },
   close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' },
   sheetBody: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 4, minHeight: 34, paddingHorizontal: 16 },

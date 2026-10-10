@@ -151,7 +151,7 @@ export function EventScreen({ visible, onClose, event, pet }: { visible: boolean
     </View>
   </View>);
 
-  return <Sheet visible={visible} title="イベント巡礼" onClose={onClose}>{body}</Sheet>;
+  return <Sheet event visible={visible} title="イベント巡礼" onClose={onClose}>{body}</Sheet>;
 }
 
 const S = StyleSheet.create({

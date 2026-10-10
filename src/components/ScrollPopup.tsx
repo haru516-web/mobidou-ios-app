@@ -4,6 +4,7 @@ import { Image } from './AppImage';
 import { BRUSH, C } from '../components';
 import { CroppedArt } from './CroppedArt';
 import { WashiPressable as Pressable } from './Washi';
+import { EVENT_FEEL } from '../data/eventImages';
 
 const SCROLL_ART = require('../../assets/ui-washi/goshuin/index-popup.webp');
 const WIDE_SCROLL_ART = require('../../assets/ui-washi/walk/map-popup.webp');
@@ -26,6 +27,8 @@ type ScrollPopupProps = {
   onShow?: () => void;
   /** `wide` is a tall, full-width scroll for busy content; it draws no heading or close button of its own. */
   variant?: 'narrow' | 'wide';
+  /** The event's own hanging scroll (same paper and rollers, event surface). Only the narrow scroll has one. */
+  event?: boolean;
   children: (paper: ScrollPaper) => React.ReactNode;
 };
 
@@ -34,7 +37,7 @@ type ScrollPopupProps = {
  * table of contents, the collection's lists and the route picker. Children
  * draw on the paper.
  */
-export function ScrollPopup({ visible, title, subtitle, onClose, onShow, variant = 'narrow', children }: ScrollPopupProps) {
+export function ScrollPopup({ visible, title, subtitle, onClose, onShow, variant = 'narrow', event = false, children }: ScrollPopupProps) {
   React.useEffect(() => { if (visible) playSfx('sfx_scroll_open'); }, [visible]);
   const { width, height } = useWindowDimensions();
   if (variant === 'wide') return <WideScroll visible={visible} title={title} onClose={onClose} onShow={onShow} width={width} height={height}>{children}</WideScroll>;
@@ -51,7 +54,7 @@ export function ScrollPopup({ visible, title, subtitle, onClose, onShow, variant
     <View style={S.scrim}>
       <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel={`${title}を閉じる`} onPress={() => { playSfx('sfx_close'); onClose(); }} style={StyleSheet.absoluteFill} />
       <View accessibilityViewIsModal style={{ width: scrollWidth, height: scrollHeight, overflow: 'hidden' }}>
-        <Image accessible={false} source={SCROLL_ART} contentFit="fill" pointerEvents="none" style={{ position: 'absolute', left: -SCROLL_LEFT * artWidth, top: 0, width: artWidth, height: artHeight }} />
+        <Image accessible={false} source={event ? EVENT_FEEL.scroll : SCROLL_ART} contentFit="fill" pointerEvents="none" style={{ position: 'absolute', left: -SCROLL_LEFT * artWidth, top: 0, width: artWidth, height: artHeight }} />
         <View style={[S.content, { left: scrollWidth * .12, right: scrollWidth * .12, top: scrollHeight * .165, height: paperHeight }]}>
           <Text accessibilityRole="header" style={S.title}>{title}</Text>
           {!!subtitle && <Text numberOfLines={1} style={S.subtitle}>{subtitle}</Text>}

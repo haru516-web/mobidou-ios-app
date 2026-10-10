@@ -14,7 +14,7 @@ import { ScrollPopup } from './ScrollPopup';
 export function EventListPopup({ visible, onClose, event, statusLabel, onViewCollection }: { visible: boolean; onClose: () => void; event: PilgrimageEvent; /** Where the player stands in it: not joined, recruiting, walking, cleared. */ statusLabel: string; onViewCollection: () => void }) {
   const [list, setList] = useState<'now' | 'past'>('now');
   useEffect(() => { if (visible) setList('now'); }, [visible]);
-  return <ScrollPopup visible={visible} title="イベント" onClose={onClose}>
+  return <ScrollPopup event visible={visible} title="イベント" onClose={onClose}>
     {paper => {
       // The picture takes what is left between the tabs and the button, below it only the name and where the player stands.
       const imageHeight = Math.max(120, paper.height - 46 - 52 - 62 - 36);

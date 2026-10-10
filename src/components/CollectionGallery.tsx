@@ -220,10 +220,10 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
           </View>
         </Animated.ScrollView>
       </View>}
-      <ScrollPopup visible={page === 'goshuin'} title="御朱印" onClose={onClosePage}>
+      <ScrollPopup event={!!eventName} visible={page === 'goshuin'} title="御朱印" onClose={onClosePage}>
         {paper => <PagedShrineGrid bare kind="goshuin" title="" shrines={showcase} ownedIds={[...rewarded]} onSelect={onSelectGoshuin} height={paper.height} />}
       </ScrollPopup>
-      <ScrollPopup visible={page === 'miniatures'} title="ミニチュア" onClose={onClosePage}>
+      <ScrollPopup event={!!eventName} visible={page === 'miniatures'} title="ミニチュア" onClose={onClosePage}>
         {paper => <PagedShrineGrid bare kind="miniature" title="" shrines={showcase} ownedIds={showcase.filter(shrine => (special.keychains[shrine.id] ?? 0) > 0).map(shrine => shrine.id)} onSelect={shrine => setDetail(shrine)} height={paper.height} />}
       </ScrollPopup>
       <Modal visible={!!detail} transparent animationType="fade" onRequestClose={() => setDetail(null)}>
