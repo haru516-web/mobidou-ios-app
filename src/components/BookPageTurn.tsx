@@ -245,8 +245,8 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
  * page turn is used on every platform so the book looks the same.
  */
 const USE_NATIVE_PAGE_CURL = true;
-/** Temporary: shows the first photographed spread at the top right so a TestFlight build can tell an empty picture from a picture the native view cannot read. Turn off before the public release. */
-const SHOW_CURL_DEBUG = true;
+/** Development builds only: shows the first photographed spread at the top right, to tell an empty picture from one the native view cannot read. */
+const SHOW_CURL_DEBUG = __DEV__;
 
 /**
  * The iOS page curl turning the app's own book: every spread is drawn once by the app (off screen), saved as a picture, and the
