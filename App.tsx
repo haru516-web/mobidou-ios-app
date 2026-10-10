@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Linking, Easing, Modal, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Animated, AppState, Linking, Easing, Modal, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from './src/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
@@ -16,7 +16,7 @@ import { useJourney } from './src/services/useJourney';
 import { hasStarter, ownsMobby, ticketCount } from './src/services/gacha';
 import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
 import { GachaScreen } from './src/components/GachaScreen';
-import { buyPlan, buyPulls, drawPaidTickets, purchaseFollowUp, setAgeGroup, settleCredits, type AgeGroup, type BuyOutcome, type FollowUp, type PullProductId } from './src/services/purchase';
+import { buyPlan, buyPulls, drawPaidTickets, PLUS_PRODUCT, PULL_PRODUCTS, purchaseFollowUp, recoverPaidDraws, restorePurchases as restoreFromStore, setAgeGroup, settleCredits, settlePaidDraws, type AgeGroup, type BuyOutcome, type FollowUp, type PullProductId } from './src/services/purchase';
 import { createAppStore } from './src/services/appStore';
 import { friendCodeFromUrl } from './src/services/friends';
 import { isAppleLinked, linkApple, restoreWithApple } from './src/services/appleAccount';
@@ -47,11 +47,13 @@ import { eventTicketsEarned } from './src/services/eventGacha';
 import { EventListPopup } from './src/components/EventListPopup';
 import { EventAnnouncePopup } from './src/components/EventAnnouncePopup';
 import { isEventAnnounceHidden, setEventAnnounceHidden } from './src/services/eventAnnounce';
+import './src/services/pendingDraws';
 import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
 import { eventProgress, teamSteps } from './src/services/eventTeam';
-import { devEventTeam, eventTeamApi, useEventTeam } from './src/services/eventTeamStore';
+import { devEventTeam, eventTeamApi, loadEventTeam, sendEventSteps, useEventAvailable, useEventTeam } from './src/services/eventTeamStore';
+import { teamCodeFromUrl } from './src/services/eventTeam';
 import { EVENT_FEEL, EVENT_GOSHUIN_IMAGES, EVENT_KEYCHAIN_IMAGES } from './src/data/eventImages';
 import { HomeStatusBar } from './src/components/HomeStatusBar';
 import { FeatureTour, TourAnchor } from './src/components/FeatureTour';
@@ -241,9 +243,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   };
   /** Settings > restore: finish anything left unfinished, then take the server's balance and plan. */
   const restorePurchases = async () => {
-    const wallet = await settleCredits(appStore).catch(() => null);
-    if (wallet) applyWallet(wallet);
+    const outcome = await restoreFromStore(appStore).catch(() => ({ kind: 'offline' } as const));
+    if (outcome.kind === 'done' && outcome.wallet) applyWallet(outcome.wallet);
     await refreshPlan();
+    const wallet = outcome.kind === 'done' ? outcome.wallet : null;
+    // A purchase made under an earlier anonymous account cannot be moved here by "restore"; say so rather than claim it worked.
+    if (outcome.kind === 'done' && outcome.otherAccount > 0 && outcome.credited === 0) {
+      Alert.alert('購入の復元', '見つかった購入は、以前に使っていた別のアカウントのものでした。設定の「アカウント管理」でAppleにサインインして、以前の記録を引き継ぐと、契約中のプランと木札を戻せます。');
+      return;
+    }
+    if (outcome.kind === 'done' && outcome.credited === 0 && outcome.failed === 0 && wallet) {
+      Alert.alert('購入の復元', '復元できる購入は、見つかりませんでした。契約中のプランがある場合は、同じApple IDで、アカウントを引き継いでください。');
+      return;
+    }
     Alert.alert('購入の復元', wallet ? '購入の情報を確認しました。契約中のプランと木札は、この端末に反映されています。' : 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。');
   };
   const purchasing = useRef(false);
@@ -293,10 +305,28 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     void settleCredits(appStore).then(wallet => { if (wallet) applyWallet(wallet); }).catch(() => undefined)
       .then(() => refreshPlan());
   }, [journey.ready, data.demo]);
+  // The App Store's own price text, read when the gacha screen opens (so a price or a currency change shows at once).
+  const [priceLabels, setPriceLabels] = useState<Partial<Record<'pull1' | 'pull5' | 'plus', string>>>({});
+  useEffect(() => {
+    if (!gachaOpen || !appStore?.prices) return;
+    void appStore.prices().then(found => setPriceLabels({ pull1: found[PULL_PRODUCTS.pull1.sku], pull5: found[PULL_PRODUCTS.pull5.sku], plus: found[PLUS_PRODUCT.sku] }));
+  }, [gachaOpen]);
   // A refund can arrive any time; look again whenever the gacha screen opens.
   useEffect(() => {
     if (gachaOpen && journey.ready && !data.demo) { void refreshWallet(); void refreshPlan(); }
   }, [gachaOpen]);
+  // A draw whose answer was lost on the way (a dropped connection, the app closed) is asked for again with its operation id.
+  const recoverPending = async () => {
+    const recovered = await recoverPaidDraws();
+    if (!recovered) return;
+    journey.applyPaidPulls(recovered.results, recovered.paidPulls, recovered.paidTickets);
+    void settlePaidDraws(recovered.opIds);
+    Alert.alert('ガチャ', '前回の結果を受け取りました。コレクションを見てみましょう。');
+  };
+  useEffect(() => {
+    if (!journey.ready || data.demo) return;
+    void recoverPending();
+  }, [journey.ready, data.demo]);
   // The rope was pulled: ordinary 木札 are drawn on the device, premium (bought) ones by the server; the player picks which.
   const drawTickets = async (count: number, source: 'normal' | 'premium' = 'normal'): Promise<boolean> => {
     const mobbies = data.mobbies;
@@ -304,9 +334,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const paid = source === 'premium' ? count : 0;
     if (free > mobbies.freePulls || paid > mobbies.paidTickets) return false;
     if (paid > 0) {
+      // Results that were lost on the way back from an earlier draw are taken in first.
+      await recoverPending();
       const drawn = await drawPaidTickets(paid, mobbies);
-      if (!drawn) { Alert.alert('ガチャ', 'サーバーにつながりませんでした。木札は減っていません。電波のよいところで、もう一度お試しください。'); return false; }
+      if (!drawn) { Alert.alert('ガチャ', 'サーバーにつながりませんでした。木札の消費を確認できていません。しばらくしてから開き直すと、結果を受け取れます。'); return false; }
       journey.applyPaidPulls(drawn.results, drawn.paidPulls, drawn.paidTickets);
+      void settlePaidDraws(drawn.opIds);
       if (!drawn.complete) Alert.alert('ガチャ', '一部だけ引けました。残りの木札は減っていないので、もう一度お試しください。');
     }
     if (free > 0) journey.drawFreeMobby(free);
@@ -329,6 +362,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [eventSheet, setEventSheet] = useState<null | 'main'>(null);
   const [eventGachaOpen, setEventGachaOpen] = useState(false);
   const eventTeam = useEventTeam(TOKI_MEGURU.id);
+  // False until the server is known to have the event; the buttons into it stay hidden until then.
+  const eventAvailable = useEventAvailable(TOKI_MEGURU.id);
   // Development on the web only: ?event-preview=150000 opens with a team that has already walked that far.
   useEffect(() => {
     if (!__DEV__ || Platform.OS !== 'web' || typeof window === 'undefined') return;
@@ -337,6 +372,24 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const steps = Math.max(0, Math.min(TOKI_MEGURU.goalSteps ?? 0, Number(raw) > 1 ? Number(raw) : 150000));
     devEventTeam.seedPreview(TOKI_MEGURU, steps, { id: 'me', name: 'あなた', petId: 'mobibou' });
   }, []);
+  // The real team lives on the server: load it when the app is ready and again each time the app comes back to the front,
+  // and once the team has set out, send the steps of the open day (the server adds them up for the whole team).
+  const eventPreviewing = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('event-preview');
+  const eventTeamSetOut = eventTeam?.status === 'active' || eventTeam?.status === 'cleared';
+  useEffect(() => {
+    if (!journey.ready || data.demo || !data.onboarded || eventPreviewing) return undefined;
+    void loadEventTeam(TOKI_MEGURU);
+    const subscription = AppState.addEventListener('change', state => { if (state === 'active') void loadEventTeam(TOKI_MEGURU); });
+    return () => subscription.remove();
+  }, [journey.ready, data.demo, data.onboarded, eventPreviewing]);
+  useEffect(() => {
+    if (!journey.ready || data.demo || !data.onboarded || eventPreviewing || !eventTeamSetOut || data.source === 'none') return undefined;
+    const send = () => void sendEventSteps(TOKI_MEGURU, data.source);
+    send();
+    const subscription = AppState.addEventListener('change', state => { if (state === 'active') send(); });
+    const timer = setInterval(send, 10 * 60 * 1000);
+    return () => { subscription.remove(); clearInterval(timer); };
+  }, [journey.ready, data.demo, data.onboarded, eventPreviewing, eventTeamSetOut, data.source]);
   const eventUnderway = !!eventTeam && eventTeam.status !== 'recruiting';
   const eventState = eventUnderway ? eventProgress(TOKI_MEGURU, teamSteps(eventTeam)) : null;
   const inEventWalk = eventWalk && eventUnderway;
@@ -798,6 +851,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, [journey.ready, data.demo, data.onboarded, data.pet]);
   // A friend link (mobidou://friend?code=… or the invite page) opens the friends sheet with the code filled in.
   const [inviteCode, setInviteCode] = useState('');
+  // A team link (mobidou://team?code=… or the /t/… page) opens the event screen with the team code filled in.
+  const [teamInviteCode, setTeamInviteCode] = useState('');
+  useEffect(() => {
+    const take = (url: string | null) => { const code = teamCodeFromUrl(url); if (code) setTeamInviteCode(code); };
+    void Linking.getInitialURL().then(take).catch(() => undefined);
+    const subscription = Linking.addEventListener('url', event => take(event.url));
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (teamInviteCode && journey.ready && data.onboarded && !data.demo && firstRunStage === null && !openingVisible && !eventSheet) setEventSheet('main');
+  }, [teamInviteCode, journey.ready, data.onboarded, data.demo, firstRunStage, openingVisible, eventSheet]);
   useEffect(() => {
     if (!SOCIAL_ONLINE) return undefined;
     const take = (url: string | null) => { const code = friendCodeFromUrl(url); if (code) setInviteCode(code); };
@@ -810,14 +874,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, [inviteCode, journey.ready, data.onboarded, data.demo, firstRunStage, openingVisible, socialSheet]);
   // Once the tutorial is over and the home screen is quiet, offer to register the profile (name + main Mobby) once.
   useEffect(() => {
-    if (eventAnnounceChecked.current || TOKI_MEGURU.status !== 'open' || eventAnnounceHidden !== false) return undefined;
+    if (eventAnnounceChecked.current || TOKI_MEGURU.status !== 'open' || eventAnnounceHidden !== false || !eventAvailable) return undefined;
     if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || !hasStarter(data.mobbies) || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || !!eventSheet || eventListOpen) return undefined;
     const timer = setTimeout(() => {
       eventAnnounceChecked.current = true;
       setEventAnnounceOpen(true);
     }, 1200);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden, eventAvailable]);
   const profileGuideChecked = useRef(false);
   useEffect(() => {
     if (!SOCIAL_ONLINE || profileGuideChecked.current) return undefined;
@@ -907,7 +971,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               </TutorialTarget>
             </TourAnchor>
           </>}
-        {firstRunStage === null && hasStarter(data.mobbies) && <View pointerEvents="box-none" style={[S.homeEventButton, { top: (homeCompanionLayout?.y ?? 80) + (homeCompanionLayout?.height ?? 220) * .38 }]}><PopButton id="eventHome" label="イベント" icon="flag" size={58} phase={.3} onPress={() => setEventSheet('main')} /></View>}
+        {firstRunStage === null && hasStarter(data.mobbies) && eventAvailable && <View pointerEvents="box-none" style={[S.homeEventButton, { top: (homeCompanionLayout?.y ?? 80) + (homeCompanionLayout?.height ?? 220) * .38 }]}><PopButton id="eventHome" label="イベント" icon="flag" size={58} phase={.3} onPress={() => setEventSheet('main')} /></View>}
         <View style={S.homeCardGroup} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCardGroupLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>
           {firstRunStage !== 'homeOmikuji' && <TourAnchor id="home-steps" style={S.homeStepsSlot} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeStepsSlotLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>{renderHomeStepsCard()}</TourAnchor>}
           <View accessibilityElementsHidden={homePopup === 'moby'} aria-hidden={homePopup === 'moby' ? true : undefined} importantForAccessibility={homePopup === 'moby' ? 'no-hide-descendants' : 'auto'} pointerEvents={homePopup === 'moby' ? 'none' : 'auto'} style={homePopup === 'moby' ? S.homeWidgetsHidden : undefined}>
@@ -920,7 +984,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         <View style={[S.pageTop, S.bookTop]}>
           <View style={S.bookEventSlot}>{inEventBook
             ? <PopButton id="eventNormal" label="通常" icon="home" size={54} phase={.5} onPress={() => { setBookOpen(false); setEventBook(false); }} />
-            : <PopButton id="eventBook" label="イベント" icon="book" size={54} phase={.5} onPress={() => { setBookOpen(false); enterEvent(setEventBook); }} />}</View>
+            : eventAvailable ? <PopButton id="eventBook" label="イベント" icon="book" size={54} phase={.5} onPress={() => { setBookOpen(false); enterEvent(setEventBook); }} /> : <View style={{ width: 54, height: 54 }} />}</View>
           <TourAnchor id="book-top" style={S.tourPair}>
             <PopButton id="bookIndex" label="目次" icon="list" size={54} phase={0} onPress={() => setBookIndexOpen(true)} />
           </TourAnchor>
@@ -943,7 +1007,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           {/* Same width as the button on the right, so the name sits in the middle of the screen as on the goshuin book page. */}
           {inEventWalk
             ? <PopButton id="eventNormal" label="通常" icon="home" size={54} phase={.5} onPress={() => { setEventWalk(false); setMapOpen(false); }} />
-            : <PopButton id="eventWalk" label="イベント" icon="flag" size={54} phase={.5} onPress={() => { setMapOpen(false); enterEvent(setEventWalk); }} />}
+            : eventAvailable ? <PopButton id="eventWalk" label="イベント" icon="flag" size={54} phase={.5} onPress={() => { setMapOpen(false); enterEvent(setEventWalk); }} /> : <View style={{ width: 54, height: 54 }} />}
           <View style={[S.pageTopText, S.pageTopPlate, { alignItems: 'center' }]}><WashiArt />
             <Text style={S.pageEyebrow}>{inEventWalk ? (mapOpen ? 'イベント絵図' : 'チーム合計の歩数') : mapOpen ? '巡礼絵図' : '今日の歩数'}</Text>
             <Text numberOfLines={2} style={[S.pageLead, { textAlign: 'center' }]}>{inEventWalk ? TOKI_MEGURU.name : activeRoute?.name ?? '巡礼を選びましょう'}</Text>
@@ -988,10 +1052,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
 
       {tab === 'collection' && <>
-        <View style={S.collectionModes}>
+        {eventAvailable && <View style={S.collectionModes}>
           <PopButton id="eventNormal" label="通常" icon="home" plaqueOnly selected={!inEventCollection} faded={inEventCollection} onPress={() => { setCollectionPage('room'); setEventCollection(false); }} />
           <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => setEventListOpen(true)} />
-        </View>
+        </View>}
         <TourAnchor id="collection-tabs" style={S.jumpRow}>
           {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />)}
         </TourAnchor>
@@ -1013,7 +1077,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
-    <EventScreen visible={eventSheet === 'main'} onClose={() => setEventSheet(null)} event={TOKI_MEGURU} pet={pet} />
+    <EventScreen visible={eventSheet === 'main'} onClose={() => { setEventSheet(null); setTeamInviteCode(''); }} event={TOKI_MEGURU} pet={pet} initialCode={teamInviteCode} />
     <EventAnnouncePopup visible={eventAnnounceOpen} event={TOKI_MEGURU} statusLabel={eventStatusLabel} hideNextTime={eventAnnounceHidden === true} onHideNextTimeChange={changeEventAnnounceHidden} onOpenEvent={() => { setEventAnnounceOpen(false); setEventSheet('main'); }} onClose={() => setEventAnnounceOpen(false)} />
     <EventListPopup visible={eventListOpen} onClose={() => setEventListOpen(false)} event={TOKI_MEGURU} statusLabel={eventStatusLabel} onViewCollection={() => { setEventListOpen(false); setCollectionPage('room'); setEventCollection(true); }} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
@@ -1174,7 +1238,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {weeklyOpen && <WeeklyReview visible summary={weeklySummary} petName={pet.name} petImage={pet.image} places={weeklyPlaces} onClose={() => { journey.markWeekSeen(weekStartDay()); setWeeklyOpen(false); }} />}
     <Modal visible={openingVisible} animationType="fade" onRequestClose={() => {}}><OpeningExperience onEnter={enterApp} error={journey.error} /></Modal>
     <Modal visible={eventGachaOpen} animationType="fade" onRequestClose={() => setEventGachaOpen(false)}>{eventGachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} unrevealed={data.mobbies.unrevealed} pool={EVENT_PET_CHARACTERS} eventTheme howToEarn={'・木札は、通常のガチャと同じものです。ここでも通常のガチャでも、1枚で1回引けます。\n・イベントマップを4分の1進むごとに、木札が1枚もらえます（全部で4枚）。\n・ここで出るモビーは、イベント限定の4体のどれかです。持っているモビーも、また出ます。'} nextHint={eventTicketsEarned(TOKI_MEGURU.goalSteps, eventState?.steps ?? 0) >= 4 ? 'イベントマップでもらえる木札は、すべてもらいました。' : 'イベントマップを進めると、木札がもらえます。'} haptics={data.haptics} onDraw={count => { journey.drawEventMobby(count); }} onFinished={() => journey.acknowledgeMobbyPulls()} onClose={() => setEventGachaOpen(false)} companion={getPetCharacter(data.pet)} showShop={false} />}</Modal>
-    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen freePulls={data.mobbies.freePulls} premiumPulls={data.mobbies.paidTickets} paidPulls={data.mobbies.paidPulls} passes={journey.special.passes.keychainDrop} refundDebt={refundDebt} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={drawTickets} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={ticketCount(data.mobbies)} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={firstRunStage !== 'gacha'} startOnShop={gachaOnShop} onBuy={buyProduct} onRestore={restorePurchases} plusActive={data.keychainPlan === 'plus'} eventButton={<PopButton id="eventGacha" label="イベント" icon="flag" size={54} phase={.2} onPress={() => { setGachaOpen(false); setEventGachaOpen(true); }} />} />}</Modal>
+    <Modal visible={gachaOpen} animationType="fade" onRequestClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }}>{gachaOpen && <GachaScreen priceLabels={priceLabels} freePulls={data.mobbies.freePulls} premiumPulls={data.mobbies.paidTickets} paidPulls={data.mobbies.paidPulls} passes={journey.special.passes.keychainDrop} refundDebt={refundDebt} unrevealed={data.mobbies.unrevealed} nextHint={activeRoute && !view.completedAt ? `${activeRoute.name}を結願すると、ひとつ引けます（あと${Math.max(0, activeShrines.length - view.rewards.length)}か所）。` : '新しい巡礼を結願すると、ひとつ引けます。'} haptics={data.haptics} onDraw={drawTickets} nav={firstRunStage === null && !onboardingPreview ? <HomeBottomNavigation tab={tab} gachaActive onNavigate={target => { setGachaOpen(false); move(target); }} onGacha={() => {}} freePulls={ticketCount(data.mobbies)} /> : undefined} onFinished={() => { if (firstRunStage === 'gacha') { const first = data.mobbies.unrevealed[0]; if (first && isPetId(first.petId)) journey.choosePet(first.petId); journey.enter(false); setGachaOpen(false); setFirstRunStage(data.source === 'none' ? 'connectSteps' : null); } journey.acknowledgeMobbyPulls(); }} onClose={() => { if (firstRunStage !== 'gacha') setGachaOpen(false); }} guided={firstRunStage === 'gacha'} companion={getPetCharacter(data.pet)} showShop={firstRunStage !== 'gacha'} startOnShop={gachaOnShop} onBuy={buyProduct} onRestore={restorePurchases} plusActive={data.keychainPlan === 'plus'} eventButton={!eventAvailable ? undefined : <PopButton id="eventGacha" label="イベント" icon="flag" size={54} phase={.2} onPress={() => { setGachaOpen(false); setEventGachaOpen(true); }} />} />}</Modal>
     <Modal transparent visible={routeAdvanceVisible} animationType="fade" onRequestClose={() => {}}>
       {routeAdvanceVisible && dueRoute && <View style={S.detailModalBackdrop}><View style={S.routeAdvanceWrap}><View accessibilityViewIsModal style={S.routeAdvanceCard}>
         <Image source={GOSHUIN_DETAIL_BACKGROUND} contentFit="cover" style={StyleSheet.absoluteFillObject} accessible={false} pointerEvents="none" />
