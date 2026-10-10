@@ -5,3 +5,8 @@
 | showa-tv.webp | 1024×1536 | 563400 |
 | showa-mirrorball.webp | 1024×1536 | 586894 |
 | showa-record.webp | 1024×1536 | 577056 |
+| heisei-md.webp | 1024×1536 | 636300 |
+| heisei-pager.webp | 1024×1536 | 596814 |
+| heisei-cd.webp | 1024×1536 | 616950 |
+| heisei-sticker.webp | 1024×1536 | 654758 |
+| heisei-phs.webp | 1024×1536 | 636562 |
