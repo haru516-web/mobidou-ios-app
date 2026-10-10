@@ -12,6 +12,7 @@ import { IMG7, UI_ART7 } from '../data/uiArtRound7';
 import { EVENT_FEEL } from '../data/eventImages';
 import { answerFriendRequest, fetchProfile, fetchSocialOverview, formatFriendCode, SAMPLE_FRIEND_CODE, saveProfile, sendFriendRequest, SOCIAL_ONLINE, type Friend, type FriendRequest, type Gift, type GiftItem } from '../services/social';
 import { friendInviteLink } from '../services/friends';
+import { fetchBlocked, openModerationMenu, unblockPlayer, type Blocked } from '../services/moderation';
 import { SERVER_URL } from '../services/server';
 
 const TICKET_IMAGES: Record<GiftItem['kind'], number> = {
@@ -150,6 +151,7 @@ export function FriendsSheet({ visible, demo, pet, initialCode, onChangePet, onC
   const [savedName, setSavedName] = useState('');
   const [friends, setFriends] = useState<readonly Friend[]>([]);
   const [requests, setRequests] = useState<readonly FriendRequest[]>([]);
+  const [blocked, setBlocked] = useState<readonly Blocked[]>([]);
   const [input, setInput] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -158,8 +160,9 @@ export function FriendsSheet({ visible, demo, pet, initialCode, onChangePet, onC
     let active = true;
     setNotice('');
     if (initialCode) setInput(initialCode);
-    void Promise.all([demo ? Promise.resolve(null) : fetchProfile(), fetchSocialOverview({ demo })]).then(([profile, overview]) => {
+    void Promise.all([demo ? Promise.resolve(null) : fetchProfile(), fetchSocialOverview({ demo }), demo || !SOCIAL_ONLINE ? Promise.resolve(null) : fetchBlocked()]).then(([profile, overview, blockedList]) => {
       if (!active) return;
+      setBlocked(blockedList ?? []);
       setCode(demo || !SOCIAL_ONLINE ? SAMPLE_FRIEND_CODE : profile?.friendCode ?? ''); setFriends(overview.friends); setRequests(overview.requests);
       if (profile) {
         setName(profile.name); setSavedName(profile.name);
@@ -190,7 +193,14 @@ export function FriendsSheet({ visible, demo, pet, initialCode, onChangePet, onC
     const result = await saveProfile(name, pet.id);
     playSfx(result.ok ? 'sfx_success' : 'sfx_error');
     if (result.ok) setSavedName(name.trim());
-    setNotice(result.ok ? 'プロフィールを保存しました' : result.reason === 'invalid' ? '名前は1〜12文字で入力してください。' : offlineMessage);
+    setNotice(result.ok ? 'プロフィールを保存しました' : result.reason === 'invalid' ? '名前は1〜12文字で入力してください。' : result.reason === 'inappropriate' ? 'その名前は使えません。別の名前にしてください。' : offlineMessage);
+  };
+  const reload = () => { void fetchSocialOverview({ demo }).then(overview => { setFriends(overview.friends); setRequests(overview.requests); }); void fetchBlocked().then(list => setBlocked(list ?? [])); };
+  const moderate = (person: { id: string; name: string }) => { if (demo || !SOCIAL_ONLINE) return; openModerationMenu(person, reload); };
+  const unblock = async (person: Blocked) => {
+    const result = await unblockPlayer(person.id);
+    playSfx(result === 'ok' ? 'sfx_success' : 'sfx_error');
+    if (result === 'ok') { setNotice(`${person.name}さんのブロックを解除しました`); reload(); } else setNotice(offlineMessage);
   };
   const answer = async (request: FriendRequest, accept: boolean) => {
     const result = await answerFriendRequest(request.id, accept);
@@ -236,7 +246,7 @@ ${friendInviteLink(SERVER_URL, code)}` }).catch(() => undefined)} style={S.iconB
     {titled('requests', '届いた申請', requests.length ? `${requests.length}件` : undefined, requests.map(request => <View key={request.id} style={[S.card, S.personRow]}>
       <WashiArt />
       <PetAvatar petId={request.petId} />
-      <View style={{ flex: 1 }}><Text style={S.personName}>{request.name}</Text><Text style={S.personMeta}>{request.sentAt}に申請</Text></View>
+      <View style={{ flex: 1, minWidth: 0 }}><Text style={S.personName}>{request.name}</Text><Text style={S.personMeta}>{request.sentAt}に申請</Text>{!demo && !!request.fromId && <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${request.name}さんを通報・ブロック`} onPress={() => moderate({ id: request.fromId as string, name: request.name })} style={S.moderateLink}><Text style={S.moderateLinkText}>通報・ブロック</Text></Pressable>}</View>
       <Pressable plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel={`${request.name}さんの申請を承認`} onPress={() => void answer(request, true)} style={S.primarySmall}><Text style={S.primarySmallText}>承認</Text></Pressable>
       <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel={`${request.name}さんの申請を見送る`} onPress={() => void answer(request, false)} style={S.secondarySmall}><Text style={S.secondarySmallText}>見送る</Text></Pressable>
     </View>), <Empty art={IMG7.emptyFriends} text="届いている申請はありません" />)}
@@ -247,7 +257,14 @@ ${friendInviteLink(SERVER_URL, code)}` }).catch(() => undefined)} style={S.iconB
       <View style={{ flex: 1 }}>
         <Text style={S.personName}>{friend.name}</Text>
       </View>
+      {!demo && <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${friend.name}さんを通報・ブロック`} onPress={() => moderate({ id: friend.id, name: friend.name })} style={S.iconButton}><Icon name="ellipsis-horizontal" size={20} color={C.muted} /></Pressable>}
     </View>), <Empty art={IMG7.emptyFriends} text="フレンドコードを交換して、いっしょに歩こう" />)}
+
+    {!demo && blocked.length > 0 && titled('blocked', 'ブロック中', `${blocked.length}人`, blocked.map(person => <View key={person.id} style={[S.card, S.personRow]}>
+      <WashiArt />
+      <View style={{ flex: 1, paddingLeft: 12 }}><Text style={S.personName}>{person.name}</Text></View>
+      <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel={`${person.name}さんのブロックを解除`} onPress={() => void unblock(person)} style={S.secondarySmall}><Text style={S.secondarySmallText}>解除</Text></Pressable>
+    </View>), <View />)}
   </Sheet>;
 }
 
@@ -298,6 +315,8 @@ const S = StyleSheet.create({
   primarySmallText: { color: '#FFF9EF', fontFamily: BRUSH, fontSize: 14 },
   secondarySmall: { minHeight: 38, paddingHorizontal: 12, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D6BFB0' },
   secondarySmallText: { color: C.red, fontFamily: BRUSH, fontSize: 13 },
+  moderateLink: { alignSelf: 'flex-start', marginTop: 4, minHeight: 28, justifyContent: 'center' },
+  moderateLinkText: { color: C.muted, fontSize: 12, textDecorationLine: 'underline' },
   disabled: { opacity: .45 },
   myCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   myLabel: { color: C.muted, fontSize: 12 },

@@ -33,7 +33,7 @@ export function friendCodeFromUrl(url: string | null | undefined): string | null
 }
 
 export type Friend = { id: string; name: string; petId: string };
-export type FriendRequest = { id: string; name: string; petId: string; sentAt: string };
+export type FriendRequest = { id: string; name: string; petId: string; sentAt: string; /** The player who asked (for blocking and reporting). */ fromId?: string };
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
 
@@ -59,7 +59,8 @@ export function readFriendRequests(data: unknown, isPetId: (id: string) => boole
   return rows.flatMap(row => {
     const id = text(row?.id);
     const name = text(row?.fromName);
-    return id && name ? [{ id, name, petId: isPetId(text(row?.fromPetId)) ? text(row.fromPetId) : fallbackPet, sentAt: monthDay(text(row?.createdAt)) }] : [];
+    const fromId = text(row?.fromId);
+    return id && name ? [{ id, name, petId: isPetId(text(row?.fromPetId)) ? text(row.fromPetId) : fallbackPet, sentAt: monthDay(text(row?.createdAt)), ...(fromId ? { fromId } : {}) }] : [];
   });
 }
 

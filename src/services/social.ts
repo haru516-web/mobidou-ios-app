@@ -21,7 +21,7 @@ export type GiftItem = { kind: PassKind | 'gachaTicket'; quantity: number };
 export type Gift = { id: string; title: string; message: string; from: string; items: readonly GiftItem[]; sentAt: string; expiresAt?: string };
 
 export type Friend = { id: string; name: string; petId: PetId };
-export type FriendRequest = { id: string; name: string; petId: PetId; sentAt: string };
+export type FriendRequest = { id: string; name: string; petId: PetId; sentAt: string; fromId?: string };
 
 export type SocialWriteResult = { ok: true } | { ok: false; reason: RequestFailure };
 export { formatFriendCode, isFriendCode, normalizeFriendCode };
@@ -115,12 +115,13 @@ export async function fetchProfile(): Promise<Profile | null> {
 }
 
 /** Save the name (1 to 12 characters) and the main Mobby that friends will see. */
-export async function saveProfile(name: string, petId: string): Promise<{ ok: true } | { ok: false; reason: 'invalid' | 'offline' }> {
+export async function saveProfile(name: string, petId: string): Promise<{ ok: true } | { ok: false; reason: 'invalid' | 'inappropriate' | 'offline' }> {
   const trimmed = name.trim();
   if (trimmed.length < 1 || trimmed.length > 12) return { ok: false, reason: 'invalid' };
   const reply = await authedRequest('/profile', { body: { name: trimmed, petId } });
   if (!reply) return { ok: false, reason: 'offline' };
   if (reply.status === 200) { await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify({ name: trimmed })).catch(() => undefined); return { ok: true }; }
+  if (reply.status === 400 && reply.data?.error === 'inappropriate_name') return { ok: false, reason: 'inappropriate' };
   return { ok: false, reason: reply.status === 400 ? 'invalid' : 'offline' };
 }
 
