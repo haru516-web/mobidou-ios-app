@@ -508,5 +508,125 @@
     "top": 38,
     "cropWidth": 481,
     "cropHeight": 443
+  },
+  "shotamobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 9,
+    "top": 364,
+    "cropWidth": 367,
+    "cropHeight": 433
+  },
+  "shotamobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 47,
+    "top": 26,
+    "cropWidth": 423,
+    "cropHeight": 441
+  },
+  "shotamobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 39,
+    "top": 26,
+    "cropWidth": 437,
+    "cropHeight": 441
+  },
+  "satomimobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 11,
+    "top": 443,
+    "cropWidth": 365,
+    "cropHeight": 354
+  },
+  "satomimobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 33,
+    "top": 29,
+    "cropWidth": 448,
+    "cropHeight": 438
+  },
+  "satomimobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 33,
+    "top": 29,
+    "cropWidth": 448,
+    "cropHeight": 438
+  },
+  "norikomobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 9,
+    "top": 399,
+    "cropWidth": 366,
+    "cropHeight": 397
+  },
+  "norikomobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 62,
+    "top": 26,
+    "cropWidth": 390,
+    "cropHeight": 441
+  },
+  "norikomobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 49,
+    "top": 26,
+    "cropWidth": 416,
+    "cropHeight": 441
+  },
+  "yasumobby/walk": {
+    "columns": 4,
+    "width": 1536,
+    "height": 1024,
+    "cellWidth": 384,
+    "left": 9,
+    "top": 341,
+    "cropWidth": 367,
+    "cropHeight": 456
+  },
+  "yasumobby/rei": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 68,
+    "top": 27,
+    "cropWidth": 378,
+    "cropHeight": 440
+  },
+  "yasumobby/hakushu": {
+    "columns": 8,
+    "width": 4112,
+    "height": 514,
+    "cellWidth": 514,
+    "left": 48,
+    "top": 27,
+    "cropWidth": 416,
+    "cropHeight": 440
   }
 }

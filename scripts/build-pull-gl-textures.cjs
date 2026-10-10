@@ -28,6 +28,10 @@ const pets = {
   shikamobby: ['shika-body-clean', 'shikamobby'],
   uyumobby: ['uyu-body-clean', 'uyumobby'],
   wolfmobby: ['wolf-body-clean', 'wolfmobby'],
+  shotamobby: ['shota-body-clean', 'shotamobby'],
+  satomimobby: ['satomi-body-clean', 'satomimobby'],
+  norikomobby: ['noriko-body-clean', 'norikomobby'],
+  yasumobby: ['yasu-body-clean', 'yasumobby'],
 };
 const t = 'clip((val-77)/102,0,1)';
 const graph = [
@@ -40,7 +44,10 @@ const graph = [
 ].join(';');
 
 fs.mkdirSync(out, { recursive: true });
+// ONLY=id1,id2 builds just those (the others are left untouched).
+const only = process.env.ONLY ? new Set(process.env.ONLY.split(',')) : null;
 for (const [id, [body, mask]] of Object.entries(pets)) {
+  if (only && !only.has(id)) continue;
   const target = path.join(out, `${id}-body.png`);
   execFileSync(ffmpeg, ['-v', 'error', '-y', '-i', path.join(root, 'assets/mobies/pull', `${body}.webp`), '-i', path.join(root, 'assets/mobies', `${mask}.webp`),
     '-filter_complex', graph, '-map', '[o]', '-frames:v', '1', '-compression_level', '9', target]);

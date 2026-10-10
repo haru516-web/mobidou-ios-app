@@ -8,7 +8,7 @@ export const PILGRIMAGE_WALK_FRAME_WIDTH = PILGRIMAGE_WALK_ATLAS_WIDTH / PILGRIM
 export const PILGRIMAGE_WALK_FRAME_HEIGHT = PILGRIMAGE_WALK_ATLAS_HEIGHT;
 // Horizontal four-frame sheets: contact, down, passing, up.
 // Each frame is 384 x 1024 with one shared baseline and real alpha transparency.
-// The event Mobbies have no walking sheet yet, so they are optional here.
+// The event Mobbies are optional here: a Mobby without a sheet is drawn as its still picture.
 export const PILGRIMAGE_WALK_ATLASES: Record<RegularPetId, ImageSourcePropType> & Partial<Record<EventPetId, ImageSourcePropType>> = {
   babumoby: require('../../assets/mobies/pilgrimage-walk/babumoby.webp'),
   bearmobby: require('../../assets/mobies/pilgrimage-walk/bearmobby.webp'),
@@ -27,4 +27,8 @@ export const PILGRIMAGE_WALK_ATLASES: Record<RegularPetId, ImageSourcePropType> 
   uyumobby: require('../../assets/mobies/pilgrimage-walk/uyumobby.webp'),
   wolfmobby: require('../../assets/mobies/pilgrimage-walk/wolfmobby.webp'),
   yami: require('../../assets/mobies/pilgrimage-walk/yami.webp'),
+  shotamobby: require('../../assets/mobies/pilgrimage-walk/shotamobby.webp'),
+  satomimobby: require('../../assets/mobies/pilgrimage-walk/satomimobby.webp'),
+  norikomobby: require('../../assets/mobies/pilgrimage-walk/norikomobby.webp'),
+  yasumobby: require('../../assets/mobies/pilgrimage-walk/yasumobby.webp'),
 };

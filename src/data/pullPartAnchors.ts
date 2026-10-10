@@ -18,4 +18,8 @@ export const PULL_PART_ANCHORS: Record<string, PullPartAnchors> = {
   shikamobby: { lens: { x: 0.6683, y: 0.3692 }, cross: { x: 0.3923, y: 0.5702 }, buttonLeft: { x: 0.5957, y: 0.5901 }, buttonRight: { x: 0.6738, y: 0.5478 } },
   uyumobby: { lens: { x: 0.63, y: 0.3389 }, cross: { x: 0.3907, y: 0.5526 }, buttonLeft: { x: 0.5678, y: 0.5718 }, buttonRight: { x: 0.6356, y: 0.5327 } },
   wolfmobby: { lens: { x: 0.6515, y: 0.3493 }, cross: { x: 0.3676, y: 0.5941 }, buttonLeft: { x: 0.5758, y: 0.614 }, buttonRight: { x: 0.6539, y: 0.5678 } },
+  shotamobby: { lens: { x: 0.6419, y: 0.3333 }, cross: { x: 0.374, y: 0.5227 }, buttonLeft: { x: 0.5758, y: 0.547 }, buttonRight: { x: 0.6507, y: 0.5032 } },
+  satomimobby: { lens: { x: 0.6547, y: 0.3421 }, cross: { x: 0.3816, y: 0.5443 }, buttonLeft: { x: 0.5853, y: 0.5614 }, buttonRight: { x: 0.6651, y: 0.5183 } },
+  norikomobby: { lens: { x: 0.6411, y: 0.2967 }, cross: { x: 0.4, y: 0.55 }, buttonLeft: { x: 0.57, y: 0.57 }, buttonRight: { x: 0.64, y: 0.52 } },
+  yasumobby: { lens: { x: 0.6411, y: 0.297 }, cross: { x: 0.4, y: 0.55 }, buttonLeft: { x: 0.57, y: 0.57 }, buttonRight: { x: 0.64, y: 0.52 } },
 };

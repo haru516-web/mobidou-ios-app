@@ -1,7 +1,8 @@
 import type { ImageSourcePropType } from 'react-native';
 
 export type CoreMobbyId = 'mobirin' | 'mobichi' | 'yami' | 'mobiyan' | 'mobiyura' | 'reomoby' | 'potemoby' | 'mobibou' | 'babumoby'
-  | 'bearmobby' | 'boymobby' | 'dogmobby' | 'ojimobby' | 'reamobby' | 'shikamobby' | 'uyumobby' | 'wolfmobby';
+  | 'bearmobby' | 'boymobby' | 'dogmobby' | 'ojimobby' | 'reamobby' | 'shikamobby' | 'uyumobby' | 'wolfmobby'
+  | 'shotamobby' | 'satomimobby' | 'norikomobby' | 'yasumobby';
 type MobbyId = CoreMobbyId;
 
 export type PullFrame = { x: number; y: number; width: number; height: number };
@@ -243,6 +244,30 @@ const fixedAccessoryParts: Record<MobbyId, PullFixedAccessoryParts> = {
     buttonLeft: require('../../assets/mobies/pull/wolf-button-left.webp'),
     buttonRight: require('../../assets/mobies/pull/wolf-button-right.webp'),
   },
+  shotamobby: {
+    lens: require('../../assets/mobies/pull/shota-lens.webp'),
+    cross: require('../../assets/mobies/pull/shota-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/shota-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/shota-button-right.webp'),
+  },
+  satomimobby: {
+    lens: require('../../assets/mobies/pull/satomi-lens.webp'),
+    cross: require('../../assets/mobies/pull/satomi-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/satomi-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/satomi-button-right.webp'),
+  },
+  norikomobby: {
+    lens: require('../../assets/mobies/pull/noriko-lens.webp'),
+    cross: require('../../assets/mobies/pull/noriko-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/noriko-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/noriko-button-right.webp'),
+  },
+  yasumobby: {
+    lens: require('../../assets/mobies/pull/yasu-lens.webp'),
+    cross: require('../../assets/mobies/pull/yasu-cross.webp'),
+    buttonLeft: require('../../assets/mobies/pull/yasu-button-left.webp'),
+    buttonRight: require('../../assets/mobies/pull/yasu-button-right.webp'),
+  },
 };
 
 function createAsset({
@@ -429,6 +454,42 @@ const assets: Record<MobbyId, MobbyPullAsset> = {
     eyeFrame: { x: 315, y: 321, width: 272, height: 235 },
     mouthFrame: { x: 552, y: 562, width: 150, height: 69 },
     fixedAccessoryParts: fixedAccessoryParts.wolfmobby,
+  }),
+  shotamobby: createAsset({
+    body: require('../../assets/mobies/pull/shota-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 335, y: 300, width: 245, height: 230 },
+    mouthFrame: { x: 560, y: 455, width: 150, height: 70 },
+    mouthPairs: darkMouthPairs,
+    fixedAccessoryParts: fixedAccessoryParts.shotamobby,
+  }),
+  satomimobby: createAsset({
+    body: require('../../assets/mobies/pull/satomi-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 340, y: 340, width: 260, height: 200 },
+    mouthFrame: { x: 590, y: 470, width: 150, height: 70 },
+    mouthPairs: darkMouthPairs,
+    fixedAccessoryParts: fixedAccessoryParts.satomimobby,
+  }),
+  norikomobby: createAsset({
+    body: require('../../assets/mobies/pull/noriko-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 375, y: 270, width: 210, height: 190 },
+    mouthFrame: { x: 560, y: 590, width: 140, height: 65 },
+    mouthPairs: darkMouthPairs,
+    fixedAccessoryParts: fixedAccessoryParts.norikomobby,
+  }),
+  yasumobby: createAsset({
+    body: require('../../assets/mobies/pull/yasu-body-clean.webp'),
+    eyes: mobirinEyes,
+    mouths: guideMouths,
+    eyeFrame: { x: 400, y: 270, width: 210, height: 190 },
+    mouthFrame: { x: 560, y: 590, width: 140, height: 65 },
+    mouthPairs: darkMouthPairs,
+    fixedAccessoryParts: fixedAccessoryParts.yasumobby,
   }),
 };
 

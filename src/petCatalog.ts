@@ -177,7 +177,7 @@ export const PET_CHARACTERS: readonly PetCharacter[] = [
 
 /**
  * 「時をめぐる道」のイベントモビー。ふだんの PET_CHARACTERS には入れない（ガチャの抽選・最初の1体の選択に混ざらないように）。
- * 手に入れたときだけ、モビーを選ぶ画面などに並ぶ。歩く・祈る・ガチャの反応などの専用画像は、まだない。
+ * 手に入れたときだけ、モビーを選ぶ画面などに並ぶ。歩く・のぞき見・祈る・おみくじ・頬の引っぱりの専用画像がある。
  */
 export const EVENT_PET_CHARACTERS: readonly PetCharacter[] = [
   {

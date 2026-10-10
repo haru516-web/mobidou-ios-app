@@ -22,6 +22,10 @@ export const PILGRIMAGE_PEEK_IMAGES: Record<RegularPetId, ImageSourcePropType> &
   uyumobby: require('../../assets/mobies/pilgrimage-walk/uyumobby-map-peek.webp'),
   wolfmobby: require('../../assets/mobies/pilgrimage-walk/wolfmobby-map-peek.webp'),
   yami: require('../../assets/mobies/pilgrimage-walk/yami-map-peek.webp'),
+  shotamobby: require('../../assets/mobies/pilgrimage-walk/shotamobby-map-peek.webp'),
+  satomimobby: require('../../assets/mobies/pilgrimage-walk/satomimobby-map-peek.webp'),
+  norikomobby: require('../../assets/mobies/pilgrimage-walk/norikomobby-map-peek.webp'),
+  yasumobby: require('../../assets/mobies/pilgrimage-walk/yasumobby-map-peek.webp'),
 };
 
 // Natural dimensions and the normalized bottom of each cutout. The map
@@ -45,4 +49,8 @@ export const PILGRIMAGE_PEEK_METRICS: Record<RegularPetId, { width: number; heig
   uyumobby: { width: 1312, height: 1199, bottom: 0.8507 },
   wolfmobby: { width: 1402, height: 1122, bottom: 0.8984 },
   yami: { width: 1448, height: 1086, bottom: 0.9392 },
+  shotamobby: { width: 1536, height: 1024, bottom: 0.9766 },
+  satomimobby: { width: 1536, height: 1024, bottom: 0.9776 },
+  norikomobby: { width: 1536, height: 1024, bottom: 0.9854 },
+  yasumobby: { width: 1536, height: 1024, bottom: 0.9864 },
 };
