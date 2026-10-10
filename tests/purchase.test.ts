@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buyPlan, buyPulls, drawPaidTickets, fetchLimits, fetchPaidTickets, setAgeGroup, settleCredits, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
+import { buyPlan, buyPulls, drawPaidTickets, fetchLimits, fetchPaidTickets, recoverPaidDraws, restorePurchases, setAgeGroup, setPendingDrawStore, settleCredits, settlePaidDraws, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
 import { applyServerPulls, emptyMobbyCollection, setPaidTickets, ticketCount } from '../src/services/gacha.ts';
 
 const SINGLE = 'jp.mobby.mobidou.gacha.single';
@@ -245,4 +245,80 @@ test('a cancelled subscription changes nothing', async () => {
   const { store } = fakeStore({ cancel: true });
   assert.deepEqual(await buyPlan(store, api), { ok: false, reason: 'cancelled' });
   assert.ok(!calls.includes('/purchases/verify'));
+});
+
+/** Each test starts with nothing waiting (earlier tests leave their own unanswered draws behind). */
+const freshPending = () => { let list: { opId: string; count: number }[] = []; setPendingDrawStore({ read: async () => list, write: async next => { list = next; } }); };
+
+test('a draw whose answer was lost is asked for again with the same operation id, then forgotten once settled', async () => {
+  freshPending();
+  // First attempt: the request goes out but no answer comes back.
+  const sent: { opId: string; count: number }[] = [];
+  const lost: PurchaseApi = {
+    account: async () => ({ userId: 'user-1', secret: 's' }),
+    post: async (path, body) => {
+      if (path === '/pets/sync') return reply(200, { owned: {} });
+      sent.push({ opId: (body as { opId: string }).opId, count: (body as { count: number }).count });
+      return null;
+    },
+    get: async () => reply(404),
+  };
+  assert.equal(await drawPaidTickets(1, mobbies, lost), null);
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].opId, /^[A-Za-z0-9-]{8,64}$/);
+
+  // The next start asks again; the server has the stored answer.
+  const asked: string[] = [];
+  const back: PurchaseApi = {
+    account: async () => ({ userId: 'user-1', secret: 's' }),
+    post: async (_path, body) => {
+      asked.push((body as { opId: string }).opId);
+      return reply(200, { results: [{ petId: 'yami', kind: 'paid', isNew: true, guaranteed: false }], paidPulls: 3, remaining: 4 });
+    },
+    get: async () => reply(404),
+  };
+  const recovered = await recoverPaidDraws(back);
+  assert.deepEqual(asked, [sent[0].opId]);
+  assert.deepEqual(recovered?.results.map(r => r.petId), ['yami']);
+  assert.equal(recovered?.paidTickets, 4);
+
+  // Still waiting until the player has the result; asking again returns it again.
+  assert.equal((await recoverPaidDraws(back))?.results.length, 1);
+  await settlePaidDraws(recovered!.opIds);
+  assert.equal(await recoverPaidDraws(back), null);
+});
+
+test('a draw the server refused for good is not asked for again', async () => {
+  freshPending();
+  const refuse: PurchaseApi = {
+    account: async () => ({ userId: 'user-1', secret: 's' }),
+    post: async path => (path === '/pets/sync' ? reply(200, { owned: {} }) : reply(409, { error: 'insufficient_paid_gacha_balance' })),
+    get: async () => reply(404),
+  };
+  assert.equal(await drawPaidTickets(1, mobbies, refuse), null);
+  assert.equal(await recoverPaidDraws(refuse), null);
+});
+
+test('restore reports what it found: credited, belonging to an earlier account, or nothing', async () => {
+  const item = (sku: string, jws: string) => ({ sku, jws, finish: async () => undefined });
+  const storeWith = (items: ReturnType<typeof item>[]): PurchaseStore => ({ unfinished: async () => items, buy: async () => 'cancelled' } as unknown as PurchaseStore);
+  const answering = (reply: Reply): PurchaseApi => ({
+    account: async () => ({ userId: 'user-1', secret: 's' }),
+    post: async () => reply,
+    get: async () => reply200Wallet,
+  });
+  const reply200Wallet = reply(200, { paid: 0, free: 0, paidPulls: 0, refundDebt: 0 });
+  const plus = 'jp.mobby.mobidou.plus.monthly';
+
+  const mine = await restorePurchases(storeWith([item(plus, 'a')]), answering(reply(200, { status: 'verified' })));
+  assert.deepEqual(mine.kind === 'done' && [mine.credited, mine.otherAccount, mine.failed], [1, 0, 0]);
+
+  const earlier = await restorePurchases(storeWith([item(plus, 'a')]), answering(reply(403, { error: 'app_account_token_mismatch' })));
+  assert.deepEqual(earlier.kind === 'done' && [earlier.credited, earlier.otherAccount, earlier.failed], [0, 1, 0]);
+
+  const nothing = await restorePurchases(storeWith([]), answering(reply(200, {})));
+  assert.deepEqual(nothing.kind === 'done' && [nothing.credited, nothing.otherAccount, nothing.failed], [0, 0, 0]);
+
+  const offline = await restorePurchases(storeWith([item(plus, 'a')]), { account: async () => null, post: async () => null, get: async () => null });
+  assert.equal(offline.kind, 'offline');
 });

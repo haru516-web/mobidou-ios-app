@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { PLUS_PRODUCT, type PurchasedItem, type PurchaseStore } from './purchase';
+import { PLUS_PRODUCT, PULL_PRODUCTS, type PurchasedItem, type PurchaseStore } from './purchase';
 
 /** Turn a call that never answers into an error that can be shown, so a purchase can never just sit there silently. */
 function withTimeout<T>(work: Promise<T>, ms: number, what: string): Promise<T> {
@@ -44,6 +44,19 @@ export function createAppStore(): PurchaseStore | null {
         });
         iap.requestPurchase({ type: kind, request: { apple: { sku, appAccountToken: accountToken } } }).catch(error => { done(); reject(error); });
       });
+    },
+    async prices() {
+      try {
+        await connect();
+        const inApp = await withTimeout(iap.fetchProducts({ skus: [...Object.values(PULL_PRODUCTS).map(product => product.sku)], type: 'in-app' }), 10000, 'fetchProducts(in-app)');
+        const subs = await withTimeout(iap.fetchProducts({ skus: [PLUS_PRODUCT.sku], type: 'subs' }), 10000, 'fetchProducts(subs)');
+        const result: Record<string, string> = {};
+        for (const product of [...(inApp ?? []), ...(subs ?? [])]) {
+          const label = (product as { displayPrice?: string }).displayPrice;
+          if (typeof label === 'string' && label) result[product.id] = label;
+        }
+        return result;
+      } catch { return {}; }
     },
     async unfinished() {
       await connect();

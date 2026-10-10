@@ -102,6 +102,8 @@ type Props = {
   onBuy?: (product: ShopProduct) => void;
   /** Restore purchases (shown in the shop). */
   onRestore?: () => void;
+  /** The App Store's own price text for the shop's products. */
+  priceLabels?: Partial<Record<'pull1' | 'pull5' | 'plus', string>>;
   /** The plus plan is running (the shop shows it as active instead of offering it). */
   plusActive?: boolean;
   /** What to do to earn the next pull, shown when there is nothing to pull. */
@@ -130,7 +132,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={art[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false, eventButton, pool = PET_CHARACTERS, howToEarn, eventTheme = false }: Props) {
+export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false, eventButton, pool = PET_CHARACTERS, howToEarn, eventTheme = false }: Props) {
   const theme = eventTheme ? EVENT_GACHA_THEME : DEFAULT_GACHA_THEME;
   useSceneBgm('bgm_gacha', true, 20);
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
@@ -619,7 +621,7 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
       {zoomT > 0 && <RNImage accessible={false} source={pet.image} resizeMode="contain" style={{ position: 'absolute', width: bigSize, height: bigSize, left: (width - bigSize) / 2, top: bigTop, opacity: Math.min(1, zoomT * 1.6), transform: [{ scale: .55 + .45 * zoomT + .08 * Math.sin(Math.min(1, zoomT) * Math.PI) }] }} />}
     </Pressable>}
 
-    {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: navShown ? lobbyBottom + 8 : 84 + insets.bottom }]}><FitToHeight><GachaShop onBuy={onBuy} onRestore={onRestore} refundDebt={refundDebt} plusActive={plusActive} /></FitToHeight></View>}
+    {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: navShown ? lobbyBottom + 8 : 84 + insets.bottom }]}><FitToHeight><GachaShop onBuy={onBuy} onRestore={onRestore} refundDebt={refundDebt} plusActive={plusActive} priceLabels={priceLabels} /></FitToHeight></View>}
 
     {shopOpen && !navShown && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={theme.panel} corner={34} /><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 

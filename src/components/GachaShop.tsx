@@ -18,10 +18,12 @@ type Props = {
   plusActive?: boolean;
   /** Restore purchases (required for subscriptions). */
   onRestore?: () => void;
+  /** The App Store's own price text for each product, which replaces the fixed one when it is known. */
+  priceLabels?: Partial<Record<ShopProduct['id'], string>>;
 };
 
 /** The shop tab of the gacha screen: single and five pulls, and the monthly plans. */
-export function GachaShop({ onBuy, onRestore, refundDebt = 0, plusActive = false }: Props) {
+export function GachaShop({ onBuy, onRestore, refundDebt = 0, plusActive = false, priceLabels }: Props) {
   const group = ({ kind, heading, summary }: typeof SHOP_GROUPS[number]) => <View key={kind} style={S.group}>
     <View style={S.headingPlate}>
       <SlicedArt art={GACHA_UI_ART.shopHeading} />
@@ -38,7 +40,7 @@ export function GachaShop({ onBuy, onRestore, refundDebt = 0, plusActive = false
       {product.id === 'plus' && plusActive
         ? <View accessible accessibilityRole="text" accessibilityLabel="プラスプラン契約中" style={S.buy}><View style={S.activePlate}><SlicedArt name="buttonSecondary" /><Text style={S.active}>契約中</Text></View></View>
         : <View style={S.buy}>
-          <Text style={S.price}>{product.price}</Text>
+          <Text style={S.price}>{priceLabels?.[product.id] ?? product.price}</Text>
           <Button soundless title={onBuy ? '購入' : '準備中'} disabled={!onBuy} onPress={() => { playSfx('sfx_shop_buy'); onBuy?.(product); }} style={S.button} />
         </View>}
     </View>)}
@@ -48,7 +50,7 @@ export function GachaShop({ onBuy, onRestore, refundDebt = 0, plusActive = false
     {SHOP_GROUPS.map(group)}
     <View style={S.notePlate}>
       <SlicedArt art={GACHA_UI_ART.shopCard} corner={22} />
-      <Text style={S.fineprint}>プラスプランは月300円の自動更新です。お支払いはApple IDに請求され、期間の終了の24時間前までに解約しない限り、自動で更新されます。解約は、iPhoneの「設定」のApple ID、サブスクリプションからできます。</Text>
+      <Text style={S.fineprint}>プラスプランは月{priceLabels?.plus ?? '300円'}の自動更新です。お支払いはApple IDに請求され、期間の終了の24時間前までに解約しない限り、自動で更新されます。解約は、iPhoneの「設定」のApple ID、サブスクリプションからできます。</Text>
       <Text style={S.fineprint}>
         {onRestore && <Text accessibilityRole="button" onPress={onRestore} style={S.underline}>購入を復元する</Text>}
         {onRestore && '　/　'}

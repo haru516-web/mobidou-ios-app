@@ -68,6 +68,8 @@ export interface PurchaseStore {
   purchase(sku: string, accountToken: string, kind?: PurchaseKind): Promise<PurchasedItem | 'cancelled'>;
   /** Purchases paid for but not finished yet (for example after a crash). */
   unfinished(): Promise<PurchasedItem[]>;
+  /** The price the App Store shows for each product id, in the shopper's currency (for example "¥300"). Empty when it cannot be read. */
+  prices?(): Promise<Record<string, string>>;
 }
 export type Reply = { status: number; data: Record<string, unknown> | null } | null;
 export interface PurchaseApi {
@@ -191,7 +193,80 @@ export async function settleCredits(store: PurchaseStore | null, api: PurchaseAp
   return fetchWallet(api);
 }
 
-export type PaidDraw = { results: PullResult[]; paidPulls: number; paidTickets: number; complete: boolean };
+/** What a restore found: purchases of this account credited, ones that belong to another (earlier) account, and ones that failed. */
+export type RestoreOutcome =
+  | { kind: 'offline' }
+  | { kind: 'done'; wallet: Wallet | null; credited: number; otherAccount: number; failed: number };
+
+/**
+ * Settings > restore. Each purchase the App Store still lists for this Apple ID is checked with the server. A purchase made
+ * under an earlier anonymous account (the app was reinstalled and not signed in with Apple) is not this account's, so it is
+ * reported as such instead of being counted as restored.
+ */
+export async function restorePurchases(store: PurchaseStore | null, api: PurchaseApi = serverApi): Promise<RestoreOutcome> {
+  const known = new Set<string>([...Object.values(PULL_PRODUCTS).map(product => product.sku), PLUS_PRODUCT.sku]);
+  const items = store ? (await store.unfinished().catch(() => [] as PurchasedItem[])).filter(item => known.has(item.sku)) : [];
+  let credited = 0, otherAccount = 0, failed = 0;
+  for (const item of items) {
+    const reply = await api.post('/purchases/verify', { signedTransactionInfo: item.jws });
+    if (reply === null) return { kind: 'offline' };
+    if (ok(reply)) { credited += 1; await item.finish().catch(() => undefined); }
+    else if (reply.status === 403 && reply.data?.error === 'app_account_token_mismatch') otherAccount += 1;
+    else failed += 1;
+  }
+  const wallet = await fetchWallet(api);
+  if (wallet === null && items.length === 0) return { kind: 'offline' };
+  return { kind: 'done', wallet, credited, otherAccount, failed };
+}
+
+export type PaidDraw = {
+  results: PullResult[]; paidPulls: number; paidTickets: number; complete: boolean;
+  /** The operation ids behind these results. Hand them to `settlePaidDraws` once the results are in the player's collection. */
+  opIds: string[];
+};
+
+/*
+ * A bought-木札 draw is made by the server, and the answer can be lost on the way back (a dropped connection, the app
+ * closed). Each request therefore carries an operation id that is written down BEFORE it is sent and only forgotten
+ * once the result is in the collection. Asking again with the same id returns the stored result without drawing again.
+ */
+export type PendingDraw = { opId: string; count: number };
+export type PendingDrawStore = { read(): Promise<PendingDraw[]>; write(list: PendingDraw[]): Promise<void> };
+let pendingMemory: PendingDraw[] = [];
+let pendingStore: PendingDrawStore = { read: async () => pendingMemory, write: async list => { pendingMemory = list; } };
+/** The app gives a store that survives a restart; the default only lasts while the app runs. */
+export function setPendingDrawStore(store: PendingDrawStore) { pendingStore = store; }
+const newOpId = () => `op-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+async function readPending() { try { return await pendingStore.read(); } catch { return []; } }
+async function addPending(entry: PendingDraw) { await pendingStore.write([...(await readPending()), entry]).catch(() => undefined); }
+
+/** Forget operations whose results the player now has. */
+export async function settlePaidDraws(opIds: readonly string[]) {
+  if (opIds.length === 0) return;
+  await pendingStore.write((await readPending()).filter(entry => !opIds.includes(entry.opId))).catch(() => undefined);
+}
+
+/**
+ * Ask again for draws whose answer never arrived. Returns what the server has for them (the result of a draw that was
+ * made, or a fresh draw if the request never got through); null when there is nothing waiting or the server is out of reach.
+ */
+export async function recoverPaidDraws(api: PurchaseApi = serverApi): Promise<PaidDraw | null> {
+  const pending = await readPending();
+  if (pending.length === 0) return null;
+  const results: PullResult[] = [];
+  const opIds: string[] = [];
+  let paidPulls = 0;
+  let paidTickets = 0;
+  for (const entry of pending) {
+    const reply = await api.post('/gacha/pull', { count: entry.count, kind: 'paid', opId: entry.opId });
+    if (reply === null) break; // no connection: keep it for next time
+    const drawn = readPulls(reply);
+    if (drawn) { results.push(...drawn.results); opIds.push(entry.opId); paidPulls = drawn.paidPulls; paidTickets = drawn.remaining; continue; }
+    // The server answered "no": it will never become a draw (no balance left, a refused request), so stop waiting for it.
+    if (reply.status >= 400 && reply.status < 500) await settlePaidDraws([entry.opId]);
+  }
+  return results.length ? { results, paidPulls, paidTickets, complete: true, opIds } : null;
+}
 
 function readPulls(reply: Reply): { results: PullResult[]; paidPulls: number; remaining: number } | null {
   const data = reply?.data;
@@ -215,14 +290,22 @@ export async function drawPaidTickets(count: number, mobbies: MobbyCollection, a
   if (count < 1) return null;
   if (!ok(await api.post('/pets/sync', { owned: mobbies.owned }))) return null;
   const results: PullResult[] = [];
+  const opIds: string[] = [];
   let paidPulls = 0;
   let paidTickets = 0;
   let left = count;
   while (left > 0) {
     const chunk = left >= 5 ? 5 : 1;
-    const drawn = readPulls(await api.post('/gacha/pull', { count: chunk, kind: 'paid' }));
-    if (!drawn) break;
-    results.push(...drawn.results); paidPulls = drawn.paidPulls; paidTickets = drawn.remaining; left -= chunk;
+    const opId = newOpId();
+    await addPending({ opId, count: chunk });
+    const reply = await api.post('/gacha/pull', { count: chunk, kind: 'paid', opId });
+    const drawn = readPulls(reply);
+    if (!drawn) {
+      // A definite "no" from the server means nothing was drawn; no answer at all means it may have been (kept for recoverPaidDraws).
+      if (reply !== null && reply.status >= 400 && reply.status < 500) await settlePaidDraws([opId]);
+      break;
+    }
+    results.push(...drawn.results); opIds.push(opId); paidPulls = drawn.paidPulls; paidTickets = drawn.remaining; left -= chunk;
   }
-  return results.length ? { results, paidPulls, paidTickets, complete: left === 0 } : null;
+  return results.length ? { results, paidPulls, paidTickets, complete: left === 0, opIds } : null;
 }
