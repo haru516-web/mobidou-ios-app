@@ -438,3 +438,14 @@ Map final WebP circular waypoint centroid audit (pixel coordinates, color flood 
 | feel/sheet/event-section-plate.webp | 480×72 | 13404 |
 | feel/popup/event-detail-bg.webp | 1024×1536 | 193262 |
 | feel/e2-comparison.webp | 1040×1800 | 46758 |
+
+## E3
+
+| File | Dimensions | Bytes |
+|---|---|---:|
+| feel/ceremony/event-ceremony-stage.webp | 1536×1024 | 757414 |
+| feel/ceremony/event-ceremony-gate.webp | 1214×1295 | 327104 |
+| feel/background/event-outing.webp | 1024×1536 | 608954 |
+| feel/background/event-book-bg.webp | 941×1672 | 377374 |
+| feel/background/event-collection-room.webp | 1024×2240 | 134438 |
+| feel/e3-comparison.webp | 1040×1800 | 341788 |
