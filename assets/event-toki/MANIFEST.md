@@ -449,3 +449,12 @@ Map final WebP circular waypoint centroid audit (pixel coordinates, color flood 
 | feel/background/event-book-bg.webp | 941×1672 | 377374 |
 | feel/background/event-collection-room.webp | 1024×2240 | 134438 |
 | feel/e3-comparison.webp | 1040×1800 | 341788 |
+
+
+| ファイル名 | 寸法 | 容量（bytes） |
+|---|---|---|
+| feel/book/event-book-cover.webp | 1024×1536 | 732188 |
+| feel/book/event-page-left.webp | 1024×1536 | 378280 |
+| feel/book/event-page-right.webp | 1024×1536 | 258718 |
+| feel/book/event-book-cloth.webp | 1024×1536 | 835682 |
+| previews/event-book-comparison.webp | 1440×2250 | 265326 |
