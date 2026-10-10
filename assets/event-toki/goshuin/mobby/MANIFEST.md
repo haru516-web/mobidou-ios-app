@@ -10,3 +10,8 @@
 | heisei-cd.webp | 1024×1536 | 616950 |
 | heisei-sticker.webp | 1024×1536 | 654758 |
 | heisei-phs.webp | 1024×1536 | 636562 |
+| heisei-loose.webp | 1024×1536 | 568024 |
+| heisei-keitai.webp | 1024×1536 | 604850 |
+| heisei-boots.webp | 1024×1536 | 568554 |
+| heisei-digicam.webp | 1024×1536 | 652662 |
+| heisei-strap.webp | 1024×1536 | 642982 |
