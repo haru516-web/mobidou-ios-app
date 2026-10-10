@@ -427,3 +427,14 @@ Map final WebP circular waypoint centroid audit (pixel coordinates, color flood 
 | feel/gacha/event-glow-rays.webp | 1024×1024 | 337658 |
 | feel/gacha/event-panel-dark.webp | 1024×512 | 80922 |
 | feel/e1-comparison.webp | 1680×1712 | 206306 |
+
+## E2
+
+| File | Dimensions | Bytes |
+|---|---|---:|
+| feel/popup/event-scroll.webp | 1024×1400 | 183594 |
+| feel/sheet/event-sheet-bg.webp | 1170×2532 | 238674 |
+| feel/sheet/event-sheet-header.webp | 1536×192 | 12310 |
+| feel/sheet/event-section-plate.webp | 480×72 | 13404 |
+| feel/popup/event-detail-bg.webp | 1024×1536 | 193262 |
+| feel/e2-comparison.webp | 1040×1800 | 46758 |
