@@ -109,6 +109,8 @@ export function EventScreen({ visible, onClose, event, pet }: { visible: boolean
     </View>);
   } else if (team.status === 'recruiting') {
     const blocker = startBlocker(team, event);
+    // The way back to the first screen (make a team / enter a code). It is the same as leaving the team, so it sits first, not on the second page.
+    body.push(<Pressable key="back" plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="前の画面にもどる（チームをぬける）" onPress={() => { eventTeamApi.leave(event.id, ME_ID); setNotice(''); }} style={S.back}><Icon name="chevron-back" size={16} color={C.red} /><Text style={S.secondarySmallText}>{team.members.length > 1 ? 'チームをぬけて、もどる' : 'もどる'}</Text></Pressable>);
     body.push(<PaperCard key="code">
       <Text style={S.label}>チームコード</Text>
       <View style={S.rowBetween}>
@@ -121,7 +123,6 @@ export function EventScreen({ visible, onClose, event, pet }: { visible: boolean
     body.push(<View key="start" style={S.actions}>
       <Button title="このメンバーで出発する" disabled={!!blocker} onPress={start} />
       <Text style={S.hint}>{blocker === 'too_few' ? `あと${min - team.members.length}人以上集まると出発できます（${min}〜${max}人）` : '出発すると、メンバーの追加はできなくなります'}</Text>
-      <Pressable plate="secondary" artwork={false} accessibilityRole="button" onPress={() => { eventTeamApi.leave(event.id, ME_ID); setNotice(''); }} style={S.leave}><Text style={S.secondarySmallText}>チームをぬける</Text></Pressable>
     </View>);
   } else {
     const progress = eventProgress(event, teamSteps(team));
@@ -174,6 +175,7 @@ const S = StyleSheet.create({
   primarySmallText: { color: '#FFF9EF', fontFamily: BRUSH, fontSize: 14 },
   secondarySmall: { minHeight: 38, paddingHorizontal: 12, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D6BFB0' },
   secondarySmallText: { color: C.red, fontFamily: BRUSH, fontSize: 13 },
+  back: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 38, paddingLeft: 8, paddingRight: 14, borderRadius: 19, borderWidth: 1, borderColor: '#D6BFB0' },
   leave: { alignSelf: 'center', minHeight: 38, paddingHorizontal: 14, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D6BFB0' },
   disabled: { opacity: .45 },
   map: { overflow: 'hidden', borderRadius: 12, backgroundColor: '#F2E7CF' },
