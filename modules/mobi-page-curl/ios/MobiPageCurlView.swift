@@ -44,7 +44,8 @@ private final class GoshuinFaceController: UIViewController {
 
   /// Even faces are the left half of a spread, odd faces the right half.
   private func halfImage() -> UIImage? {
-    guard let uri = page.imageUri, let url = URL(string: uri), url.isFileURL,
+    guard let uri = page.imageUri,
+          let url = uri.hasPrefix("/") ? URL(fileURLWithPath: uri) : URL(string: uri), url.isFileURL,
           let full = UIImage(contentsOfFile: url.path), let cg = full.cgImage else { return nil }
     let half = cg.width / 2
     let rect = CGRect(x: faceIndex % 2 == 1 ? half : 0, y: 0, width: half, height: cg.height)

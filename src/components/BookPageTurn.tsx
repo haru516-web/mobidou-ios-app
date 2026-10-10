@@ -1,7 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { playPageTurn } from '../services/audio';
 import { captureView } from '../services/captureView';
-import { Animated, Easing, PanResponder, Platform, StyleSheet, View, type PanResponderGestureState, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, Image as RNImage, PanResponder, Platform, StyleSheet, Text, View, type PanResponderGestureState, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from '../components';
 import { NativeBookPageTurn, isNativePageCurlAvailable, type NativeBookPage } from './NativeBookPageTurn';
 
@@ -245,6 +245,8 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
  * page turn is used on every platform so the book looks the same.
  */
 const USE_NATIVE_PAGE_CURL = true;
+/** Temporary: shows the first photographed spread at the top right so a TestFlight build can tell an empty picture from a picture the native view cannot read. Turn off before the public release. */
+const SHOW_CURL_DEBUG = true;
 
 /**
  * The iOS page curl turning the app's own book: every spread is drawn once by the app (off screen), saved as a picture, and the
@@ -286,6 +288,10 @@ const SnapshotCurlBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProp
     {uris && uris.length === itemCount
       ? <NativeBookPageTurn forwardedRef={ref} spreadUris={uris} selectedIndex={props.selectedIndex} onCommit={props.onCommit} onBusyChange={props.onBusyChange} onOpenDetail={props.onOpenDetail} style={S.fill} />
       : <SimulatedBookPageTurn {...props} ref={ref} style={S.fill} />}
+    {SHOW_CURL_DEBUG && uris && uris[0] && <View pointerEvents="none" style={{ position: 'absolute', right: 4, top: 4, width: 150, backgroundColor: '#000C', padding: 3 }}>
+      <RNImage source={{ uri: uris[0] }} style={{ width: 144, height: 144 * (size.height / Math.max(1, size.width)), backgroundColor: '#8886' }} resizeMode="contain" />
+      <Text style={{ color: '#fff', fontSize: 8 }}>{`spread0 ${uris.length}p ${uris[0].slice(0, 7)}…${uris[0].slice(-14)}`}</Text>
+    </View>}
   </View>;
 });
 
