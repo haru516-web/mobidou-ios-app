@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import { Image } from './AppImage';
@@ -11,7 +11,9 @@ import { WashiInput } from './WashiInput';
 import { PetAvatar, Sheet } from './SocialSheets';
 import { eventTicketsEarned, nextEventTicketAt } from '../services/eventGacha';
 import { eventProgress, inviteMessage, normalizeTeamCode, startBlocker, teamInviteLink, teamSteps, type EventTeam, type JoinFailure } from '../services/eventTeam';
-import { devEventTeam, eventTeamApi, useEventTeam } from '../services/eventTeamStore';
+import { devEventTeam, eventTeamApi, loadEventTeam, useEventTeam } from '../services/eventTeamStore';
+import { fetchProfile, saveProfile } from '../services/social';
+import { openModerationMenu } from '../services/moderation';
 import { SERVER_URL } from '../services/server';
 import { playSfx } from '../services/audio';
 
@@ -22,6 +24,19 @@ const JOIN_MESSAGES: Record<JoinFailure, string> = {
   full: 'そのチームはもう満員です。',
   already_started: 'そのチームはすでに出発しています。',
   already_member: 'すでにそのチームに入っています。',
+  offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。',
+  profile_required: 'チームに入るには、名前の登録が必要です。',
+  not_active: 'いまはイベントの期間ではありません。',
+  too_many: '試した回数が多すぎます。しばらくしてから、もう一度お試しください。',
+  unavailable: 'うまくいきませんでした。しばらくしてから、もう一度お試しください。',
+};
+const START_MESSAGES: Record<string, string> = {
+  too_few: '人数が足りません。',
+  not_recruiting: 'すでに出発しています。',
+  not_creator: '出発できるのは、チームをつくった人です。',
+  no_team: 'チームが見つかりませんでした。',
+  offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。',
+  unavailable: 'うまくいきませんでした。しばらくしてから、もう一度お試しください。',
 };
 
 type Pet = Pick<PetCharacter, 'id' | 'image' | 'name'>;
@@ -61,33 +76,89 @@ export function EventMap({ event, steps, pet, maxHeight }: { event: PilgrimageEv
 }
 
 function Members({ team, event }: { team: EventTeam; event: PilgrimageEvent }) {
+  const meId = team.meId ?? ME_ID;
   const max = event.maxMembers ?? 4;
   return <PaperCard>
     <View style={S.rowBetween}><Text style={S.label}>チームメンバー</Text><Text style={S.small}>{team.members.length} / {max}人</Text></View>
     {team.members.map(m => <View key={m.id} style={S.member}>
       <PetAvatar petId={m.petId as PetCharacter['id']} size={34} />
-      <Text numberOfLines={1} style={S.memberName}>{m.id === ME_ID ? `${m.name}（自分）` : m.name}</Text>
+      <Text numberOfLines={1} style={S.memberName}>{m.id === meId ? `${m.name}（自分）` : m.name}</Text>
       {team.status !== 'recruiting' && <Text style={S.memberSteps}>{m.steps.toLocaleString()}歩</Text>}
+      {m.id !== meId && !m.id.startsWith('dev-') && <Pressable artwork={false} accessibilityRole="button" accessibilityLabel={`${m.name}さんを通報・ブロック`} onPress={() => openModerationMenu({ id: m.id, name: m.name })} style={S.iconButton}><Icon name="ellipsis-horizontal" size={18} color={C.muted} /></Pressable>}
     </View>)}
   </PaperCard>;
 }
 
-export function EventScreen({ visible, onClose, event, pet }: { visible: boolean; onClose: () => void; event: PilgrimageEvent; pet: Pet }) {
+export function EventScreen({ visible, onClose, event, pet, initialCode = '' }: { visible: boolean; onClose: () => void; event: PilgrimageEvent; pet: Pet; /** A code that came with an invite link; it is filled in when the screen opens. */ initialCode?: string }) {
   const team = useEventTeam(event.id);
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(initialCode);
+  useEffect(() => { if (initialCode) setCode(initialCode); }, [initialCode]);
   const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  // Teammates see this name, so the server needs one before a team can be made or joined.
+  const [name, setName] = useState('');
+  const [needName, setNeedName] = useState(false);
   const me = { id: ME_ID, name: 'あなた', petId: pet.id };
   const min = event.minMembers ?? 2, max = event.maxMembers ?? 4;
 
-  const create = () => { eventTeamApi.create(event, me); playSfx('sfx_success'); setNotice(''); };
-  const join = () => {
-    const result = eventTeamApi.join(event, code, me);
-    playSfx(result.ok ? 'sfx_success' : 'sfx_error');
-    setNotice(result.ok ? '' : JOIN_MESSAGES[result.reason]);
-    if (result.ok) setCode('');
+  // Ask the server how the team stands when the screen opens, and again every few seconds while people may be joining.
+  const recruiting = team?.status === 'recruiting';
+  useEffect(() => {
+    if (!visible) return undefined;
+    void loadEventTeam(event);
+    void fetchProfile().then(profile => { if (profile) { setNeedName(!profile.name); if (profile.name) setName(profile.name); } });
+    if (!recruiting) return undefined;
+    const timer = setInterval(() => { void loadEventTeam(event); }, 8000);
+    return () => clearInterval(timer);
+  }, [visible, recruiting, event]);
+
+  const run = async (job: () => Promise<boolean>, failed?: () => void) => {
+    if (busy) return;
+    setBusy(true);
+    try { const ok = await job(); playSfx(ok ? 'sfx_success' : 'sfx_error'); if (!ok) failed?.(); }
+    finally { setBusy(false); }
   };
-  const start = () => { const r = eventTeamApi.start(event); playSfx(r.ok ? 'sfx_success' : 'sfx_error'); };
-  const claim = () => { playSfx(eventTeamApi.claim(event) ? 'sfx_success' : 'sfx_error'); };
+  /** Saves the typed name first when the server has none yet. Returns false (with a notice) when that did not work. */
+  const ensureName = async () => {
+    if (!needName) return true;
+    const saved = await saveProfile(name, pet.id);
+    if (saved.ok) { setNeedName(false); return true; }
+    setNotice(saved.reason === 'invalid' ? '名前は1〜12文字で入力してください。' : saved.reason === 'inappropriate' ? 'その名前は使えません。別の名前にしてください。' : JOIN_MESSAGES.offline);
+    return false;
+  };
+  const create = () => void run(async () => {
+    setNotice('');
+    if (!(await ensureName())) return false;
+    const result = await eventTeamApi.create(event, me);
+    if (!result.ok) { setNotice(JOIN_MESSAGES[result.reason]); return false; }
+    return true;
+  });
+  const join = () => void run(async () => {
+    setNotice('');
+    if (!(await ensureName())) return false;
+    const result = await eventTeamApi.join(event, code, me);
+    if (!result.ok) { setNotice(JOIN_MESSAGES[result.reason]); return false; }
+    setCode('');
+    return true;
+  });
+  const start = () => void run(async () => {
+    setNotice('');
+    const result = await eventTeamApi.start(event);
+    if (!result.ok) { setNotice(START_MESSAGES[result.reason] ?? START_MESSAGES.unavailable); return false; }
+    return true;
+  });
+  const claim = () => void run(async () => {
+    setNotice('');
+    const ok = await eventTeamApi.claim(event);
+    if (!ok) setNotice(JOIN_MESSAGES.unavailable);
+    return ok;
+  });
+  const leave = () => void run(async () => {
+    setNotice('');
+    const ok = await eventTeamApi.leave(event.id, team?.meId ?? ME_ID);
+    if (!ok) setNotice(JOIN_MESSAGES.offline);
+    return ok;
+  });
   const share = (t: EventTeam) => void Share.share({ message: inviteMessage(event, t.code, teamInviteLink(SERVER_URL, t.code)) }).catch(() => undefined);
 
   const body: React.ReactElement[] = [];
@@ -99,18 +170,22 @@ export function EventScreen({ visible, onClose, event, pet }: { visible: boolean
       <Text style={S.body}>・フレンドと{min}〜{max}人のチームで参加します（ひとりでは参加できません）{'\n'}・全員の歩数を合わせて、イベントの道を進みます{'\n'}・クリアすると、参加した全員が受け取れます：{event.reward}</Text>
     </PaperCard>);
     body.push(<View key="actions" style={S.actions}>
-      <Button title="チームをつくる" onPress={create} />
+      {needName && <View style={[S.joinRow]}>
+        <WashiArt />
+        <WashiInput value={name} onChangeText={setName} maxLength={12} placeholder="名前（チームのみんなに見えます）" placeholderTextColor="#B7A58F" autoCorrect={false} accessibilityLabel="名前" style={S.codeInput} />
+      </View>}
+      <Button title="チームをつくる" disabled={busy || (needName && !name.trim())} onPress={create} />
       <View style={[S.joinRow]}>
         <WashiArt />
         <WashiInput value={code} onChangeText={value => setCode(value.toUpperCase())} maxLength={7} placeholder="チームコード" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="チームコード" style={S.codeInput} />
-        <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={!code.trim()} onPress={join} style={[S.primarySmall, !code.trim() && S.disabled]}><Text style={S.primarySmallText}>参加</Text></Pressable>
+        <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={busy || !code.trim() || (needName && !name.trim())} onPress={join} style={[S.primarySmall, (busy || !code.trim()) && S.disabled]}><Text style={S.primarySmallText}>参加</Text></Pressable>
       </View>
       {!!notice && <Text accessibilityLiveRegion="polite" style={S.notice}>{notice}</Text>}
     </View>);
   } else if (team.status === 'recruiting') {
     const blocker = startBlocker(team, event);
     // The way back to the first screen (make a team / enter a code). It is the same as leaving the team, so it sits first, not on the second page.
-    body.push(<Pressable key="back" plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="前の画面にもどる（チームをぬける）" onPress={() => { eventTeamApi.leave(event.id, ME_ID); setNotice(''); }} style={S.back}><Icon name="chevron-back" size={16} color={C.red} /><Text style={S.secondarySmallText}>{team.members.length > 1 ? 'チームをぬけて、もどる' : 'もどる'}</Text></Pressable>);
+    body.push(<Pressable key="back" plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="前の画面にもどる（チームをぬける）" onPress={leave} style={S.back}><Icon name="chevron-back" size={16} color={C.red} /><Text style={S.secondarySmallText}>{team.members.length > 1 ? 'チームをぬけて、もどる' : 'もどる'}</Text></Pressable>);
     body.push(<PaperCard key="code">
       <Text style={S.label}>チームコード</Text>
       <View style={S.rowBetween}>
@@ -121,8 +196,9 @@ export function EventScreen({ visible, onClose, event, pet }: { visible: boolean
     </PaperCard>);
     body.push(<Members key="members" team={team} event={event} />);
     body.push(<View key="start" style={S.actions}>
-      <Button title="このメンバーで出発する" disabled={!!blocker} onPress={start} />
-      <Text style={S.hint}>{blocker === 'too_few' ? `あと${min - team.members.length}人以上集まると出発できます（${min}〜${max}人）` : '出発すると、メンバーの追加はできなくなります'}</Text>
+      <Button title="このメンバーで出発する" disabled={!!blocker || busy || (team.meId !== undefined && team.members[0]?.id !== team.meId)} onPress={start} />
+      <Text style={S.hint}>{blocker === 'too_few' ? `あと${min - team.members.length}人以上集まると出発できます（${min}〜${max}人）` : team.meId !== undefined && team.members[0]?.id !== team.meId ? '出発できるのは、チームをつくった人です' : '出発すると、メンバーの追加はできなくなります'}</Text>
+      {!!notice && <Text accessibilityLiveRegion="polite" style={S.notice}>{notice}</Text>}
     </View>);
   } else {
     const progress = eventProgress(event, teamSteps(team));
@@ -138,7 +214,7 @@ export function EventScreen({ visible, onClose, event, pet }: { visible: boolean
     </PaperCard>);
     body.push(<Members key="members" team={team} event={event} />);
     if (progress.cleared) body.push(<View key="claim" style={S.actions}>
-      <Button title={team.claimed ? '受け取りました' : '報酬を受け取る'} disabled={team.claimed} onPress={claim} />
+      <Button title={team.claimed ? '受け取りました' : '報酬を受け取る'} disabled={team.claimed || busy} onPress={claim} />
       <Text style={S.hint}>{event.reward}</Text>
     </View>);
   }

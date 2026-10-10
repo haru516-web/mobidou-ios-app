@@ -8,7 +8,7 @@ import type { EventSpot, PilgrimageEvent } from '../data/events';
 export type TeamStatus = 'recruiting' | 'active' | 'cleared';
 export type TeamMember = { id: string; name: string; petId: string; steps: number };
 /** `seen`: how many reached spots the arrival ceremony has already been shown for. */
-export type EventTeam = { code: string; status: TeamStatus; members: TeamMember[]; claimed: boolean; seen: number };
+export type EventTeam = { code: string; status: TeamStatus; members: TeamMember[]; claimed: boolean; seen: number; /** The player's own member id, so the screens can tell which member is them. */ meId?: string };
 
 /** Team code alphabet: same as friend codes (no 0/O/1/I). */
 const CODE = /^[A-HJ-NP-Z2-9]{6}$/;
@@ -39,7 +39,11 @@ export function eventProgress(event: Pick<PilgrimageEvent, 'spots' | 'goalSteps'
   return { steps: total, reached, next, ratio, cleared };
 }
 
-export type JoinFailure = 'invalid' | 'not_found' | 'full' | 'already_started' | 'already_member';
+export type JoinFailure = 'invalid' | 'not_found' | 'full' | 'already_started' | 'already_member'
+  /** Not about the code: the server could not be reached, a name is needed first, the event is not running, too many tries, or something unexpected. */
+  | 'offline' | 'profile_required' | 'not_active' | 'too_many' | 'unavailable';
+
+export type StartFailure = 'too_few' | 'not_recruiting' | 'no_team' | 'not_creator' | 'offline' | 'unavailable';
 
 /** Whether one more person may join this team. */
 export function canJoin(team: EventTeam, event: Pick<PilgrimageEvent, 'maxMembers'>, userId: string): JoinFailure | null {

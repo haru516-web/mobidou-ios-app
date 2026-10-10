@@ -1,41 +1,211 @@
 /*
- * The event team as the screens see it. Until the app is connected to the server
- * this is a local mock held in memory; the screens only use `EventTeamApi`, so the
- * server version can replace `mockApi` without touching them.
+ * The event team as the screens see it.
+ *
+ * The server holds the real team (who is in, how far each member has walked, whether the reward was taken).
+ * This module keeps a copy in memory for the screens to read at once, and every action goes to the server and
+ * then replaces that copy with what the server answers. Without a server address (EXPO_PUBLIC_SERVER_URL set to
+ * an empty string) it falls back to a team held only on this device, which is what the development helpers use.
  */
 import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PilgrimageEvent } from '../data/events';
-import { canJoin, canLeave, eventProgress, isTeamCode, normalizeTeamCode, startBlocker, teamSteps, type EventTeam, type JoinFailure, type TeamMember } from './eventTeam';
+import { authedRequest, readServerAccount, SERVER_URL } from './server';
+import { readStepsBetween, type StepSource } from './steps';
+import { submitEventSteps } from './eventSteps';
+import { canJoin, canLeave, eventProgress, isTeamCode, normalizeTeamCode, startBlocker, teamSteps, type EventTeam, type JoinFailure, type StartFailure, type TeamMember } from './eventTeam';
+
+export type EventTeamResult = { ok: true; team: EventTeam } | { ok: false; reason: JoinFailure };
 
 export type EventTeamApi = {
   get(eventId: string): EventTeam | null;
-  create(event: PilgrimageEvent, me: Omit<TeamMember, 'steps'>): EventTeam;
-  join(event: PilgrimageEvent, code: string, me: Omit<TeamMember, 'steps'>): { ok: true; team: EventTeam } | { ok: false; reason: JoinFailure };
-  start(event: PilgrimageEvent): { ok: true } | { ok: false; reason: 'too_few' | 'not_recruiting' | 'no_team' };
-  leave(eventId: string, userId: string): boolean;
-  claim(event: PilgrimageEvent): boolean;
+  /** Ask the server how the team stands now. */
+  refresh(eventId: string): Promise<'ok' | 'offline'>;
+  create(event: PilgrimageEvent, me: Omit<TeamMember, 'steps'>): Promise<EventTeamResult>;
+  join(event: PilgrimageEvent, code: string, me: Omit<TeamMember, 'steps'>): Promise<EventTeamResult>;
+  start(event: PilgrimageEvent): Promise<{ ok: true } | { ok: false; reason: StartFailure }>;
+  leave(eventId: string, userId: string): Promise<boolean>;
+  claim(event: PilgrimageEvent): Promise<boolean>;
   /** The arrival ceremony for the next unseen spot has been shown. */
   acknowledgeSpot(eventId: string): void;
 };
-
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const randomCode = () => Array.from({ length: 6 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
 
 const teams = new Map<string, EventTeam>();
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(fn => fn());
 
-const mockApi: EventTeamApi = {
+/**
+ * Whether the server has this event. The buttons that lead into the event are shown only when it does, so a build that
+ * is ahead of the server (or a server with no event set up) never offers an event that cannot be played.
+ * The last answer is kept on the device, so being offline does not hide an event that was there a moment ago.
+ */
+const available = new Map<string, boolean>();
+const AVAILABLE_KEY = (eventId: string) => `@mobidou/event-available/${eventId}`;
+function setAvailable(eventId: string, value: boolean) {
+  if (available.get(eventId) === value) return;
+  available.set(eventId, value);
+  void AsyncStorage.setItem(AVAILABLE_KEY(eventId), value ? '1' : '0').catch(() => undefined);
+  emit();
+}
+const availabilityLoaded = new Set<string>();
+async function loadAvailability(eventId: string) {
+  if (availabilityLoaded.has(eventId)) return;
+  availabilityLoaded.add(eventId);
+  try {
+    const saved = await AsyncStorage.getItem(AVAILABLE_KEY(eventId));
+    if (saved !== null && !available.has(eventId)) { available.set(eventId, saved === '1'); emit(); }
+  } catch { /* unknown stays hidden until the server answers */ }
+}
+
+const SEEN_KEY = (eventId: string) => `@mobidou/event-seen/${eventId}`;
+type SeenRecord = { code: string; seen: number };
+
+async function readSeen(eventId: string): Promise<SeenRecord | null> {
+  try {
+    const value = JSON.parse(await AsyncStorage.getItem(SEEN_KEY(eventId)) ?? 'null') as Partial<SeenRecord> | null;
+    return value && typeof value.code === 'string' && typeof value.seen === 'number' ? { code: value.code, seen: value.seen } : null;
+  } catch { return null; }
+}
+const writeSeen = (eventId: string, record: SeenRecord | null) => (record
+  ? AsyncStorage.setItem(SEEN_KEY(eventId), JSON.stringify(record))
+  : AsyncStorage.removeItem(SEEN_KEY(eventId))).catch(() => undefined);
+
+/** Reached spots whose arrival was already shown on another phone or an older install must not be shown again. */
+function reachedCount(event: PilgrimageEvent, team: Pick<EventTeam, 'members'>) {
+  return eventProgress(event, teamSteps(team)).reached;
+}
+
+type ServerTeam = { code?: unknown; status?: unknown; members?: unknown; claimed?: unknown };
+
+function fromServer(event: PilgrimageEvent, raw: ServerTeam | null | undefined, meId: string | undefined, seen: SeenRecord | null): EventTeam | null {
+  if (!raw || typeof raw.code !== 'string' || !Array.isArray(raw.members)) return null;
+  const members: TeamMember[] = raw.members.flatMap(item => {
+    const m = item as { id?: unknown; name?: unknown; petId?: unknown; steps?: unknown };
+    return typeof m.id === 'string' ? [{ id: m.id, name: typeof m.name === 'string' ? m.name : 'もびさん', petId: typeof m.petId === 'string' ? m.petId : 'mobibou', steps: typeof m.steps === 'number' ? m.steps : 0 }] : [];
+  });
+  const status = raw.status === 'active' || raw.status === 'cleared' ? raw.status : 'recruiting';
+  const team: EventTeam = { code: raw.code, status, members, claimed: raw.claimed === true, seen: 0, meId };
+  // A team this device has not seen before (a new phone, a reinstall) starts caught up, so the past arrivals are not replayed.
+  team.seen = seen && seen.code === raw.code ? Math.min(seen.seen, reachedCount(event, team)) : reachedCount(event, team);
+  return team;
+}
+
+type ServerReply = { status: number; data: Record<string, unknown> | null } | null;
+
+const FAILURES: Record<string, JoinFailure> = {
+  invalid_team_code: 'invalid', not_found: 'not_found', full: 'full', already_started: 'already_started', already_member: 'already_member',
+  profile_required: 'profile_required', event_not_active: 'not_active', too_many_attempts: 'too_many',
+};
+const failureOf = (reply: ServerReply): JoinFailure => {
+  if (!reply) return 'offline';
+  const code = typeof reply.data?.error === 'string' ? reply.data.error : '';
+  return FAILURES[code] ?? 'unavailable';
+};
+
+/** Replace the copy with what the server says (a reply of `team: null` means the player is in no team). */
+async function adopt(event: PilgrimageEvent, reply: ServerReply, fresh: boolean): Promise<EventTeam | null> {
+  const account = await readServerAccount();
+  const body = reply?.data as { team?: ServerTeam | null } | null;
+  const previous = await readSeen(event.id);
+  const team = fromServer(event, body?.team, account?.userId, fresh ? null : previous);
+  if (team) {
+    teams.set(event.id, team);
+    // Joining or making a team starts at zero arrivals seen; for a team known already the stored count carries on.
+    if (fresh) { team.seen = 0; await writeSeen(event.id, { code: team.code, seen: 0 }); }
+    else if (!previous || previous.code !== team.code) await writeSeen(event.id, { code: team.code, seen: team.seen });
+  } else {
+    teams.delete(event.id);
+    await writeSeen(event.id, null);
+  }
+  emit();
+  return team;
+}
+
+const serverApi: EventTeamApi = {
   get: eventId => teams.get(eventId) ?? null,
-  create(event, me) {
-    const team: EventTeam = { code: randomCode(), status: 'recruiting', members: [{ ...me, steps: 0 }], claimed: false, seen: 0 };
+  async refresh(eventId) {
+    // A team made up by the development preview is not on the server; leave it alone.
+    if (teams.get(eventId)?.code === 'PREVW2') return 'ok';
+    const reply = await authedRequest(`/events/${encodeURIComponent(eventId)}/team`, { method: 'GET' });
+    if (reply?.status === 404 && reply.data?.error === 'event_not_found') { setAvailable(eventId, false); teams.delete(eventId); emit(); return 'ok'; }
+    if (!reply || reply.status !== 200) return 'offline';
+    setAvailable(eventId, true);
+    const event = knownEvents.get(eventId);
+    if (!event) return 'offline';
+    await adopt(event, reply, false);
+    return 'ok';
+  },
+  async create(event) {
+    knownEvents.set(event.id, event);
+    const reply = await authedRequest(`/events/${encodeURIComponent(event.id)}/teams`, { body: {} });
+    if (!reply || reply.status !== 201) return { ok: false, reason: failureOf(reply) };
+    const team = await adopt(event, reply, true);
+    return team ? { ok: true, team } : { ok: false, reason: 'unavailable' };
+  },
+  async join(event, code) {
+    knownEvents.set(event.id, event);
+    if (!isTeamCode(code)) return { ok: false, reason: 'invalid' };
+    const reply = await authedRequest(`/events/${encodeURIComponent(event.id)}/teams/join`, { body: { code: normalizeTeamCode(code) } });
+    if (!reply || reply.status !== 200) return { ok: false, reason: failureOf(reply) };
+    const team = await adopt(event, reply, true);
+    return team ? { ok: true, team } : { ok: false, reason: 'unavailable' };
+  },
+  async start(event) {
+    const current = teams.get(event.id);
+    if (current) { const blocked = startBlocker(current, event); if (blocked) return { ok: false, reason: blocked }; }
+    const reply = await authedRequest(`/events/${encodeURIComponent(event.id)}/teams/start`, { body: {} });
+    if (!reply) return { ok: false, reason: 'offline' };
+    if (reply.status !== 200) {
+      const code = typeof reply.data?.error === 'string' ? reply.data.error : '';
+      return { ok: false, reason: code === 'too_few' || code === 'not_recruiting' || code === 'not_creator' || code === 'no_team' ? code : 'unavailable' };
+    }
+    const team = await adopt(event, reply, false);
+    // The first arrival is shown from zero for the team that has just set out.
+    if (team) { team.seen = 0; await writeSeen(event.id, { code: team.code, seen: 0 }); emit(); }
+    return { ok: true };
+  },
+  async leave(eventId) {
+    const reply = await authedRequest(`/events/${encodeURIComponent(eventId)}/leave`, { body: {} });
+    if (!reply || reply.status !== 200) return false;
+    teams.delete(eventId);
+    await writeSeen(eventId, null);
+    emit();
+    return true;
+  },
+  async claim(event) {
+    const reply = await authedRequest(`/events/${encodeURIComponent(event.id)}/claim`, { body: {} });
+    if (!reply || reply.status !== 200) return false;
+    const team = teams.get(event.id);
+    if (team) { teams.set(event.id, { ...team, claimed: true }); emit(); }
+    return true;
+  },
+  acknowledgeSpot(eventId) {
+    const team = teams.get(eventId);
+    if (!team) return;
+    const next = { ...team, seen: team.seen + 1 };
+    teams.set(eventId, next);
+    void writeSeen(eventId, { code: team.code, seen: next.seen });
+    emit();
+  },
+};
+
+/** Events the app has shown, so a refresh by id knows the steps and spots it is judging by. */
+const knownEvents = new Map<string, PilgrimageEvent>();
+
+const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const randomCode = () => Array.from({ length: 6 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
+
+/** A team on this device only: used when there is no server address, and by the development helpers. */
+const localApi: EventTeamApi = {
+  get: eventId => teams.get(eventId) ?? null,
+  async refresh() { return 'ok'; },
+  async create(event, me) {
+    const team: EventTeam = { code: randomCode(), status: 'recruiting', members: [{ ...me, steps: 0 }], claimed: false, seen: 0, meId: me.id };
     teams.set(event.id, team);
     emit();
-    return team;
+    return { ok: true, team };
   },
-  join(event, code, me) {
+  async join(event, code, me) {
     if (!isTeamCode(code)) return { ok: false, reason: 'invalid' };
-    // The mock has only the player's own team, so any well-formed code that is not it is "not found".
     const team = teams.get(event.id);
     if (!team || team.code !== normalizeTeamCode(code)) return { ok: false, reason: 'not_found' };
     const blocked = canJoin(team, event, me.id);
@@ -45,7 +215,7 @@ const mockApi: EventTeamApi = {
     emit();
     return { ok: true, team: next };
   },
-  start(event) {
+  async start(event) {
     const team = teams.get(event.id);
     if (!team) return { ok: false, reason: 'no_team' };
     const blocked = startBlocker(team, event);
@@ -54,7 +224,7 @@ const mockApi: EventTeamApi = {
     emit();
     return { ok: true };
   },
-  leave(eventId, userId) {
+  async leave(eventId, userId) {
     const team = teams.get(eventId);
     if (!team || !canLeave(team)) return false;
     const members = team.members.filter(m => m.id !== userId);
@@ -62,7 +232,7 @@ const mockApi: EventTeamApi = {
     emit();
     return true;
   },
-  claim(event) {
+  async claim(event) {
     const team = teams.get(event.id);
     if (!team || team.claimed || !eventProgress(event, teamSteps(team)).cleared) return false;
     teams.set(event.id, { ...team, status: 'cleared', claimed: true });
@@ -77,9 +247,9 @@ const mockApi: EventTeamApi = {
   },
 };
 
-export const eventTeamApi: EventTeamApi = mockApi;
+export const eventTeamApi: EventTeamApi = SERVER_URL ? serverApi : localApi;
 
-/** Development helpers for trying every state before the server exists. */
+/** Development helpers for trying every state without a second player. They change only this device's copy. */
 export const devEventTeam = {
   addFriend(eventId: string, name: string) {
     const team = teams.get(eventId);
@@ -99,18 +269,71 @@ export const devEventTeam = {
   /** A team that has already set out with `steps` walked, its arrival ceremonies already seen: for looking at the screens. */
   seedPreview(event: PilgrimageEvent, steps: number, me: Omit<TeamMember, 'steps'>) {
     const reached = eventProgress(event, steps).reached;
-    teams.set(event.id, { code: 'PREVW2', status: 'active', claimed: false, seen: reached, members: [{ ...me, steps: Math.round(steps * .6) }, { id: 'dev-friend', name: '友だち', petId: 'mobibou', steps: steps - Math.round(steps * .6) }] });
+    available.set(event.id, true);
+    teams.set(event.id, { code: 'PREVW2', status: 'active', claimed: false, seen: reached, meId: me.id, members: [{ ...me, steps: Math.round(steps * .6) }, { id: 'dev-friend', name: '友だち', petId: 'mobibou', steps: Math.round(steps * .4) }] });
     emit();
   },
 };
 
-export function useEventTeam(eventId: string): EventTeam | null {
-  const [team, setTeam] = useState(() => mockApi.get(eventId));
+/** Whether the event can be played now: it is on the server (or there is no server and the team is kept on the device). */
+export function useEventAvailable(eventId: string): boolean {
+  const [value, setValue] = useState(() => !SERVER_URL || available.get(eventId) === true);
   useEffect(() => {
-    const update = () => setTeam(mockApi.get(eventId));
+    if (!SERVER_URL) return undefined;
+    const update = () => setValue(available.get(eventId) === true);
+    listeners.add(update);
+    void loadAvailability(eventId).then(update);
+    update();
+    return () => { listeners.delete(update); };
+  }, [eventId]);
+  return value;
+}
+
+export function useEventTeam(eventId: string): EventTeam | null {
+  const [team, setTeam] = useState(() => teams.get(eventId) ?? null);
+  useEffect(() => {
+    const update = () => setTeam(teams.get(eventId) ?? null);
     listeners.add(update);
     update();
     return () => { listeners.delete(update); };
   }, [eventId]);
   return team;
+}
+
+/** Load the team once the app has an event to show (a restart, or a new phone), so the buttons and the map are right at once. */
+export function loadEventTeam(event: PilgrimageEvent): Promise<'ok' | 'offline'> {
+  knownEvents.set(event.id, event);
+  return eventTeamApi.refresh(event.id);
+}
+
+/** Send the steps of the open day for the team that has set out. At most once per `minGapMs`, never at the same time twice. */
+let lastSend = 0;
+let sending = false;
+export async function sendEventSteps(event: PilgrimageEvent, source: StepSource, options: { minGapMs?: number; now?: Date } = {}): Promise<'sent' | 'skipped' | 'failed'> {
+  const team = teams.get(event.id);
+  if (!SERVER_URL || sending || source === 'none' || !team || team.status !== 'active') return 'skipped';
+  const now = options.now ?? new Date();
+  if (now.getTime() - lastSend < (options.minGapMs ?? 120_000)) return 'skipped';
+  sending = true;
+  try {
+    const result = await submitEventSteps({
+      eventId: event.id,
+      now,
+      readSteps: (start, end) => readStepsBetween(source, start, end),
+      transport: async request => {
+        const reply = await authedRequest(`/events/${encodeURIComponent(request.eventId)}/steps`, { body: { cumulative: request.cumulative, day: request.day } });
+        if (!reply) throw new Error('offline');
+        return { status: reply.status, body: reply.data };
+      },
+    });
+    lastSend = Date.now();
+    if (!result.ok) return 'failed';
+    knownEvents.set(event.id, event);
+    await eventTeamApi.refresh(event.id);
+    return 'sent';
+  } catch {
+    return 'failed';
+  } finally {
+    sending = false;
+  }
 }
