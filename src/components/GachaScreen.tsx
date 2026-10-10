@@ -48,7 +48,7 @@ function GachaDetail({ onClose, freePulls, premiumPulls, pool, how }: { onClose:
       </View>
       <Text style={S.detailHead}>木札について</Text>
       {how ? <Text style={S.detailBody}>{how}</Text> : <Text style={S.detailBody}>・木札1枚で、1回引けます。10回は、木札10枚を使って続けて引きます。{'\n'}・新しい巡礼を初めて結願すると、木札が1枚もらえます。{'\n'}・購入した木札は「プレミアム木札」です。木札とは別に数え、引くたびに、どちらを使うか選べます。{'\n'}・プレミアム木札で25回引くごとに、まだ出会っていないモビーが必ず1体出ます（全員そろっているときは、通常どおり抽選）。木札では数えません。{'\n'}・同じモビーが出たときは、小さなモビーとしてそばに来ます。</Text>}
-      <Text style={S.detailNote}>{how ? `いまのイベント木札：${freePulls}枚` : `いまの木札：${freePulls}枚 ／ プレミアム木札：${premiumPulls}枚`}</Text>
+      <Text style={S.detailNote}>{how ? `いまの木札：${freePulls}枚` : `いまの木札：${freePulls}枚 ／ プレミアム木札：${premiumPulls}枚`}</Text>
       <Button title="とじる" secondary onPress={onClose} style={S.wide} />
     </View>
   </View>;
@@ -654,7 +654,8 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
           {nextHint ? <Text style={S.small}>{nextHint}</Text> : null}
           {showShop && <Button title="木札を購入する" onPress={() => setTab('shop')} style={S.wide} />}
         </>}
-      {!guided && !nav && <Button title="とじる" secondary onPress={onClose} style={S.wide} />}
+      {/* While the rope is out, もどる is the way back; とじる would be a second back button. */}
+      {!guided && !nav && !(ropeReady && freePulls > 0 && !(unrevealed.length > 0)) && <Button title="とじる" secondary onPress={onClose} style={S.wide} />}
     </View>}
 
     {navShown && !playing && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setNavH(previous => previous === next ? previous : next); }} style={{ position: 'absolute', left: 0, right: 0, bottom: navInset }}>{nav}</View>}

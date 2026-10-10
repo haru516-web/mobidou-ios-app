@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acknowledgeEventPulls, drawEventPulls, emptyEventGacha, eventTicketsEarned, eventTicketsLeft, grantEventTickets, nextEventTicketAt, normalizeEventGacha } from '../src/services/eventGacha.ts';
-
-const pool = ['a', 'b', 'c', 'd'];
+import { creditEventTickets, emptyEventGacha, eventTicketsEarned, nextEventTicketAt, normalizeEventGacha, settleLegacyEventGacha } from '../src/services/eventGacha.ts';
 
 test('one 木札 for each quarter of the map, four in all', () => {
   const goal = 360000;
@@ -13,35 +11,30 @@ test('one 木札 for each quarter of the map, four in all', () => {
   assert.equal(eventTicketsEarned(undefined, 5000), 0);
 });
 
-test('granting only raises the total and stops at four', () => {
-  let state = grantEventTickets(emptyEventGacha(), 2);
-  assert.equal(state.granted, 2);
-  assert.equal(grantEventTickets(state, 1), state);
-  assert.equal(grantEventTickets(state, 9).granted, 4);
+test('crediting hands over only the new 木札, once, and stops at four', () => {
+  const first = creditEventTickets(emptyEventGacha(), 2);
+  assert.equal(first.state.granted, 2);
+  assert.equal(first.credited, 2);
+  const same = creditEventTickets(first.state, 1);
+  assert.equal(same.state, first.state);
+  assert.equal(same.credited, 0);
+  const more = creditEventTickets(first.state, 9);
+  assert.equal(more.state.granted, 4);
+  assert.equal(more.credited, 2);
 });
 
-test('a pull spends one 木札 and may repeat a Mobby already owned', () => {
-  const state = grantEventTickets(emptyEventGacha(), 2);
-  const first = drawEventPulls(state, {}, pool, 1, () => 0);
-  assert.equal(first.drawn, 1);
-  assert.equal(eventTicketsLeft(first.state), 1);
-  assert.deepEqual(first.state.unrevealed, [{ petId: 'a', isNew: true, guaranteed: false, kind: 'free' }]);
-  const again = drawEventPulls(first.state, first.owned, pool, 1, () => 0);
-  assert.equal(again.owned.a, 2);
-  assert.equal(again.state.unrevealed[1].isNew, false);
+test('an older save that kept event 木札 apart hands what is left to the ordinary ones, once', () => {
+  const old = { granted: 3, used: 1, unrevealed: [{ petId: 'a', isNew: true, guaranteed: false, kind: 'free' as const }] };
+  const settled = settleLegacyEventGacha(old);
+  assert.equal(settled.tickets, 2);
+  assert.equal(settled.unrevealed.length, 1);
+  assert.deepEqual(settled.state, { granted: 3, used: 3, unrevealed: [] });
+  const again = settleLegacyEventGacha(settled.state);
+  assert.equal(again.state, settled.state);
+  assert.equal(again.tickets, 0);
 });
 
-test('no 木札 left means nothing is drawn; asking for more than held draws only what is held', () => {
-  const none = drawEventPulls(emptyEventGacha(), {}, pool, 3);
-  assert.equal(none.drawn, 0);
-  const two = drawEventPulls(grantEventTickets(emptyEventGacha(), 2), {}, pool, 5, () => .99);
-  assert.equal(two.drawn, 2);
-  assert.equal(two.state.unrevealed.every(r => r.petId === 'd'), true);
-});
-
-test('the reveal being over clears the waiting results; a damaged save falls back to empty', () => {
-  const drawn = drawEventPulls(grantEventTickets(emptyEventGacha(), 1), {}, pool, 1, () => 0).state;
-  assert.equal(acknowledgeEventPulls(drawn).unrevealed.length, 0);
+test('a damaged save falls back to empty', () => {
   assert.deepEqual(normalizeEventGacha('x', () => true), emptyEventGacha());
   const restored = normalizeEventGacha({ granted: 7, used: 9, unrevealed: [{ petId: 'a' }, { petId: 'zzz' }, null] }, id => id === 'a');
   assert.equal(restored.granted, 4);

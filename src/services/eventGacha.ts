@@ -1,6 +1,6 @@
 /*
- * The event gacha: its own 木札 and its own pool (the event Mobbies), apart from the ordinary gacha.
- * The 木札 come from walking: one for each quarter of the event map, four in all.
+ * The event gacha uses the same 木札 as the ordinary one; its own pool is the event Mobbies.
+ * The 木札 come from walking: one for each quarter of the event map, four in all, added to the ordinary 木札.
  * Pure on purpose (no React Native, no storage), so it can be tested directly.
  */
 import type { PullResult } from './gacha';
@@ -30,10 +30,12 @@ export function nextEventTicketAt(goalSteps: number | undefined, earned: number)
   return Math.ceil((goalSteps * (earned + 1)) / EVENT_TICKETS_IN_TOTAL);
 }
 
-export const eventTicketsLeft = (state: EventGachaState) => Math.max(0, state.granted - state.used);
-
 const whole = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0);
 
+/**
+ * Event 木札 are ordinary 木札 (the ones the gacha screen already counts); this only remembers how many the
+ * map has handed over, so each is given once. `used` and `unrevealed` are what older saves kept apart.
+ */
 export function normalizeEventGacha(value: unknown, isKnownPet: (id: string) => boolean): EventGachaState {
   if (!value || typeof value !== 'object') return emptyEventGacha();
   const v = value as { granted?: unknown; used?: unknown; unrevealed?: unknown };
@@ -48,27 +50,18 @@ export function normalizeEventGacha(value: unknown, isKnownPet: (id: string) => 
   return { granted, used, unrevealed };
 }
 
-/** Raises the earned total to `total` (never lowers it). */
-export function grantEventTickets(state: EventGachaState, total: number): EventGachaState {
+/** Raises the earned total to `total` (never lowers it); `credited` is how many new 木札 to add to the ordinary ones. */
+export function creditEventTickets(state: EventGachaState, total: number): { state: EventGachaState; credited: number } {
   const next = Math.min(EVENT_TICKETS_IN_TOTAL, whole(total));
-  return next > state.granted ? { ...state, granted: next } : state;
+  return next > state.granted ? { state: { ...state, granted: next }, credited: next - state.granted } : { state, credited: 0 };
 }
 
 /**
- * Spends up to `count` 木札, each drawing one of `pool` with the same chance. A Mobby already owned can come again.
- * `owned` is how many of each the player holds; the result says what to hold afterwards.
+ * Older saves kept event 木札 apart from the ordinary ones. Whatever was still unspent becomes ordinary 木札,
+ * and results drawn but not yet revealed go to the shared reveal. Done once: the state is left empty afterwards.
  */
-export function drawEventPulls(state: EventGachaState, owned: Record<string, number>, pool: readonly string[], count: number, random: () => number = Math.random): { state: EventGachaState; owned: Record<string, number>; drawn: number } {
-  const times = Math.max(0, Math.min(Math.floor(count), eventTicketsLeft(state)));
-  if (times === 0 || pool.length === 0) return { state, owned, drawn: 0 };
-  const nextOwned = { ...owned };
-  const results: PullResult[] = [];
-  for (let i = 0; i < times; i++) {
-    const petId = pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
-    results.push({ petId, isNew: (nextOwned[petId] ?? 0) === 0, guaranteed: false, kind: 'free' });
-    nextOwned[petId] = (nextOwned[petId] ?? 0) + 1;
-  }
-  return { state: { ...state, used: state.used + times, unrevealed: [...state.unrevealed, ...results] }, owned: nextOwned, drawn: times };
+export function settleLegacyEventGacha(state: EventGachaState): { state: EventGachaState; tickets: number; unrevealed: PullResult[] } {
+  const tickets = Math.max(0, state.granted - state.used);
+  if (tickets === 0 && state.unrevealed.length === 0) return { state, tickets: 0, unrevealed: [] };
+  return { state: { granted: state.granted, used: state.granted, unrevealed: [] }, tickets, unrevealed: state.unrevealed };
 }
-
-export const acknowledgeEventPulls = (state: EventGachaState): EventGachaState => (state.unrevealed.length ? { ...state, unrevealed: [] } : state);

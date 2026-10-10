@@ -11,7 +11,7 @@ import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/
 import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
 import { localOmikujiDay } from '../data/omikuji';
-import { acknowledgeEventPulls, drawEventPulls, emptyEventGacha, grantEventTickets, normalizeEventGacha, type EventGachaState } from './eventGacha';
+import { creditEventTickets, emptyEventGacha, normalizeEventGacha, settleLegacyEventGacha, type EventGachaState } from './eventGacha';
 import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
 import { adoptServerAccount, readServerAccount, syncServer, type ServerAccount } from './server';
 import { fetchPaidTickets } from './purchase';
@@ -147,6 +147,12 @@ export function normalizeSaved(value: unknown): Saved {
     const owned = { ...loaded[field].owned };
     finished([...records]).forEach(routeId => { owned[routeId] = true; });
     loaded[field] = { ...loaded[field], owned };
+  }
+  // Event 木札 used to be kept apart; fold what an older save still holds into the ordinary ones.
+  const legacyEvent = settleLegacyEventGacha(loaded.eventGacha);
+  if (legacyEvent.state !== loaded.eventGacha) {
+    loaded.eventGacha = legacyEvent.state;
+    loaded.mobbies = { ...grantTickets(loaded.mobbies, legacyEvent.tickets), unrevealed: [...loaded.mobbies.unrevealed, ...legacyEvent.unrevealed] };
   }
   loaded.bookDesigns = cloneBookDesigns(loaded.demo ? loaded.trialBookDesigns : loaded.realBookDesigns);
   // Routes already cleared in the real book also earned their free pull.
@@ -414,13 +420,17 @@ export function useJourney() {
       return mobbies === p.mobbies ? p : { ...p, mobbies };
     }),
     /** The team has earned this many event 木札 in all (it only ever goes up). */
-    grantEventTickets: (total: number) => change(p => { const eventGacha = grantEventTickets(p.eventGacha, total); return eventGacha === p.eventGacha ? p : { ...p, eventGacha }; }),
-    /** Spend event 木札 on the event gacha; the Mobbies join the collection and wait in `eventGacha.unrevealed` for the reveal. */
-    drawEventMobby: (count = 1) => change(p => {
-      const drawn = drawEventPulls(p.eventGacha, p.mobbies.owned, EVENT_PET_CHARACTERS.map(character => character.id), count);
-      return drawn.drawn === 0 ? p : { ...p, eventGacha: drawn.state, mobbies: { ...p.mobbies, owned: drawn.owned } };
+    grantEventTickets: (total: number) => change(p => {
+      const credit = creditEventTickets(p.eventGacha, total);
+      return credit.credited === 0 ? p : { ...p, eventGacha: credit.state, mobbies: grantTickets(p.mobbies, credit.credited) };
     }),
-    acknowledgeEventPulls: () => change(p => { const eventGacha = acknowledgeEventPulls(p.eventGacha); return eventGacha === p.eventGacha ? p : { ...p, eventGacha }; }),
+    /** Spend ordinary 木札 on the event gacha; the event Mobbies join the collection and wait in `unrevealed` for the reveal, like any other pull. */
+    drawEventMobby: (count = 1) => change(p => {
+      const pool = EVENT_PET_CHARACTERS.map(character => character.id);
+      let mobbies = p.mobbies;
+      for (let pull = 0; pull < count; pull++) mobbies = pullOnce(mobbies, pool, 'free');
+      return mobbies === p.mobbies ? p : { ...p, mobbies };
+    }),
     /** The reveal is over. */
     acknowledgeMobbyPulls: () => change(p => { const mobbies = acknowledgePulls(p.mobbies); return mobbies === p.mobbies ? p : { ...p, mobbies }; }),
     saveHomeWidgetOrder: (order: HomeWidgetOrder) => change(p => ({ ...p, homeWidgetOrder: normalizeHomeWidgetOrder(order) })),

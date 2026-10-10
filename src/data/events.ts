@@ -37,7 +37,7 @@ export const TOKI_MEGURU: PilgrimageEvent = {
   minMembers: 2,
   maxMembers: 4,
   goalSteps: 360000,
-  reward: 'イベント限定の木札・ミニチュア・御朱印',
+  reward: '木札・ミニチュア・御朱印',
   spots: [
     spot('showa-car', '昭和', 'ひだまり商店街の小社', '旧車', 28000),
     spot('showa-bike', '昭和', '峠のカーブ祠', 'バイク', 56000),

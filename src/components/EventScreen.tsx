@@ -130,7 +130,7 @@ export function EventScreen({ visible, onClose, event, pet }: { visible: boolean
     </View>);
     const tickets = eventTicketsEarned(event.goalSteps, progress.steps);
     const nextTicket = nextEventTicketAt(event.goalSteps, tickets);
-    body.push(<Text key="tickets" style={S.ticketLine}>イベント木札 {tickets} / 4{nextTicket ? ` · 次は ${nextTicket.toLocaleString()}歩で1枚` : ' · すべてもらいました'}</Text>);
+    body.push(<Text key="tickets" style={S.ticketLine}>木札 {tickets} / 4{nextTicket ? ` · 次は ${nextTicket.toLocaleString()}歩で1枚` : ' · すべてもらいました'}</Text>);
     body.push(<PaperCard key="collected">
       <View style={S.rowBetween}><Text style={S.label}>集まった時代の宝物</Text><Text style={S.small}>{progress.reached} / {(event.spots ?? []).length}</Text></View>
       <Text style={S.body}>{(event.spots ?? []).map((s, i) => i < progress.reached ? s.miniature : '？').join(' · ')}</Text>

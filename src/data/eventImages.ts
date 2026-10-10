@@ -5,7 +5,6 @@ export const EVENT_MAP_IMAGE: ImageSourcePropType = require('../../assets/event-
 /** The picture for the event popup: Showa night to Heisei day, three friends walking (1024x1152). */
 export const EVENT_KEY_VISUAL: ImageSourcePropType = require('../../assets/event-toki/key-visual.webp');
 export const EVENT_BOOK_COVER: ImageSourcePropType = require('../../assets/event-toki/feel/book/event-book-cover.webp');
-export const EVENT_TICKET_IMAGE: ImageSourcePropType = require('../../assets/event-toki/ticket-event-tag.webp');
 
 // MINIATURES (keychains): all fifteen are drawn (docs/codex-event-assets-taste.md).
 export const EVENT_KEYCHAIN_IMAGES: Record<string, ImageSourcePropType> = {
