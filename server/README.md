@@ -43,6 +43,18 @@ Wrangler local values belong in an ignored `.dev.vars` file. Never commit secret
 - `POST /free-pulls/claim { routeId }` grants one free pull once per user and pilgrimage route.
 - `POST /gacha/pull { count, kind }` accepts one free draw or one/five paid draws. All configured Mobbies are equally likely; every 25th paid draw guarantees an unowned Mobby while one remains. Results include `isNew` and `guaranteed`, and a five-pull is committed atomically.
 - `GET /gacha/odds` returns the equal per-Mobby rates and the paid-pity disclosure. The roster lives in `src/config/gacha.ts` and intentionally mirrors `src/petCatalog.ts` without importing app code.
+- `POST /gacha/pull` takes an optional `opId` (8-64 letters, digits or hyphens). The answer is stored with the draw, so asking again with the same id returns it without drawing again; the app keeps the id until it has the result. A stale paid-pull count makes the draw fail (409) instead of double-spending.
+- `POST /blocks` / `POST /blocks/remove` with `{ userId }`, `GET /blocks`: blocking ends the friendship and pending requests and hides both players from each other (friends, requests, team joins). `POST /reports` with `{ userId, reason: name|behavior|other, note? }` stores a report in `user_reports` (10 a day per player). Display names containing words from `src/config/ngWords.ts` (plus `NG_WORDS`) are refused with `inappropriate_name`.
+- `POST /purchases/verify` credits Production and Sandbox purchases by default; set `PURCHASE_ENVIRONMENTS=Production` to refuse Sandbox ones. The environment is stored on each purchase.
+- `POST /account/delete` revokes the Sign in with Apple token first when `APPLE_TEAM_ID`, `APPLE_SIGN_IN_KEY_ID` and `APPLE_SIGN_IN_PRIVATE_KEY` are set (the app sends the authorization code with the sign-in); if Apple refuses, the account is kept (502 `apple_revoke_failed`) so deletion can be tried again.
+- A cron trigger (hourly) removes finished rate-limit counters and stored draw answers older than 30 days.
+- Event teams (all need the sign-in header; the player needs a profile name to make or join one):
+  - `GET /events/:id/team` the player's team (code, status `recruiting` / `active` / `cleared`, members with their total steps, whether the reward was taken) and the event's limits; `team` is `null` when the player has none.
+  - `POST /events/:id/teams` makes a team (201). `POST /events/:id/teams/join` with `{ code }` joins one (and becomes friends with its maker); 30 tries an hour. Both only while the event is running.
+  - `POST /events/:id/teams/start` (the member who joined first, with at least `min_members` in the team), `POST /events/:id/leave` (only while recruiting), `POST /events/:id/claim` (the team has reached `goal_steps`; each member takes it once).
+  - `GET /t/:code` is the page a team link opens; it hands the code to the app (`mobidou://team?code=…`).
+  - `POST /events/:id/steps` now needs a team that has set out (409 `no_active_team` otherwise). A member's steps are the sum of what they sent for each day; the team's are the sum of its members'.
+  - Database: `migrations/0002_event_teams.sql` upgrades an existing database, `migrations/0003_seed_toki_meguru.sql` adds the first event (set its dates first).
 - `GET /events/:id` returns event status; `POST /events/:id/steps` accepts the user's cumulative daily value for the currently open day. Send `day` (`YYYY-MM-DD`) to name the day the value belongs to; a mismatch returns 409 `steps_day_mismatch` with `openDay`. `GET /events/:id` also returns `openDay`, the day that can currently be submitted.
 
 ## Incomplete and placeholder behavior

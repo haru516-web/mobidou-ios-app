@@ -1,4 +1,4 @@
-import type { AgeGroup, AppleLinkResult, CloudSave, D1Database, Draw, EventRecord, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+import type { AgeGroup, AppleLinkResult, CloudSave, D1Database, Draw, EventJoinResult, EventRecord, EventStartResult, EventTeamView, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 import { randomToken } from "./crypto.ts";
 
 const nowIso = (): string => new Date().toISOString();
@@ -44,6 +44,15 @@ export class D1Store implements Store {
     if (await this.db.prepare("SELECT 1 AS found FROM apple_links WHERE user_id = ?").bind(userId).first()) return "account_has_other_apple";
     await this.db.prepare("INSERT INTO apple_links (apple_sub, user_id, linked_at) VALUES (?, ?, ?)").bind(appleSub, userId, nowIso()).run();
     return "linked";
+  }
+
+  async appleRefreshToken(userId: string): Promise<string | null> {
+    const row = await this.db.prepare("SELECT refresh_token FROM apple_links WHERE user_id = ?").bind(userId).first<{ refresh_token: string | null }>();
+    return row?.refresh_token ?? null;
+  }
+
+  async setAppleRefreshToken(userId: string, token: string): Promise<void> {
+    await this.db.prepare("UPDATE apple_links SET refresh_token = ? WHERE user_id = ?").bind(token, userId).run();
   }
 
   async userByApple(appleSub: string): Promise<string | null> {
@@ -153,8 +162,8 @@ export class D1Store implements Store {
   async recordPurchase(userId: string, transaction: VerifiedTransaction, product: ProductDefinition): Promise<boolean> {
     const now = nowIso();
     const statements = [
-      this.db.prepare("INSERT OR IGNORE INTO purchases (apple_transaction_id, user_id, product_id, original_transaction_id, granted_at, revoked_at) VALUES (?, ?, ?, ?, ?, NULL)")
-        .bind(transaction.transactionId, userId, transaction.productId, transaction.originalTransactionId ?? null, now)
+      this.db.prepare("INSERT OR IGNORE INTO purchases (apple_transaction_id, user_id, product_id, original_transaction_id, granted_at, revoked_at, environment) VALUES (?, ?, ?, ?, ?, NULL, ?)")
+        .bind(transaction.transactionId, userId, transaction.productId, transaction.originalTransactionId ?? null, now, transaction.environment ?? "Production")
     ];
     if ((product.paidPulls ?? 0) > 0) {
       // The tickets first pay off any refund debt; only the rest reaches the wallet. Every step is repeat-safe, and the batch is atomic.
@@ -260,7 +269,12 @@ export class D1Store implements Store {
     return (result.meta?.changes ?? 0) > 0;
   }
 
-  async commitDraws(userId: string, draws: Draw[], kind: "free" | "paid", paidPulls: number): Promise<void> {
+  async gachaOp(userId: string, opId: string): Promise<string | null> {
+    const row = await this.db.prepare("SELECT result FROM gacha_ops WHERE user_id = ? AND op_id = ?").bind(userId, opId).first<{ result: string }>();
+    return row?.result ?? null;
+  }
+
+  async commitDraws(userId: string, draws: Draw[], kind: "free" | "paid", paidPulls: number, options: { opId?: string; result?: string; previousPaidPulls?: number } = {}): Promise<void> {
     const now = nowIso();
     const spent = draws.length;
     const statements = [
@@ -272,20 +286,27 @@ export class D1Store implements Store {
         this.db.prepare(`INSERT INTO user_pets (user_id, pet_id, copies) VALUES (?, ?, 1)
           ON CONFLICT(user_id, pet_id) DO UPDATE SET copies = copies + 1`).bind(userId, draw.petId)
       ]),
-      ...(kind === "paid" ? [this.db.prepare("UPDATE gacha_state SET paid_pull_count = ? WHERE user_id = ?").bind(paidPulls, userId)] : [])
+      ...(kind === "paid" ? [this.db.prepare("UPDATE gacha_state SET paid_pull_count = ? WHERE user_id = ?" + (options.previousPaidPulls === undefined ? "" : " AND paid_pull_count = ?"))
+        .bind(...(options.previousPaidPulls === undefined ? [paidPulls, userId] : [paidPulls, userId, options.previousPaidPulls]))] : []),
+      // If the count had moved on, the UPDATE above changed nothing: this makes the whole batch fail, so no draw is half-written.
+      ...(kind === "paid" && options.previousPaidPulls !== undefined ? [this.db.prepare("UPDATE gacha_guard SET ok = CASE WHEN changes() > 0 THEN 1 ELSE NULL END WHERE id = 1")] : []),
+      ...(options.opId && options.result ? [this.db.prepare("INSERT INTO gacha_ops (user_id, op_id, result, created_at) VALUES (?, ?, ?, ?)").bind(userId, options.opId, options.result, now)] : [])
     ];
     await this.db.batch(statements);
   }
 
   async friends(userId: string): Promise<unknown[]> {
     const result = await this.db.prepare(`SELECT u.id, u.name, u.pet_id AS petId FROM friendships f JOIN users u ON u.id = f.friend_id
-      WHERE f.user_id = ? ORDER BY f.created_at DESC`).bind(userId).all();
+      WHERE f.user_id = ? AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = f.user_id AND b.blocked_id = f.friend_id) OR (b.blocker_id = f.friend_id AND b.blocked_id = f.user_id))
+      ORDER BY f.created_at DESC`).bind(userId).all();
     return result.results ?? [];
   }
 
   async friendRequests(userId: string): Promise<unknown[]> {
     const result = await this.db.prepare(`SELECT r.id, r.from_id AS fromId, u.name AS fromName, u.pet_id AS fromPetId, r.created_at AS createdAt
-      FROM friend_requests r JOIN users u ON u.id = r.from_id WHERE r.to_id = ? AND r.status = 'pending' ORDER BY r.created_at DESC`)
+      FROM friend_requests r JOIN users u ON u.id = r.from_id WHERE r.to_id = ? AND r.status = 'pending'
+      AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = r.to_id AND b.blocked_id = r.from_id) OR (b.blocker_id = r.from_id AND b.blocked_id = r.to_id))
+      ORDER BY r.created_at DESC`)
       .bind(userId).all();
     return result.results ?? [];
   }
@@ -311,9 +332,9 @@ export class D1Store implements Store {
   }
 
   async event(eventId: string): Promise<EventRecord | null> {
-    const row = await this.db.prepare("SELECT id, name, starts_at, ends_at, map_id FROM events WHERE id = ?")
-      .bind(eventId).first<{ id: string; name: string; starts_at: string; ends_at: string; map_id: string }>();
-    return row ? { id: row.id, name: row.name, startsAt: row.starts_at, endsAt: row.ends_at, mapId: row.map_id } : null;
+    const row = await this.db.prepare("SELECT id, name, starts_at, ends_at, map_id, min_members, max_members, goal_steps FROM events WHERE id = ?")
+      .bind(eventId).first<{ id: string; name: string; starts_at: string; ends_at: string; map_id: string; min_members: number; max_members: number; goal_steps: number }>();
+    return row ? { id: row.id, name: row.name, startsAt: row.starts_at, endsAt: row.ends_at, mapId: row.map_id, minMembers: row.min_members, maxMembers: row.max_members, goalSteps: row.goal_steps } : null;
   }
 
   async saveEventSteps(userId: string, eventId: string, day: string, cumulative: number): Promise<number> {
@@ -329,5 +350,129 @@ export class D1Store implements Store {
     const row = await this.db.prepare("SELECT COALESCE(SUM(cumulative), 0) AS total, COUNT(DISTINCT user_id) AS members FROM event_steps WHERE event_id = ?")
       .bind(eventId).first<{ total: number; members: number }>();
     return { totalCumulative: row?.total ?? 0, members: row?.members ?? 0 };
+  }
+
+  async eventTeam(userId: string, eventId: string): Promise<EventTeamView | null> {
+    const mine = await this.db.prepare(`SELECT t.id, t.invite_code, t.status FROM event_members m JOIN event_teams t ON t.id = m.team_id
+      WHERE m.event_id = ? AND m.user_id = ?`).bind(eventId, userId).first<{ id: string; invite_code: string | null; status: "recruiting" | "active" }>();
+    if (!mine) return null;
+    const rows = await this.db.prepare(`SELECT u.id, u.name, u.pet_id AS petId, m.joined_at AS joinedAt,
+        COALESCE((SELECT SUM(s.cumulative) FROM event_steps s WHERE s.user_id = u.id AND s.event_id = m.event_id), 0) AS steps
+      FROM event_members m JOIN users u ON u.id = m.user_id
+      WHERE m.team_id = ? ORDER BY m.joined_at ASC, u.id ASC`).bind(mine.id)
+      .all<{ id: string; name: string | null; petId: string | null; joinedAt: string; steps: number }>();
+    const members = (rows.results ?? []).map((row) => ({ id: row.id, name: row.name ?? "もびさん", petId: row.petId, steps: row.steps }));
+    const claimed = !!(await this.db.prepare("SELECT 1 AS found FROM event_claims WHERE user_id = ? AND event_id = ?").bind(userId, eventId).first());
+    return { id: mine.id, code: mine.invite_code ?? "", status: mine.status, creatorId: members[0]?.id ?? userId, members, claimed };
+  }
+
+  async createEventTeam(userId: string, eventId: string, teamId: string, code: string): Promise<"ok" | "already_member" | "code_taken"> {
+    if (await this.db.prepare("SELECT 1 AS found FROM event_members WHERE event_id = ? AND user_id = ?").bind(eventId, userId).first()) return "already_member";
+    if (await this.db.prepare("SELECT 1 AS found FROM event_teams WHERE event_id = ? AND invite_code = ?").bind(eventId, code).first()) return "code_taken";
+    const now = nowIso();
+    try {
+      await this.db.batch([
+        this.db.prepare("INSERT INTO event_teams (id, event_id, name, created_at, invite_code, status) VALUES (?, ?, ?, ?, ?, 'recruiting')").bind(teamId, eventId, code, now, code),
+        this.db.prepare("INSERT INTO event_members (event_id, team_id, user_id, joined_at) VALUES (?, ?, ?, ?)").bind(eventId, teamId, userId, now)
+      ]);
+    } catch { return "code_taken"; }
+    return "ok";
+  }
+
+  async joinEventTeam(userId: string, eventId: string, code: string, maxMembers: number): Promise<EventJoinResult> {
+    const team = await this.db.prepare("SELECT id, status FROM event_teams WHERE event_id = ? AND invite_code = ?").bind(eventId, code).first<{ id: string; status: string }>();
+    if (!team) return "not_found";
+    if (await this.db.prepare("SELECT 1 AS found FROM event_members WHERE event_id = ? AND user_id = ?").bind(eventId, userId).first()) return "already_member";
+    if (team.status !== "recruiting") return "already_started";
+    // One statement checks the room and inserts, so two people cannot take the last place together.
+    const result = await this.db.prepare(`INSERT INTO event_members (event_id, team_id, user_id, joined_at)
+      SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM event_members WHERE team_id = ?) < ?
+        AND (SELECT status FROM event_teams WHERE id = ?) = 'recruiting'`).bind(eventId, team.id, userId, nowIso(), team.id, maxMembers, team.id).run();
+    if ((result.meta?.changes ?? 0) > 0) return "ok";
+    const again = await this.db.prepare("SELECT status FROM event_teams WHERE id = ?").bind(team.id).first<{ status: string }>();
+    return again?.status === "recruiting" ? "full" : "already_started";
+  }
+
+  async startEventTeam(userId: string, eventId: string, minMembers: number): Promise<EventStartResult> {
+    const view = await this.eventTeam(userId, eventId);
+    if (!view) return "no_team";
+    if (view.status !== "recruiting") return "not_recruiting";
+    if (view.creatorId !== userId) return "not_creator";
+    if (view.members.length < minMembers) return "too_few";
+    const result = await this.db.prepare("UPDATE event_teams SET status = 'active', started_at = ? WHERE id = ? AND status = 'recruiting'")
+      .bind(nowIso(), view.id).run();
+    return (result.meta?.changes ?? 0) > 0 ? "ok" : "not_recruiting";
+  }
+
+  async leaveEventTeam(userId: string, eventId: string): Promise<"ok" | "no_team" | "already_started"> {
+    const mine = await this.db.prepare(`SELECT t.id, t.status FROM event_members m JOIN event_teams t ON t.id = m.team_id
+      WHERE m.event_id = ? AND m.user_id = ?`).bind(eventId, userId).first<{ id: string; status: string }>();
+    if (!mine) return "no_team";
+    if (mine.status !== "recruiting") return "already_started";
+    await this.db.batch([
+      this.db.prepare("DELETE FROM event_members WHERE event_id = ? AND user_id = ?").bind(eventId, userId),
+      this.db.prepare("DELETE FROM event_teams WHERE id = ? AND NOT EXISTS (SELECT 1 FROM event_members WHERE team_id = ?)").bind(mine.id, mine.id)
+    ]);
+    return "ok";
+  }
+
+  async claimEvent(userId: string, eventId: string): Promise<boolean> {
+    const result = await this.db.prepare("INSERT OR IGNORE INTO event_claims (user_id, event_id, claimed_at) VALUES (?, ?, ?)").bind(userId, eventId, nowIso()).run();
+    return (result.meta?.changes ?? 0) > 0;
+  }
+
+  async makeFriends(userId: string, otherId: string): Promise<void> {
+    if (userId === otherId) return;
+    const now = nowIso();
+    await this.db.batch([
+      this.db.prepare("INSERT OR IGNORE INTO friendships (user_id, friend_id, created_at) VALUES (?, ?, ?)").bind(userId, otherId, now),
+      this.db.prepare("INSERT OR IGNORE INTO friendships (user_id, friend_id, created_at) VALUES (?, ?, ?)").bind(otherId, userId, now)
+    ]);
+  }
+
+  async blockedEither(a: string, b: string): Promise<boolean> {
+    return !!(await this.db.prepare("SELECT 1 AS found FROM user_blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)").bind(a, b, b, a).first());
+  }
+
+  async blockUser(blockerId: string, blockedId: string): Promise<void> {
+    await this.db.batch([
+      this.db.prepare("INSERT OR IGNORE INTO user_blocks (blocker_id, blocked_id, created_at) VALUES (?, ?, ?)").bind(blockerId, blockedId, nowIso()),
+      this.db.prepare("DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)").bind(blockerId, blockedId, blockedId, blockerId),
+      this.db.prepare("DELETE FROM friend_requests WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)").bind(blockerId, blockedId, blockedId, blockerId)
+    ]);
+  }
+
+  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
+    await this.db.prepare("DELETE FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?").bind(blockerId, blockedId).run();
+  }
+
+  async blockedUsers(userId: string): Promise<{ id: string; name: string; petId: string | null }[]> {
+    const rows = await this.db.prepare("SELECT u.id, u.name, u.pet_id AS petId FROM user_blocks b JOIN users u ON u.id = b.blocked_id WHERE b.blocker_id = ? ORDER BY b.created_at DESC")
+      .bind(userId).all<{ id: string; name: string | null; petId: string | null }>();
+    return (rows.results ?? []).map((row) => ({ id: row.id, name: row.name ?? "もびさん", petId: row.petId }));
+  }
+
+  async reportUser(reporterId: string, reportedId: string, reason: "name" | "behavior" | "other", note: string | null, id: string): Promise<void> {
+    await this.db.prepare("INSERT INTO user_reports (id, reporter_id, reported_id, reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(id, reporterId, reportedId, reason, note, nowIso()).run();
+  }
+
+  async eventTeamMemberIdsByCode(eventId: string, code: string): Promise<string[]> {
+    const rows = await this.db.prepare(`SELECT m.user_id AS id FROM event_teams t JOIN event_members m ON m.team_id = t.id
+      WHERE t.event_id = ? AND t.invite_code = ?`).bind(eventId, code).all<{ id: string }>();
+    return (rows.results ?? []).map((row) => row.id);
+  }
+
+  async purgeExpired(now: Date): Promise<void> {
+    // Counters are numbered by their own clock: minutes (about 29 million now), hours (about 490 thousand) and days (about 20 thousand).
+    // The three ranges do not overlap, so each can be cleared against its own clock.
+    const minute = Math.floor(now.getTime() / 60_000);
+    const hour = Math.floor(now.getTime() / 3_600_000);
+    const day = Math.floor(now.getTime() / 86_400_000);
+    await this.db.batch([
+      this.db.prepare("DELETE FROM rate_limits WHERE (window >= 1000000 AND window < ?) OR (window >= 100000 AND window < 1000000 AND window < ?) OR (window < 100000 AND window < ?)")
+        .bind(minute - 10, hour - 3, day - 2),
+      this.db.prepare("DELETE FROM gacha_ops WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString())
+    ]);
   }
 }

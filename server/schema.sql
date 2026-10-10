@@ -35,7 +35,9 @@ CREATE TABLE IF NOT EXISTS purchases (
   product_id TEXT NOT NULL,
   original_transaction_id TEXT,
   granted_at TEXT NOT NULL,
-  revoked_at TEXT
+  revoked_at TEXT,
+  -- 'Production' for a real purchase, 'Sandbox' for TestFlight and App Review; kept so test grants can be told apart.
+  environment TEXT NOT NULL DEFAULT 'Production'
 );
 
 CREATE TABLE IF NOT EXISTS entitlements (
@@ -97,6 +99,44 @@ CREATE TABLE IF NOT EXISTS gacha_state (
   paid_pull_count INTEGER NOT NULL DEFAULT 0 CHECK (paid_pull_count >= 0)
 );
 
+-- A draw the player asked for with an operation id: the answer is kept, so asking again (after a lost reply)
+-- returns the same result instead of drawing again.
+CREATE TABLE IF NOT EXISTS gacha_ops (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  op_id TEXT NOT NULL,
+  result TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, op_id)
+);
+
+-- One row that a draw touches to prove its paid-pull count was still current; a stale one writes NULL and the whole batch aborts.
+CREATE TABLE IF NOT EXISTS gacha_guard (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  ok INTEGER NOT NULL
+);
+INSERT OR IGNORE INTO gacha_guard (id, ok) VALUES (1, 1);
+
+-- A player stops seeing, and being seen by, another player. One way: the blocker's choice.
+CREATE TABLE IF NOT EXISTS user_blocks (
+  blocker_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  CHECK (blocker_id <> blocked_id),
+  PRIMARY KEY (blocker_id, blocked_id)
+);
+
+-- A report about another player's name or behaviour, kept for the operator to read and act on.
+CREATE TABLE IF NOT EXISTS user_reports (
+  id TEXT PRIMARY KEY,
+  reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reported_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL CHECK (reason IN ('name', 'behavior', 'other')),
+  note TEXT,
+  created_at TEXT NOT NULL,
+  handled_at TEXT
+);
+CREATE INDEX IF NOT EXISTS user_reports_open ON user_reports(handled_at, created_at);
+
 CREATE TABLE IF NOT EXISTS user_pets (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   pet_id TEXT NOT NULL,
@@ -116,14 +156,29 @@ CREATE TABLE IF NOT EXISTS events (
   name TEXT NOT NULL,
   starts_at TEXT NOT NULL,
   ends_at TEXT NOT NULL,
-  map_id TEXT NOT NULL
+  map_id TEXT NOT NULL,
+  min_members INTEGER NOT NULL DEFAULT 2,
+  max_members INTEGER NOT NULL DEFAULT 4,
+  goal_steps INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS event_teams (
   id TEXT PRIMARY KEY,
   event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  invite_code TEXT,
+  status TEXT NOT NULL DEFAULT 'recruiting' CHECK (status IN ('recruiting', 'active')),
+  started_at TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS event_teams_invite ON event_teams(event_id, invite_code);
+
+CREATE TABLE IF NOT EXISTS event_claims (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  claimed_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, event_id)
 );
 
 CREATE TABLE IF NOT EXISTS event_members (
@@ -175,7 +230,9 @@ CREATE TABLE IF NOT EXISTS user_limits (
 CREATE TABLE IF NOT EXISTS apple_links (
   apple_sub TEXT PRIMARY KEY,
   user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-  linked_at TEXT NOT NULL
+  linked_at TEXT NOT NULL,
+  -- Apple's refresh token from the sign-in, kept only to revoke it when the account is deleted.
+  refresh_token TEXT
 );
 
 CREATE TABLE IF NOT EXISTS cloud_saves (

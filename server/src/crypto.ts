@@ -314,7 +314,8 @@ export async function verifySignedTransaction(jws: string, env: Pick<Env, "APPLE
     purchaseDate: payload.purchaseDate,
     ...(typeof payload.expiresDate === "number" ? { expiresDate: payload.expiresDate } : {}),
     ...(typeof payload.revocationDate === "number" ? { revocationDate: payload.revocationDate } : {}),
-    ...(typeof payload.appAccountToken === "string" ? { appAccountToken: payload.appAccountToken } : {})
+    ...(typeof payload.appAccountToken === "string" ? { appAccountToken: payload.appAccountToken } : {}),
+    ...(typeof payload.environment === "string" ? { environment: payload.environment } : {})
   };
 }
 
@@ -354,4 +355,44 @@ export async function verifyAppleIdentityToken(token: string, env: Pick<Env, "AP
   if (typeof payload.exp !== "number" || payload.exp * 1000 < now - 60_000) throw new Error("Identity token has expired");
   if (typeof payload.sub !== "string" || !payload.sub) throw new Error("Identity token has no subject");
   return { sub: payload.sub };
+}
+
+/** The "client secret" Apple wants for the token and revoke calls: a short-lived ES256 JWT signed with the Sign in with Apple key. */
+export async function appleClientSecret(env: Pick<Env, "APPLE_TEAM_ID" | "APPLE_SIGN_IN_KEY_ID" | "APPLE_SIGN_IN_PRIVATE_KEY" | "APPLE_BUNDLE_ID">, nowMs: number): Promise<string> {
+  if (!env.APPLE_TEAM_ID || !env.APPLE_SIGN_IN_KEY_ID || !env.APPLE_SIGN_IN_PRIVATE_KEY || !env.APPLE_BUNDLE_ID) throw new Error("Sign in with Apple key is not configured");
+  const base64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const text = (value: unknown) => base64url(new TextEncoder().encode(JSON.stringify(value)));
+  const pem = env.APPLE_SIGN_IN_PRIVATE_KEY.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\n|\s/g, "");
+  const der = Uint8Array.from(atob(pem), (character) => character.charCodeAt(0));
+  const key = await crypto.subtle.importKey("pkcs8", der, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const issuedAt = Math.floor(nowMs / 1000);
+  const unsigned = `${text({ alg: "ES256", kid: env.APPLE_SIGN_IN_KEY_ID, typ: "JWT" })}.${text({ iss: env.APPLE_TEAM_ID, iat: issuedAt, exp: issuedAt + 300, aud: "https://appleid.apple.com", sub: env.APPLE_BUNDLE_ID })}`;
+  const signature = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, new TextEncoder().encode(unsigned)));
+  return `${unsigned}.${base64url(signature)}`;
+}
+
+/** Whether the Sign in with Apple key is set up on this server. */
+export const appleRevocationConfigured = (env: Pick<Env, "APPLE_TEAM_ID" | "APPLE_SIGN_IN_KEY_ID" | "APPLE_SIGN_IN_PRIVATE_KEY" | "APPLE_BUNDLE_ID">) =>
+  !!(env.APPLE_TEAM_ID && env.APPLE_SIGN_IN_KEY_ID && env.APPLE_SIGN_IN_PRIVATE_KEY && env.APPLE_BUNDLE_ID);
+
+/** Trade the authorization code from the sign-in for a refresh token (null when Apple refuses it). */
+export async function exchangeAppleAuthorizationCode(code: string, env: Pick<Env, "APPLE_TEAM_ID" | "APPLE_SIGN_IN_KEY_ID" | "APPLE_SIGN_IN_PRIVATE_KEY" | "APPLE_BUNDLE_ID">, nowMs: number): Promise<string | null> {
+  const response = await fetch("https://appleid.apple.com/auth/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: env.APPLE_BUNDLE_ID as string, client_secret: await appleClientSecret(env, nowMs), code, grant_type: "authorization_code" })
+  });
+  if (!response.ok) return null;
+  const data = await response.json().catch(() => null) as { refresh_token?: unknown } | null;
+  return typeof data?.refresh_token === "string" ? data.refresh_token : null;
+}
+
+/** Tell Apple this app no longer has the account's authorization. True when Apple accepted it. */
+export async function revokeAppleToken(refreshToken: string, env: Pick<Env, "APPLE_TEAM_ID" | "APPLE_SIGN_IN_KEY_ID" | "APPLE_SIGN_IN_PRIVATE_KEY" | "APPLE_BUNDLE_ID">, nowMs: number): Promise<boolean> {
+  const response = await fetch("https://appleid.apple.com/auth/revoke", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: env.APPLE_BUNDLE_ID as string, client_secret: await appleClientSecret(env, nowMs), token: refreshToken, token_type_hint: "refresh_token" })
+  });
+  return response.ok;
 }

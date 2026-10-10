@@ -247,3 +247,137 @@ test("D1 refunds: unspent tickets are taken back, the spent part becomes a debt 
   assert.deepEqual([gus.paid, gus.refundDebt], [0, 0]);
   assert.equal(database.prepare("SELECT revoked_at IS NOT NULL AS revoked FROM purchases WHERE apple_transaction_id = 'g1'").get().revoked, 1);
 });
+
+test("D1 event teams: make, join up to the limit, set out, count steps, claim once, and leave only while recruiting", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  const users = ["u1", "u2", "u3", "u4"].map((id, index) => ({ id, friendCode: `CODE${index}${index}${index}${index}${index}${index}`, name: `Name${index}`, petId: null, goshuinCount: 0, routeName: null }));
+  for (const user of users) await store.registerUser(user, `hash-${user.id}`);
+  database.exec("INSERT INTO events (id, name, starts_at, ends_at, map_id, min_members, max_members, goal_steps) VALUES ('toki', 'Toki', '2026-09-01T00:00:00.000Z', '2026-10-31T00:00:00.000Z', 'map', 2, 3, 1000)");
+
+  const event = await store.event("toki");
+  assert.deepEqual([event.minMembers, event.maxMembers, event.goalSteps], [2, 3, 1000]);
+
+  assert.equal(await store.createEventTeam("u1", "toki", "team-1", "ABCDEF"), "ok");
+  assert.equal(await store.createEventTeam("u1", "toki", "team-x", "GGGGGG"), "already_member");
+  assert.equal(await store.createEventTeam("u2", "toki", "team-y", "ABCDEF"), "code_taken");
+
+  assert.equal(await store.joinEventTeam("u2", "toki", "ZZZZZZ", 3), "not_found");
+  assert.equal(await store.joinEventTeam("u2", "toki", "ABCDEF", 3), "ok");
+  assert.equal(await store.joinEventTeam("u2", "toki", "ABCDEF", 3), "already_member");
+  assert.equal(await store.joinEventTeam("u3", "toki", "ABCDEF", 3), "ok");
+  assert.equal(await store.joinEventTeam("u4", "toki", "ABCDEF", 3), "full");
+
+  const recruiting = await store.eventTeam("u2", "toki");
+  assert.deepEqual(recruiting.members.map((member) => member.id), ["u1", "u2", "u3"]);
+  assert.equal(recruiting.creatorId, "u1");
+  assert.equal(recruiting.status, "recruiting");
+
+  assert.equal(await store.startEventTeam("u2", "toki", 2), "not_creator");
+  assert.equal(await store.startEventTeam("u1", "toki", 4), "too_few");
+  assert.equal(await store.startEventTeam("u1", "toki", 2), "ok");
+  assert.equal(await store.startEventTeam("u1", "toki", 2), "not_recruiting");
+  assert.equal(await store.leaveEventTeam("u2", "toki"), "already_started");
+  assert.equal(await store.joinEventTeam("u4", "toki", "ABCDEF", 3), "already_started");
+
+  await store.saveEventSteps("u1", "toki", "2026-09-30", 400);
+  await store.saveEventSteps("u1", "toki", "2026-10-01", 100);
+  await store.saveEventSteps("u2", "toki", "2026-10-01", 300);
+  const active = await store.eventTeam("u3", "toki");
+  assert.deepEqual(active.members.map((member) => member.steps), [500, 300, 0]);
+  assert.equal(active.status, "active");
+
+  assert.equal(await store.claimEvent("u1", "toki"), true);
+  assert.equal(await store.claimEvent("u1", "toki"), false);
+  assert.equal((await store.eventTeam("u1", "toki")).claimed, true);
+  assert.equal((await store.eventTeam("u2", "toki")).claimed, false);
+
+  // Friends both ways, and a recruiting team that empties disappears.
+  await store.makeFriends("u2", "u1");
+  assert.equal(await store.friendshipExists("u1", "u2"), true);
+  assert.equal(await store.friendshipExists("u2", "u1"), true);
+  assert.equal(await store.createEventTeam("u4", "toki", "team-4", "QQQQQQ"), "ok");
+  assert.equal(await store.leaveEventTeam("u4", "toki"), "ok");
+  assert.equal(await store.eventTeam("u4", "toki"), null);
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM event_teams WHERE id = 'team-4'").get().n, 0);
+  assert.equal(await store.leaveEventTeam("u4", "toki"), "no_team");
+});
+
+test("D1 draws: a stale paid-pull count writes nothing, and an operation id keeps the answer", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  await store.registerUser({ id: "gina", friendCode: "GINA123456", name: "Gina", petId: null, goshuinCount: 0, routeName: null }, "hash");
+  database.exec("INSERT INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at) VALUES ('seed', 'gina', 'paid', 5, 'seed', 'seed', 'now')");
+  const draw = { petId: "pet-a", kind: "paid", isNew: true, guaranteed: false };
+
+  await store.commitDraws("gina", [draw], "paid", 1, { opId: "op-first-0001", result: '{"results":[1]}', previousPaidPulls: 0 });
+  assert.equal(await store.gachaOp("gina", "op-first-0001"), '{"results":[1]}');
+  assert.equal(await store.gachaOp("gina", "nothing-here"), null);
+  assert.equal((await store.wallet("gina")).paidPulls, 1);
+
+  // A second draw still working from the old count must not write anything.
+  await assert.rejects(() => store.commitDraws("gina", [draw], "paid", 1, { opId: "op-stale-0002", result: "{}", previousPaidPulls: 0 }));
+  assert.equal((await store.wallet("gina")).paid, 4);
+  assert.equal((await store.wallet("gina")).paidPulls, 1);
+  assert.equal(await store.gachaOp("gina", "op-stale-0002"), null);
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM gacha_pulls WHERE user_id = 'gina'").get().n, 1);
+
+  // The same operation id cannot be recorded twice.
+  await assert.rejects(() => store.commitDraws("gina", [draw], "paid", 2, { opId: "op-first-0001", result: "{}", previousPaidPulls: 1 }));
+  assert.equal((await store.wallet("gina")).paid, 4);
+  // And the guard is ready for the next draw.
+  await store.commitDraws("gina", [draw], "paid", 2, { opId: "op-next-0003", result: "{}", previousPaidPulls: 1 });
+  assert.equal((await store.wallet("gina")).paid, 3);
+});
+
+test("D1 blocks: end the friendship and pending requests, hide both players from each other, and take reports", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  for (const [id, code] of [["ann", "ANN1234567"], ["ben", "BEN1234567"], ["cat", "CAT1234567"]]) {
+    await store.registerUser({ id, friendCode: code, name: id.toUpperCase(), petId: null, goshuinCount: 0, routeName: null }, `hash-${id}`);
+  }
+  await store.makeFriends("ann", "ben");
+  await store.makeFriends("ann", "cat");
+  await store.requestFriend("ben", "ann", "req-1");
+  assert.equal((await store.friends("ann")).length, 2);
+
+  await store.blockUser("ann", "ben");
+  assert.equal(await store.blockedEither("ann", "ben"), true);
+  assert.equal(await store.blockedEither("ben", "ann"), true);
+  assert.equal(await store.blockedEither("ann", "cat"), false);
+  assert.deepEqual((await store.friends("ann")).map((friend) => friend.id), ["cat"]);
+  assert.equal((await store.friends("ben")).length, 0);
+  assert.equal((await store.friendRequests("ann")).length, 0);
+  assert.deepEqual((await store.blockedUsers("ann")).map((user) => user.id), ["ben"]);
+  assert.deepEqual(await store.blockedUsers("ben"), []);
+
+  // Blocking twice changes nothing; unblocking removes the block.
+  await store.blockUser("ann", "ben");
+  await store.unblockUser("ann", "ben");
+  assert.equal(await store.blockedEither("ann", "ben"), false);
+
+  await store.reportUser("ann", "ben", "name", "メモ", "report-1");
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM user_reports WHERE reported_id = 'ben'").get().n, 1);
+  assert.equal(database.prepare("SELECT reason FROM user_reports WHERE id = 'report-1'").get().reason, "name");
+  // Deleting the reported player removes the report with them.
+  await store.deleteUser("ben");
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM user_reports").get().n, 0);
+});
+
+test("D1 purge drops finished counters of every clock and old stored draw answers, and keeps current ones", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  const now = new Date("2026-10-10T12:00:00.000Z");
+  const minute = Math.floor(now.getTime() / 60_000), hour = Math.floor(now.getTime() / 3_600_000), day = Math.floor(now.getTime() / 86_400_000);
+  const put = (key, window) => database.prepare("INSERT INTO rate_limits (key, window, count) VALUES (?, ?, 1)").run(key, window);
+  put("register:minute:old", minute - 60); put("register:minute:new", minute);
+  put("team-join:old", hour - 10); put("team-join:new", hour);
+  put("report:old", day - 5); put("report:new", day);
+  await store.purgeExpired(now);
+  const left = database.prepare("SELECT key FROM rate_limits ORDER BY key").all().map((row) => row.key);
+  assert.deepEqual(left, ["register:minute:new", "report:new", "team-join:new"]);
+});

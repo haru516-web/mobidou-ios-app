@@ -3,6 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2026-09-30"
 compatibility_flags = ["nodejs_compat"]
 
+# Hourly clean-up of rate-limit counters and stored draw answers (so an address is not kept past its window).
+[triggers]
+crons = ["23 * * * *"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "mobidou"

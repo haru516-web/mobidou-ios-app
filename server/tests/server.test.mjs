@@ -125,8 +125,12 @@ class MemoryStore {
     this.walletRows.get(userId).free += 1;
     return true;
   }
-  async commitDraws(userId, draws, kind, paidPulls) {
+  ops = new Map();
+  async gachaOp(userId, opId) { return this.ops.get(`${userId}:${opId}`) ?? null; }
+  async commitDraws(userId, draws, kind, paidPulls, options = {}) {
     if (this.failNextCommit) { this.failNextCommit = false; throw new Error("simulated transaction failure"); }
+    if (kind === "paid" && options.previousPaidPulls !== undefined && (this.paidPullCounts.get(userId) ?? 0) !== options.previousPaidPulls) throw new Error("paid pull count moved on");
+    if (options.opId && this.ops.has(`${userId}:${options.opId}`)) throw new Error("operation already recorded");
     const wallet = this.walletRows.get(userId);
     if (wallet[kind] < draws.length) throw new Error("insufficient balance");
     const owned = { ...(this.owned.get(userId) ?? {}) };
@@ -135,6 +139,7 @@ class MemoryStore {
     this.owned.set(userId, owned);
     this.pulls.push(...draws.map((draw) => ({ userId, ...draw })));
     if (kind === "paid") this.paidPullCounts.set(userId, paidPulls);
+    if (options.opId && options.result) this.ops.set(`${userId}:${options.opId}`, options.result);
   }
   async friends(userId) {
     return [...this.friendRows].filter((row) => row.startsWith(`${userId}:`)).map((row) => this.users.get(row.split(":")[1]));
@@ -165,6 +170,27 @@ class MemoryStore {
     this.appleLinks.set(sub, userId);
     return "linked";
   }
+  blocks = new Set();
+  async purgeExpired() {}
+  reports = [];
+  async blockedEither(a, b) { return this.blocks.has(`${a}:${b}`) || this.blocks.has(`${b}:${a}`); }
+  async blockUser(blockerId, blockedId) {
+    this.blocks.add(`${blockerId}:${blockedId}`);
+    this.friendRows.delete(`${blockerId}:${blockedId}`);
+    this.friendRows.delete(`${blockedId}:${blockerId}`);
+    for (const [id, row] of [...this.requests]) if ((row.fromId === blockerId && row.toId === blockedId) || (row.fromId === blockedId && row.toId === blockerId)) this.requests.delete(id);
+  }
+  async unblockUser(blockerId, blockedId) { this.blocks.delete(`${blockerId}:${blockedId}`); }
+  async blockedUsers(userId) {
+    return [...this.blocks].filter((key) => key.startsWith(`${userId}:`)).map((key) => { const user = this.users.get(key.split(":")[1]); return { id: user.id, name: user.name ?? "もびさん", petId: user.petId ?? null }; });
+  }
+  async reportUser(reporterId, reportedId, reason, note, id) { this.reports.push({ id, reporterId, reportedId, reason, note }); }
+  async eventTeamMemberIdsByCode(eventId, code) {
+    return [...this.teams.values()].find((team) => team.eventId === eventId && team.code === code)?.members ?? [];
+  }
+  refreshTokens = new Map();
+  async appleRefreshToken(userId) { return this.refreshTokens.get(userId) ?? null; }
+  async setAppleRefreshToken(userId, token) { this.refreshTokens.set(userId, token); }
   async userByApple(sub) { return this.appleLinks.get(sub) ?? null; }
   async appleLinked(userId) { return [...this.appleLinks.values()].includes(userId); }
   async rotateSecret(userId, hash) { this.hashes.set(userId, hash); }
@@ -193,6 +219,60 @@ class MemoryStore {
     const rows = [...this.steps.entries()].filter(([key]) => key.split(":")[1] === eventId);
     return { totalCumulative: rows.reduce((sum, [, value]) => sum + value, 0), members: new Set(rows.map(([key]) => key.split(":")[0])).size };
   }
+  teams = new Map(); // teamId -> { id, eventId, code, status, members: [userId] (in joining order) }
+  eventClaims = new Set();
+  teamOf(userId, eventId) { return [...this.teams.values()].find((team) => team.eventId === eventId && team.members.includes(userId)) ?? null; }
+  stepsOf(userId, eventId) {
+    return [...this.steps.entries()].filter(([key]) => key.startsWith(`${userId}:${eventId}:`)).reduce((sum, [, value]) => sum + value, 0);
+  }
+  async eventTeam(userId, eventId) {
+    const team = this.teamOf(userId, eventId);
+    if (!team) return null;
+    const members = team.members.map((id) => ({ id, name: this.users.get(id)?.name ?? "もびさん", petId: this.users.get(id)?.petId ?? null, steps: this.stepsOf(id, eventId) }));
+    return { id: team.id, code: team.code, status: team.status, creatorId: team.members[0], members, claimed: this.eventClaims.has(`${userId}:${eventId}`) };
+  }
+  async createEventTeam(userId, eventId, teamId, code) {
+    if (this.teamOf(userId, eventId)) return "already_member";
+    if ([...this.teams.values()].some((team) => team.eventId === eventId && team.code === code)) return "code_taken";
+    this.teams.set(teamId, { id: teamId, eventId, code, status: "recruiting", members: [userId] });
+    return "ok";
+  }
+  async joinEventTeam(userId, eventId, code, maxMembers) {
+    const team = [...this.teams.values()].find((row) => row.eventId === eventId && row.code === code);
+    if (!team) return "not_found";
+    if (this.teamOf(userId, eventId)) return "already_member";
+    if (team.status !== "recruiting") return "already_started";
+    if (team.members.length >= maxMembers) return "full";
+    team.members.push(userId);
+    return "ok";
+  }
+  async startEventTeam(userId, eventId, minMembers) {
+    const team = this.teamOf(userId, eventId);
+    if (!team) return "no_team";
+    if (team.status !== "recruiting") return "not_recruiting";
+    if (team.members[0] !== userId) return "not_creator";
+    if (team.members.length < minMembers) return "too_few";
+    team.status = "active";
+    return "ok";
+  }
+  async leaveEventTeam(userId, eventId) {
+    const team = this.teamOf(userId, eventId);
+    if (!team) return "no_team";
+    if (team.status !== "recruiting") return "already_started";
+    team.members = team.members.filter((id) => id !== userId);
+    if (team.members.length === 0) this.teams.delete(team.id);
+    return "ok";
+  }
+  async claimEvent(userId, eventId) {
+    const key = `${userId}:${eventId}`;
+    if (this.eventClaims.has(key)) return false;
+    this.eventClaims.add(key);
+    return true;
+  }
+  async makeFriends(userId, otherId) {
+    this.friendRows.add(`${userId}:${otherId}`);
+    this.friendRows.add(`${otherId}:${userId}`);
+  }
 }
 
 const env = {
@@ -207,6 +287,15 @@ const env = {
 };
 
 const createContext = () => ({ store: new MemoryStore(), credentials: new Map() });
+const EVENT_WINDOW_NOW = new Date("2026-09-30T11:10:00.000Z");
+/** The player makes a team on their own and sets out (the test event allows a team of one). */
+async function setOut(context, account, eventId) {
+  await call(context, "POST", `/profile`, { name: "Tester" }, account.userId);
+  const created = await call(context, "POST", `/events/${eventId}/teams`, {}, account.userId, EVENT_WINDOW_NOW);
+  assert.equal(created.status, 201);
+  const started = await call(context, "POST", `/events/${eventId}/teams/start`, {}, account.userId, EVENT_WINDOW_NOW);
+  assert.equal(started.status, 200);
+}
 async function register(context, name = "Tester") {
   const response = await handleWithStore(new Request("https://server.test/auth/register", { method: "POST", body: JSON.stringify({ name }) }), env, context.store);
   assert.equal(response.status, 201);
@@ -393,6 +482,103 @@ test("purchase verification requires appAccountToken to match the authenticated 
   }), testEnv, context.store)).status, 403);
 });
 
+test("purchases are accepted by environment: Sandbox is credited unless the server is set to Production only", async () => {
+  const root = await selfSignedTestRoot();
+  const context = createContext();
+  const account = await register(context, "Alice");
+  const verify = (testEnv, jws) => handleWithStore(new Request("https://server.test/purchases/verify", {
+    method: "POST", headers: { authorization: `Bearer ${context.credentials.get(account.userId)}`, "content-type": "application/json" },
+    body: JSON.stringify({ signedTransactionInfo: jws })
+  }), testEnv, context.store);
+  const sandbox = await signedTransaction(root, { transactionId: "tx-sandbox", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Sandbox", expiresDate: undefined });
+  const production = await signedTransaction(root, { transactionId: "tx-production", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Production", expiresDate: undefined });
+  const base = { ...env, APPLE_ROOT_CERTIFICATES: root.pem };
+  // Default: both are credited.
+  assert.equal((await verify(base, sandbox)).status, 200);
+  assert.equal((await verify(base, production)).status, 200);
+  // Production only: a Sandbox purchase is refused, a real one is still credited.
+  const strict = { ...base, PURCHASE_ENVIRONMENTS: "Production" };
+  const another = await signedTransaction(root, { transactionId: "tx-sandbox-2", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Sandbox", expiresDate: undefined });
+  const refused = await verify(strict, another);
+  assert.deepEqual([refused.status, (await refused.json()).error], [403, "environment_not_accepted"]);
+  const real = await signedTransaction(root, { transactionId: "tx-production-2", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Production", expiresDate: undefined });
+  assert.equal((await verify(strict, real)).status, 200);
+});
+
+test("blocking ends a friendship, hides both players from each other, and reports are kept for the operator", async () => {
+  const context = createContext();
+  const alice = await namedAccount(context, "Alice");
+  const bob = await namedAccount(context, "Bob");
+  const request = await call(context, "POST", "/friend-requests", { friendCode: bob.friendCode }, alice.userId);
+  const id = context.store.requests.keys().next().value;
+  await call(context, "POST", `/friend-requests/${id}/answer`, { answer: "accepted" }, bob.userId);
+  assert.equal((await (await call(context, "GET", "/friends", undefined, alice.userId)).json()).friends.length, 1);
+
+  const blocked = await call(context, "POST", "/blocks", { userId: bob.userId }, alice.userId);
+  assert.equal(blocked.status, 200);
+  assert.equal((await (await call(context, "GET", "/friends", undefined, alice.userId)).json()).friends.length, 0);
+  assert.equal((await (await call(context, "GET", "/friends", undefined, bob.userId)).json()).friends.length, 0);
+  assert.deepEqual((await (await call(context, "GET", "/blocks", undefined, alice.userId)).json()).blocked.map((user) => user.name), ["Bob"]);
+
+  // Neither can ask the other again; it looks like the code does not exist.
+  const askedBack = await call(context, "POST", "/friend-requests", { friendCode: alice.friendCode }, bob.userId);
+  assert.deepEqual([askedBack.status, (await askedBack.json()).error], [404, "friend_not_found"]);
+  const askedAgain = await call(context, "POST", "/friend-requests", { friendCode: bob.friendCode }, alice.userId);
+  assert.equal(askedAgain.status, 404);
+
+  // Unblocking lets them find each other again.
+  assert.equal((await call(context, "POST", "/blocks/remove", { userId: bob.userId }, alice.userId)).status, 200);
+  assert.equal((await call(context, "POST", "/friend-requests", { friendCode: bob.friendCode }, alice.userId)).status, 201);
+
+  const cannotSelf = await call(context, "POST", "/blocks", { userId: alice.userId }, alice.userId);
+  assert.equal(cannotSelf.status, 400);
+  const noUser = await call(context, "POST", "/blocks", { userId: "no-such-user" }, alice.userId);
+  assert.equal(noUser.status, 404);
+
+  const report = await call(context, "POST", "/reports", { userId: bob.userId, reason: "name", note: "  不適切な名前  " }, alice.userId);
+  assert.equal(report.status, 201);
+  assert.deepEqual(context.store.reports.map((row) => [row.reporterId, row.reportedId, row.reason, row.note]), [[alice.userId, bob.userId, "name", "不適切な名前"]]);
+  assert.equal((await call(context, "POST", "/reports", { userId: bob.userId, reason: "spam" }, alice.userId)).status, 400);
+});
+
+test("a blocked player cannot join the team of the one who blocked them", async () => {
+  const context = createContext();
+  context.store.events.set("toki", { id: "toki", name: "Toki", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "m", minMembers: 2, maxMembers: 4, goalSteps: 1000 });
+  const maker = await namedAccount(context, "Maker");
+  const other = await namedAccount(context, "Other");
+  const code = (await (await call(context, "POST", "/events/toki/teams", {}, maker.userId, EVENT_WINDOW_NOW)).json()).team.code;
+  await call(context, "POST", "/blocks", { userId: other.userId }, maker.userId);
+  const refused = await call(context, "POST", "/events/toki/teams/join", { code }, other.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([refused.status, (await refused.json()).error], [404, "not_found"]);
+});
+
+test("a display name with an offensive word is refused, ordinary names and disguised ones are handled", async () => {
+  const context = createContext();
+  const account = await register(context);
+  const save = (name) => call(context, "POST", "/profile", { name }, account.userId);
+  for (const ok of ["かすみ", "しょうた", "シネマ", "えっちゃん", "Taro"]) assert.equal((await save(ok)).status, 200, ok);
+  for (const bad of ["ころす", "コロス!!", "ち ん こ", "ＦＵＣＫ", "死ね"]) {
+    const response = await save(bad);
+    assert.deepEqual([response.status, (await response.json()).error], [400, "inappropriate_name"], bad);
+  }
+  // The operator's own list is added to the built-in one.
+  const extended = await handleWithStore(new Request("https://server.test/profile", {
+    method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${context.credentials.get(account.userId)}` }, body: JSON.stringify({ name: "ばなな" })
+  }), { ...env, NG_WORDS: "ばなな" }, context.store);
+  assert.equal(extended.status, 400);
+});
+
+test("write routes are limited per player: too many friend requests in a day get a 429", async () => {
+  const context = createContext();
+  const alice = await namedAccount(context, "Alice");
+  const results = [];
+  for (let attempt = 0; attempt < 42; attempt += 1) {
+    results.push((await call(context, "POST", "/friend-requests", { friendCode: "ZZZZZZZZZZ" }, alice.userId, EVENT_WINDOW_NOW)).status);
+  }
+  assert.equal(results.filter((status) => status === 404).length, 40);
+  assert.deepEqual(results.slice(-2), [429, 429]);
+});
+
 test("friend code request, acceptance, and friends list are wired", async () => {
   const context = createContext();
   const alice = await register(context, "Alice");
@@ -479,6 +665,39 @@ test("a pity pull falls back to the uniform pool when every Mobby is owned", asy
   assert.deepEqual(result, { petId: GACHA_PET_IDS[0], kind: "paid", isNew: false, guaranteed: false });
 });
 
+test("a draw asked for again with the same operation id gives the same answer and is paid for once", async () => {
+  const context = createContext();
+  const account = await register(context);
+  context.store.walletRows.get(account.userId).paid = 3;
+  const send = () => call(context, "POST", "/gacha/pull", { count: 1, kind: "paid", opId: "op-lost-reply-1" }, account.userId, undefined, () => 0);
+  const first = await (await send()).json();
+  const again = await (await send()).json();
+  assert.deepEqual(again, first);
+  assert.equal((await context.store.wallet(account.userId)).paid, 2);
+  assert.equal(context.store.pulls.length, 1);
+  // A different id is a different draw.
+  const other = await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid", opId: "op-lost-reply-2" }, account.userId, undefined, () => 0);
+  assert.equal(other.status, 200);
+  assert.equal((await context.store.wallet(account.userId)).paid, 1);
+  const bad = await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid", opId: "x" }, account.userId);
+  assert.equal(bad.status, 400);
+});
+
+test("a draw that lost a race to another draw is refused and spends nothing", async () => {
+  const context = createContext();
+  const account = await register(context);
+  context.store.walletRows.get(account.userId).paid = 2;
+  const realCommit = context.store.commitDraws.bind(context.store);
+  context.store.commitDraws = async (...args) => {
+    context.store.paidPullCounts.set(account.userId, 5); // another request committed first
+    return realCommit(...args);
+  };
+  const response = await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0);
+  assert.equal(response.status, 409);
+  assert.equal((await context.store.wallet(account.userId)).paid, 2);
+  assert.equal(context.store.pulls.length, 0);
+});
+
 test("a failed five-pull commits no balance, ownership, history, or paid-pity changes", async () => {
   const context = createContext();
   const account = await register(context);
@@ -495,7 +714,8 @@ test("a failed five-pull commits no balance, ownership, history, or paid-pity ch
 test("event step submissions use Tokyo time and replace same-day cumulative values", async () => {
   const context = createContext();
   const account = await register(context);
-  context.store.events.set("autumn", { id: "autumn", name: "Autumn", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "map-a" });
+  context.store.events.set("autumn", { id: "autumn", name: "Autumn", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "map-a", minMembers: 1, maxMembers: 4, goalSteps: 360000 });
+  await setOut(context, account, "autumn");
   const now = new Date("2026-09-30T11:10:00.000Z"); // 20:10 JST
   const first = await call(context, "POST", "/events/autumn/steps", { cumulative: 500 }, account.userId, now);
   const second = await call(context, "POST", "/events/autumn/steps", { cumulative: 300 }, account.userId, now);
@@ -511,7 +731,8 @@ test("event step submissions use Tokyo time and replace same-day cumulative valu
 test("event steps missed in the evening can be sent until 20:00 JST the next day", async () => {
   const context = createContext();
   const account = await register(context);
-  context.store.events.set("autumn", { id: "autumn", name: "Autumn", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "map-a" });
+  context.store.events.set("autumn", { id: "autumn", name: "Autumn", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "map-a", minMembers: 1, maxMembers: 4, goalSteps: 360000 });
+  await setOut(context, account, "autumn");
   const late = await call(context, "POST", "/events/autumn/steps", { cumulative: 700 }, account.userId, new Date("2026-09-30T10:59:00.000Z")); // 19:59 JST 09-30 -> belongs to 09-29
   assert.deepEqual(await late.json(), { day: "2026-09-29", cumulative: 700 });
   const morning = await call(context, "POST", "/events/autumn/steps", { cumulative: 800 }, account.userId, new Date("2026-09-30T15:30:00.000Z")); // 00:30 JST 10-01 -> belongs to 09-30
@@ -523,6 +744,135 @@ test("event steps missed in the evening can be sent until 20:00 JST the next day
   assert.equal((await status.json()).openDay, "2026-09-30");
   const nextWindow = await call(context, "POST", "/events/autumn/steps", { cumulative: 50 }, account.userId, new Date("2026-10-01T11:00:00.000Z")); // 20:00 JST 10-01 opens a new day
   assert.deepEqual(await nextWindow.json(), { day: "2026-10-01", cumulative: 50 });
+});
+
+async function namedAccount(context, name) {
+  const account = await register(context, name);
+  const profile = await call(context, "POST", "/profile", { name }, account.userId);
+  assert.equal(profile.status, 200);
+  return account;
+}
+const teamEvent = { id: "toki", name: "Toki", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "map", minMembers: 2, maxMembers: 3, goalSteps: 1000 };
+
+test("a team is made, joined with its code, and set out by whoever made it", async () => {
+  const context = createContext();
+  context.store.events.set("toki", teamEvent);
+  const maker = await namedAccount(context, "Maker");
+  const friend = await namedAccount(context, "Friend");
+  const empty = await (await call(context, "GET", "/events/toki/team", undefined, maker.userId, EVENT_WINDOW_NOW)).json();
+  assert.equal(empty.team, null);
+  assert.equal(empty.event.maxMembers, 3);
+
+  const made = await call(context, "POST", "/events/toki/teams", {}, maker.userId, EVENT_WINDOW_NOW);
+  assert.equal(made.status, 201);
+  const team = (await made.json()).team;
+  assert.match(team.code, /^[A-HJ-NP-Z2-9]{6}$/);
+  assert.equal(team.status, "recruiting");
+  assert.equal(team.members.length, 1);
+
+  // Starting alone is not allowed, and only the maker may start.
+  const tooFew = await call(context, "POST", "/events/toki/teams/start", {}, maker.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([tooFew.status, (await tooFew.json()).error], [409, "too_few"]);
+
+  const joined = await call(context, "POST", "/events/toki/teams/join", { code: team.code.toLowerCase().replace(/(...)(...)/, "$1-$2") }, friend.userId, EVENT_WINDOW_NOW);
+  assert.equal(joined.status, 200);
+  assert.deepEqual((await joined.json()).team.members.map((member) => member.name), ["Maker", "Friend"]);
+  assert.equal(await context.store.friendshipExists(friend.userId, maker.userId), true);
+
+  const notMaker = await call(context, "POST", "/events/toki/teams/start", {}, friend.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([notMaker.status, (await notMaker.json()).error], [409, "not_creator"]);
+  const started = await call(context, "POST", "/events/toki/teams/start", {}, maker.userId, EVENT_WINDOW_NOW);
+  assert.equal((await started.json()).team.status, "active");
+
+  // After setting out nobody can join or leave.
+  const late = await namedAccount(context, "Late");
+  const lateJoin = await call(context, "POST", "/events/toki/teams/join", { code: team.code }, late.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([lateJoin.status, (await lateJoin.json()).error], [409, "already_started"]);
+  const leave = await call(context, "POST", "/events/toki/leave", {}, friend.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([leave.status, (await leave.json()).error], [409, "already_started"]);
+});
+
+test("a team has a limit on its size and a player is in one team only", async () => {
+  const context = createContext();
+  context.store.events.set("toki", teamEvent);
+  const accounts = [];
+  for (const name of ["A", "B", "C", "D"]) accounts.push(await namedAccount(context, name));
+  const code = (await (await call(context, "POST", "/events/toki/teams", {}, accounts[0].userId, EVENT_WINDOW_NOW)).json()).team.code;
+  for (const account of accounts.slice(1, 3)) assert.equal((await call(context, "POST", "/events/toki/teams/join", { code }, account.userId, EVENT_WINDOW_NOW)).status, 200);
+  const full = await call(context, "POST", "/events/toki/teams/join", { code }, accounts[3].userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([full.status, (await full.json()).error], [409, "full"]);
+  const again = await call(context, "POST", "/events/toki/teams/join", { code }, accounts[1].userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([again.status, (await again.json()).error], [409, "already_member"]);
+  const second = await call(context, "POST", "/events/toki/teams", {}, accounts[1].userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([second.status, (await second.json()).error], [409, "already_member"]);
+  const nobody = await call(context, "POST", "/events/toki/teams/join", { code: "ZZZZZZ" }, accounts[3].userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([nobody.status, (await nobody.json()).error], [404, "not_found"]);
+  const bad = await call(context, "POST", "/events/toki/teams/join", { code: "ABC" }, accounts[3].userId, EVENT_WINDOW_NOW);
+  assert.equal(bad.status, 400);
+});
+
+test("teams need a profile name and an event that is running", async () => {
+  const context = createContext();
+  context.store.events.set("toki", teamEvent);
+  const noName = await register(context, "");
+  context.store.users.get(noName.userId).name = null;
+  const refused = await call(context, "POST", "/events/toki/teams", {}, noName.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([refused.status, (await refused.json()).error], [400, "profile_required"]);
+  const named = await namedAccount(context, "Named");
+  const early = await call(context, "POST", "/events/toki/teams", {}, named.userId, new Date("2026-08-01T00:00:00.000Z"));
+  assert.deepEqual([early.status, (await early.json()).error], [409, "event_not_active"]);
+  const unknown = await call(context, "POST", "/events/nothing/teams", {}, named.userId, EVENT_WINDOW_NOW);
+  assert.equal(unknown.status, 404);
+});
+
+test("a recruiting team can be left; the next member then starts it", async () => {
+  const context = createContext();
+  context.store.events.set("toki", { ...teamEvent, minMembers: 1 });
+  const first = await namedAccount(context, "First");
+  const second = await namedAccount(context, "Second");
+  const code = (await (await call(context, "POST", "/events/toki/teams", {}, first.userId, EVENT_WINDOW_NOW)).json()).team.code;
+  await call(context, "POST", "/events/toki/teams/join", { code }, second.userId, EVENT_WINDOW_NOW);
+  assert.equal((await call(context, "POST", "/events/toki/leave", {}, first.userId, EVENT_WINDOW_NOW)).status, 200);
+  const view = await (await call(context, "GET", "/events/toki/team", undefined, second.userId, EVENT_WINDOW_NOW)).json();
+  assert.deepEqual(view.team.members.map((member) => member.name), ["Second"]);
+  const started = await call(context, "POST", "/events/toki/teams/start", {}, second.userId, EVENT_WINDOW_NOW);
+  assert.equal(started.status, 200);
+  const none = await call(context, "GET", "/events/toki/team", undefined, first.userId, EVENT_WINDOW_NOW);
+  assert.equal((await none.json()).team, null);
+});
+
+test("steps count for the team: only after setting out, summed, and the reward is taken once", async () => {
+  const context = createContext();
+  context.store.events.set("toki", teamEvent);
+  const one = await namedAccount(context, "One");
+  const two = await namedAccount(context, "Two");
+  const code = (await (await call(context, "POST", "/events/toki/teams", {}, one.userId, EVENT_WINDOW_NOW)).json()).team.code;
+  await call(context, "POST", "/events/toki/teams/join", { code }, two.userId, EVENT_WINDOW_NOW);
+
+  // Before setting out there is no team to count for.
+  const early = await call(context, "POST", "/events/toki/steps", { cumulative: 100 }, one.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([early.status, (await early.json()).error], [409, "no_active_team"]);
+  await call(context, "POST", "/events/toki/teams/start", {}, one.userId, EVENT_WINDOW_NOW);
+  assert.equal((await call(context, "POST", "/events/toki/steps", { cumulative: 600 }, one.userId, EVENT_WINDOW_NOW)).status, 200);
+
+  // Not cleared yet: no reward.
+  const notYet = await call(context, "POST", "/events/toki/claim", {}, one.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([notYet.status, (await notYet.json()).error], [409, "not_cleared"]);
+  assert.equal((await call(context, "POST", "/events/toki/steps", { cumulative: 500 }, two.userId, EVENT_WINDOW_NOW)).status, 200);
+
+  const view = await (await call(context, "GET", "/events/toki/team", undefined, two.userId, EVENT_WINDOW_NOW)).json();
+  assert.equal(view.totalSteps, 1100);
+  assert.equal(view.team.status, "cleared");
+  assert.deepEqual(view.team.members.map((member) => member.steps), [600, 500]);
+
+  const claim = await call(context, "POST", "/events/toki/claim", {}, one.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual(await claim.json(), { status: "claimed" });
+  const again = await call(context, "POST", "/events/toki/claim", {}, one.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual(await again.json(), { status: "already_claimed" });
+  // The other member has not claimed theirs yet.
+  const other = await (await call(context, "GET", "/events/toki/team", undefined, two.userId, EVENT_WINDOW_NOW)).json();
+  assert.equal(other.team.claimed, false);
+  assert.equal(await context.store.claimEvent(two.userId, "toki"), true);
 });
 
 test("Apple notification route validates its signed envelope and handles revocation", async () => {
@@ -717,6 +1067,59 @@ test("Apple identity tokens: only a genuine, current token addressed to this app
   await assert.rejects(verifyAppleIdentityToken(await token({}, { kid: "unknown" }), appleEnv), /Unknown signing key/);
   await assert.rejects(verifyAppleIdentityToken(await token({}, { alg: "HS256" }), appleEnv), /Unsupported/);
   await assert.rejects(verifyAppleIdentityToken("not.a", appleEnv), /Malformed/);
+});
+
+test("account deletion revokes Apple's token first, and keeps the account when Apple does not accept the revocation", async () => {
+  const context = createContext();
+  const { token, appleEnv } = await appleFixture();
+  const pair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pkcs8 = Buffer.from(await webcrypto.subtle.exportKey("pkcs8", pair.privateKey)).toString("base64");
+  const signInEnv = { ...appleEnv, APPLE_TEAM_ID: "TEAM123456", APPLE_SIGN_IN_KEY_ID: "KEY1234567", APPLE_SIGN_IN_PRIVATE_KEY: `-----BEGIN PRIVATE KEY-----
+${pkcs8}
+-----END PRIVATE KEY-----` };
+  const realFetch = globalThis.fetch;
+  const asked = [];
+  let revokeAnswer = false;
+  globalThis.fetch = async (url, init) => {
+    const form = Object.fromEntries(new URLSearchParams(String(init.body)));
+    asked.push({ url: String(url), form });
+    if (String(url).endsWith("/auth/token")) return new Response(JSON.stringify({ refresh_token: "refresh-abc" }), { status: 200 });
+    return new Response("{}", { status: revokeAnswer ? 200 : 400 });
+  };
+  try {
+    const account = await register(context);
+    const send = (path, body, user) => handleWithStore(new Request("https://server.test" + path, {
+      method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + context.credentials.get(user) }, body: JSON.stringify(body)
+    }), signInEnv, context.store);
+    assert.equal((await send("/account/apple/link", { identityToken: await token(), authorizationCode: "code-from-the-sign-in" }, account.userId)).status, 200);
+    // The code was traded for a refresh token, with a client secret signed for this app.
+    assert.equal(asked[0].url, "https://appleid.apple.com/auth/token");
+    assert.equal(asked[0].form.code, "code-from-the-sign-in");
+    assert.equal(asked[0].form.client_id, "com.example.mobidou");
+    assert.equal(asked[0].form.client_secret.split(".").length, 3);
+    assert.equal(await context.store.appleRefreshToken(account.userId), "refresh-abc");
+
+    // Apple refuses the revocation: the account stays so it can be tried again.
+    const refused = await send("/account/delete", { confirm: "delete" }, account.userId);
+    assert.deepEqual([refused.status, (await refused.json()).error], [502, "apple_revoke_failed"]);
+    assert.ok(await context.store.user(account.userId));
+
+    revokeAnswer = true;
+    const done = await send("/account/delete", { confirm: "delete" }, account.userId);
+    assert.equal(done.status, 200);
+    assert.equal(asked.at(-1).url, "https://appleid.apple.com/auth/revoke");
+    assert.equal(asked.at(-1).form.token, "refresh-abc");
+    assert.equal(await context.store.user(account.userId), null);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("account deletion without the Sign in with Apple key set up still deletes (nothing to revoke there)", async () => {
+  const context = createContext();
+  const account = await register(context);
+  const response = await call(context, "POST", "/account/delete", { confirm: "delete" }, account.userId);
+  assert.equal(response.status, 200);
 });
 
 test("Apple sign-in: link once, then a new device takes the account over and the old device is signed out", async () => {

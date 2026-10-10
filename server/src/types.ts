@@ -26,6 +26,14 @@ export interface Env {
   PRODUCT_CATALOG_JSON?: string;
   GIFTS_JSON?: string;
   CATALOG_JSON?: string;
+  /** Sign in with Apple, server side: the Team ID, the key's ID and the key itself (the .p8 file's text). Without them the token is not revoked. */
+  APPLE_TEAM_ID?: string;
+  APPLE_SIGN_IN_KEY_ID?: string;
+  APPLE_SIGN_IN_PRIVATE_KEY?: string;
+  /** Comma-separated purchase environments to accept; default "Production,Sandbox". Drop "Sandbox" to stop test purchases from being credited. */
+  PURCHASE_ENVIRONMENTS?: string;
+  /** Extra words a display name may not contain, comma-separated (added to the built-in list). */
+  NG_WORDS?: string;
   EVENT_STEPS_WINDOW_START?: string;
   EVENT_STEPS_DAILY_MAX?: string;
 }
@@ -72,6 +80,8 @@ export interface VerifiedTransaction {
   expiresDate?: number;
   revocationDate?: number;
   appAccountToken?: string;
+  /** "Production" or "Sandbox" (TestFlight and App Review buy in the Sandbox). */
+  environment?: string;
 }
 
 export interface Draw {
@@ -87,7 +97,34 @@ export interface EventRecord {
   startsAt: string;
   endsAt: string;
   mapId: string;
+  /** Team size limits and the fixed goal in team steps (0 = no fixed goal). */
+  minMembers: number;
+  maxMembers: number;
+  goalSteps: number;
 }
+
+export interface EventTeamMemberView {
+  id: string;
+  name: string;
+  petId: string | null;
+  /** Everything this member has walked for the event. */
+  steps: number;
+}
+
+export interface EventTeamView {
+  id: string;
+  code: string;
+  /** "active" covers a team that has reached the goal too; the goal is judged against the event. */
+  status: "recruiting" | "active";
+  /** The member who joined first; they start the team. */
+  creatorId: string;
+  members: EventTeamMemberView[];
+  /** Whether the asking player has already received the reward. */
+  claimed: boolean;
+}
+
+export type EventJoinResult = "ok" | "not_found" | "full" | "already_started" | "already_member";
+export type EventStartResult = "ok" | "no_team" | "not_creator" | "not_recruiting" | "too_few";
 
 export type AgeGroup = "under16" | "16to19" | "adult";
 
@@ -142,7 +179,28 @@ export interface Store {
   /** Raise each pet's copy count to at least the given number (never lowers it). */
   mergeOwnedPets(userId: string, owned: Record<string, number>): Promise<void>;
   claimFreePull(userId: string, routeId: string): Promise<boolean>;
-  commitDraws(userId: string, draws: Draw[], kind: "free" | "paid", paidPulls: number): Promise<void>;
+  /**
+   * Records draws and spends the balance in one step. `previousPaidPulls` is the count the draw was worked out from:
+   * if another draw changed it meanwhile, nothing is written and this throws. `opId` and `result` are stored together
+   * with the draws so the same request can be answered again.
+   */
+  commitDraws(userId: string, draws: Draw[], kind: "free" | "paid", paidPulls: number, options?: { opId?: string; result?: string; previousPaidPulls?: number }): Promise<void>;
+  /** Removes counters and stored answers that can no longer matter, so an address or an operation is not kept past its window. */
+  purgeExpired(now: Date): Promise<void>;
+  /** Whether either of the two has blocked the other. */
+  blockedEither(a: string, b: string): Promise<boolean>;
+  /** Blocks a player: also ends their friendship and any pending requests between the two. */
+  blockUser(blockerId: string, blockedId: string): Promise<void>;
+  unblockUser(blockerId: string, blockedId: string): Promise<void>;
+  blockedUsers(userId: string): Promise<{ id: string; name: string; petId: string | null }[]>;
+  reportUser(reporterId: string, reportedId: string, reason: "name" | "behavior" | "other", note: string | null, id: string): Promise<void>;
+  /** The ids of everyone in the team that has this code (to check blocks before someone joins). */
+  eventTeamMemberIdsByCode(eventId: string, code: string): Promise<string[]>;
+  /** Apple's refresh token for this account (kept to revoke it on deletion), or null. */
+  appleRefreshToken(userId: string): Promise<string | null>;
+  setAppleRefreshToken(userId: string, token: string): Promise<void>;
+  /** The stored answer of an earlier draw with this operation id, or null. */
+  gachaOp(userId: string, opId: string): Promise<string | null>;
   friends(userId: string): Promise<unknown[]>;
   friendRequests(userId: string): Promise<unknown[]>;
   requestFriend(fromId: string, toId: string, id: string): Promise<void>;
@@ -150,6 +208,16 @@ export interface Store {
   event(eventId: string): Promise<EventRecord | null>;
   saveEventSteps(userId: string, eventId: string, day: string, cumulative: number): Promise<number>;
   eventStatus(eventId: string): Promise<{ totalCumulative: number; members: number }>;
+  /** The team the player is in for this event, with every member's total steps. */
+  eventTeam(userId: string, eventId: string): Promise<EventTeamView | null>;
+  createEventTeam(userId: string, eventId: string, teamId: string, code: string): Promise<"ok" | "already_member" | "code_taken">;
+  joinEventTeam(userId: string, eventId: string, code: string, maxMembers: number): Promise<EventJoinResult>;
+  startEventTeam(userId: string, eventId: string, minMembers: number): Promise<EventStartResult>;
+  leaveEventTeam(userId: string, eventId: string): Promise<"ok" | "no_team" | "already_started">;
+  /** Records that this player took the reward. False if they already had. */
+  claimEvent(userId: string, eventId: string): Promise<boolean>;
+  /** The two players become friends (both directions). */
+  makeFriends(userId: string, otherId: string): Promise<void>;
 }
 
 export interface ExecutionContext {

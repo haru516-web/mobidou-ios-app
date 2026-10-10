@@ -1,9 +1,10 @@
 import { GACHA_PET_IDS, PAID_PITY_INTERVAL, validateGachaPetIds } from "./config/gacha.ts";
-import { equalSecretHash, hashSecret, randomToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
+import { isNameAllowed } from "./config/ngWords.ts";
+import { appleRevocationConfigured, equalSecretHash, exchangeAppleAuthorizationCode, hashSecret, randomToken, revokeAppleToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
 import { documentPageHtml, privacyPageHtml } from "./privacyPolicy.ts";
 import { LEGAL_MARKDOWN, LEGAL_NOTICE_TITLE } from "./legalNotice.ts";
-import type { AgeGroup, Env, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+import type { AgeGroup, Env, EventRecord, EventTeamView, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 
 /** Monthly spending caps in yen by self-declared age group, following the Japanese online-game industry guideline. null means no cap. */
 const MONTHLY_CAP_YEN: Record<AgeGroup, number | null> = { under16: 5000, "16to19": 10000, adult: null };
@@ -29,12 +30,65 @@ function invitePage(code: string): Response {
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
 }
 
+/** The page a team link opens: shows the team code and hands it to the app. Nothing about the team is looked up or shown. */
+function teamInvitePage(code: string): Response {
+  const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>もび道 イベントのチーム招待</title>
+<style>body{font-family:sans-serif;background:#f6efe0;color:#4a2f22;margin:0;padding:48px 24px;text-align:center}h1{font-size:22px}.code{font-size:26px;letter-spacing:3px;margin:20px 0;font-weight:bold}a.open{display:inline-block;background:#8c3b30;color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-size:16px}p{line-height:1.7}</style></head>
+<body><h1>もび道のイベントへのご招待</h1><p>チームコード</p><div class="code">${code}</div>
+<a class="open" href="mobidou://team?code=${code}">もび道で開く</a>
+<p>開けないときは、もび道のイベント画面で、このコードを入力してください。</p></body></html>`;
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
+}
+
 /** The largest record kept for one account. A real record is a few kilobytes. */
 const MAX_SAVE_CHARS = 200_000;
 
 /** Anonymous sign-ups allowed from one source address. */
 const REGISTER_PER_MINUTE = 5;
 const REGISTER_PER_DAY = 30;
+
+/** Team codes use the same alphabet as friend codes (no 0/O/1/I), six characters. */
+const TEAM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function newTeamCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, (byte) => TEAM_CODE_ALPHABET[byte % TEAM_CODE_ALPHABET.length]).join("");
+}
+const normalizeTeamCode = (value: string) => value.replace(/[\s-]/g, "").toUpperCase();
+const isTeamCode = (value: string) => /^[A-HJ-NP-Z2-9]{6}$/.test(value);
+
+/** What the app needs to draw the event screens: the limits, and the player's team with its total. */
+function teamResponse(event: EventRecord, team: EventTeamView | null) {
+  const info = { id: event.id, name: event.name, startsAt: event.startsAt, endsAt: event.endsAt, minMembers: event.minMembers, maxMembers: event.maxMembers, goalSteps: event.goalSteps };
+  if (!team) return { event: info, team: null, totalSteps: 0 };
+  const totalSteps = team.members.reduce((sum, member) => sum + member.steps, 0);
+  const cleared = team.status === "active" && event.goalSteps > 0 && totalSteps >= event.goalSteps;
+  return {
+    event: info,
+    team: { code: team.code, status: cleared ? "cleared" : team.status, creatorId: team.creatorId, members: team.members, claimed: team.claimed },
+    totalSteps
+  };
+}
+
+/** Whether purchases from this StoreKit environment are credited. TestFlight and App Review buy in the Sandbox. */
+function environmentAccepted(env: Env, transaction: VerifiedTransaction): boolean {
+  const accepted = (env.PURCHASE_ENVIRONMENTS ?? "Production,Sandbox").split(",").map((name) => name.trim()).filter(Boolean);
+  return accepted.includes(transaction.environment ?? "Production");
+}
+
+/** After a sign-in, trade its authorization code for Apple's refresh token and keep it, so it can be revoked on deletion. */
+async function keepAppleRefreshToken(env: Env, store: Store, userId: string, authorizationCode: unknown, now: Date): Promise<void> {
+  if (!appleRevocationConfigured(env) || typeof authorizationCode !== "string" || authorizationCode.length < 8 || authorizationCode.length > 2000) return;
+  try {
+    const token = await exchangeAppleAuthorizationCode(authorizationCode, env, now.getTime());
+    if (token) await store.setAppleRefreshToken(userId, token);
+  } catch { /* the sign-in itself succeeded; the token is only needed at deletion */ }
+}
+
+/** At most `max` calls of one kind from one player in the window; the 429 is the same everywhere. */
+async function limit(store: Store, kind: string, userId: string, windowMs: number, max: number, now: Date): Promise<void> {
+  const count = await store.hitRateLimit(`${kind}:${userId}`, Math.floor(now.getTime() / windowMs));
+  if (count > max) throw new HttpError(429, "rate_limited");
+}
 
 class HttpError extends Error {
   readonly status: number;
@@ -162,6 +216,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   }
   const inviteMatch = /^\/f\/([A-Z2-9]{10})$/.exec(path);
   if (method === "GET" && inviteMatch) return invitePage(inviteMatch[1]);
+  const teamInviteMatch = /^\/t\/([A-HJ-NP-Z2-9]{6})$/.exec(path);
+  if (method === "GET" && teamInviteMatch) return teamInvitePage(teamInviteMatch[1]);
   if (method === "GET" && path === "/gifts.json") return json(configuredGifts(env));
   if (method === "GET" && path === "/catalog.json") return json(configuredJson(env.CATALOG_JSON, []));
   if (method === "GET" && path === "/gacha/odds") {
@@ -197,6 +253,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     catch { throw new HttpError(401, "invalid_apple_token"); }
     const userId = await store.userByApple(appleSub);
     if (!userId) throw new HttpError(404, "no_linked_account");
+    await keepAppleRefreshToken(env, store, userId, input.authorizationCode, now);
     // A new device takes the account over: the old device's secret stops working.
     const secret = randomToken(32);
     await store.rotateSecret(userId, await hashSecret(secret));
@@ -221,7 +278,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       } catch { throw new HttpError(400, "invalid_notification_transaction"); }
       if (transaction.revocationDate || notification.notificationType === "REFUND" || notification.notificationType === "REVOKE") {
         await store.revokePurchase(transaction.transactionId, configuredProducts(env)[transaction.productId]?.paidPulls ?? 0);
-      } else if (transaction.appAccountToken) {
+      } else if (transaction.appAccountToken && environmentAccepted(env, transaction)) {
         const user = await store.user(transaction.appAccountToken);
         const product = configuredProducts(env)[transaction.productId];
         if (user && product) {
@@ -250,6 +307,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     catch { throw new HttpError(401, "invalid_apple_token"); }
     const result = await store.linkApple(userId, appleSub);
     if (result === "apple_in_use" || result === "account_has_other_apple") throw new HttpError(409, result);
+    await keepAppleRefreshToken(env, store, userId, input.authorizationCode, now);
     return json({ status: result });
   }
 
@@ -258,6 +316,13 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   if (method === "POST" && path === "/account/delete") {
     const input = await body(request);
     if (input.confirm !== "delete") throw new HttpError(400, "confirmation_required");
+    // Apple must be told the app no longer holds this Apple ID's authorization. If that fails the account is kept, so it can be tried again.
+    const refreshToken = await store.appleRefreshToken(userId);
+    if (refreshToken && appleRevocationConfigured(env)) {
+      let revoked = false;
+      try { revoked = await revokeAppleToken(refreshToken, env, now.getTime()); } catch { revoked = false; }
+      if (!revoked) throw new HttpError(502, "apple_revoke_failed");
+    }
     await store.deleteUser(userId);
     return json({ status: "deleted" });
   }
@@ -283,14 +348,48 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   }
 
   if (method === "POST" && path === "/profile") {
+    await limit(store, "profile", userId, 3_600_000, 30, now);
     const input = await body(request);
     const name = typeof input.name === "string" ? input.name.trim() : "";
     // Shown to friends: short, and no control characters.
     if (name.length < 1 || name.length > 12 || /[\u0000-\u001f\u007f]/.test(name)) throw new HttpError(400, "invalid_name");
+    // Other players read this name, so an obviously offensive one is refused (reports and blocks cover the rest).
+    if (!isNameAllowed(name, env.NG_WORDS)) throw new HttpError(400, "inappropriate_name");
     const petId = input.petId === undefined || input.petId === null ? null : input.petId;
     if (petId !== null && (typeof petId !== "string" || !gachaPetIds().includes(petId as typeof GACHA_PET_IDS[number]))) throw new HttpError(400, "unknown_pet");
     await store.updateProfile(userId, name, petId);
     return json({ name, petId });
+  }
+
+  if (method === "GET" && path === "/blocks") return json({ blocked: await store.blockedUsers(userId) });
+
+  if (method === "POST" && (path === "/blocks" || path === "/blocks/remove")) {
+    await limit(store, "block", userId, 86_400_000, 60, now);
+    const input = await body(request);
+    const targetId = requireString(input.userId, "invalid_user_id", 64);
+    if (targetId === userId) throw new HttpError(400, "cannot_block_self");
+    if (path === "/blocks") {
+      if (!(await store.user(targetId))) throw new HttpError(404, "user_not_found");
+      await store.blockUser(userId, targetId);
+      return json({ status: "blocked" });
+    }
+    await store.unblockUser(userId, targetId);
+    return json({ status: "unblocked" });
+  }
+
+  if (method === "POST" && path === "/reports") {
+    const input = await body(request);
+    const targetId = requireString(input.userId, "invalid_user_id", 64);
+    const reason = input.reason;
+    if (reason !== "name" && reason !== "behavior" && reason !== "other") throw new HttpError(400, "invalid_reason");
+    const note = typeof input.note === "string" ? input.note.trim().slice(0, 300) : null;
+    if (targetId === userId) throw new HttpError(400, "cannot_report_self");
+    if (!(await store.user(targetId))) throw new HttpError(404, "user_not_found");
+    // Reports are read by a person: a few a day is plenty, and it keeps the box from being flooded.
+    const sent = await store.hitRateLimit(`report:${userId}`, Math.floor(now.getTime() / 86_400_000));
+    if (sent > 10) throw new HttpError(429, "too_many_reports");
+    await store.reportUser(userId, targetId, reason, note || null, crypto.randomUUID());
+    return json({ status: "received" }, 201);
   }
 
   if (method === "GET" && path === "/friends") {
@@ -299,12 +398,15 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
 
   if (method === "POST" && path === "/friend-requests") {
     const input = await body(request);
+    await limit(store, "friend-request", userId, 86_400_000, 40, now);
     const friendCode = requireString(input.friendCode, "invalid_friend_code", 20).replace(/[\s-]/g, "").toUpperCase();
     const me = await store.user(userId);
     if (!me?.name) throw new HttpError(400, "profile_required");
     const recipient = await store.userByFriendCode(friendCode);
     if (!recipient) throw new HttpError(404, "friend_not_found");
     if (recipient.id === userId) throw new HttpError(400, "cannot_add_self");
+    // Someone who blocked you, or whom you blocked, looks the same as a code nobody has.
+    if (await store.blockedEither(userId, recipient.id)) throw new HttpError(404, "friend_not_found");
     if (await store.friendshipExists(userId, recipient.id)) throw new HttpError(409, "already_friends");
     if (await store.pendingRequestExists(userId, recipient.id)) throw new HttpError(409, "already_requested");
     if (await store.pendingRequestExists(recipient.id, userId)) throw new HttpError(409, "they_already_asked");
@@ -331,6 +433,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   }
 
   if (method === "POST" && path === "/purchases/verify") {
+    await limit(store, "verify", userId, 3_600_000, 60, now);
     const input = await body(request);
     const signedTransaction = requireString(input.signedTransactionInfo ?? input.jws, "missing_signed_transaction", 200_000);
     let transaction: VerifiedTransaction;
@@ -338,6 +441,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     catch { throw new HttpError(400, "invalid_storekit_transaction"); }
     const product = configuredProducts(env)[transaction.productId];
     if (!product) throw new HttpError(400, "unknown_product");
+    if (!environmentAccepted(env, transaction)) throw new HttpError(403, "environment_not_accepted");
     if (!transaction.appAccountToken) throw new HttpError(400, "missing_app_account_token");
     if (transaction.appAccountToken !== userId) throw new HttpError(403, "app_account_token_mismatch");
     if (transaction.revocationDate) {
@@ -425,6 +529,15 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     if (kind !== "free" && kind !== "paid") throw new HttpError(400, "kind_must_be_free_or_paid");
     const pullKind: "free" | "paid" = kind;
     if (pullKind === "free" && count !== 1) throw new HttpError(400, "free_pull_count_must_be_1");
+    // An operation id makes the draw safe to ask for again: the app keeps it until it has the answer.
+    const opId = input.opId === undefined ? undefined : input.opId;
+    if (opId !== undefined && (typeof opId !== "string" || !/^[A-Za-z0-9-]{8,64}$/.test(opId))) throw new HttpError(400, "invalid_op_id");
+    const sameAnswer = async () => {
+      const stored = opId ? await store.gachaOp(userId, opId) : null;
+      return stored ? new Response(stored, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } }) : null;
+    };
+    const replay = await sameAnswer();
+    if (replay) return replay;
     const wallet = await store.wallet(userId);
     if (wallet[pullKind] < count) throw new HttpError(409, `insufficient_${pullKind}_gacha_balance`);
     const pool = gachaPetIds();
@@ -439,13 +552,21 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       owned[petId] = (owned[petId] ?? 0) + 1;
       return { petId, kind: pullKind, isNew, guaranteed };
     });
-    try { await store.commitDraws(userId, draws, pullKind, paidPulls); }
-    catch { throw new HttpError(409, "gacha_balance_changed_retry"); }
-    return json({ results: draws, paidPulls, remaining: wallet[pullKind] - count });
+    const answer = { results: draws, paidPulls, remaining: wallet[pullKind] - count };
+    try {
+      await store.commitDraws(userId, draws, pullKind, paidPulls, { opId, result: JSON.stringify(answer), previousPaidPulls: wallet.paidPulls });
+    } catch {
+      // Two copies of the same request can race: the loser reads what the winner stored.
+      const raced = await sameAnswer();
+      if (raced) return raced;
+      throw new HttpError(409, "gacha_balance_changed_retry");
+    }
+    return json(answer);
   }
 
   const eventStepsMatch = /^\/events\/([^/]+)\/steps$/.exec(path);
   if (method === "POST" && eventStepsMatch) {
+    await limit(store, "steps", userId, 3_600_000, 120, now);
     const input = await body(request);
     const cumulative = input.cumulative;
     const max = Number(env.EVENT_STEPS_DAILY_MAX ?? "100000");
@@ -465,8 +586,77 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     const { day } = tokyoDateAndMinute(new Date(now.getTime() - start * 60_000));
     // Clients name the day their cumulative belongs to, so a morning send of "today so far" is rejected instead of filed under yesterday.
     if (input.day !== undefined && input.day !== day) return json({ error: "steps_day_mismatch", openDay: day }, 409);
+    // Steps count for the team the player has set out with; before that (or without a team) there is nothing to add them to.
+    const team = await store.eventTeam(userId, eventId);
+    if (!team || team.status !== "active") throw new HttpError(409, "no_active_team");
     const saved = await store.saveEventSteps(userId, eventId, day, cumulative);
     return json({ day, cumulative: saved });
+  }
+
+  const eventTeamMatch = /^\/events\/([^/]+)\/(team|teams|teams\/join|teams\/start|leave|claim)$/.exec(path);
+  if (eventTeamMatch) {
+    const eventId = decodeURIComponent(eventTeamMatch[1]);
+    const action = eventTeamMatch[2];
+    const event = await store.event(eventId);
+    if (!event) throw new HttpError(404, "event_not_found");
+    const inWindow = now.getTime() >= Date.parse(event.startsAt) && now.getTime() < Date.parse(event.endsAt);
+
+    if (method === "GET" && action === "team") return json(teamResponse(event, await store.eventTeam(userId, eventId)));
+
+    if (method === "POST" && action === "teams") {
+      await limit(store, "team-create", userId, 3_600_000, 10, now);
+      if (!inWindow) throw new HttpError(409, "event_not_active");
+      const me = await store.user(userId);
+      if (!me?.name) throw new HttpError(400, "profile_required");
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const result = await store.createEventTeam(userId, eventId, crypto.randomUUID(), newTeamCode());
+        if (result === "already_member") throw new HttpError(409, "already_member");
+        if (result === "ok") return json(teamResponse(event, await store.eventTeam(userId, eventId)), 201);
+      }
+      throw new HttpError(503, "team_code_unavailable");
+    }
+
+    if (method === "POST" && action === "teams/join") {
+      if (!inWindow) throw new HttpError(409, "event_not_active");
+      const me = await store.user(userId);
+      if (!me?.name) throw new HttpError(400, "profile_required");
+      // A code has about a billion values; limit the guesses of one player anyway.
+      const attempts = await store.hitRateLimit(`team-join:${userId}`, Math.floor(now.getTime() / 3_600_000));
+      if (attempts > 30) throw new HttpError(429, "too_many_attempts");
+      const input = await body(request);
+      const code = normalizeTeamCode(requireString(input.code, "invalid_team_code", 20));
+      if (!isTeamCode(code)) throw new HttpError(400, "invalid_team_code");
+      const present = await store.eventTeamMemberIdsByCode(eventId, code);
+      for (const memberId of present) if (await store.blockedEither(userId, memberId)) throw new HttpError(404, "not_found");
+      const result = await store.joinEventTeam(userId, eventId, code, event.maxMembers);
+      if (result !== "ok") throw new HttpError(result === "not_found" ? 404 : 409, result);
+      const team = await store.eventTeam(userId, eventId);
+      // Joining a team makes the player a friend of whoever made it.
+      if (team && team.creatorId !== userId) await store.makeFriends(userId, team.creatorId);
+      return json(teamResponse(event, team));
+    }
+
+    if (method === "POST" && action === "teams/start") {
+      const result = await store.startEventTeam(userId, eventId, event.minMembers);
+      if (result !== "ok") throw new HttpError(result === "no_team" ? 404 : 409, result);
+      return json(teamResponse(event, await store.eventTeam(userId, eventId)));
+    }
+
+    if (method === "POST" && action === "leave") {
+      const result = await store.leaveEventTeam(userId, eventId);
+      if (result === "no_team") throw new HttpError(404, "no_team");
+      if (result === "already_started") throw new HttpError(409, "already_started");
+      return json({ status: "left" });
+    }
+
+    if (method === "POST" && action === "claim") {
+      const team = await store.eventTeam(userId, eventId);
+      if (!team) throw new HttpError(404, "no_team");
+      const view = teamResponse(event, team);
+      if (view.team?.status !== "cleared") throw new HttpError(409, "not_cleared");
+      const claimed = await store.claimEvent(userId, eventId);
+      return json({ status: claimed ? "claimed" : "already_claimed" });
+    }
   }
 
   const eventMatch = /^\/events\/([^/]+)$/.exec(path);
@@ -508,6 +698,10 @@ export async function handleWithStore(request: Request, env: Env, store: Store, 
 const worker = {
   fetch(request: Request, env: Env, _context: ExecutionContext): Promise<Response> {
     return handleWithStore(request, env, new D1Store(env.DB));
+  },
+  /** Runs every hour (wrangler.toml [triggers]): drops counters and answers that have passed their time. */
+  async scheduled(_event: unknown, env: Env, _context: ExecutionContext): Promise<void> {
+    await new D1Store(env.DB).purgeExpired(new Date());
   }
 };
 
