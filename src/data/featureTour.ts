@@ -40,14 +40,14 @@ export const TOUR_SECTIONS: readonly TourSection[] = [
       { anchor: 'home-steps', title: '歩数のカード', detail: '今日の歩数と、次の御朱印までの道のりが見られるよ。タップするとおでかけが開くよ。' },
       { anchor: 'home-widgets', title: 'ホームのカード', detail: 'おみくじは一日一回、タップで全画面で引けるよ。カードは長押しで、好きな並びに変えられるよ。' },
       { title: '画面のモビー', detail: '画面の端にいる小さなモビーをタップすると、キャラ変更・通知・プレゼント・フレンドのメニューが開くよ。ドラッグで好きな場所へ動かせるよ。' },
-      { anchor: 'header-settings', title: '設定', detail: '歩数の連携やホームの編集、アカウント管理はここから。このチュートリアルもここで見返せるよ。' },
+      { anchor: 'header-settings', title: '設定', detail: '歩数の連携やアカウント管理はここから。このチュートリアルもここで見返せるよ。' },
     ],
   },
   {
-    id: 'book', tab: 'book', title: '御朱印帳', icon: 'book-outline', summary: 'ページをめくる・目次・巡礼の変更',
+    id: 'book', tab: 'book', title: '御朱印帳', icon: 'book-outline', summary: 'ページをめくる・目次・御朱印の詳細',
     steps: [
       { anchor: 'nav-book', title: '御朱印帳', detail: '表紙をタップして開こう。ページをめくって、集めた御朱印をゆっくり眺められるよ。' },
-      { anchor: 'book-top', title: '目次と巡礼', detail: '「目次」で好きなページへジャンプ。「巡礼」で、歩く巡礼を変えられるよ。' },
+      { anchor: 'book-top', title: '目次', detail: '「目次」を開くと、好きなページへジャンプできるよ。' },
       { title: '御朱印の詳細', detail: 'ページの御朱印をタップすると、由来の説明と拡大表示が見られるよ。' },
     ],
   },
@@ -55,8 +55,9 @@ export const TOUR_SECTIONS: readonly TourSection[] = [
     id: 'gacha', tab: null, title: 'ガチャ', icon: 'gift-outline', summary: 'モビーとの新しい出会い',
     steps: [
       { anchor: 'nav-gacha', title: 'ガチャのボタン', detail: 'ナビバーの真ん中のボタンで、ガチャの画面が開くよ。' },
-      { scene: 'gacha', title: 'ご縁を結ぶ', detail: '「ひもを引く」を押して、ひもを引っぱろう。箱が開いて、新しいモビーに会えるよ。' },
-      { scene: 'gacha', title: '引ける回数', detail: '無料で引ける回数は画面に出るよ。巡礼を結願すると、ひとつ引けるよ。「とじる」でもどれるよ。' },
+      { scene: 'gacha', title: 'ご縁を結ぶ', detail: '引く回数（1回・10回）を選んで、ひもを引っぱろう。箱が開いて、新しいモビーに会えるよ。' },
+      { scene: 'gacha', title: '木札', detail: '1回につき木札を1枚使うよ。新しい巡礼を初めて結願すると、木札が1枚もらえるよ。' },
+      { scene: 'gacha', title: 'プレミアム木札', detail: '購入した木札だよ。25回引くごとに、まだ出会っていないモビーが必ず出るよ。「とじる」でもどれるよ。' },
     ],
   },
   {
@@ -68,11 +69,10 @@ export const TOUR_SECTIONS: readonly TourSection[] = [
     ],
   },
   {
-    id: 'collection', tab: 'collection', title: 'コレクション', icon: 'albums-outline', summary: '展示室・御朱印・ミニチュア・授与品',
+    id: 'collection', tab: 'collection', title: 'コレクション', icon: 'albums-outline', summary: '展示室・御朱印・ミニチュア',
     steps: [
-      { anchor: 'collection-tabs', title: '4つの部屋', detail: '展示室・御朱印・ミニチュア・授与品を切り替えて、集めたものを眺められるよ。' },
+      { anchor: 'collection-tabs', title: '3つの部屋', detail: '展示室・御朱印・ミニチュアを切り替えて、集めたものを眺められるよ。' },
       { title: '展示室', detail: '指を広げたり閉じたりすると、近くで見たり、全体を見渡したりできるよ。' },
-      { title: '授与品', detail: '結願で手に入れた御朱印帳の表紙は、「授与品」から選んで付け替えられるよ。' },
     ],
   },
 ];
