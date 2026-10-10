@@ -6,12 +6,12 @@
 
 |ファイル|創作名|配色|
 |---|---|---|
-|`assets/goshuin/star.png`|星もびこより宮|藍|
-|`assets/goshuin/moon.png`|月もびゆら結社|朱|
-|`assets/goshuin/rain.png`|雨もびしず葉社|雨青|
-|`assets/goshuin/forest.png`|森もびこもれ宮|若草|
-|`assets/goshuin/cloud.png`|雲もびふわ灯社|琥珀|
-|`assets/goshuin/flower.png`|花もびむすび宮|桜|
+|`assets/goshuin/star.webp`|星もびこより宮|藍|
+|`assets/goshuin/moon.webp`|月もびゆら結社|朱|
+|`assets/goshuin/rain.webp`|雨もびしず葉社|雨青|
+|`assets/goshuin/forest.webp`|森もびこもれ宮|若草|
+|`assets/goshuin/cloud.webp`|雲もびふわ灯社|琥珀|
+|`assets/goshuin/flower.webp`|花もびむすび宮|桜|
 
 最終生成プロンプトはこのフォルダーの `prompt-star.txt` など6ファイルに保存。全画像1024×1536 PNG。旧案はアプリに採用していません。すべての画像を目視し、社名、片目レンズ、十字キー、丸ボタン2つを確認しました。
 

@@ -328,7 +328,7 @@
 ### 31. 願もび石社（ねがいもびいししゃ）｜`negaiishi`
 
 - **場所**: もび峡・願石の段　**ご利益**: 願いを行動に変える
-- **画像**: 御朱印 `assets/goshuin/negaiishi.png` ／ ミニチュア `assets/collection/keychains/keychain-negaiishi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/negaiishi.webp` ／ ミニチュア `assets/collection/keychains/keychain-negaiishi-v1-transparent.webp`
 - **フック**: 願うだけで終わらせたくない人のための、重みのある石の社。
 - **解説**: 願石の段に寄り添う社。段状の石垣、願い札の小棚、石を囲む注連縄が目印。手のひらほどの願石を持って、石段を一段ずつ上がる。決意と継続の重さを、手で感じられる。
 - **特徴**: 手のひらサイズの願石／段状の石垣／朱い結び札の棚。
@@ -337,7 +337,7 @@
 ### 32. 星舟もび宮（ほしぶねもびぐう）｜`hoshifune`
 
 - **場所**: もび湖・星舟の入江　**ご利益**: 新天地・夜の旅立ち
-- **画像**: 御朱印 `assets/goshuin/hoshifune.png` ／ ミニチュア `assets/collection/keychains/keychain-hoshifune-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/hoshifune.webp` ／ ミニチュア `assets/collection/keychains/keychain-hoshifune-v1-transparent.webp`
 - **フック**: 引っ越しや新天地へ、星の舟に乗って出かけたい人へ。
 - **解説**: 星舟の入江に建つ水宮。舟形の拝殿と、星を散らした屋根、桟橋の灯が特徴。夜の湖に星が映り、舟の灯が静かに進んでいく。願いを夜空へ運ぶ舟のような、旅立ちの宮。
 - **特徴**: 舟形の拝殿／星を散らした屋根／桟橋の小さな灯。
@@ -346,7 +346,7 @@
 ### 33. 奏もび星社（かなでもびぼししゃ）｜`kanadeboshi`
 
 - **場所**: もび野・星奏の庭　**ご利益**: 生活のリズム・調和・集中
-- **画像**: 御朱印 `assets/goshuin/kanadeboshi.png` ／ ミニチュア `assets/collection/keychains/keychain-kanadeboshi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/kanadeboshi.webp` ／ ミニチュア `assets/collection/keychains/keychain-kanadeboshi-v1-transparent.webp`
 - **フック**: 乱れた毎日のリズムを、星と音で整えてくれる社。
 - **解説**: 弦のような軒と、音符形の風鈴、星の小塔を持つ音の社。草原に星と花が並んで、音が見えるような庭になっている。続けたい習慣のテンポを、音に合わせて整えてくれる。
 - **特徴**: 弦のような軒／音符形の風鈴／星の小塔。
@@ -421,7 +421,7 @@
 ### 40. 朝霧もび社（あさぎりもびしゃ）｜`asagiri`
 
 - **場所**: もび原・朝霧の鳥居　**ご利益**: 仕切り直し・気持ちの切り替え
-- **画像**: 御朱印 `assets/goshuin/asagiri.png` ／ ミニチュア `assets/collection/keychains/keychain-asagiri-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/asagiri.webp` ／ ミニチュア `assets/collection/keychains/keychain-asagiri-v1-transparent.webp`
 - **フック**: 「今日から全部やり直したい」と思った朝は、ここの鳥居をくぐってほしい。
 - **解説**: 神域の入口を守る小さな社。白木の柱と低い注連縄があるだけで、威圧感はまったくない。ただ「ここから先は別の空気だよ」とそっと教えてくれる。日の出前にだけ、鳥居の向こうに二重の山影が見える。霧が晴れると、昨日まで無かったはずの道が一本、姿を現す。
 - **特徴**: 日の出前限定の二重の山影／霧の水滴を受ける銅板の屋根／毎朝新しく現れる一本道。
@@ -430,7 +430,7 @@
 ### 41. 木霊もび宮（こだまもびぐう）｜`kodama`
 
 - **場所**: もび森・こだま回廊　**ご利益**: 自信・自分との対話
-- **画像**: 御朱印 `assets/goshuin/kodama.png` ／ ミニチュア `assets/collection/keychains/keychain-kodama-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/kodama.webp` ／ ミニチュア `assets/collection/keychains/keychain-kodama-v1-transparent.webp`
 - **フック**: 自分の足音に、返事がもらえる宮がある。
 - **解説**: 森の斜面に沿って伸びる、壁の少ない回廊の宮。床板は一枚ごとに響きが違うので、歩くだけで音楽みたいになる。足音は三度返ってくる。返事の回数が減っていくほど、森の中心に近づいている証拠。自分の歩みに味方がいると感じられる、ちょっと不思議な場所。
 - **特徴**: 足音が三度返る回廊／床板ごとに異なる音色／返事が減るほど中心が近い。
@@ -439,7 +439,7 @@
 ### 42. 石楠花もび社（しゃくなげもびしゃ）｜`shakunage`
 
 - **場所**: もび花谷・石楠花庭　**ご利益**: 遅咲き成就・焦り解消
-- **画像**: 御朱印 `assets/goshuin/shakunage.png` ／ ミニチュア `assets/collection/keychains/keychain-shakunage-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/shakunage.webp` ／ ミニチュア `assets/collection/keychains/keychain-shakunage-v1-transparent.webp`
 - **フック**: 周りと比べて焦るなら、咲くのを何年も待つ花の社へ。
 - **解説**: 御神木は石楠花。咲くまで長く待つ谷だから、「開花を急かさない」ことそのものが信仰になった。春以外は艶のある葉だけを見せ、花の色は年ごとに淡い紅から濃い紅まで変わる。小さな石積みの本殿を花垣が囲む、静かで凛とした社。遅いことを責めない場所。
 - **特徴**: 開花を急かさない信仰／年ごとに変わる花の紅／石積みの本殿を囲む花垣。
@@ -448,7 +448,7 @@
 ### 43. 滝守もび宮（たきもりもびぐう）｜`takimori`
 
 - **場所**: もび滝・白糸の御手水　**ご利益**: 疲れ落とし・デトックス
-- **画像**: 御朱印 `assets/goshuin/takimori.png` ／ ミニチュア `assets/collection/keychains/keychain-takimori-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/takimori.webp` ／ ミニチュア `assets/collection/keychains/keychain-takimori-v1-transparent.webp`
 - **フック**: 体の芯の疲れを、滝の音で流しにいく宮。
 - **解説**: 白糸の滝そのものが御神体。拝殿は滝のすぐ手前に建っていて、近づくほど水音が全身を包む。森の水脈が初めて地上に出る場所とされ、滝の音が大きい日は鈴を一度鳴らしてから進むのが作法。滝音の違いで、今日の自分の疲れ具合を読み取るのが楽しみ方。
 - **特徴**: 滝を御神体にした拝殿／鈴を一度鳴らしてから進む作法／音で疲れを診断する遊び方。
@@ -457,7 +457,7 @@
 ### 44. 時雨もび本宮（しぐれもびほんぐう）｜`shigure`
 
 - **場所**: もび奥谷・時雨本宮　**ご利益**: 受容・結果を手放す安心
-- **画像**: 御朱印 `assets/goshuin/shigure.png` ／ ミニチュア `assets/collection/keychains/keychain-shigure-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/shigure.webp` ／ ミニチュア `assets/collection/keychains/keychain-shigure-v1-transparent.webp`
 - **フック**: 願いが叶わなくても、歩いた時間は消えない。それを認めてくれる本宮。
 - **解説**: 谷の最奥に建つ、五つの社を巡った人が目指す本宮。霧雨のような時雨が止んだ瞬間に、拝殿の鈴が一度だけ鳴ると伝わる。でも鳴らない日があってもいい。五社を歩いた事実がそのまま結願として受け止められる、やさしい仕組み。格子戸の奥で揺れる鈴を眺める時間が、ご褒美になる。
 - **特徴**: 時雨が止む瞬間に鳴る鈴／鳴らなくても結願になる決まり／格子戸の奥の拝殿。
@@ -472,7 +472,7 @@
 ### 45. 岩座もび権現（いわくらもびごんげん）｜`iwakura`
 
 - **場所**: もび峡・岩座の登拝口　**ご利益**: 覚悟・気合入れ
-- **画像**: 御朱印 `assets/goshuin/iwakura.png` ／ ミニチュア `assets/collection/keychains/keychain-iwakura-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/iwakura.webp` ／ ミニチュア `assets/collection/keychains/keychain-iwakura-v1-transparent.webp`
 - **フック**: 大きな挑戦の前日に、気合を入れ直したい人のための岩の神様。
 - **解説**: 社殿を建てず、巨岩そのものを御神体にした登拝口。願いは岩の割れ目に木札で納める。岩肌には雨の筋が幾重にも刻まれ、長い年月の水の道が読める。ここで靴紐を結び直すのが最初の儀式。ほどけない結び目と一緒に、覚悟も固まる。
 - **特徴**: 社殿のない岩の御神体／割れ目に納める木札／靴紐を結び直す儀式。
@@ -481,7 +481,7 @@
 ### 46. 黒岩もび堂（くろいわもびどう）｜`kuroiwa`
 
 - **場所**: もび黒峰・黒岩平　**ご利益**: 休む勇気・持久力
-- **画像**: 御朱印 `assets/goshuin/kuroiwa.png` ／ ミニチュア `assets/collection/keychains/keychain-kuroiwa-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/kuroiwa.webp` ／ ミニチュア `assets/collection/keychains/keychain-kuroiwa-v1-transparent.webp`
 - **フック**: 「休むのは甘え」と思っている人こそ、黒い岩の堂で座ってほしい。
 - **解説**: 黒い安山岩を積んだ、壁の厚い簡素な堂。風を避けられる一畳ほどの休み場があるだけの、質実剛健な場所。日差しを吸う黒岩平は、体感温度が他と違う。軒先には先人の歩数の記録が刻まれていて、休んだ人が確かにここにいたと分かる。休むことは修行の一部、と教えてくれる堂。
 - **特徴**: 一畳の風除けの休み場／軒先に刻まれた先人の歩数記録／日差しを吸う黒岩平。
@@ -490,7 +490,7 @@
 ### 47. 羽石もび社（はねいしもびしゃ）｜`haneishi`
 
 - **場所**: もび尾根・羽石の鞍部　**ご利益**: 手放し・断捨離・転機
-- **画像**: 御朱印 `assets/goshuin/haneishi.png` ／ ミニチュア `assets/collection/keychains/keychain-haneishi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/haneishi.webp` ／ ミニチュア `assets/collection/keychains/keychain-haneishi-v1-transparent.webp`
 - **フック**: 荷物も悩みも、ここに置いていけたら楽になる。
 - **解説**: 尾根の鞍部で、羽根の形をした石を祀る風の社。谷の風が交差する場所で、重い荷物でも一瞬だけ軽く感じるといわれる。四隅の風鈴が、風向きを音で教えてくれる。羽石は風に削られて薄くなり、毎年向きが変わる。変わり続けることを肯定してくれる、風通しのいい社。
 - **特徴**: 羽根形の石／四隅の風鈴が知らせる風向き／毎年向きが変わる石。
@@ -499,7 +499,7 @@
 ### 48. 鈴守もび宮（すずもりもびぐう）｜`suzumori`
 
 - **場所**: もび雲上・鈴鳴岩　**ご利益**: 判断力・進むか引き返すかの見極め
-- **画像**: 御朱印 `assets/goshuin/suzumori.png` ／ ミニチュア `assets/collection/keychains/keychain-suzumori-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/suzumori.webp` ／ ミニチュア `assets/collection/keychains/keychain-suzumori-v1-transparent.webp`
 - **フック**: 迷ったとき、岩の鈴が「進め」か「戻れ」かを教えてくれる。
 - **解説**: 鐘楼ではなく、岩穴に小さな金属片を入れて風で鳴らす、珍しい構造の宮。音が谷側から聞こえたら引き返し、尾根側なら進む、という山の道標になっている。雪の日は音が低くなり、近くまで来ないと聞こえない。聞こえにくい音を待つことで、判断が静かに研ぎ澄まされる。
 - **特徴**: 岩穴で風が鳴らす鈴／音の方向で進退を決める道標／雪の日だけ低くなる音。
@@ -508,7 +508,7 @@
 ### 49. 天竜もび峰宮（てんりゅうもびみねぐう）｜`tenryu`
 
 - **場所**: もび高嶺・天竜見晴台　**ご利益**: 達成・原点を思い出す
-- **画像**: 御朱印 `assets/goshuin/tenryu.png` ／ ミニチュア `assets/collection/keychains/keychain-tenryu-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/tenryu.webp` ／ ミニチュア `assets/collection/keychains/keychain-tenryu-v1-transparent.webp`
 - **フック**: 頂上で鳴らす鐘は、自分のためだけじゃなく下にいる人のためでもある。
 - **解説**: 山岳修行の到達点。屋根の下に雲上の鐘が一つだけ置かれた、柱だけの開放的な峰宮。晴れた日は雲海の切れ目から、出発点の岩座もび権現の岩が小さく見える。鐘は到着を祝うだけでなく、下にいる人へ帰り道を知らせる役目もある。登りきった景色の中に、スタート地点を見つける場所。
 - **特徴**: 柱だけの開放的な峰宮／雲上の鐘／雲海越しに見える出発点の岩。
@@ -523,7 +523,7 @@
 ### 50. さざ波もび札所（さざなみもびふだしょ）｜`sazanami`
 
 - **場所**: もび湖畔・波寄せ門　**ご利益**: 出発・段取りより流れに乗る
-- **画像**: 御朱印 `assets/goshuin/sazanami.png` ／ ミニチュア `assets/collection/keychains/keychain-sazanami-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/sazanami.webp` ／ ミニチュア `assets/collection/keychains/keychain-sazanami-v1-transparent.webp`
 - **フック**: 完璧な計画ができなくても、とりあえず門をくぐればいい。
 - **解説**: 湖畔に建つ最初の札所。木造の波寄せ門をくぐり、濡れた石畳の小堂で出発の印を受ける。風が弱い日でも門の前だけ波が寄せる不思議な場所。昔の巡礼者が水面に道順を描いたのが、周回巡礼の始まりと伝わる。
 - **特徴**: 門前だけ波が寄せる波寄せ門／濡れた石畳の小堂／水面に道を描いた巡礼の起源。
@@ -532,7 +532,7 @@
 ### 51. 水面もび寺（みなももびじ）｜`minamo`
 
 - **場所**: もび湖畔・鏡池　**ご利益**: 自己肯定・自分を見つめ直す
-- **画像**: 御朱印 `assets/goshuin/minamo.png` ／ ミニチュア `assets/collection/keychains/keychain-minamo-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/minamo.webp` ／ ミニチュア `assets/collection/keychains/keychain-minamo-v1-transparent.webp`
 - **フック**: 水に映った自分に、最初になんて挨拶する？
 - **解説**: 鏡のような池のほとりに建つ、池泉庭園の寺。堂内の床を低くして、目線が水面と揃うように設計されている。朝は空、昼は雲、夕方は自分の影を映す。時間帯で御朱印の印色が違って見えるので、何度でも通いたくなる。
 - **特徴**: 水面と目線が揃う低い床／時間帯で変わる御朱印の印色／池泉庭園。
@@ -541,7 +541,7 @@
 ### 52. 蛍もび観音（ほたるもびかんのん）｜`hotarubi`
 
 - **場所**: もび湿地・蛍渡り　**ご利益**: 小さな幸せに気づく
-- **画像**: 御朱印 `assets/goshuin/hotarubi.png` ／ ミニチュア `assets/collection/keychains/keychain-hotarubi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/hotarubi.webp` ／ ミニチュア `assets/collection/keychains/keychain-hotarubi-v1-transparent.webp`
 - **フック**: 見逃していた小さな光に、気づける人になれる観音堂。
 - **解説**: 湿地の木道沿いにある観音堂。夜だけ格子戸を開け、蛍を驚かせない弱い灯りでお参りする。蛍が舞うのは夏のほんの短い期間。観音像の台座には、光を数えずに歩くための小さな鈴が置いてある。数えるより、気づくことを大切にする場所。
 - **特徴**: 夜だけ開く格子戸／蛍を驚かせない弱い灯り／光を数えないための鈴。
@@ -550,7 +550,7 @@
 ### 53. 川音もび堂（かわおともびどう）｜`kawaoto`
 
 - **場所**: もび川辺・せせらぎ橋　**ご利益**: マイペース・人と比べない
-- **画像**: 御朱印 `assets/goshuin/kawaoto.png` ／ ミニチュア `assets/collection/keychains/keychain-kawaoto-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/kawaoto.webp` ／ ミニチュア `assets/collection/keychains/keychain-kawaoto-v1-transparent.webp`
 - **フック**: 速い流れと遅い流れ、どっちも正解だと教えてくれる堂。
 - **解説**: せせらぎ橋のたもとに建つ、壁のない水音の堂。お経の代わりに、川の音が流れてくる。橋の下で川が二つに分かれて音の高さが左右で違い、床板もその音程に合わせて二色に染められている。今日の自分はどっちに近いか、耳で選べる。
 - **特徴**: 壁を開けた水音の堂／二つに分かれる流れと二色の床板／読経の代わりの川音。
@@ -559,7 +559,7 @@
 ### 54. 蓮実もび寺（はすのみもびじ）｜`hasunomi`
 
 - **場所**: もび水郷・蓮の浮島　**ご利益**: どん底からの復活・再生
-- **画像**: 御朱印 `assets/goshuin/hasunomi.png` ／ ミニチュア `assets/collection/keychains/keychain-hasunomi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/hasunomi.webp` ／ ミニチュア `assets/collection/keychains/keychain-hasunomi-v1-transparent.webp`
 - **フック**: 泥の中にいた時間は、無駄じゃなかったと思わせてくれる寺。
 - **解説**: 水郷の浮島に建つ小さな寺。舟でも渡れるけれど、巡礼では浅瀬の飛び石を選ぶと蓮の根元を間近に見られる。泥の中で冬を越した蓮が、夏に一斉に花開く姿を再生の印として祀る。屋根には蓮の実を模した丸い瓦が並ぶ。
 - **特徴**: 浮島の小寺と飛び石の参道／蓮の実を模した丸い瓦／冬を越して咲く蓮。
@@ -568,7 +568,7 @@
 ### 55. 潮騒もび宮（しおさいもびぐう）｜`shiosai`
 
 - **場所**: もび入江・潮騒磯　**ご利益**: やり直し・戻る勇気
-- **画像**: 御朱印 `assets/goshuin/shiosai.png` ／ ミニチュア `assets/collection/keychains/keychain-shiosai-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/shiosai.webp` ／ ミニチュア `assets/collection/keychains/keychain-shiosai-v1-transparent.webp`
 - **フック**: 引き返すことは、負けじゃない。波もずっと寄せては返している。
 - **解説**: 湖と海が交わる入江の磯に建つ宮。潮の満ち引きによって、近づける距離が変わる。波の往復を「戻ってきてもいい」という合図として祀っている。潮の音が強い日は視界が開け、凪の日は水鳥の声が聞こえる。
 - **特徴**: 潮で近づける距離が変わる社殿／磯の上に建つ構造／波の往復を肯定する信仰。
@@ -577,7 +577,7 @@
 ### 56. 柳もび庵（やなぎもびあん）｜`yanagi`
 
 - **場所**: もび川原・しなり柳　**ご利益**: ストレス耐性・折れない心
-- **画像**: 御朱印 `assets/goshuin/yanagi.png` ／ ミニチュア `assets/collection/keychains/keychain-yanagi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/yanagi.webp` ／ ミニチュア `assets/collection/keychains/keychain-yanagi-v1-transparent.webp`
 - **フック**: 強い風でも折れない柳みたいな心を、ここで分けてもらおう。
 - **解説**: 川原の柳を屋根に取り込んだ庵で、僧侶はいない。旅人が一行ずつ旅日記を残す札所になっている。壁には何百枚もの短い言葉が貼られ、誰かの言葉に励まされる。強風でもしなる柳の姿が、周回の途中で姿勢を直す目印になる。
 - **特徴**: 柳を屋根に取り込んだ庵／旅人が書き残す短い言葉の壁／僧侶のいない札所。
@@ -586,7 +586,7 @@
 ### 57. 水凪もび社（みずなぎもびしゃ）｜`mizunagi`
 
 - **場所**: もび湖口・凪見台　**ご利益**: 区切り・卒業・満願
-- **画像**: 御朱印 `assets/goshuin/mizunagi.png` ／ ミニチュア `assets/collection/keychains/keychain-mizunagi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/mizunagi.webp` ／ ミニチュア `assets/collection/keychains/keychain-mizunagi-v1-transparent.webp`
 - **フック**: ぐるっと一周して、スタート地点が見えたとき、人は何かが変わっている。
 - **解説**: 八つの札所を回りきった人が着く、結願の社。八角形の拝殿に、八札所で集めた水音を表す八枚の板を納める。風がぴたっと止んだ一瞬だけ、出発点の波寄せ門と社殿が一直線に並ぶ。輪が閉じたことを、景色で確かめられる場所。
 - **特徴**: 八角形の拝殿と八枚の板／風が止む一瞬の一直線／出発点が見える凪見台。
@@ -601,7 +601,7 @@
 ### 58. 安らぎ観音もび堂（やすらぎかんのんもびどう）｜`yasuragi`
 
 - **場所**: もび月野・月待ち坂　**ご利益**: 疲れに気づく・自己慈愛
-- **画像**: 御朱印 `assets/goshuin/yasuragi.png` ／ ミニチュア `assets/collection/keychains/keychain-yasuragi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/yasuragi.webp` ／ ミニチュア `assets/collection/keychains/keychain-yasuragi-v1-transparent.webp`
 - **フック**: まず「疲れてる」と気づくことから始まる、やさしい観音堂。
 - **解説**: 月待ち坂の途中にある観音堂。靴を脱がずに入れて、本尊の正面には背もたれのある縁側がある。「参拝者がまず休んでいい」ようにと建てられた。夕方になると月が屋根の縁をなぞり、休む人の影が長く伸びる。
 - **特徴**: 靴のまま入れる堂／背もたれ付きの縁側／月が屋根をなぞる夕方。
@@ -610,7 +610,7 @@
 ### 59. 恵み観音もび寺（めぐみかんのんもびじ）｜`megumi`
 
 - **場所**: もび月野・露草の庭　**ご利益**: 感謝・優しさのおすそ分け
-- **画像**: 御朱印 `assets/goshuin/megumi.png` ／ ミニチュア `assets/collection/keychains/keychain-megumi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/megumi.webp` ／ ミニチュア `assets/collection/keychains/keychain-megumi-v1-transparent.webp`
 - **フック**: もらった優しさを、次の人へ回す寺。
 - **解説**: 露草の庭を囲む小寺。雨水を溜める甕と、訪れた人が一輪だけ花を置ける水盤がある。露草は朝に咲いて昼には閉じる。短い恵みを独り占めせず、次の人へ渡す習慣がこの寺の由来になった。
 - **特徴**: 一輪だけ花を置ける水盤／雨水を溜める甕／朝咲いて昼に閉じる露草。
@@ -619,7 +619,7 @@
 ### 60. 心音観音もび堂（こころねかんのんもびどう）｜`kokorone`
 
 - **場所**: もび谷・心音窟　**ご利益**: 本音・共感
-- **画像**: 御朱印 `assets/goshuin/kokorone.png` ／ ミニチュア `assets/collection/keychains/keychain-kokorone-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/kokorone.webp` ／ ミニチュア `assets/collection/keychains/keychain-kokorone-v1-transparent.webp`
 - **フック**: 他人の意見に流されたとき、胸に手を当てるための岩窟。
 - **解説**: 谷の岩窟をそのまま内陣にした堂。中は暗く、足元の木板だけが心拍のように一定の間隔で光る。声は出さず、胸に手を当ててから観音を見るのが作法。反響が消えるまで待つことが、正式な参拝時間になっている。
 - **特徴**: 岩窟の内陣／心拍のように光る木板／声を出さず待つ参拝。
@@ -628,7 +628,7 @@
 ### 61. 願い観音もび寺（ねがいかんのんもびじ）｜`negai`
 
 - **場所**: もび月見・白月の観音堂　**ご利益**: 慈悲・誰かの幸せを願う
-- **画像**: 御朱印 `assets/goshuin/negai.png` ／ ミニチュア `assets/collection/keychains/keychain-negai-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/negai.webp` ／ ミニチュア `assets/collection/keychains/keychain-negai-v1-transparent.webp`
 - **フック**: 自分の願いの隣に、誰かの願いが並ぶ寺。
 - **解説**: 観音巡礼の結願寺。白い漆喰の壁に、参拝者が明日の願いを一文字だけ書いて納める。月明かりは観音像を直接照らさず、壁の文字だけを浮かび上がらせる。自分の願いと誰かの願いが、同じ壁に隣り合う設計になっている。
 - **特徴**: 一文字だけ書く願い壁／文字を浮かび上がらせる月明かり／白い漆喰の壁。
@@ -643,7 +643,7 @@
 ### 62. 一番星もび宮（いちばんぼしもびぐう）｜`ichibanboshi`
 
 - **場所**: もび丘・宵入り台　**ご利益**: 宣言・誓いの言語化
-- **画像**: 御朱印 `assets/goshuin/ichibanboshi.png` ／ ミニチュア `assets/collection/keychains/keychain-ichibanboshi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/ichibanboshi.webp` ／ ミニチュア `assets/collection/keychains/keychain-ichibanboshi-v1-transparent.webp`
 - **フック**: 願いは心で思うだけより、声に出したほうが叶う。
 - **解説**: 七日間の最初に訪れる宮。屋根の上に一番星を模した透かし飾りがあり、声に出した願いを灯籠へ移す。日没直後の西の空に見える星を、始まりの合図として祀っている。願いは大きさより、今日の一歩で言える言葉にするのがコツ。
 - **特徴**: 一番星の透かし飾り／声に出して灯籠へ移す願い／日没直後だけ見える星。
@@ -652,7 +652,7 @@
 ### 63. 月調べもび社（つきしらべもびしゃ）｜`tsukishirabe`
 
 - **場所**: もび砂原・月調べ石　**ご利益**: 本当の願いを選び直す
-- **画像**: 御朱印 `assets/goshuin/tsukishirabe.png` ／ ミニチュア `assets/collection/keychains/keychain-tsukishirabe-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/tsukishirabe.webp` ／ ミニチュア `assets/collection/keychains/keychain-tsukishirabe-v1-transparent.webp`
 - **フック**: その願い、本当に自分が欲しいものか、確かめられる社。
 - **解説**: 砂原にある、月齢の目盛りが刻まれた月調べ石を囲む社。願いは一度だけ書き直すことができる。砂に埋もれた石を毎朝掘り出す習わしが、願いを確かめる儀式になった。同じ願いでも、理由が変わっていれば大切にする。
 - **特徴**: 月齢の目盛りがある石／願いを一度だけ書き直せる／毎朝石を掘り出す習わし。
@@ -661,7 +661,7 @@
 ### 64. 希望もび灯宮（きぼうもびとうぐう）｜`kibou`
 
 - **場所**: もび灯野・希望火床　**ご利益**: 継続・火を絶やさない
-- **画像**: 御朱印 `assets/goshuin/kibou.png` ／ ミニチュア `assets/collection/keychains/keychain-kibou-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/kibou.webp` ／ ミニチュア `assets/collection/keychains/keychain-kibou-v1-transparent.webp`
 - **フック**: 大きな成果より、小さな火を消さないことが大事。
 - **解説**: 希望の火床を守る灯の宮。参拝者は大きな火を焚かず、手のひらほどの炭火が消えないよう覆うだけ。風の強い灯野で火を守れた人が、次の旅人に火種を分けたことが始まり。灯は成果ではなく、続けていることの象徴。
 - **特徴**: 手のひらサイズの炭火／火種を次の旅人に分ける風習／風の強い灯野。
@@ -670,7 +670,7 @@
 ### 65. 心石もび社（こころいしもびしゃ）｜`kokoroseki`
 
 - **場所**: もび峡・心石の段　**ご利益**: 悩みの縁切り・決断
-- **画像**: 御朱印 `assets/goshuin/kokoroseki.png` ／ ミニチュア `assets/collection/keychains/keychain-kokoroseki-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/kokoroseki.webp` ／ ミニチュア `assets/collection/keychains/keychain-kokoroseki-v1-transparent.webp`
 - **フック**: 迷いを一旦、石に預けてスッキリして帰る社。縁切りしたい悩みがある人へ。
 - **解説**: 石段に沿って建つ社で、段の途中に平らな石が一つだけある。迷いは紙に書かず、心の中で石に預ける。石は願いを消さず、いったん重さを引き受けてくれる。預けたら振り返らず、上の段を一度だけ見上げて進む。
 - **特徴**: 石段の途中の一つだけ平らな石／心の中で預ける迷い／振り返らない作法。
@@ -679,7 +679,7 @@
 ### 66. 星水もび宮（ほしみずもびぐう）｜`hoshimizu`
 
 - **場所**: もび湖・星水の井　**ご利益**: 願いの言葉を磨く・浄化
-- **画像**: 御朱印 `assets/goshuin/hoshimizu.png` ／ ミニチュア `assets/collection/keychains/keychain-hoshimizu-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/hoshimizu.webp` ／ ミニチュア `assets/collection/keychains/keychain-hoshimizu-v1-transparent.webp`
 - **フック**: 願いから余計な飾りを洗い流すと、本当の一言が残る。
 - **解説**: 星水の井戸を本殿にした水の宮。夜空を映す井戸水で手を洗い、願いの言葉から余分な飾りを流す。井戸を覗くと、星より先に水面の揺れが見える。水が濁る日は、願いを急いで決めない。
 - **特徴**: 井戸が本殿／夜空を映す水で手を洗う作法／水が濁る日は決めない決まり。
@@ -688,7 +688,7 @@
 ### 67. 夜凪もび社（よるなぎもびしゃ）｜`yorunagi`
 
 - **場所**: もび入江・夜凪の浜　**ご利益**: 待つ力・何もしない時間
-- **画像**: 御朱印 `assets/goshuin/yorunagi.png` ／ ミニチュア `assets/collection/keychains/keychain-yorunagi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/yorunagi.webp` ／ ミニチュア `assets/collection/keychains/keychain-yorunagi-v1-transparent.webp`
 - **フック**: 何もしない時間も、実は願いが育っている。
 - **解説**: 扉を持たない、浜辺の社。波打ち際から少し離れた場所に座って、何もしない時間を過ごすのが参拝。夜の入江は音が少なく、遠くの船の灯だけがゆっくり動く。七日目の前夜に訪れる、待つことを願掛けの一部にした場所。
 - **特徴**: 扉のない浜の社／座って過ごすだけの参拝／遠い船の灯だけが動く夜。
@@ -697,7 +697,7 @@
 ### 68. 結星もび宮（むすびぼしもびぐう）｜`musubihoshi`
 
 - **場所**: もび野・結星の高台　**ご利益**: 成就・七日間の記憶
-- **画像**: 御朱印 `assets/goshuin/musubihoshi.png` ／ ミニチュア `assets/collection/keychains/keychain-musubihoshi-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/musubihoshi.webp` ／ ミニチュア `assets/collection/keychains/keychain-musubihoshi-v1-transparent.webp`
 - **フック**: 叶う前から、もう受け取っていたものに気づける場所。
 - **解説**: 七日間の結びの場所になる、高台の成願宮。七つの小さな灯を星輪形の台に置き、最後に一つの灯にまとめる。高台からは一番星もび宮の灯まで見渡せる。成就を約束するのではなく、七日間の自分を記憶するための結び。
 - **特徴**: 七つの灯を一つにまとめる儀式／星輪形の台／初日の宮まで見渡せる高台。
@@ -712,7 +712,7 @@
 ### 69. 川鏡もび社（かわかがみもびしゃ）｜`kawakagami`
 
 - **場所**: もび川辺・星映しの瀬　**ご利益**: 好奇心・物語の入口
-- **画像**: 御朱印 `assets/goshuin/kawakagami.png` ／ ミニチュア `assets/collection/keychains/keychain-kawakagami-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/kawakagami.webp` ／ ミニチュア `assets/collection/keychains/keychain-kawakagami-v1-transparent.webp`
 - **フック**: 夕方、川面に最初の星が映ると、床に章番号が浮かぶ社。
 - **解説**: 川へ張り出した舞台そのものが拝殿の、入口の社。水面を物語の白紙に見立てている。最初の星が映る夕方、舞台の床板に章番号が浮かぶ。そこから上流へ行くか下流へ行くか、自分で決めるのが旅の始まり。
 - **特徴**: 川へ張り出した舞台の拝殿／床板に浮かぶ章番号／上流か下流かを選ぶ分かれ道。
@@ -721,7 +721,7 @@
 ### 70. 星音もび宮（ほしのおともびぐう）｜`hoshinooto`
 
 - **場所**: もび川上・星音の滝　**ご利益**: 想像力・呼び声に気づく
-- **画像**: 御朱印 `assets/goshuin/hoshinooto.png` ／ ミニチュア `assets/collection/keychains/keychain-hoshinooto-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/hoshinooto.webp` ／ ミニチュア `assets/collection/keychains/keychain-hoshinooto-v1-transparent.webp`
 - **フック**: 水音の間にだけ聞こえる短い旋律を、覚えて帰れる人はまだ少ない。
 - **解説**: 星音の滝を背にして建つ宮。水音の合間にだけ聞こえる短い旋律が、宮の由来として守られている。しぶきが夜空の星を砕いたように見える。旋律を覚えた人だけが、次の舟着き場で合図を送れる。
 - **特徴**: 水音の間の短い旋律／星を砕いたようなしぶき／旋律で舟に合図を送る仕組み。
@@ -730,7 +730,7 @@
 ### 71. 舟灯もび堂（ふねあかりもびどう）｜`funeakari`
 
 - **場所**: もび渡し・灯舟の桟橋　**ご利益**: 選択・決断
-- **画像**: 御朱印 `assets/goshuin/funeakari.png` ／ ミニチュア `assets/collection/keychains/keychain-funeakari-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/funeakari.webp` ／ ミニチュア `assets/collection/keychains/keychain-funeakari-v1-transparent.webp`
 - **フック**: 選ばなかった道は、次の誰かの選択肢になる。
 - **解説**: 灯舟の桟橋を守る渡しの堂。舟は固定されておらず、いくつかの行き先が書かれた札から一つを選ぶ。川幅が広がるここで、初めて対岸へ渡る。選ばなかった札も燃やさずに残し、次の旅人へ引き継ぐ。
 - **特徴**: 固定されない舟／行き先を書いた札から選ぶ仕組み／選ばなかった札を残す習慣。
@@ -739,7 +739,7 @@
 ### 72. 空栞もび寺（そらしおりもびじ）｜`sorashiori`
 
 - **場所**: もび川原・空栞の丘　**ご利益**: 記憶に残す・景色を持ち帰る
-- **画像**: 御朱印 `assets/goshuin/sorashiori.png` ／ ミニチュア `assets/collection/keychains/keychain-sorashiori-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/sorashiori.webp` ／ ミニチュア `assets/collection/keychains/keychain-sorashiori-v1-transparent.webp`
 - **フック**: 本の栞のかわりに、今日の空を挟んで帰る寺。
 - **解説**: 丘の上に建つ高台の寺。境内には本を置かず、空の色を一枚の栞として心に挟む。河原の形、雲の切れ間、鳥の向きを「今日のページ」と呼ぶ。季節ごとに見開きが変わるので、再訪しても同じ景色にならない。
 - **特徴**: 空を栞に見立てる習わし／「今日のページ」を読む作法／再訪しても変わる景色。
@@ -748,7 +748,7 @@
 ### 73. 夏影もび社（なつかげもびしゃ）｜`natsukage`
 
 - **場所**: もび葦原・夏影回廊　**ご利益**: 回想・過去を前へつなげる
-- **画像**: 御朱印 `assets/goshuin/natsukage.png` ／ ミニチュア `assets/collection/keychains/keychain-natsukage-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/natsukage.webp` ／ ミニチュア `assets/collection/keychains/keychain-natsukage-v1-transparent.webp`
 - **フック**: 夏の夕方、過ぎた日の声が戻ってくる回廊。
 - **解説**: 葦原の回廊に建つ社。葦の茎を束ねた壁が、風でページをめくるように揺れる。夏の影が長くなる夕方、過ぎた章の声が回廊に戻ってくると伝わる。懐かしさを後戻りではなく、続きを照らす影として受け止める。
 - **特徴**: 葦の茎を束ねた壁／ページをめくるように揺れる回廊／夕方に戻る過去の声。
@@ -757,7 +757,7 @@
 ### 74. 綴り星もび宮（つづりぼしもびぐう）｜`tsuzuri`
 
 - **場所**: もび河口・星綴り台　**ご利益**: 結末と次の一歩
-- **画像**: 御朱印 `assets/goshuin/tsuzuri.png` ／ ミニチュア `assets/collection/keychains/keychain-tsuzuri-v1-transparent.webp`
+- **画像**: 御朱印 `assets/goshuin/tsuzuri.webp` ／ ミニチュア `assets/collection/keychains/keychain-tsuzuri-v1-transparent.webp`
 - **フック**: 物語の最後の一行は、次の散歩への予告になる。
 - **解説**: 河口の星綴り台に建つ、結末の宮。参拝者が一行の言葉を書いて、星形の穴から灯りを通して奉納する。海へ出る川の先で、上流で見た星が一つにつながる。書いた一行は完成した物語ではなく、続きが始まる合図。
 - **特徴**: 星形の穴を通す奉納の灯り／参拝者が書く最後の一行／川と星が一つにつながる景色。
