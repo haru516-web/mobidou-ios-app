@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { duckBgm, playJingle, playSfx, useSceneBgm } from '../services/audio';
 import { SLIDE_START_MS, WALK_START_MS } from './gachaTimeline';
 import { BRUSH, Button, SERIF, useReducedMotion } from '../components';
-import { GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
+import { EVENT_GACHA_ART, EVENT_GACHA_STAGE_ART, GACHA_ART, GACHA_CART_ANCHORS, GACHA_CURTAIN, GACHA_DUST_SHEET, GACHA_SHEET, GACHA_STAGE_ART, type GachaArtPart } from '../data/gachaArt';
 import { PET_CHARACTERS, getPetCharacter, isPetId, type PetCharacter } from '../petCatalog';
 import { GachaShop } from './GachaShop';
 import { FitToHeight } from './PagedBody';
@@ -14,7 +14,7 @@ import { HomeStatusBar } from './HomeStatusBar';
 import { WashiPressable } from './Washi';
 import { SlicedArt } from './SlicedArt';
 import { PREMIUM_TAG_ICON } from '../data/premiumTagArt';
-import { GACHA_PANEL_ART, GACHA_UI_ART } from '../data/gachaUiArt';
+import { EVENT_GACHA_PANEL_ART, GACHA_PANEL_ART, GACHA_UI_ART } from '../data/gachaUiArt';
 import type { ShopProduct } from '../data/shop';
 import { gachaOdds, premiumPullsUntilGuarantee, type PullResult } from '../services/gacha';
 import { carrierAt, dustFrameAt, placeBox } from './gachaCart';
@@ -23,17 +23,23 @@ import { AFTER_OPEN_MS, CONFETTI_COLORS, MAX_DIM, bloomAt, confettiAt, blossomsA
 const PULL_TO_DRAW = 64;
 const MAX_PULL = 110;
 const OPEN_TWEEN_MS = 260;
+/** The pictures the screen draws with: the ordinary ones, or the event gacha's. */
+const DEFAULT_GACHA_THEME = { art: GACHA_ART, stage: GACHA_STAGE_ART, panel: GACHA_PANEL_ART };
+const EVENT_GACHA_THEME = { art: EVENT_GACHA_ART, stage: EVENT_GACHA_STAGE_ART, panel: EVENT_GACHA_PANEL_ART };
+const GachaThemeContext = React.createContext(DEFAULT_GACHA_THEME);
+
 /** The idle cord bobs down this far and back, once per BOB_MS. */
 const BOB_PX = 14;
 
 /** What the player can learn before drawing: the pool and its odds, and how 木札 work. */
 function GachaDetail({ onClose, freePulls, premiumPulls, pool, how }: { onClose: () => void; freePulls: number; premiumPulls: number; pool: readonly PetCharacter[]; /** Set for the event gacha: how its 木札 are earned, in place of the ordinary text. */ how?: string }) {
+  const theme = React.useContext(GachaThemeContext);
   const odds = gachaOdds(pool.map(pet => pet.id));
   const percent = odds.length ? Math.round(odds[0].rate * 1000) / 10 : 0;
   return <View accessibilityViewIsModal style={S.detailRoot}>
     <Pressable accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000000AA' }]} />
     <View style={S.detailCard}>
-      <SlicedArt art={GACHA_PANEL_ART} corner={34} />
+      <SlicedArt art={theme.panel} corner={34} />
       <Text accessibilityRole="header" style={S.detailTitle}>ガチャの詳細</Text>
       <Text style={S.detailHead}>提供割合</Text>
       <Text style={S.detailBody}>全{odds.length}種のモビーが、すべて同じ確率（それぞれ {percent}％）で出ます。持っているモビーも、また出ます。</Text>
@@ -112,16 +118,20 @@ type Props = {
   pool?: readonly PetCharacter[];
   /** The event gacha: how the 木札 are earned, shown in the details. */
   howToEarn?: string;
+  /** The event gacha: its own stage, curtains, box, rope, light and panel. */
+  eventTheme?: boolean;
 };
 
 /** Render supplied artwork without stretching its canvas. */
 function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<ViewStyle>; tint?: string }) {
+  const { art } = React.useContext(GachaThemeContext);
   // The core Image, not expo-image: on a device expo-image drew nothing for the glow layers and the Mobby here.
   // The picture sits in a view that carries the position and size, and fills it: a core Image told only to stretch (absoluteFill) was drawn at its own pixel size.
-  return <View pointerEvents="none" style={style}><RNImage accessible={false} source={GACHA_ART[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
+  return <View pointerEvents="none" style={style}><RNImage accessible={false} source={art[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false, eventButton, pool = PET_CHARACTERS, howToEarn }: Props) {
+export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, nextHint, companion, guided = false, startOnShop = false, eventButton, pool = PET_CHARACTERS, howToEarn, eventTheme = false }: Props) {
+  const theme = eventTheme ? EVENT_GACHA_THEME : DEFAULT_GACHA_THEME;
   useSceneBgm('bgm_gacha', true, 20);
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
   // The lobby is where the player picks how many to draw; the cord only works once a draw has been chosen. The first-run guide goes straight to the cord.
@@ -493,7 +503,7 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
   const cy = boxTop + boxH / 2;
   const ropeLength = Math.min(300, height * .48);
   const shopOpen = showShop && !playing && tab === 'shop';
-  return <View style={S.page} onLayout={measureScene}>
+  return <GachaThemeContext.Provider value={theme}><View style={S.page} onLayout={measureScene}>
     <Part part="stage" style={StyleSheet.absoluteFillObject} />
 
     {playing && <View pointerEvents="box-none" style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: shake }] }]}>
@@ -517,7 +527,7 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
 
       {/* The carrier Mobby pulls the cart in, tips the box onto the floor and leaves. */}
       {car?.sheet && <View pointerEvents="none" style={[S.abs, { left: stopLeft + car.dx * sc, top: cellTop, width: cart.cell.width * sc, height: cart.cell.height * sc, overflow: 'hidden' }]}>
-        <RNImage accessible={false} source={car.sheet === 'walk' ? GACHA_STAGE_ART.carrierWalk : GACHA_STAGE_ART.carrierUnload} resizeMode="stretch" style={{ position: 'absolute', width: GACHA_SHEET.width * sc, height: GACHA_SHEET.height * sc, left: -(car.frame % 4) * GACHA_SHEET.cellStep.x * sc, top: -Math.floor(car.frame / 4) * GACHA_SHEET.cellStep.y * sc }} />
+        <RNImage accessible={false} source={car.sheet === 'walk' ? theme.stage.carrierWalk : theme.stage.carrierUnload} resizeMode="stretch" style={{ position: 'absolute', width: GACHA_SHEET.width * sc, height: GACHA_SHEET.height * sc, left: -(car.frame % 4) * GACHA_SHEET.cellStep.x * sc, top: -Math.floor(car.frame / 4) * GACHA_SHEET.cellStep.y * sc }} />
       </View>}
 
       {/* The box: body, the opening with its light, the Mobby, and the front board. */}
@@ -537,7 +547,7 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
       </View>
 
       {dustFrame !== null && <View pointerEvents="none" style={[S.abs, { left: width / 2 - boxW * .85, top: boxTop + boxH - boxW * 1.2, width: boxW * 1.7, height: boxW * 1.7, overflow: 'hidden', opacity: .9 }]}>
-        <RNImage accessible={false} source={GACHA_STAGE_ART.dust} resizeMode="stretch" style={{ position: 'absolute', width: GACHA_DUST_SHEET.width * boxW * 1.7 / GACHA_DUST_SHEET.cell, height: GACHA_DUST_SHEET.height * boxW * 1.7 / GACHA_DUST_SHEET.cell, left: -(dustFrame % 4) * boxW * 1.7, top: -Math.floor(dustFrame / 4) * boxW * 1.7 }} />
+        <RNImage accessible={false} source={theme.stage.dust} resizeMode="stretch" style={{ position: 'absolute', width: GACHA_DUST_SHEET.width * boxW * 1.7 / GACHA_DUST_SHEET.cell, height: GACHA_DUST_SHEET.height * boxW * 1.7 / GACHA_DUST_SHEET.cell, left: -(dustFrame % 4) * boxW * 1.7, top: -Math.floor(dustFrame / 4) * boxW * 1.7 }} />
       </View>}
 
       {/* Light washing over everything, gold specks flying out of the opening, and the flash at the moment it opens. */}
@@ -575,10 +585,10 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
     {/* The curtain: shut while the cord waits, drawn aside when it is pulled. The valance and its ring stay. */}
     {!shopOpen && <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
       {curtainOpen < 1 && <>
-        <View style={[S.abs, { left: 0, top: 0, width: curtainHalf, height, overflow: 'hidden', transform: [{ translateX: -curtainOpen * (curtainHalf + 8) }] }]}><RNImage accessible={false} source={GACHA_STAGE_ART.curtainLeft} resizeMode="cover" style={{ position: 'absolute', left: '-4%', width: '104%', height: '100%' }} /></View>
-        <View style={[S.abs, { left: width - curtainHalf, top: 0, width: curtainHalf, height, overflow: 'hidden', transform: [{ translateX: curtainOpen * (curtainHalf + 8) }] }]}><RNImage accessible={false} source={GACHA_STAGE_ART.curtainRight} resizeMode="cover" style={{ width: '100%', height: '100%' }} /></View>
+        <View style={[S.abs, { left: 0, top: 0, width: curtainHalf, height, overflow: 'hidden', transform: [{ translateX: -curtainOpen * (curtainHalf + 8) }] }]}><RNImage accessible={false} source={theme.stage.curtainLeft} resizeMode="cover" style={{ position: 'absolute', left: '-4%', width: '104%', height: '100%' }} /></View>
+        <View style={[S.abs, { left: width - curtainHalf, top: 0, width: curtainHalf, height, overflow: 'hidden', transform: [{ translateX: curtainOpen * (curtainHalf + 8) }] }]}><RNImage accessible={false} source={theme.stage.curtainRight} resizeMode="cover" style={{ width: '100%', height: '100%' }} /></View>
       </>}
-      <RNImage accessible={false} source={GACHA_STAGE_ART.valance} resizeMode="stretch" style={[S.abs, { left: 0, top: 0, width, height: width * GACHA_CURTAIN.valanceHeight / GACHA_CURTAIN.valanceWidth }]} />
+      <RNImage accessible={false} source={theme.stage.valance} resizeMode="stretch" style={[S.abs, { left: 0, top: 0, width, height: width * GACHA_CURTAIN.valanceHeight / GACHA_CURTAIN.valanceWidth }]} />
     </View>}
 
     {/* The cord to pull. */}
@@ -611,11 +621,11 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
 
     {shopOpen && <View style={[S.shop,{ top: 128 + insets.top, bottom: navShown ? lobbyBottom + 8 : 84 + insets.bottom }]}><FitToHeight><GachaShop onBuy={onBuy} onRestore={onRestore} refundDebt={refundDebt} plusActive={plusActive} /></FitToHeight></View>}
 
-    {shopOpen && !navShown && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} /><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
+    {shopOpen && !navShown && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={theme.panel} corner={34} /><Button title="とじる" secondary onPress={onClose} style={S.wide} /></View>}
 
     {!playing && !shopOpen && normalPulls + premiumPulls <= 0 && companion && waitingSize > 40 && <RNImage accessible={false} source={companion.image} resizeMode="contain" style={{ position: 'absolute', width: waitingSize, height: waitingSize, left: (width - waitingSize) / 2, top: waitingTop }} />}
 
-    {!playing && !shopOpen && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setPanelH(previous => previous === next ? previous : next); }} style={[S.bottom, { bottom: lobbyBottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
+    {!playing && !shopOpen && <View onLayout={event => { const next = Math.round(event.nativeEvent.layout.height); setPanelH(previous => previous === next ? previous : next); }} style={[S.bottom, { bottom: lobbyBottom }]}><SlicedArt art={theme.panel} corner={34} />
       {unrevealed.length > 0 && !guided
         ? <>
           <Text style={S.prompt}>まだ見ていないモビーが{unrevealed.length}体います。</Text>
@@ -658,7 +668,7 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
 
     {playing && !(done && panelReady) && <WashiPressable plate="pill" accessibilityRole="button" accessibilityLabel="演出を省略" onPress={skip} hitSlop={10} style={[S.skip, { bottom: 16 + insets.bottom }]}><Text style={S.skipText}>スキップ</Text></WashiPressable>}
 
-    {done && panelReady && result && pet && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={GACHA_PANEL_ART} corner={34} />
+    {done && panelReady && result && pet && <View style={[S.bottom, { bottom: 12 + insets.bottom }]}><SlicedArt art={theme.panel} corner={34} />
       <Text style={S.hint}>{zoomed ? 'タップで元に戻る' : 'タップで大きく見る'}</Text>
       <Text style={S.name}>{pet.name}</Text>
       <Text style={S.badge}>{result.isNew ? 'はじめまして！' : 'また会えたね。小さなモビーがそばに来るよ'}</Text>
@@ -666,7 +676,7 @@ export function GachaScreen({ freePulls: normalPulls, premiumPulls = 0, paidPull
       <Button title={index + 1 < remaining ? 'つぎへ' : remaining > 1 && !guided ? 'まとめを見る' : 'おわる'} onPress={next} style={S.wide} />
     </View>}
     {summary && <GachaSummary results={summary} onClose={finish} />}
-  </View>;
+  </View></GachaThemeContext.Provider>;
 }
 
 const S = StyleSheet.create({

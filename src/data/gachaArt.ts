@@ -29,3 +29,22 @@ export const GACHA_SHEET = { width: 3075, height: 1025, cellStep: { x: 769, y: 5
 export const GACHA_DUST_SHEET = { width: 1024, height: 512, cell: 256 } as const;
 export const GACHA_CURTAIN = { width: 700, height: 2532, valanceWidth: 1170, valanceHeight: 320 } as const;
 export const GACHA_CART_ANCHORS: import('../components/gachaCart').CartAnchors = require('../../assets/gacha/cart/anchors.json');
+
+/** The event gacha's own stage and box (assets/event-toki/feel/gacha): same shapes and positions, different surface. */
+export const EVENT_GACHA_ART: Record<GachaArtPart, ImageSourcePropType> = {
+  body: require('../../assets/event-toki/feel/gacha/event-box-body.webp'),
+  front: require('../../assets/event-toki/feel/gacha/event-box-front.webp'),
+  shadow: require('../../assets/event-toki/feel/gacha/event-box-shadow.webp'),
+  glowCore: require('../../assets/event-toki/feel/gacha/event-glow-core.webp'),
+  glowRays: require('../../assets/event-toki/feel/gacha/event-glow-rays.webp'),
+  rope: require('../../assets/event-toki/feel/gacha/event-rope.webp'),
+  stage: require('../../assets/event-toki/feel/gacha/event-stage-bg.webp'),
+};
+
+/** The ordinary stage pictures with the curtains and the valance replaced; the carrier sheets and the arrow are shared. */
+export const EVENT_GACHA_STAGE_ART = {
+  ...GACHA_STAGE_ART,
+  curtainLeft: require('../../assets/event-toki/feel/gacha/event-curtain-left.webp'),
+  curtainRight: require('../../assets/event-toki/feel/gacha/event-curtain-right.webp'),
+  valance: require('../../assets/event-toki/feel/gacha/event-curtain-valance.webp'),
+} satisfies Record<string, ImageSourcePropType>;

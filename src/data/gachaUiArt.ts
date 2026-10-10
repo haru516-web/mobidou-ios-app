@@ -21,3 +21,6 @@ export const SHOP_PRODUCT_ART: Record<ShopProduct['id'], number> = {
 };
 
 export const GACHA_PANEL_ART: UiArt = { source: require('../../assets/ui-round8/gacha/panel-dark-v1.webp'), width: 1024, height: 512, box: { x0: 10, x1: 1013, y0: 34, y1: 503 }, slice: { left: 110, right: 110, top: 110, bottom: 110 } };
+
+/** The event gacha's lower panel: same size and nine-slice as the ordinary one. */
+export const EVENT_GACHA_PANEL_ART: UiArt = { ...GACHA_PANEL_ART, source: require('../../assets/event-toki/feel/gacha/event-panel-dark.webp') };
