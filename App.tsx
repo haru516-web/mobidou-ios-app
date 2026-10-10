@@ -45,6 +45,8 @@ import { EventMap } from './src/components/EventScreen';
 import { EVENT_PET_CHARACTERS } from './src/petCatalog';
 import { eventTicketsEarned } from './src/services/eventGacha';
 import { EventListPopup } from './src/components/EventListPopup';
+import { EventAnnouncePopup } from './src/components/EventAnnouncePopup';
+import { isEventAnnounceHidden, setEventAnnounceHidden } from './src/services/eventAnnounce';
 import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
@@ -350,6 +352,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // The collection can be looked at before the team has set out (everything is still locked).
   const inEventCollection = eventCollection;
   const [eventListOpen, setEventListOpen] = useState(false);
+  // Tells the player an event is running, once per launch, when the home screen has settled.
+  const [eventAnnounceOpen, setEventAnnounceOpen] = useState(false);
+  const eventAnnounceChecked = useRef(false);
+  // null until the saved choice has been read, so the popup is not opened before we know it was switched off.
+  const [eventAnnounceHidden, setEventAnnounceHiddenState] = useState<boolean | null>(null);
+  useEffect(() => { let active = true; void isEventAnnounceHidden(TOKI_MEGURU.id).then(hidden => { if (active) setEventAnnounceHiddenState(hidden); }); return () => { active = false; }; }, []);
+  const changeEventAnnounceHidden = (hidden: boolean) => { setEventAnnounceHiddenState(hidden); void setEventAnnounceHidden(TOKI_MEGURU.id, hidden); };
   const eventStatusLabel = !eventTeam ? '参加受付中' : eventTeam.status === 'recruiting' ? 'メンバー募集中' : eventState?.cleared ? '結願' : '巡礼中';
   const inEventBook = eventBook && eventUnderway;
   const collectionShownCount = inEventCollection ? EVENT_SHRINES.length : COLLECTION_SHRINES.length;
@@ -800,10 +809,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     if (inviteCode && journey.ready && data.onboarded && !data.demo && firstRunStage === null && !openingVisible && !socialSheet) setSocialSheet('friends');
   }, [inviteCode, journey.ready, data.onboarded, data.demo, firstRunStage, openingVisible, socialSheet]);
   // Once the tutorial is over and the home screen is quiet, offer to register the profile (name + main Mobby) once.
+  useEffect(() => {
+    if (eventAnnounceChecked.current || TOKI_MEGURU.status !== 'open' || eventAnnounceHidden !== false) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || !hasStarter(data.mobbies) || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || !!eventSheet || eventListOpen) return undefined;
+    const timer = setTimeout(() => {
+      eventAnnounceChecked.current = true;
+      setEventAnnounceOpen(true);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden]);
   const profileGuideChecked = useRef(false);
   useEffect(() => {
     if (!SOCIAL_ONLINE || profileGuideChecked.current) return undefined;
-    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || eventAnnounceOpen) return undefined;
     const timer = setTimeout(() => {
       profileGuideChecked.current = true;
       void (async () => {
@@ -816,7 +834,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       })();
     }, 2500);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen]);
   useAppAudioCues({ firstRunStage, openingVisible, mobbyMenuOpen, homeEditing: homePopup === 'custom', milestoneToast, error: journey.error ?? null, weeklyOpen, pet: data.pet });
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
@@ -996,6 +1014,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
     <EventScreen visible={eventSheet === 'main'} onClose={() => setEventSheet(null)} event={TOKI_MEGURU} pet={pet} />
+    <EventAnnouncePopup visible={eventAnnounceOpen} event={TOKI_MEGURU} statusLabel={eventStatusLabel} hideNextTime={eventAnnounceHidden === true} onHideNextTimeChange={changeEventAnnounceHidden} onOpenEvent={() => { setEventAnnounceOpen(false); setEventSheet('main'); }} onClose={() => setEventAnnounceOpen(false)} />
     <EventListPopup visible={eventListOpen} onClose={() => setEventListOpen(false)} event={TOKI_MEGURU} statusLabel={eventStatusLabel} onViewCollection={() => { setEventListOpen(false); setCollectionPage('room'); setEventCollection(true); }} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
     <BookIndexPopup event={inEventBook} visible={bookIndexOpen} title="目次" subtitle={inEventBook ? TOKI_MEGURU.name : activeRoute?.name} shrines={inEventBook ? EVENT_SHRINES : activeShrines} ownedIds={inEventBook ? EVENT_SHRINES.slice(0, eventReached).map(shrine => shrine.id) : collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
