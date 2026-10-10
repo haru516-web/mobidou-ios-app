@@ -1,0 +1,42 @@
+[
+  {
+    "id": "norikomobby",
+    "body_bytes": 359344,
+    "parts_bytes": 42956,
+    "source_position_preserved": true,
+    "body_alpha_equals_original": true,
+    "feet_unmodified_before_encoding": true,
+    "pixels_outside_edit_mask_unmodified_before_encoding": true,
+    "hidden_chest_layers": true
+  },
+  {
+    "id": "yasumobby",
+    "body_bytes": 302920,
+    "parts_bytes": 40278,
+    "source_position_preserved": true,
+    "body_alpha_equals_original": true,
+    "feet_unmodified_before_encoding": true,
+    "pixels_outside_edit_mask_unmodified_before_encoding": true,
+    "hidden_chest_layers": true
+  },
+  {
+    "id": "shotamobby",
+    "body_bytes": 460908,
+    "parts_bytes": 94122,
+    "source_position_preserved": true,
+    "body_alpha_equals_original": true,
+    "feet_unmodified_before_encoding": true,
+    "pixels_outside_edit_mask_unmodified_before_encoding": true,
+    "hidden_chest_layers": false
+  },
+  {
+    "id": "satomimobby",
+    "body_bytes": 442048,
+    "parts_bytes": 110820,
+    "source_position_preserved": true,
+    "body_alpha_equals_original": true,
+    "feet_unmodified_before_encoding": true,
+    "pixels_outside_edit_mask_unmodified_before_encoding": true,
+    "hidden_chest_layers": false
+  }
+]

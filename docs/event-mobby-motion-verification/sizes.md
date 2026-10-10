@@ -26,3 +26,25 @@ Each Phase 1 action has dark (#302D25) and light (#C79A62) comparison JPGs. Draw
 | assets/mobies/prayer-v2/yasumobby/rei.webp | 4112x514 | 372554 | 0-255 | 59.0% |
 | assets/mobies/prayer-v2/yasumobby/hakushu.webp | 4112x514 | 378126 | 0-255 | 57.3% |
 | assets/mobies/omikuji/yasumobby/draw-v2.webp | 1680x210 | 112814 | 0-255 | 46.3% |
+| assets/mobies/pull/shota-body-clean.webp | 1254x1254 | 460908 | 0-255 | 36.3% |
+| assets/mobies/pull/shota-button-left.webp | 1254x1254 | 12596 | 0-253 | 99.6% |
+| assets/mobies/pull/shota-button-right.webp | 1254x1254 | 10028 | 0-253 | 99.6% |
+| assets/mobies/pull/shota-cross.webp | 1254x1254 | 20300 | 0-254 | 98.5% |
+| assets/mobies/pull/shota-lens.webp | 1254x1254 | 51198 | 0-253 | 97.3% |
+| assets/mobies/pull/satomi-body-clean.webp | 1254x1254 | 442048 | 0-255 | 31.7% |
+| assets/mobies/pull/satomi-button-left.webp | 1254x1254 | 10936 | 0-253 | 99.5% |
+| assets/mobies/pull/satomi-button-right.webp | 1254x1254 | 12060 | 0-253 | 99.5% |
+| assets/mobies/pull/satomi-cross.webp | 1254x1254 | 21330 | 0-253 | 98.3% |
+| assets/mobies/pull/satomi-lens.webp | 1254x1254 | 66494 | 0-254 | 97.0% |
+| assets/mobies/pull/noriko-body-clean.webp | 1254x1254 | 359344 | 0-255 | 39.4% |
+| assets/mobies/pull/noriko-button-left.webp | 1254x1254 | 106 | 0-0 | 100.0% |
+| assets/mobies/pull/noriko-button-right.webp | 1254x1254 | 106 | 0-0 | 100.0% |
+| assets/mobies/pull/noriko-cross.webp | 1254x1254 | 106 | 0-0 | 100.0% |
+| assets/mobies/pull/noriko-lens.webp | 1254x1254 | 42638 | 0-254 | 97.8% |
+| assets/mobies/pull/yasu-body-clean.webp | 1254x1254 | 302920 | 0-255 | 45.4% |
+| assets/mobies/pull/yasu-button-left.webp | 1254x1254 | 106 | 0-0 | 100.0% |
+| assets/mobies/pull/yasu-button-right.webp | 1254x1254 | 106 | 0-0 | 100.0% |
+| assets/mobies/pull/yasu-cross.webp | 1254x1254 | 106 | 0-0 | 100.0% |
+| assets/mobies/pull/yasu-lens.webp | 1254x1254 | 39960 | 0-254 | 97.8% |
+
+Phase 2: original 1254x1254 canvas and coordinates. Body pixels outside removed eye/hardware masks preserved exactly before encoding. Hardware cut from original art. Noriko/yasu cross/button layers fully transparent because hidden by original clothing; no hardware invented. Visible lens stops at sunglasses rim. Pull composite JPG contains both required backgrounds. No anchor or GL texture changes.
