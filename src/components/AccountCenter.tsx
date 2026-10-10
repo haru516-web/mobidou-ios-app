@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { WashiInput } from './WashiInput';
 import { BRUSH, Button, C, Icon, SERIF, Section } from '../components';
 import { getPilgrimage } from '../data/pilgrimages';
@@ -200,7 +200,8 @@ export function AccountCenter({
         </>}
         {deleteStep === 2 && <>
           <Text style={S.statusTitle}>本当に削除しますか？</Text>
-          <Text style={S.body}>{tickets > 0 ? `いま持っている木札 ${tickets} 枚も、消えます。購入した分も、返金や復元はできません。` : '消えたデータは、元に戻せません。'}{'\n'}Appleでの購入の履歴は、Appleに残ります。</Text>
+          <Text style={S.body}>{tickets > 0 ? `いま持っている木札 ${tickets} 枚も、消えます。購入した分も、返金や復元はできません。` : '消えたデータは、元に戻せません。'}{'\n'}Appleでの購入の履歴は、Appleに残ります。{'\n\n'}契約中のサブスクリプション（プラスプラン）は、アカウントを削除しても、自動では解約されません。請求を止めるには、Appleの「サブスクリプション」で解約してください。</Text>
+          <Button title="Appleのサブスクリプションを開く" icon="open-outline" secondary onPress={() => void Linking.openURL('https://apps.apple.com/account/subscriptions').catch(() => undefined)} style={S.secondaryButton} />
         </>}
         {deleteStep === 3 && <>
           <Text style={S.statusTitle}>最後の確認です</Text>

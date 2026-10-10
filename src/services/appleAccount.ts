@@ -12,7 +12,7 @@ import { appleOutcome, type AppleOutcome } from './appleOutcome.ts';
 
 export type { AppleOutcome };
 
-type Token = { token: string } | { reason: 'cancelled' | 'unavailable' | 'failed' };
+type Token = { token: string; authorizationCode?: string } | { reason: 'cancelled' | 'unavailable' | 'failed' };
 
 async function identityToken(): Promise<Token> {
   if (Platform.OS !== 'ios') return { reason: 'unavailable' };
@@ -21,7 +21,8 @@ async function identityToken(): Promise<Token> {
   try {
     if (!(await apple.isAvailableAsync())) return { reason: 'unavailable' };
     const credential = await apple.signInAsync({ requestedScopes: [] });
-    return credential.identityToken ? { token: credential.identityToken } : { reason: 'failed' };
+    // The authorization code lets the server hold Apple's refresh token, which it must revoke if the account is deleted.
+    return credential.identityToken ? { token: credential.identityToken, authorizationCode: credential.authorizationCode ?? undefined } : { reason: 'failed' };
   } catch (error) {
     return { reason: (error as { code?: string } | null)?.code === 'ERR_REQUEST_CANCELED' ? 'cancelled' : 'failed' };
   }
@@ -30,14 +31,14 @@ async function identityToken(): Promise<Token> {
 export async function linkApple(): Promise<AppleOutcome> {
   const got = await identityToken();
   if ('reason' in got) return { ok: false, reason: got.reason };
-  const reply = await authedRequest('/account/apple/link', { body: { identityToken: got.token } });
+  const reply = await authedRequest('/account/apple/link', { body: { identityToken: got.token, authorizationCode: got.authorizationCode } });
   return appleOutcome('link', reply);
 }
 
 export async function restoreWithApple(): Promise<AppleOutcome> {
   const got = await identityToken();
   if ('reason' in got) return { ok: false, reason: got.reason };
-  const reply = await request('/auth/apple', { body: { identityToken: got.token } });
+  const reply = await request('/auth/apple', { body: { identityToken: got.token, authorizationCode: got.authorizationCode } });
   const outcome = appleOutcome('restore', reply);
   const data = reply?.data;
   if (outcome.ok && data && typeof data.userId === 'string' && typeof data.secret === 'string') await adoptServerAccount({ userId: data.userId, secret: data.secret });

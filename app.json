@@ -14,7 +14,7 @@
         "com.apple.developer.healthkit": true
       },
       "infoPlist": {
-        "NSHealthShareUsageDescription": "今日の歩数を読み取り、もびの世界の御朱印を集めるために使用します。歩数は端末に保存します。Apple IDとつないだ場合に限り、機種変更で記録を戻すため、歩数の合計をサーバーに保存します。広告や分析には使いません。",
+        "NSHealthShareUsageDescription": "今日の歩数を読み取り、もびの世界の御朱印を集めるために使用します。歩数は端末に保存します。Apple IDとつないだ場合は、機種変更で記録を戻すため、歩数の合計をサーバーに保存します。イベントにチームで出発した場合は、チームの歩数を合わせるため、その日の歩数の合計をサーバーに送ります。広告や分析には使いません。",
         "NSHealthUpdateUsageDescription": "ヘルスケアへの書き込みは行いません。歩数の読み取りの許可を求める処理のために、この説明を表示します。",
         "NSMotionUsageDescription": "今日の歩数を読み取り、歩いた分だけ御朱印を集めるために使用します。",
         "ITSAppUsesNonExemptEncryption": false
