@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "jp.mobby.mobidou",
+      "appleTeamId": "473V9BLJ33",
       "entitlements": {
         "com.apple.developer.healthkit": true,
         "com.apple.security.application-groups": ["group.jp.mobby.mobidou"]
