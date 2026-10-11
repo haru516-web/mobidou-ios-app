@@ -612,8 +612,8 @@ export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls 
       <Pressable accessibilityRole="tab" accessibilityState={{ selected: shopOpen }} onPress={() => setTab('shop')} style={S.tab}><SlicedArt art={shopOpen ? GACHA_UI_ART.tabOff : GACHA_UI_ART.tabOn} /><Text style={[S.tabText, !shopOpen && S.tabTextOn]}>購入</Text></Pressable>
     </View>}
 
-    {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} miniaturePasses={passes} plusActive={plusActive} show="shopRight" /></View>}
-    {!guided && !playing && <View pointerEvents="box-none" style={[S.statusLeft, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} premiumTickets={premiumPulls} miniaturePasses={passes} plusActive={plusActive} show="shopLeft" /></View>}
+    {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} miniaturePasses={passes} plusActive={plusActive} show="shopRight" onOpenShop={showShop && !shopOpen ? () => setTab('shop') : undefined} /></View>}
+    {!guided && !playing && <View pointerEvents="box-none" style={[S.statusLeft, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} premiumTickets={premiumPulls} miniaturePasses={passes} plusActive={plusActive} show="shopLeft" onOpenShop={showShop && !shopOpen ? () => setTab('shop') : undefined} /></View>}
 
     {!guided && !playing && !!eventButton && <View pointerEvents="box-none" style={[S.eventButton, { top: 96 + insets.top }]}>{eventButton}</View>}
 
