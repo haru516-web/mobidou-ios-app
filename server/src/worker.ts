@@ -1,4 +1,4 @@
-import { GACHA_PET_IDS, PAID_PITY_INTERVAL, validateGachaPetIds } from "./config/gacha.ts";
+import { GACHA_PET_IDS, validateGachaPetIds } from "./config/gacha.ts";
 import { isNameAllowed } from "./config/ngWords.ts";
 import { appleRevocationConfigured, equalSecretHash, exchangeAppleAuthorizationCode, hashSecret, randomToken, revokeAppleToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
@@ -223,9 +223,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   if (method === "GET" && path === "/gacha/odds") {
     const petIds = gachaPetIds();
     return json({
-      pets: petIds.map((petId) => ({ petId, rate: 1 / petIds.length })),
-      paidPityInterval: PAID_PITY_INTERVAL,
-      pityDescription: "Every 25th paid pull is guaranteed to be an unowned Mobby while any remain. Free pulls do not count."
+      pets: petIds.map((petId) => ({ petId, rate: 1 / petIds.length }))
     });
   }
 
@@ -545,12 +543,11 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     let paidPulls = wallet.paidPulls;
     const draws = Array.from({ length: count }, () => {
       if (pullKind === "paid") paidPulls += 1;
-      const unowned = pool.filter((petId) => (owned[petId] ?? 0) === 0);
-      const guaranteed = pullKind === "paid" && paidPulls % PAID_PITY_INTERVAL === 0 && unowned.length > 0;
-      const petId = drawItem(guaranteed ? unowned : pool, random);
+      const petId = drawItem(pool, random);
       const isNew = (owned[petId] ?? 0) === 0;
       owned[petId] = (owned[petId] ?? 0) + 1;
-      return { petId, kind: pullKind, isNew, guaranteed };
+      // The result keeps its `guaranteed` field (always false now) so an app that still reads it is not disturbed.
+      return { petId, kind: pullKind, isNew, guaranteed: false };
     });
     const answer = { results: draws, paidPulls, remaining: wallet[pullKind] - count };
     try {

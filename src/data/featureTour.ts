@@ -57,7 +57,7 @@ export const TOUR_SECTIONS: readonly TourSection[] = [
       { anchor: 'nav-gacha', title: 'ガチャのボタン', detail: 'ナビバーの真ん中のボタンで、ガチャの画面が開くよ。' },
       { scene: 'gacha', title: 'ご縁を結ぶ', detail: '引く回数（1回・10回）を選んで、ひもを引っぱろう。箱が開いて、新しいモビーに会えるよ。' },
       { scene: 'gacha', title: '木札', detail: '1回につき木札を1枚使うよ。新しい巡礼を初めて結願すると、木札が1枚もらえるよ。' },
-      { scene: 'gacha', title: 'プレミアム木札', detail: '購入した木札だよ。25回引くごとに、まだ出会っていないモビーが必ず出るよ。「とじる」でもどれるよ。' },
+      { scene: 'gacha', title: 'プレミアム木札', detail: '購入した木札だよ。ふつうの木札とは別に数えるよ。「とじる」でもどれるよ。' },
     ],
   },
   {

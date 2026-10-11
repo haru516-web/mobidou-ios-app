@@ -13,7 +13,7 @@ export type ShopProduct = {
 
 /** The two sections of the shop. Each says in plain words what the buyer gets, so the list can be understood at a glance. */
 export const SHOP_GROUPS: readonly { kind: ShopProduct['kind']; heading: string; summary: string }[] = [
-  { kind: 'pull', heading: 'プレミアム木札を買う', summary: 'プレミアム木札1枚で、ひもを1回引けます。25回引くごとに、まだ出会っていないモビーが必ず出ます。' },
+  { kind: 'pull', heading: 'プレミアム木札を買う', summary: 'プレミアム木札1枚で、ひもを1回引けます。' },
   { kind: 'plan', heading: '毎月のお得プラン', summary: '巡礼で寺社に着くたび、ミニチュアが必ずもらえます。月ごとに自動更新。' },
 ];
 

@@ -6,13 +6,11 @@ import {
   duplicateCount,
   duplicateCrowd,
   emptyMobbyCollection,
-  premiumPullsUntilGuarantee,
   gachaOdds,
   grantFreePullForClear,
   hasStarter,
   normalizeMobbyCollection,
   ownsMobby,
-  PAID_PITY_INTERVAL,
   pullFive,
   pullOnce,
 } from '../src/services/gacha.ts';
@@ -74,32 +72,14 @@ test('a five-pull is five paid pulls and each counts toward the guarantee', () =
   assert.equal(five.freePulls, 0);
 });
 
-test('the 25th paid pull is always a Mobby the player does not own', () => {
-  // Own everything except pet17, then draw with a random that would pick pet0.
+test('a paid pull is an ordinary pull: no count of paid pulls guarantees a new Mobby', () => {
+  // Own everything except pet17; with a random that picks pet0, every paid pull gives pet0 again, at any count.
   const owned = Object.fromEntries(POOL.slice(0, 17).map(id => [id, 1]));
-  let collection = { ...emptyMobbyCollection(), owned, paidPulls: PAID_PITY_INTERVAL - 1 };
-  collection = pullOnce(collection, POOL, 'paid', () => 0);
-  assert.equal(collection.paidPulls, PAID_PITY_INTERVAL);
-  assert.deepEqual(collection.unrevealed.at(-1), { petId: 'pet17', isNew: true, guaranteed: true, kind: 'paid' });
-});
-
-test('the guarantee repeats every 25 pulls and is not triggered by free pulls', () => {
-  const owned = Object.fromEntries(POOL.slice(0, 16).map(id => [id, 1]));
-  const at24 = { ...emptyMobbyCollection(), owned, paidPulls: 24, freePulls: 1 };
-  const free = pullOnce(at24, POOL, 'free', () => 0);
-  assert.equal(free.paidPulls, 24);
-  assert.equal(free.unrevealed[0].guaranteed, false);
-  const at49 = { ...emptyMobbyCollection(), owned, paidPulls: 49 };
-  assert.equal(pullOnce(at49, POOL, 'paid', () => 0).unrevealed[0].guaranteed, true);
-  const at25 = { ...emptyMobbyCollection(), owned, paidPulls: 25 };
-  assert.equal(pullOnce(at25, POOL, 'paid', () => 0).unrevealed[0].guaranteed, false);
-});
-
-test('once everything is owned the guarantee falls back to an ordinary pull', () => {
-  const owned = Object.fromEntries(POOL.map(id => [id, 1]));
-  const drawn = pullOnce({ ...emptyMobbyCollection(), owned, paidPulls: 24 }, POOL, 'paid', () => 0);
-  assert.equal(drawn.unrevealed[0].guaranteed, false);
-  assert.equal(drawn.owned.pet0, 2);
+  for (const paidPulls of [0, 23, 24, 49, 99]) {
+    const drawn = pullOnce({ ...emptyMobbyCollection(), owned, paidPulls }, POOL, 'paid', () => 0);
+    assert.equal(drawn.paidPulls, paidPulls + 1);
+    assert.deepEqual(drawn.unrevealed.at(-1), { petId: 'pet0', isNew: false, guaranteed: false, kind: 'paid' });
+  }
 });
 
 test('an empty pool changes nothing', () => {
@@ -147,11 +127,4 @@ test('the crowd has one small Mobby per duplicate copy, in a stable order, cappe
   assert.equal(many.petIds.length, 8);
   assert.equal(many.more, 3);
   assert.deepEqual(duplicateCrowd(emptyMobbyCollection()), { petIds: [], more: 0 });
-});
-
-test('premiumPullsUntilGuarantee counts down to every 25th premium pull', () => {
-  assert.equal(premiumPullsUntilGuarantee(0), 25);
-  assert.equal(premiumPullsUntilGuarantee(10), 15);
-  assert.equal(premiumPullsUntilGuarantee(24), 1);
-  assert.equal(premiumPullsUntilGuarantee(25), 25);
 });

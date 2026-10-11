@@ -5,8 +5,8 @@
  *   the gacha, drawn uniformly at random from the whole pool (the starter and
  *   duplicates included).
  * - Finishing a route for the first time grants one free pull.
- * - Paid pulls (single, or five at once) count toward a guarantee: every 25th
- *   paid pull is a Mobby the player does not own yet (while any remain).
+ * - Paid pulls (single, or five at once) are ordinary pulls from the same pool:
+ *   there is no guarantee of a new Mobby.
  * - A duplicate is kept as a count, so it can be shown as a small Mobby
  *   beside the main one.
  *
@@ -15,8 +15,6 @@
  * offline/demo behaviour.
  */
 
-/** Every paid pull at a multiple of this number is guaranteed to be a new Mobby. */
-export const PAID_PITY_INTERVAL = 25;
 /** A five-pull is five ordinary pulls. */
 export const FIVE_PULL_COUNT = 5;
 
@@ -26,7 +24,7 @@ export type PullResult = { petId: string; isNew: boolean; guaranteed: boolean; k
 export type MobbyCollection = {
   /** How many copies of each Mobby the player holds (1 = owned, 2+ = duplicates). */
   owned: Record<string, number>;
-  /** Paid pulls made so far; drives the guarantee. */
+  /** Paid pulls made so far (a count only; it changes nothing about a draw). */
   paidPulls: number;
   /** Free pulls waiting to be used. */
   freePulls: number;
@@ -105,10 +103,8 @@ export function pullOnce(collection: MobbyCollection, pool: readonly string[], k
   if (pool.length === 0) return collection;
   if (kind === 'free' && collection.freePulls <= 0) return collection;
   const paidPulls = kind === 'paid' ? collection.paidPulls + 1 : collection.paidPulls;
-  const unowned = pool.filter(petId => !ownsMobby(collection, petId));
-  const guaranteed = kind === 'paid' && paidPulls % PAID_PITY_INTERVAL === 0 && unowned.length > 0;
-  const petId = pickOne(guaranteed ? unowned : pool, random);
-  const result: PullResult = { petId, isNew: !ownsMobby(collection, petId), guaranteed, kind };
+  const petId = pickOne(pool, random);
+  const result: PullResult = { petId, isNew: !ownsMobby(collection, petId), guaranteed: false, kind };
   return {
     ...collection,
     owned: { ...collection.owned, [petId]: (collection.owned[petId] ?? 0) + 1 },
@@ -118,7 +114,7 @@ export function pullOnce(collection: MobbyCollection, pool: readonly string[], k
   };
 }
 
-/** Five paid pulls in a row (the 5連). Each counts toward the guarantee on its own. */
+/** Five paid pulls in a row (the 5連). Each is an ordinary pull. */
 export function pullFive(collection: MobbyCollection, pool: readonly string[], random: () => number = Math.random): MobbyCollection {
   let next = collection;
   for (let index = 0; index < FIVE_PULL_COUNT; index++) next = pullOnce(next, pool, 'paid', random);
@@ -129,7 +125,7 @@ export function pullFive(collection: MobbyCollection, pool: readonly string[], r
  * Record pulls the server decided (paid pulls). The server's own `isNew` is
  * ignored: it is recomputed here from what this device owns, so the reveal
  * always matches the collection the player sees. `paidPulls` is the server's
- * running count, which drives the guarantee.
+ * running count of paid pulls.
  */
 export function applyServerPulls(collection: MobbyCollection, results: readonly PullResult[], paidPulls: number, isKnownPet: (id: string) => boolean, paidTickets?: number): MobbyCollection {
   let next = collection;
@@ -165,6 +161,3 @@ export function duplicateCrowd(collection: MobbyCollection, limit = 8): { petIds
     .flatMap(([id, copies]) => Array.from({ length: copies - 1 }, () => id));
   return { petIds: all.slice(0, Math.max(0, limit)), more: Math.max(0, all.length - Math.max(0, limit)) };
 }
-
-/** How many more premium pulls until the guaranteed one (1 means the very next premium pull is it). */
-export const premiumPullsUntilGuarantee = (paidPulls: number) => PAID_PITY_INTERVAL - (Math.max(0, Math.floor(paidPulls)) % PAID_PITY_INTERVAL);

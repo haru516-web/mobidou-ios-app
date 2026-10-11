@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
 import { handleWithStore } from "../src/worker.ts";
 import { hashSecret, verifySignedTransaction } from "../src/crypto.ts";
-import { GACHA_PET_IDS, PAID_PITY_INTERVAL } from "../src/config/gacha.ts";
+import { GACHA_PET_IDS } from "../src/config/gacha.ts";
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
@@ -598,7 +598,7 @@ test("gacha odds expose all Mobbies at equal rates and fixed random values reach
   const account = await register(context);
   const odds = await (await call(context, "GET", "/gacha/odds")).json();
   assert.equal(odds.pets.length, 17);
-  assert.equal(odds.paidPityInterval, PAID_PITY_INTERVAL);
+  assert.equal(odds.paidPityInterval, undefined);
   odds.pets.forEach((entry) => assert.equal(entry.rate, 1 / 17));
   context.store.walletRows.get(account.userId).paid = 2;
   const first = await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0);
@@ -619,7 +619,7 @@ test("starter and first-clear free pulls are each idempotent, and free five-pull
   assert.equal((await call(context, "POST", "/gacha/pull", { count: 5, kind: "free" }, account.userId)).status, 400);
 });
 
-test("free pulls do not advance paid pity and duplicate copies set isNew correctly", async () => {
+test("free pulls do not advance the paid pull count and duplicate copies set isNew correctly", async () => {
   const context = createContext();
   const account = await register(context);
   await call(context, "POST", "/pets/starter", { petId: GACHA_PET_IDS[0] }, account.userId);
@@ -632,37 +632,19 @@ test("free pulls do not advance paid pity and duplicate copies set isNew correct
   assert.equal((await context.store.ownedPets(account.userId))[GACHA_PET_IDS[0]], 2);
 });
 
-test("paid pull 25 and 50 guarantee an unowned Mobby while 24 and 26 do not", async () => {
+test("paid pulls are never guaranteed: the 25th and 50th draw like any other", async () => {
   const context = createContext();
   const account = await register(context);
   const owned = Object.fromEntries(GACHA_PET_IDS.slice(0, -2).map((petId) => [petId, 1]));
   context.store.owned.set(account.userId, owned);
-  context.store.walletRows.get(account.userId).paid = 4;
-  context.store.paidPullCounts.set(account.userId, 23);
-  const randomValues = [0, 0, 0, 0];
-  const random = () => randomValues.shift() ?? 0;
-  const at24 = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, random)).json()).results[0];
-  const at25 = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, random)).json()).results[0];
-  const at26 = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, random)).json()).results[0];
-  assert.equal(at24.guaranteed, false);
-  assert.equal(at25.guaranteed, true);
-  assert.equal(at25.petId, GACHA_PET_IDS.at(-2));
-  assert.equal(at26.guaranteed, false);
-  context.store.walletRows.get(account.userId).paid = 1;
-  context.store.paidPullCounts.set(account.userId, 49);
-  const at50 = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0)).json()).results[0];
-  assert.equal(at50.guaranteed, true);
-  assert.equal(at50.petId, GACHA_PET_IDS.at(-1));
-});
-
-test("a pity pull falls back to the uniform pool when every Mobby is owned", async () => {
-  const context = createContext();
-  const account = await register(context);
-  context.store.owned.set(account.userId, Object.fromEntries(GACHA_PET_IDS.map((petId) => [petId, 1])));
-  context.store.walletRows.get(account.userId).paid = 1;
-  context.store.paidPullCounts.set(account.userId, 24);
-  const result = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0)).json()).results[0];
-  assert.deepEqual(result, { petId: GACHA_PET_IDS[0], kind: "paid", isNew: false, guaranteed: false });
+  context.store.walletRows.get(account.userId).paid = 3;
+  for (const count of [24, 49, 99]) {
+    context.store.paidPullCounts.set(account.userId, count);
+    const result = (await (await call(context, "POST", "/gacha/pull", { count: 1, kind: "paid" }, account.userId, undefined, () => 0)).json()).results[0];
+    assert.equal(result.guaranteed, false);
+    assert.equal(result.petId, GACHA_PET_IDS[0]);
+    assert.equal(result.isNew, false);
+  }
 });
 
 test("a draw asked for again with the same operation id gives the same answer and is paid for once", async () => {

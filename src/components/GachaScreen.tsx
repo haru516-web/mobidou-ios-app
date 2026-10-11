@@ -16,7 +16,7 @@ import { SlicedArt } from './SlicedArt';
 import { PREMIUM_TAG_ICON } from '../data/premiumTagArt';
 import { EVENT_GACHA_PANEL_ART, GACHA_PANEL_ART, GACHA_UI_ART } from '../data/gachaUiArt';
 import type { ShopProduct } from '../data/shop';
-import { gachaOdds, premiumPullsUntilGuarantee, type PullResult } from '../services/gacha';
+import { gachaOdds, type PullResult } from '../services/gacha';
 import { carrierAt, dustFrameAt, placeBox } from './gachaCart';
 import { AFTER_OPEN_MS, CONFETTI_COLORS, MAX_DIM, bloomAt, confettiAt, blossomsAt, burstAt, fallAt, lightTintAt, motesAt, seasonRateAt, canOpen, dimAt, dustAt, flashAt, gatherAt, curtainAt, INTRO_END_MS, glowAfterOpen, glowWhileLifting, HAPTIC_BEATS, landingShake, mobbyAfterOpen, phaseOf, pillarAt, popAt, resolveRelease, ROLL_MS, rumbleAt, seamGlow, SETTLED_AT_MS, settleAt, shimmerAt, silhouetteAt, sparklesAt, tempoAt } from './gachaTimeline';
 
@@ -47,7 +47,7 @@ function GachaDetail({ onClose, freePulls, premiumPulls, pool, how }: { onClose:
         {pool.map(pet => <RNImage key={pet.id} accessible accessibilityLabel={pet.name} source={pet.image} resizeMode="contain" style={S.detailPet} />)}
       </View>
       <Text style={S.detailHead}>木札について</Text>
-      {how ? <Text style={S.detailBody}>{how}</Text> : <Text style={S.detailBody}>・木札1枚で、1回引けます。10回は、木札10枚を使って続けて引きます。{'\n'}・新しい巡礼を初めて結願すると、木札が1枚もらえます。{'\n'}・購入した木札は「プレミアム木札」です。木札とは別に数え、引くたびに、どちらを使うか選べます。{'\n'}・プレミアム木札で25回引くごとに、まだ出会っていないモビーが必ず1体出ます（全員そろっているときは、通常どおり抽選）。木札では数えません。{'\n'}・同じモビーが出たときは、小さなモビーとしてそばに来ます。</Text>}
+      {how ? <Text style={S.detailBody}>{how}</Text> : <Text style={S.detailBody}>・木札1枚で、1回引けます。10回は、木札10枚を使って続けて引きます。{'\n'}・新しい巡礼を初めて結願すると、木札が1枚もらえます。{'\n'}・購入した木札は「プレミアム木札」です。木札とは別に数え、引くたびに、どちらを使うか選べます。{'\n'}・同じモビーが出たときは、小さなモビーとしてそばに来ます。</Text>}
       <Text style={S.detailNote}>{how ? `いまの木札：${freePulls}枚` : `いまの木札：${freePulls}枚 ／ プレミアム木札：${premiumPulls}枚`}</Text>
       <Button title="とじる" secondary onPress={onClose} style={S.wide} />
     </View>
@@ -79,8 +79,7 @@ type Props = {
   freePulls: number;
   /** Premium 木札 (bought), spent on the server. */
   premiumPulls?: number;
-  /** Premium pulls made so far; the guarantee comes every 25th. */
-  paidPulls?: number;
+
   /** Results already drawn and waiting to be shown (persisted by the caller). */
   unrevealed: readonly PullResult[];
   haptics: boolean;
@@ -134,7 +133,7 @@ function Part({ part, style, tint }: { part: GachaArtPart; style: StyleProp<View
   return <View pointerEvents="none" style={style}><RNImage accessible={false} source={art[part]} resizeMode={part === 'stage' ? 'cover' : 'contain'} style={tint ? { width: '100%', height: '100%', tintColor: tint } : { width: '100%', height: '100%' }} /></View>;
 }
 
-export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls = 0, paidPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, weeklyPass, nextHint, companion, guided = false, startOnShop = false, eventButton, pool = PET_CHARACTERS, howToEarn, eventTheme = false }: Props) {
+export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls = 0, passes = 0, refundDebt = 0, unrevealed, haptics, onDraw, nav, onFinished, onClose, showShop = false, onBuy, onRestore, plusActive = false, weeklyPass, nextHint, companion, guided = false, startOnShop = false, eventButton, pool = PET_CHARACTERS, howToEarn, eventTheme = false }: Props) {
   const theme = eventTheme ? EVENT_GACHA_THEME : DEFAULT_GACHA_THEME;
   useSceneBgm('bgm_gacha', true, 20);
   const [tab, setTab] = useState<'draw' | 'shop'>(startOnShop && showShop ? 'shop' : 'draw');
@@ -146,7 +145,6 @@ export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls 
   const source: 'normal' | 'premium' = chosenSource === 'premium' && premiumPulls > 0 ? 'premium' : normalPulls > 0 ? 'normal' : premiumPulls > 0 ? 'premium' : 'normal';
   /** What the chosen kind of 木札 has left; everything below that gates a draw uses this. */
   const freePulls = source === 'premium' ? premiumPulls : normalPulls;
-  const untilGuarantee = premiumPullsUntilGuarantee(paidPulls);
   const [detailOpen, setDetailOpen] = useState(false);
   const [navH, setNavH] = useState(72);
   const ropeReady = stage === 'rope';
@@ -642,7 +640,7 @@ export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls 
               {([['normal', '木札', normalPulls], ['premium', 'プレミアム木札', premiumPulls]] as const).map(([id, label, n]) => <Pressable key={id} accessibilityRole="radio" accessibilityState={{ selected: source === id }} accessibilityLabel={`${label} ${n}枚`} onPress={() => setChosenSource(id)} style={[S.sourceChip, source === id && (id === 'premium' ? S.sourceChipPremium : S.sourceChipOn)]}>{id === 'premium' && <RNImage accessible={false} source={PREMIUM_TAG_ICON} resizeMode="contain" style={S.sourceIcon} />}<Text style={[S.sourceText, source === id && S.sourceTextOn]}>{label} {n}枚</Text></Pressable>)}
             </View>
             : <Text style={S.small}>{source === 'premium' ? 'プレミアム木札' : '木札'} {freePulls}枚</Text>}
-          {source === 'premium' && <Text style={S.small}>{untilGuarantee === 1 ? '次の1回で、まだ出会っていないモビーが必ず出ます。' : `あと${untilGuarantee}回で、まだ出会っていないモビーが必ず出ます。`}</Text>}
+
           {!ropeReady && <>
             <View style={S.drawRow}>
               <Button title="詳細" secondary onPress={() => setDetailOpen(true)} style={S.drawDetail} />

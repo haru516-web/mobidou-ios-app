@@ -22,8 +22,6 @@ export const GACHA_PET_IDS = [
   "wolfmobby"
 ] as const;
 
-export const PAID_PITY_INTERVAL = 25;
-
 export function validateGachaPetIds(petIds: readonly string[] = GACHA_PET_IDS): void {
   if (petIds.length === 0 || petIds.some((petId) => !petId) || new Set(petIds).size !== petIds.length) {
     throw new Error("Gacha pet IDs must be non-empty and unique");
