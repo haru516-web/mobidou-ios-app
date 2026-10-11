@@ -3,12 +3,12 @@ import { AppState, DevSettings } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { creditedSteps, creditMissedDays, routeTargets, freshProgress, isSyncMark, localDay, normalizeProgress, rollDay, updateSteps, startRoute, startReplay, resumeRoute, type Progress, type SyncMark } from './progress';
 import { getPilgrimage } from '../data/pilgrimages';
-import { normalizeDayLog, recordDay, type DayLog } from './weekly';
+import { normalizeDayLog, recordDay, weekStartDay, type DayLog } from './weekly';
 import { connectSteps, readMissedDays, readTodaySteps, type StepSource } from './steps';
 import { EVENT_PET_CHARACTERS, isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
 import { acknowledgePulls, applyServerPulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, setPaidTickets, type MobbyCollection, type PullResult } from './gacha';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
-import { emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
+import { claimWeeklyPass, emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
 import { localOmikujiDay } from '../data/omikuji';
 import { creditEventTickets, emptyEventGacha, normalizeEventGacha, settleLegacyEventGacha, type EventGachaState } from './eventGacha';
@@ -474,6 +474,12 @@ export function useJourney() {
     grantPass: (kind: PassKind, amount = 1) => change(p => {
       const field = p.demo ? 'trialSpecial' : 'realSpecial';
       return { ...p, [field]: grantPass(p[field], kind, amount) };
+    }),
+    /** Take this week's free miniature pass from the shop (once per local week, Monday to Sunday). */
+    claimWeeklyPass: () => change(p => {
+      const field = p.demo ? 'trialSpecial' : 'realSpecial';
+      const claimed = claimWeeklyPass(p[field], weekStartDay());
+      return claimed === p[field] ? p : { ...p, [field]: claimed };
     }),
     /** Roll the keychain for the arrival ceremony that just opened (once per ceremony). */
     rollKeychain: (shrineId: string) => change(p => {

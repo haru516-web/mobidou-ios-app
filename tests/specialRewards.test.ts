@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  claimWeeklyPass,
   emptySpecialCollection,
   finishArrival,
   grantPass,
@@ -11,6 +12,7 @@ import {
   ownsKeychain,
   redeemKeychainTicket,
   rollKeychainOnArrival,
+  weeklyPassAvailable,
 } from '../src/services/specialRewards.ts';
 
 const fixed = (value: number) => () => value;
@@ -124,4 +126,25 @@ test('the first-step shrine always drops its keychain, even without a plan', () 
   const result = rollKeychainOnArrival(emptySpecialCollection(), 'hatsumobi', 'none', fixed(0.999));
   assert.equal(ownsKeychain(result, 'hatsumobi'), true);
   assert.equal(rollKeychainOnArrival(emptySpecialCollection(), 'rain', 'none', fixed(0.999)).arrival?.outcome, 'missed');
+});
+
+test('the free weekly pass is one ordinary miniature pass per week', () => {
+  const fresh = emptySpecialCollection();
+  assert.equal(weeklyPassAvailable(fresh, '2026-10-05'), true);
+  const taken = claimWeeklyPass(fresh, '2026-10-05');
+  assert.equal(taken.passes.keychainDrop, 1);
+  assert.equal(weeklyPassAvailable(taken, '2026-10-05'), false);
+  // A second take in the same week changes nothing, and the same object comes back.
+  assert.equal(claimWeeklyPass(taken, '2026-10-05'), taken);
+  // The next Monday opens it again, and passes the player already holds are kept.
+  const next = claimWeeklyPass(taken, '2026-10-12');
+  assert.equal(next.passes.keychainDrop, 2);
+  assert.equal(next.weeklyPassWeek, '2026-10-12');
+});
+
+test('the weekly pass record survives a save and rejects a malformed value', () => {
+  const saved = JSON.parse(JSON.stringify(claimWeeklyPass(emptySpecialCollection(), '2026-10-05')));
+  assert.equal(normalizeSpecialCollection(saved).weeklyPassWeek, '2026-10-05');
+  assert.equal(normalizeSpecialCollection({ ...saved, weeklyPassWeek: 'yesterday' }).weeklyPassWeek, null);
+  assert.equal(normalizeSpecialCollection({ passes: { keychainDrop: 3 } }).weeklyPassWeek, null);
 });

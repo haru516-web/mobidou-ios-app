@@ -43,6 +43,8 @@ export type SpecialCollection = {
   passes: PassInventory;
   /** Persisted so that closing the app mid-ceremony can never re-roll. Cleared when the ceremony ends. */
   arrival: KeychainArrival | null;
+  /** The Monday (local, yyyy-mm-dd) of the week whose free weekly pass has been taken; null if never. */
+  weeklyPassWeek: string | null;
 };
 
 export const emptySpecialCollection = (): SpecialCollection => ({
@@ -50,6 +52,7 @@ export const emptySpecialCollection = (): SpecialCollection => ({
   sparkles: {},
   passes: { keychainDrop: 0 },
   arrival: null,
+  weeklyPassWeek: null,
 });
 
 function positiveInteger(value: unknown) {
@@ -76,12 +79,13 @@ function normalizeArrival(value: unknown): KeychainArrival | null {
 /** Accepts every earlier save shape (rolls, decisions, ten/fifty/subscription, cover tickets) and keeps only what still means something. */
 export function normalizeSpecialCollection(value: unknown): SpecialCollection {
   if (!value || typeof value !== 'object') return emptySpecialCollection();
-  const source = value as { keychains?: unknown; sparkles?: unknown; passes?: { keychainDrop?: unknown } | null; arrival?: unknown };
+  const source = value as { keychains?: unknown; sparkles?: unknown; passes?: { keychainDrop?: unknown } | null; arrival?: unknown; weeklyPassWeek?: unknown };
   return {
     keychains: normalizeOwned(source.keychains),
     sparkles: normalizeOwned(source.sparkles),
     passes: { keychainDrop: positiveInteger(source.passes?.keychainDrop) },
     arrival: normalizeArrival(source.arrival),
+    weeklyPassWeek: typeof source.weeklyPassWeek === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.weeklyPassWeek) ? source.weeklyPassWeek : null,
   };
 }
 
@@ -124,4 +128,13 @@ export function grantPass(collection: SpecialCollection, kind: PassKind, amount 
   const quantity = positiveInteger(amount);
   if (kind !== 'keychainDrop' || quantity <= 0) return collection;
   return { ...collection, passes: { keychainDrop: collection.passes.keychainDrop + quantity } };
+}
+
+/** The free weekly pass is open once per local week (Monday to Sunday); `week` is that week's Monday. */
+export const weeklyPassAvailable = (collection: SpecialCollection, week: string) => collection.weeklyPassWeek !== week;
+
+/** Takes the week's free pass: an ordinary miniature pass, once for the given week. */
+export function claimWeeklyPass(collection: SpecialCollection, week: string): SpecialCollection {
+  if (!weeklyPassAvailable(collection, week)) return collection;
+  return { ...grantPass(collection, 'keychainDrop', 1), weeklyPassWeek: week };
 }
