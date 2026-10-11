@@ -3,7 +3,7 @@ import { playSfx } from '../services/audio';
 import { Animated, Easing, PanResponder, Platform, Pressable as RNPressable, StyleSheet, Text, View, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
 import { Image } from './AppImage';
 import type { PetId } from '../petCatalog';
-import { PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
+import { walkFrameCount, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import rawWalkMetrics from '../data/pilgrimageSpriteMetrics.json';
 import { Icon } from '../components';
 import type { PopButtonId } from '../data/popButtonImages';
@@ -122,6 +122,7 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
   const activePointerIdRef = useRef<number | null>(null);
   const menuProgress = useRef(new Animated.Value(open ? 1 : 0)).current;
   const walkSource = PILGRIMAGE_WALK_ATLASES[petId];
+  const walkFrames = walkFrameCount(petId);
   const toggle = useCallback(() => onOpenChange(!open), [onOpenChange, open]);
 
   useEffect(() => { positionRef.current = position; }, [position]);
@@ -131,9 +132,9 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
       setWalkFrame(0);
       return undefined;
     }
-    const timer = setInterval(() => setWalkFrame(value => (value + 1) % PILGRIMAGE_WALK_FRAME_COUNT), 135);
+    const timer = setInterval(() => setWalkFrame(value => (value + 1) % walkFrames), 135);
     return () => clearInterval(timer);
-  }, [walking]);
+  }, [walking, walkFrames]);
 
   useEffect(() => {
     if (open) setMenuMounted(true);
@@ -277,7 +278,7 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
   const petVisual = walking
     ? walkSource
       ? <WalkFrame source={walkSource} petId={petId} frame={walkFrame} />
-      : <Animated.View style={[styles.walkFallback, { transform: [{ translateY: [-1, 1, 0, -1][walkFrame] }, { rotate: ['-2deg', '2deg', '0deg', '-1deg'][walkFrame] }, { scaleX: [1, .96, 1.02, 1][walkFrame] }] }]}><Image pointerEvents="none" source={image} contentFit="contain" style={styles.image} /></Animated.View>
+      : <Animated.View style={[styles.walkFallback, { transform: [{ translateY: [-1, 1, 0, -1][walkFrame % 4] }, { rotate: ['-2deg', '2deg', '0deg', '-1deg'][walkFrame % 4] }, { scaleX: [1, .96, 1.02, 1][walkFrame % 4] }] }]}><Image pointerEvents="none" source={image} contentFit="contain" style={styles.image} /></Animated.View>
     : <Image pointerEvents="none" source={image} contentFit="contain" style={styles.image} />;
 
   return <View pointerEvents="box-none" onLayout={handleLayout} style={styles.overlay}>

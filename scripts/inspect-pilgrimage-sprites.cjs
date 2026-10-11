@@ -24,9 +24,11 @@ async function inspect(file, columns) {
 (async () => {
   const metrics = {};
   const walks = path.join(root, 'assets/mobies/pilgrimage-walk');
-  for (const file of fs.readdirSync(walks).filter(file => file.endsWith('.png'))) {
-    const id = path.basename(file, '.png');
-    metrics[`${id}/walk`] = await inspect(path.join(walks, file), 4);
+  // Walk sheets are .webp (or .png when freshly generated); every cell is 384 px wide, so the sheet's width gives its pose count.
+  for (const file of fs.readdirSync(walks).filter(file => /^[a-z]+.(png|webp)$/.test(file))) {
+    const id = path.basename(file, path.extname(file));
+    const { width } = await sharp(path.join(walks, file)).metadata();
+    metrics[`${id}/walk`] = await inspect(path.join(walks, file), Math.round(width / 384));
   }
   for (const id of fs.readdirSync(path.join(root, 'assets/mobies/prayer-v2'))) {
     const folder = path.join(root, 'assets/mobies/prayer-v2', id);

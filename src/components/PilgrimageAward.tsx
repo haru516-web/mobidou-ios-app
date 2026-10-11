@@ -177,7 +177,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const guaranteeOpacity = reveal.interpolate({ inputRange: [0, .7, .82, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
   const guaranteeLift = reveal.interpolate({ inputRange: [0, .7, .84, 1], outputRange: [8, 8, 0, 0], extrapolate: 'clamp' });
   const sprites = [
-    { id: 'walk', source: walkSource, frame: phase.local % 4, visible: walking },
+    { id: 'walk', source: walkSource, frame: phase.local % (metrics[pet.id + '/walk']?.columns ?? 4), visible: walking },
     { id: 'rei', source: prayer?.rei, frame: prayerFrame % 8, visible: !walking && action === 'rei' },
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];

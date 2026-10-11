@@ -4,7 +4,7 @@ import { Image } from './AppImage';
 import { BRUSH } from '../components';
 import type { PetId } from '../petCatalog';
 import type { OmikujiFortune } from '../data/omikuji';
-import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_FRAME_COUNT, PILGRIMAGE_WALK_FRAME_WIDTH, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
+import { PILGRIMAGE_WALK_ATLAS_HEIGHT, PILGRIMAGE_WALK_FRAME_WIDTH, walkFrameCount, PILGRIMAGE_WALK_ATLASES } from '../data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_MAP_IMAGE } from '../data/pilgrimageMapImages';
 import { CroppedArt } from './CroppedArt';
 import { SlicedArt } from './SlicedArt';
@@ -51,7 +51,7 @@ export function HomeMapArtwork() {
   </View>;
 }
 
-function WalkSprite({ source, frame }: { source: ImageSourcePropType; frame: number }) {
+function WalkSprite({ source, frame, frames }: { source: ImageSourcePropType; frame: number; frames: number }) {
   // Use an integer-sized source cell so the viewport edge never lands between
   // source pixels. This avoids the texture filter pulling a sliver of the
   // previous/next walk cut into the current frame.
@@ -60,7 +60,7 @@ function WalkSprite({ source, frame }: { source: ImageSourcePropType; frame: num
   const frameWidth = Math.max(1, Math.round(PILGRIMAGE_WALK_FRAME_WIDTH * targetScale));
   const scale = frameWidth / PILGRIMAGE_WALK_FRAME_WIDTH;
   const height = PILGRIMAGE_WALK_ATLAS_HEIGHT * scale;
-  const atlasWidth = frameWidth * PILGRIMAGE_WALK_FRAME_COUNT;
+  const atlasWidth = frameWidth * frames;
   return <View style={{ width: frameWidth, height, overflow: 'hidden' }}>
     <Image
       accessible={false}
@@ -90,15 +90,16 @@ function NeutralWalkingSprite({ source }: { source: ImageSourcePropType }) {
 export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps = steps, totalSteps = steps, previousPointSteps = 0, previousPointName = '出発', nextPointSteps, horizontal = false }: { previousPointName?: string; petId: PetId; petImage: ImageSourcePropType; progress: number; steps: number; todaySteps?: number; totalSteps?: number; previousPointSteps?: number; nextPointSteps: number | null; horizontal?: boolean }) {
   const [frame, setFrame] = useState(0);
   const walkSource = PILGRIMAGE_WALK_ATLASES[petId];
+  const walkFrames = walkFrameCount(petId);
   const ratio = Math.max(0, Math.min(1, progress));
   const spriteRatio = Math.max(0.06, Math.min(0.94, ratio));
 
   useEffect(() => {
     setFrame(0);
     if (!walkSource) return undefined;
-    const timer = setInterval(() => setFrame(value => (value + 1) % PILGRIMAGE_WALK_FRAME_COUNT), 150);
+    const timer = setInterval(() => setFrame(value => (value + 1) % walkFrames), 150);
     return () => clearInterval(timer);
-  }, [walkSource]);
+  }, [walkSource, walkFrames]);
 
   return <View pointerEvents="none" style={[S.stepsStage, horizontal && S.stepsStageHorizontal]}>
     <CroppedArt source={PLATE_STEPS} bounds={PLATE_STEPS_BOUNDS} />
@@ -110,7 +111,7 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
         <Text numberOfLines={1} style={S.stepsPreviousLabel}>{previousPointName} {previousPointSteps.toLocaleString('ja-JP')}歩</Text>
         {nextPointSteps !== null && <Text style={S.stepsNextLabel}>次の御朱印まで あと{nextPointSteps.toLocaleString('ja-JP')}歩</Text>}
         <View style={[S.stepsSpriteAnchor, { left: `${spriteRatio * 100}%` }]}>
-          {walkSource ? <WalkSprite source={walkSource} frame={frame} /> : <NeutralWalkingSprite source={petImage} />}
+          {walkSource ? <WalkSprite source={walkSource} frame={frame} frames={walkFrames} /> : <NeutralWalkingSprite source={petImage} />}
         </View>
       </View>
       <View style={S.stepsCurrent}><Text style={S.stepsCurrentLabel}>今日の歩数</Text><Text style={S.stepsCurrentValue}>{todaySteps.toLocaleString('ja-JP')}歩</Text></View>
@@ -124,7 +125,7 @@ export function HomeStepsArtwork({ petId, petImage, progress, steps, todaySteps 
         <View style={[S.stepsLineFill, { width: `${ratio * 100}%` }]}><SlicedArt name="progressFill" /></View>
         <Image accessible={false} source={UI_ART.progressPoint.source} contentFit="contain" style={[S.stepsPoint, { left: `${ratio * 100}%` }]} />
         <View style={[S.stepsSpriteAnchor, { left: `${spriteRatio * 100}%` }]}>
-          {walkSource ? <WalkSprite source={walkSource} frame={frame} /> : <NeutralWalkingSprite source={petImage} />}
+          {walkSource ? <WalkSprite source={walkSource} frame={frame} frames={walkFrames} /> : <NeutralWalkingSprite source={petImage} />}
         </View>
       </View>
     </View>}
