@@ -1,4 +1,4 @@
-import { PET_CHARACTERS } from '../petCatalog';
+import { ALL_PET_CHARACTERS } from '../petCatalog';
 import { PILGRIMAGES } from '../data/pilgrimages';
 import { localOmikujiDay } from '../data/omikuji';
 import type { Progress } from './progress';
@@ -6,7 +6,7 @@ import type { MobbyCollection } from './gacha';
 import type { SpecialCollection } from './specialRewards';
 
 /**
- * Local testing only: while this is on, every Mobby, goshuin, miniature, route cover and pass is
+ * Local testing only: while this is on, every Mobby (the event ones too), goshuin, miniature, route cover and pass is
  * owned, passes and free pulls never run out, and the omikuji can be drawn again after each draw.
  * It only works in development builds (`__DEV__`), so a release build can never unlock anything
  * by it. It is off unless the dev server is started with EXPO_PUBLIC_DEV_UNLOCK_ALL=1 (so a device
@@ -40,7 +40,7 @@ export function devUnlockAll<T extends Unlockable>(saved: T): T {
   const { SHRINES } = require('../data/shrines') as typeof import('../data/shrines');
   const day = localOmikujiDay();
   const owned = { ...saved.mobbies.owned };
-  for (const pet of PET_CHARACTERS) owned[pet.id] = Math.max(1, owned[pet.id] ?? 0);
+  for (const pet of ALL_PET_CHARACTERS) owned[pet.id] = Math.max(1, owned[pet.id] ?? 0);
   const mobbies = { ...saved.mobbies, owned, freePulls: Math.max(SUPPLY, saved.mobbies.freePulls) };
 
   const special = (collection: SpecialCollection): SpecialCollection => ({
