@@ -13,6 +13,7 @@ import { getPetCharacter, isPetId, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView, localDay } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
+import { syncWidget } from './src/services/widgetSync';
 import { hasStarter, ownsMobby, ticketCount } from './src/services/gacha';
 import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
 import { GachaScreen } from './src/components/GachaScreen';
@@ -151,6 +152,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const { data, progress } = journey;
   // While a finished route is walked again, the screens draw the current lap; the clear itself is untouched.
   const view = useMemo(() => lapView(progress), [progress]);
+  // The home screen widget shows the same count as the home card, and the Mobby chosen here.
+  const widgetSteps = progress.day === localDay() ? Math.max(0, progress.steps) : 0;
+  useEffect(() => { syncWidget({ petId: data.pet, steps: widgetSteps, day: localDay() }); }, [data.pet, widgetSteps]);
   const accountPreview = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('account-preview') === '1';
   const onboardingPreview = accountPreview || (__DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('onboarding-preview') === '1');
   const [tutorialPreviewPet, setTutorialPreviewPet] = useState<PetId | null>(null);

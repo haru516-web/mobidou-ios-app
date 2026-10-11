@@ -11,7 +11,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "jp.mobby.mobidou",
       "entitlements": {
-        "com.apple.developer.healthkit": true
+        "com.apple.developer.healthkit": true,
+        "com.apple.security.application-groups": ["group.jp.mobby.mobidou"]
       },
       "infoPlist": {
         "NSHealthShareUsageDescription": "今日の歩数を読み取り、もびの世界の御朱印を集めるために使用します。歩数は端末に保存します。Apple IDとつないだ場合は、機種変更で記録を戻すため、歩数の合計をサーバーに保存します。イベントにチームで出発した場合は、チームの歩数を合わせるため、その日の歩数の合計をサーバーに送ります。広告や分析には使いません。",
@@ -31,6 +32,7 @@
       "expo-asset",
       "expo-iap",
       "expo-apple-authentication",
+      "@bacons/apple-targets",
       ["expo-audio", { "microphonePermission": false, "recordAudioAndroid": false }]
     ],
     "web": {
@@ -38,6 +40,7 @@
       "name": "もび道 — 歩く、集める、好きになる。"
     },
     "extra": {
+      "widgetAppGroup": "group.jp.mobby.mobidou",
       "eas": {
         "projectId": "bfdcaf4d-9b6e-4016-a0ae-be4d6dbdf2ed"
       }

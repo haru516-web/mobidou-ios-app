@@ -6,6 +6,12 @@ module.exports = ({ config }) => {
     ...config,
     name: `${config.name}(開発)`,
     scheme: `${config.scheme}-dev`,
-    ios: { ...config.ios, bundleIdentifier: `${config.ios.bundleIdentifier}.dev` },
+    ios: {
+      ...config.ios,
+      bundleIdentifier: `${config.ios.bundleIdentifier}.dev`,
+      // The widget's app group is "group." + the app's bundle id, so the development app gets its own.
+      entitlements: { ...config.ios.entitlements, 'com.apple.security.application-groups': [`group.${config.ios.bundleIdentifier}.dev`] },
+    },
+    extra: { ...config.extra, widgetAppGroup: `group.${config.ios.bundleIdentifier}.dev` },
   };
 };
