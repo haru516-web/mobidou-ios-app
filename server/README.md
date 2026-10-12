@@ -1,6 +1,6 @@
 # Mobidou Cloudflare server
 
-This is a local-first Cloudflare Workers + D1 foundation. It is not connected to a Cloudflare account and has not been deployed. No Apple account, certificate, private key, or production token is included.
+This Cloudflare Workers + D1 server implements purchases, event teams, cloud saves, account deletion, and moderation. The app defaults to the public Worker URL. Its health, privacy and legal routes answered HTTP 200 on 2026-10-12; this does not verify the deployed revision, database migrations, secrets, or Apple integration. No private credentials should be committed. The configured Apple root certificate is public trust material.
 
 ## Local setup
 
@@ -11,7 +11,7 @@ From `server/`:
 3. Start the Worker locally with `npm run dev` (Wrangler's local development mode).
 4. Run the server tests with `npm test`; run the isolated TypeScript check with `npm run typecheck`.
 
-The D1 binding uses a local-only placeholder database ID in `wrangler.toml`. Replace it only in a local, uncommitted Cloudflare configuration when a real account is intentionally configured. Do not put account credentials in this repository.
+The D1 binding in `wrangler.toml` contains a concrete database identifier. The owner must verify the account, database, environment separation and migration state in Cloudflare. A syntactically valid identifier does not prove those settings. Do not put account credentials in this repository.
 
 ## Configuration names
 
@@ -19,13 +19,17 @@ Optional local `.dev.vars` / deployment settings are read by name only here; thi
 
 - `APPLE_ROOT_CERTIFICATES`: PEM-encoded trusted Apple certificate root(s), concatenated when there is more than one.
 - `APPLE_BUNDLE_ID`: expected application bundle ID.
-- `PRODUCT_CATALOG_JSON`: JSON object keyed by App Store product ID; values may contain `plan`, `monthlyTickets`, and/or `paidPulls`.
+- `PRODUCT_CATALOG_JSON`: JSON object keyed by App Store product ID; values may contain `plan`, `monthlyTickets`, `monthlyPulls`, `paidPulls`, and `priceYen`.
 - `GIFTS_JSON`: JSON array of `{ id, title, tickets?, freePulls?, paidPulls? }` records.
 - `CATALOG_JSON`: static public catalog JSON served from `/catalog.json`.
+- `APPLE_JWKS_JSON`: optional public identity-token key override (normally Apple keys are fetched).
+- `APPLE_TEAM_ID`, `APPLE_SIGN_IN_KEY_ID`, `APPLE_SIGN_IN_PRIVATE_KEY`: token revocation configuration; store the private key as a Worker secret. Successful token exchange and storage must also be verified.
+- `PURCHASE_ENVIRONMENTS`: accepted StoreKit environments; defaults to `Production,Sandbox`.
+- `NG_WORDS`: additional blocked display-name words, comma-separated.
 - `EVENT_STEPS_WINDOW_START`: Tokyo-local `HH:mm` when a day's submission window opens; default 20:00. The window for day D runs until the same time on D+1, so a submission before that time on D+1 is recorded for D.
 - `EVENT_STEPS_DAILY_MAX`: maximum accepted cumulative steps per user/day; default is 100000.
 
-Wrangler local values belong in an ignored `.dev.vars` file. Never commit secrets or certificate material. Product and gift examples are intentionally omitted; configure only approved product identifiers and actual campaign records outside this source tree.
+Wrangler local values belong in an ignored `.dev.vars` file. Never commit private keys or credentials. Public Apple roots and product/gift settings exist in `wrangler.toml`; review the TestFlight campaign and approved product settings before release.
 
 ## D1 schema and event records
 
@@ -61,6 +65,6 @@ Wrangler local values belong in an ignored `.dev.vars` file. Never commit secret
 
 - Real Apple roots, bundle ID, product IDs, App Store notification lifecycle mapping, and signed StoreKit test fixtures must be supplied/confirmed before production use. Tests create an ephemeral self-signed certificate in memory; that certificate is not an Apple certificate and is not committed.
 - The product catalog configuration grants only the configured ticket/pull amounts. Full subscription status reconciliation, renewal grace periods, refunds/revocations after previously spent benefits, and App Store Server API lookups are not implemented.
-- Gift and catalog JSON are operator configuration, not an admin UI. Event/team creation, team invitations, membership APIs, event rewards, anti-cheat validation against HealthKit, and device/account recovery are not implemented.
-- `POST /auth/register` is limited per source IP (CF-Connecting-IP) to 5 per minute and 30 per day, returning HTTP 429 `rate_limited`; counters live in the D1 `rate_limits` table (`REGISTER_PER_MINUTE` / `REGISTER_PER_DAY` in `src/worker.ts`). Friend request rate limits, other abuse controls, account deletion/privacy workflows, and operational monitoring are not implemented; consider Turnstile or an equivalent challenge after repeated attempts.
-- The project has not been deployed and has not contacted Cloudflare or Apple services. Local route tests use an in-memory Store; the D1 schema is provided for local Wrangler integration.
+- Gift and catalog JSON are operator configuration, not an admin UI. Event teams, invitations, membership, rewards and Apple-linked recovery are implemented. HealthKit manual-entry exclusion and server-side proof of the submitted steps are not implemented.
+- `POST /auth/register` is limited per source IP (CF-Connecting-IP) to 5 per minute and 30 per day, returning HTTP 429 `rate_limited`; counters live in the D1 `rate_limits` table (`REGISTER_PER_MINUTE` / `REGISTER_PER_DAY` in `src/worker.ts`). Friend requests and several other write routes have per-user limits; deletion, privacy pages, blocking and reports are implemented. Not all routes are limited, and operational monitoring / moderation response procedures still need owner verification.
+- Local route tests use an in-memory Store and SQLite-backed D1 tests. Neither proves production D1 behavior, real Apple JWS verification, notification delivery, or token revocation. See `docs/prerelease-checklist.md` for the current audit and `docs/release-deploy-steps.md` for migration order.
