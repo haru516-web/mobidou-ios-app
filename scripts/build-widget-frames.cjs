@@ -59,5 +59,6 @@ async function silhouette(file, m) {
                     .toFile(path.join(set, `${id}_${frame}.png`));
     }
   }
-  console.log(`wrote ${ids.length * 4} frames for ${ids.length} mobbies to ${path.relative(root, out)}`);
+  const total = ids.reduce((sum, id) => sum + metrics[`${id}/walk`].columns, 0);
+  console.log(`wrote ${total} frames for ${ids.length} mobbies to ${path.relative(root, out)}`);
 })();

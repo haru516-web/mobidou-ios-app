@@ -30,14 +30,14 @@
     "cropHeight": 568
   },
   "dogmobby/walk": {
-    "columns": 4,
-    "width": 1536,
+    "columns": 8,
+    "width": 3072,
     "height": 1024,
     "cellWidth": 384,
-    "left": 0,
-    "top": 78,
-    "cropWidth": 384,
-    "cropHeight": 890
+    "left": 19,
+    "top": 355,
+    "cropWidth": 348,
+    "cropHeight": 435
   },
   "mobibou/walk": {
     "columns": 4,
@@ -50,24 +50,24 @@
     "cropHeight": 558
   },
   "mobichi/walk": {
-    "columns": 4,
-    "width": 1536,
+    "columns": 8,
+    "width": 3072,
     "height": 1024,
     "cellWidth": 384,
-    "left": 0,
-    "top": 261,
-    "cropWidth": 384,
-    "cropHeight": 524
+    "left": 19,
+    "top": 315,
+    "cropWidth": 347,
+    "cropHeight": 472
   },
   "mobirin/walk": {
-    "columns": 4,
-    "width": 1536,
+    "columns": 8,
+    "width": 3072,
     "height": 1024,
     "cellWidth": 384,
-    "left": 0,
-    "top": 253,
-    "cropWidth": 384,
-    "cropHeight": 530
+    "left": 44,
+    "top": 394,
+    "cropWidth": 316,
+    "cropHeight": 390
   },
   "mobiyan/walk": {
     "columns": 4,
