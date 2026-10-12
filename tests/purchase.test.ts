@@ -332,3 +332,29 @@ test('restore reports what it found: credited, belonging to an earlier account, 
   const offline = await restorePurchases(storeWith([item(plus, 'a')]), { account: async () => null, post: async () => null, get: async () => null });
   assert.equal(offline.kind, 'offline');
 });
+
+test('a rate-limited draw keeps its operation id through retries until the stored result arrives', async () => {
+  freshPending();
+  const asked: string[] = [];
+  let limited = true;
+  const api: PurchaseApi = {
+    account: async () => ({ userId: 'user-1', secret: 's' }),
+    post: async (path, body) => {
+      if (path === '/pets/sync') return reply(200, { owned: {} });
+      asked.push((body as { opId: string }).opId);
+      return limited ? reply(429, { error: 'rate_limited' }) : reply(200, {
+        results: [{ petId: 'yami', kind: 'paid', isNew: true, guaranteed: false }], paidPulls: 1, remaining: 0,
+      });
+    },
+    get: async () => reply(404),
+  };
+  assert.equal(await drawPaidTickets(1, mobbies, api), null);
+  assert.equal(await recoverPaidDraws(api), null);
+  limited = false;
+  const recovered = await recoverPaidDraws(api);
+  assert.equal(recovered?.results[0].petId, 'yami');
+  assert.equal(new Set(asked).size, 1);
+  assert.equal(asked.length, 3);
+  await settlePaidDraws(recovered!.opIds);
+  assert.equal(await recoverPaidDraws(api), null);
+});

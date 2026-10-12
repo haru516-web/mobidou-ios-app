@@ -54,7 +54,7 @@ export type FollowUp =
 function unavailableText(detail: string | undefined): string {
   const d = detail ?? '';
   if (d.startsWith('cancelled_at_once')) return '購入シートを開けませんでした。iPhoneの「設定」→「App Store」で、サンドボックスアカウント（TestFlight）またはApple IDにサインインできているかを確認し、もう一度お試しください。';
-  if (d.startsWith('no_answer')) return 'ストアからの応答がありませんでした。購入シートが開かない場合は、iPhoneの再起動と、電波のよいところでの再試行をお願いします。課金は確定していません。';
+  if (d.startsWith('no_answer')) return 'ストアからの応答がありませんでした。購入シートが開かない場合は、iPhoneの再起動と、電波のよいところでの再試行をお願いします。購入の完了はまだ確認できていません。後から完了した購入は、次回起動時に確認します。';
   if (d.startsWith('product_not_found')) return 'この商品がストアで見つかりませんでした。しばらくしてから、もう一度お試しください。';
   if (d.startsWith('timeout')) return 'ストアに接続できませんでした。電波のよいところで、もう一度お試しください。';
   return 'この環境では購入できません。';
@@ -70,7 +70,7 @@ export function purchaseFollowUp(outcome: BuyOutcome, showDetail = false): Follo
     cancelled: '',
     offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。購入はされていません。',
     unavailable: unavailableText(outcome.reason === 'unavailable' ? outcome.detail : undefined),
-    verify_failed: '購入の確認ができませんでした。課金は保留されています。アプリを開き直すと、自動でやり直します。',
+    verify_failed: '購入の確認ができませんでした。Appleでの支払いが完了している場合もあります。アプリを開き直すと、自動でやり直します。',
   }[outcome.reason];
   if (!base) return { kind: 'quiet' };
   return { kind: 'message', text: showDetail && outcome.detail ? `${base}\n\n(開発用の詳細: ${outcome.detail})` : base };
@@ -276,7 +276,7 @@ export async function recoverPaidDraws(api: PurchaseApi = serverApi): Promise<Pa
     const drawn = readPulls(reply);
     if (drawn) { results.push(...drawn.results); opIds.push(entry.opId); paidPulls = drawn.paidPulls; paidTickets = drawn.remaining; continue; }
     // The server answered "no": it will never become a draw (no balance left, a refused request), so stop waiting for it.
-    if (reply.status >= 400 && reply.status < 500) await settlePaidDraws([entry.opId]);
+    if (reply.status >= 400 && reply.status < 500 && reply.status !== 429) await settlePaidDraws([entry.opId]);
   }
   return results.length ? { results, paidPulls, paidTickets, complete: true, opIds } : null;
 }
@@ -315,7 +315,7 @@ export async function drawPaidTickets(count: number, mobbies: MobbyCollection, a
     const drawn = readPulls(reply);
     if (!drawn) {
       // A definite "no" from the server means nothing was drawn; no answer at all means it may have been (kept for recoverPaidDraws).
-      if (reply !== null && reply.status >= 400 && reply.status < 500) await settlePaidDraws([opId]);
+      if (reply !== null && reply.status >= 400 && reply.status < 500 && reply.status !== 429) await settlePaidDraws([opId]);
       break;
     }
     results.push(...drawn.results); opIds.push(opId); paidPulls = drawn.paidPulls; paidTickets = drawn.remaining; left -= chunk;
