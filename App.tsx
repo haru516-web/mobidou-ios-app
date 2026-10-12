@@ -264,14 +264,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     Alert.alert('購入の復元', wallet ? '購入の情報を確認しました。契約中のプランと木札は、この端末に反映されています。' : 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。');
   };
   const purchasing = useRef(false);
+  /** When the purchase now under way began, so a purchase stuck for minutes can be let go of. */
+  const purchaseStartedAt = useRef(0);
   const buyProduct = async (product: { id: string; kind: 'pull' | 'plan' }) => {
     if (product.kind === 'plan' && data.keychainPlan === 'plus') { Alert.alert('プラスプラン', 'プラスプランは契約中です。'); return; }
+    // A purchase that has been under way for three minutes is stuck: let go of it instead of refusing every later tap.
+    if (purchasing.current && Date.now() - purchaseStartedAt.current > 180000) purchasing.current = false;
     if (purchasing.current) {
-      // Never ignore a tap silently while developing: say that the earlier purchase is still being worked on.
-      if (__DEV__) Alert.alert('購入', '前の購入の処理が、まだ終わっていません。(開発用の表示)');
+      // Never ignore a tap silently: say that the earlier purchase is still being worked on.
+      Alert.alert('購入', '前の購入の処理が、まだ終わっていません。しばらく待ってから、もう一度お試しください。');
       return;
     }
     purchasing.current = true;
+    purchaseStartedAt.current = Date.now();
     // While developing: if the purchase gets nowhere for 10 seconds (outside the App Store sheet), say which step it is stuck on.
     let stage = 'tap';
     const watchdog = __DEV__ ? setTimeout(() => { if (purchasing.current && stage !== 'store') Alert.alert('購入', `10秒たっても、次に進みません。止まっている段階: ${stage}（開発用の表示）`); }, 10000) : null;

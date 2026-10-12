@@ -225,6 +225,16 @@ test('every way a purchase can end has a follow-up, and asking for the age is ne
   assert.doesNotMatch(withoutDetail.kind === 'message' ? withoutDetail.text : '', /timeout/);
 });
 
+test('a purchase the store would not start says so in words, without showing the raw error', async () => {
+  const { purchaseFollowUp } = await import('../src/services/purchase.ts');
+  const text = (detail: string) => { const out = purchaseFollowUp({ ok: false, reason: 'unavailable', detail }, false); return out.kind === 'message' ? out.text : ''; };
+  assert.match(text('cancelled_at_once: E_USER_CANCELLED x'), /購入シートを開けませんでした/);
+  assert.match(text('no_answer: events=0 ignored=0'), /応答がありませんでした/);
+  assert.match(text('product_not_found: jp.mobby.x'), /見つかりませんでした/);
+  assert.match(text('timeout: initConnection did not answer in 15s'), /接続できませんでした/);
+  assert.doesNotMatch(text('no_answer: events=2 ignored=2'), /events=/);
+});
+
 test('subscribing buys the plus product as a subscription, verifies it, then reads the plan', async () => {
   const { api, calls } = fakeApi({ 'GET /plan': () => reply(200, { plan: 'plus' }) });
   const kinds: (string | undefined)[] = [];

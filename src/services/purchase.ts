@@ -47,6 +47,19 @@ export type FollowUp =
   | { kind: 'message'; text: string };
 
 /** `showDetail` adds the technical reason to a message (development builds). */
+/**
+ * What to tell someone when the store would not start or finish a purchase. The raw error stays out of sight outside development,
+ * but the kind of stall is named, so "nothing happens" can be told apart from a store that is not answering.
+ */
+function unavailableText(detail: string | undefined): string {
+  const d = detail ?? '';
+  if (d.startsWith('cancelled_at_once')) return '購入シートを開けませんでした。iPhoneの「設定」→「App Store」で、サンドボックスアカウント（TestFlight）またはApple IDにサインインできているかを確認し、もう一度お試しください。';
+  if (d.startsWith('no_answer')) return 'ストアからの応答がありませんでした。購入シートが開かない場合は、iPhoneの再起動と、電波のよいところでの再試行をお願いします。課金は確定していません。';
+  if (d.startsWith('product_not_found')) return 'この商品がストアで見つかりませんでした。しばらくしてから、もう一度お試しください。';
+  if (d.startsWith('timeout')) return 'ストアに接続できませんでした。電波のよいところで、もう一度お試しください。';
+  return 'この環境では購入できません。';
+}
+
 export function purchaseFollowUp(outcome: BuyOutcome, showDetail = false): FollowUp {
   if (outcome.ok) return { kind: 'done' };
   if (outcome.reason === 'age_needed') return { kind: 'askAge' };
@@ -56,7 +69,7 @@ export function purchaseFollowUp(outcome: BuyOutcome, showDetail = false): Follo
   const base = {
     cancelled: '',
     offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。購入はされていません。',
-    unavailable: 'この環境では購入できません。',
+    unavailable: unavailableText(outcome.reason === 'unavailable' ? outcome.detail : undefined),
     verify_failed: '購入の確認ができませんでした。課金は保留されています。アプリを開き直すと、自動でやり直します。',
   }[outcome.reason];
   if (!base) return { kind: 'quiet' };

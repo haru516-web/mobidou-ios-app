@@ -31,16 +31,26 @@ export function createAppStore(): PurchaseStore | null {
       const leftOver = new Set((await withTimeout(iap.getAvailablePurchases(), 5000, 'getAvailablePurchases').catch(() => [] as import('expo-iap').Purchase[])).filter(purchase => purchase.productId === sku).map(purchase => purchase.id));
       if (__DEV__) console.log(`[iap] buying ${sku}; ${leftOver.size} unfinished from before`);
       return new Promise<PurchasedItem | 'cancelled'>((resolve, reject) => {
-        const done = () => { updated.remove(); failed.remove(); };
+        const startedAt = Date.now();
+        let seen = 0;
+        let ignored = 0;
+        // The sheet may stay open while someone types a password, but two minutes with no word from the store at all is a stall.
+        // It is said out loud; a purchase that does complete later is settled by the next start.
+        const giveUp = setTimeout(() => { done(); reject(new Error(`no_answer: events=${seen} ignored=${ignored}`)); }, 120000);
+        const done = () => { clearTimeout(giveUp); updated.remove(); failed.remove(); };
         const updated = iap.purchaseUpdatedListener(purchase => {
+          seen += 1;
           if (__DEV__) console.log(`[iap] update ${purchase.productId} id=${purchase.id} token=${purchase.purchaseToken ? 'yes' : 'no'} old=${leftOver.has(purchase.id)}`);
-          if (purchase.productId !== sku || !purchase.purchaseToken || leftOver.has(purchase.id)) return;
+          if (purchase.productId !== sku || !purchase.purchaseToken || leftOver.has(purchase.id)) { ignored += 1; return; }
           done(); resolve(item(purchase));
         });
         const failed = iap.purchaseErrorListener(error => {
           done();
           // The code's spelling differs between library versions, so the message is checked as well.
-          if (error.code === iap.ErrorCode.UserCancelled || /cancel/i.test(`${error.code} ${error.message}`)) resolve('cancelled'); else reject(new Error(error.message));
+          if (error.code === iap.ErrorCode.UserCancelled || /cancel/i.test(`${error.code} ${error.message}`)) {
+            // A person cancelling takes a moment. A "cancel" that comes back at once means the sheet never opened, which must not look like a choice.
+            if (Date.now() - startedAt < 2500) reject(new Error(`cancelled_at_once: ${error.code} ${error.message}`)); else resolve('cancelled');
+          } else reject(new Error(error.message));
         });
         iap.requestPurchase({ type: kind, request: { apple: { sku, appAccountToken: accountToken } } }).catch(error => { done(); reject(error); });
       });
