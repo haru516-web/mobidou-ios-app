@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { SerialModal as Modal } from './SerialModal';
 import { BRUSH, Button, C } from '../components';
 
 /** Last step of the first-run guide: connect the step source, or leave it for later. */

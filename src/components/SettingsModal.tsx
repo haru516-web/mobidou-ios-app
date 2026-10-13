@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { LICENSES_TEXT } from '../data/licenses';
 import { playSfx, useAudioSettings } from '../services/audio';
-import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Linking, Platform, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { SerialModal as Modal } from './SerialModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from './AppImage';
 import { BRUSH, Button, C, Icon, Section } from '../components';

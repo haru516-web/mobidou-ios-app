@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable as RNPressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable as RNPressable, Share, StyleSheet, Text, View } from 'react-native';
+import { SerialModal as Modal } from './SerialModal';
 import { WashiInput } from './WashiInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from './AppImage';

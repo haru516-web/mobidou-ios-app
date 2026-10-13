@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Linking } from 'react-native';
+import { SerialModal as Modal } from './SerialModal';
 import { SERVER_URL } from '../services/server';
 import { playSfx } from '../services/audio';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from './AppImage';
 import { BRUSH, Button, SERIF } from '../components';
 import { SHOP_GROUPS, SHOP_PRODUCTS, type ShopProduct } from '../data/shop';

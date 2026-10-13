@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { SerialModal as Modal } from './SerialModal';
 import { BRUSH, Button, C } from '../components';
 import { GACHA_UI_ART } from '../data/gachaUiArt';
 import { Image } from './AppImage';

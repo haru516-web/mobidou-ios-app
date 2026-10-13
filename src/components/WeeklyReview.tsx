@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { SerialModal as Modal } from './SerialModal';
 import { Image } from './AppImage';
 import { BRUSH, Button, C } from '../components';
 import type { WeekSummary } from '../services/weekly';

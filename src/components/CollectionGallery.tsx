@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { SerialModal as Modal } from './SerialModal';
 import { Image } from './AppImage';
 import { BRUSH, Icon } from '../components';
 import { SHRINES, STAMP_IMAGES, type Shrine } from '../data/shrines';

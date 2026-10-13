@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { SerialModal as Modal } from './SerialModal';
 import { Image } from './AppImage';
 import { BRUSH, C } from '../components';
 import { CroppedArt } from './CroppedArt';

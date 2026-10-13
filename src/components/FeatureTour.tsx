@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { SerialModal as Modal } from './SerialModal';
 import Svg, { Path } from 'react-native-svg';
 import { BRUSH, Button, C } from '../components';
 import { buildTourPlan, navSlice, type TourAnchorId, type TourSelection, type TourTab } from '../data/featureTour';
