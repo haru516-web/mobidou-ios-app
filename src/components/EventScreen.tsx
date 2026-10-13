@@ -10,8 +10,8 @@ import { PaperCard, WashiArt, WashiPressable as Pressable } from './Washi';
 import { WashiInput } from './WashiInput';
 import { PetAvatar, Sheet } from './SocialSheets';
 import { eventTicketsEarned, nextEventTicketAt } from '../services/eventGacha';
-import { eventProgress, inviteMessage, normalizeTeamCode, startBlocker, teamInviteLink, teamSteps, type EventTeam, type JoinFailure } from '../services/eventTeam';
-import { devEventTeam, eventTeamApi, loadEventTeam, useEventTeam } from '../services/eventTeamStore';
+import { eventProgress, inviteMessage, normalizeTeamCode, teamInviteLink, teamSteps, type EventTeam, type JoinFailure } from '../services/eventTeam';
+import { devEventTeam, eventTeamApi, loadEventTeam, useEventPendingRequest, useEventTeam } from '../services/eventTeamStore';
 import { fetchProfile, saveProfile } from '../services/social';
 import { openModerationMenu } from '../services/moderation';
 import { SERVER_URL } from '../services/server';
@@ -24,18 +24,11 @@ const JOIN_MESSAGES: Record<JoinFailure, string> = {
   full: 'そのチームはもう満員です。',
   already_started: 'そのチームはすでに出発しています。',
   already_member: 'すでにそのチームに入っています。',
+  request_pending: '別のチームに、参加の申請を出しています。先に、その申請を取り消してください。',
   offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。',
   profile_required: 'チームに入るには、名前の登録が必要です。',
   not_active: 'いまはイベントの期間ではありません。',
   too_many: '試した回数が多すぎます。しばらくしてから、もう一度お試しください。',
-  unavailable: 'うまくいきませんでした。しばらくしてから、もう一度お試しください。',
-};
-const START_MESSAGES: Record<string, string> = {
-  too_few: '人数が足りません。',
-  not_recruiting: 'すでに出発しています。',
-  not_creator: '出発できるのは、チームをつくった人です。',
-  no_team: 'チームが見つかりませんでした。',
-  offline: 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。',
   unavailable: 'うまくいきませんでした。しばらくしてから、もう一度お試しください。',
 };
 
@@ -91,6 +84,7 @@ function Members({ team, event }: { team: EventTeam; event: PilgrimageEvent }) {
 
 export function EventScreen({ visible, onClose, event, pet, initialCode = '', onOpenProfile }: { visible: boolean; onOpenProfile?: () => void; /** Opens the friends sheet, where the profile name is set. */ onClose: () => void; event: PilgrimageEvent; pet: Pet; /** A code that came with an invite link; it is filled in when the screen opens. */ initialCode?: string }) {
   const team = useEventTeam(event.id);
+  const pending = useEventPendingRequest(event.id);
   const [code, setCode] = useState(initialCode);
   useEffect(() => { if (initialCode) setCode(initialCode); }, [initialCode]);
   const [notice, setNotice] = useState('');
@@ -103,14 +97,16 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
 
   // Ask the server how the team stands when the screen opens, and again every few seconds while people may be joining.
   const recruiting = team?.status === 'recruiting';
+  // While someone may be asking, or this player is waiting for an answer, look again every few seconds.
+  const watching = recruiting || !!pending || (!!team && team.members.length < max);
   useEffect(() => {
     if (!visible) return undefined;
     void loadEventTeam(event);
     void fetchProfile().then(profile => { if (profile) { setNeedName(!profile.name); if (profile.name) setName(profile.name); } });
-    if (!recruiting) return undefined;
+    if (!watching) return undefined;
     const timer = setInterval(() => { void loadEventTeam(event); }, 8000);
     return () => clearInterval(timer);
-  }, [visible, recruiting, event]);
+  }, [visible, watching, event]);
 
   const run = async (job: () => Promise<boolean>, failed?: () => void) => {
     if (busy) return;
@@ -141,12 +137,28 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
     setCode('');
     return true;
   });
-  const start = () => void run(async () => {
+  const answer = (requestId: string, accept: boolean) => void run(async () => {
     setNotice('');
-    const result = await eventTeamApi.start(event);
-    if (!result.ok) { setNotice(START_MESSAGES[result.reason] ?? START_MESSAGES.unavailable); return false; }
+    const result = await eventTeamApi.answerRequest(event, requestId, accept);
+    if (result !== 'ok') { setNotice(result === 'full' ? 'このチームはもう満員です。' : result === 'offline' ? JOIN_MESSAGES.offline : JOIN_MESSAGES.unavailable); return false; }
     return true;
   });
+  const cancelRequest = () => void run(async () => {
+    setNotice('');
+    const ok = await eventTeamApi.cancelRequest(event.id);
+    if (!ok) setNotice(JOIN_MESSAGES.offline);
+    return ok;
+  });
+  const requestCard = (requests: readonly { id: string; name: string; petId: string }[]) => (requests.length === 0 ? null : <PaperCard key="requests">
+    <Text style={S.label}>参加の申請が届いています</Text>
+    <Text style={S.small}>承認すると、その人がチームの仲間になり、フレンドにもなります。</Text>
+    {requests.map(row => <View key={row.id} style={S.member}>
+      <PetAvatar petId={row.petId as PetCharacter['id']} size={34} />
+      <Text numberOfLines={1} style={S.memberName}>{row.name}</Text>
+      <Pressable plate="primary" artwork={false} accessibilityRole="button" accessibilityLabel={`${row.name}さんの参加を承認する`} disabled={busy} onPress={() => answer(row.id, true)} style={S.primarySmall}><Text style={S.primarySmallText}>承認</Text></Pressable>
+      <Pressable plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel={`${row.name}さんの参加を見送る`} disabled={busy} onPress={() => answer(row.id, false)} style={S.secondarySmall}><Text style={S.secondarySmallText}>見送る</Text></Pressable>
+    </View>)}
+  </PaperCard>);
   const claim = () => void run(async () => {
     setNotice('');
     const ok = await eventTeamApi.claim(event);
@@ -162,12 +174,22 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
   const share = (t: EventTeam) => void Share.share({ message: inviteMessage(event, t.code, teamInviteLink(SERVER_URL, t.code)) }).catch(() => undefined);
 
   const body: React.ReactElement[] = [];
-  if (!team) {
+  if (!team && pending) {
+    body.push(<PaperCard key="waiting">
+      <Text style={S.headline}>{event.name}</Text>
+      <Text style={S.label}>参加の申請を送りました</Text>
+      <Text style={S.body}>{pending.creatorName}さんが承認すると、チームに入れます。そのままお待ちください。この画面を閉じても、申請は残ります。</Text>
+    </PaperCard>);
+    body.push(<View key="cancel" style={S.actions}>
+      <Button title="申請を取り消す" secondary disabled={busy} onPress={cancelRequest} />
+      {!!notice && <Text accessibilityLiveRegion="polite" style={S.notice}>{notice}</Text>}
+    </View>);
+  } else if (!team) {
     body.push(<PaperCard key="intro">
       <Text style={S.headline}>{event.name}</Text>
       <Text style={S.body}>{event.tagline}</Text>
       <Text style={S.label}>あそび方</Text>
-      <Text style={S.body}>・フレンドと{min}〜{max}人のチームで参加します（ひとりでは参加できません）{'\n'}・全員の歩数を合わせて、イベントの道を進みます{'\n'}・クリアすると、参加した全員が受け取れます：{event.reward}</Text>
+      <Text style={S.body}>・{min}〜{max}人のチームで参加します（ひとりでは参加できません）{'\n'}・チームをつくった人が、参加の申請を承認します。仲間が1人参加すると、イベントが始まります{'\n'}・全員の歩数を合わせて、イベントの道を進みます{'\n'}・クリアすると、参加した全員が受け取れます：{event.reward}</Text>
     </PaperCard>);
     body.push(<View key="actions" style={S.actions}>
       {needName && <PaperCard key="profile">
@@ -187,7 +209,6 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
       {!!notice && <Text accessibilityLiveRegion="polite" style={S.notice}>{notice}</Text>}
     </View>);
   } else if (team.status === 'recruiting') {
-    const blocker = startBlocker(team, event);
     // The way back to the first screen (make a team / enter a code). It is the same as leaving the team, so it sits first, not on the second page.
     body.push(<Pressable key="back" plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="前の画面にもどる（チームをぬける）" onPress={leave} style={S.back}><Icon name="chevron-back" size={16} color={C.red} /><Text style={S.secondarySmallText}>{team.members.length > 1 ? 'チームをぬけて、もどる' : 'もどる'}</Text></Pressable>);
     body.push(<PaperCard key="code">
@@ -199,9 +220,10 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
       <Text style={S.small}>フレンドや、まだアプリを持っていない友だちにも送れます。リンクから参加すると、そのままフレンドになります。</Text>
     </PaperCard>);
     body.push(<Members key="members" team={team} event={event} />);
+    const asking = requestCard(team.requests ?? []);
+    if (asking) body.push(asking);
     body.push(<View key="start" style={S.actions}>
-      <Button title="このメンバーで出発する" disabled={!!blocker || busy || (team.meId !== undefined && team.members[0]?.id !== team.meId)} onPress={start} />
-      <Text style={S.hint}>{blocker === 'too_few' ? `あと${min - team.members.length}人以上集まると出発できます（${min}〜${max}人）` : team.meId !== undefined && team.members[0]?.id !== team.meId ? '出発できるのは、チームをつくった人です' : '出発すると、メンバーの追加はできなくなります'}</Text>
+      <Text style={S.hint}>仲間が1人参加すると、イベントが始まります（{min}〜{max}人）。参加したい人は、チームコードを入れて申請します。あなたが承認すると、チームに入れます。</Text>
       {!!notice && <Text accessibilityLiveRegion="polite" style={S.notice}>{notice}</Text>}
     </View>);
   } else {
@@ -217,6 +239,8 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
       <Text style={S.body}>{(event.spots ?? []).map((s, i) => i < progress.reached ? s.miniature : '？').join(' · ')}</Text>
     </PaperCard>);
     body.push(<Members key="members" team={team} event={event} />);
+    const asking = team.members.length < max ? requestCard(team.requests ?? []) : null;
+    if (asking) body.push(asking);
     if (progress.cleared) body.push(<View key="claim" style={S.actions}>
       <Button title={team.claimed ? '受け取りました' : '報酬を受け取る'} disabled={team.claimed || busy} onPress={claim} />
       <Text style={S.hint}>{event.reward}</Text>

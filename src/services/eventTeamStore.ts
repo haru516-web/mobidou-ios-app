@@ -12,9 +12,11 @@ import type { PilgrimageEvent } from '../data/events';
 import { authedRequest, readServerAccount, SERVER_URL } from './server';
 import { readStepsBetween, type StepSource } from './steps';
 import { submitEventSteps } from './eventSteps';
-import { canJoin, canLeave, eventProgress, isTeamCode, normalizeTeamCode, startBlocker, teamSteps, type EventTeam, type JoinFailure, type StartFailure, type TeamMember } from './eventTeam';
+import { canJoin, canLeave, eventProgress, isTeamCode, normalizeTeamCode, startBlocker, teamSteps, type EventTeam, type JoinFailure, type TeamRequest, type StartFailure, type TeamMember } from './eventTeam';
 
-export type EventTeamResult = { ok: true; team: EventTeam } | { ok: false; reason: JoinFailure };
+/** `team` is null when the player only asked to join: the maker has to accept first. */
+export type EventTeamResult = { ok: true; team: EventTeam | null } | { ok: false; reason: JoinFailure };
+export type AnswerResult = 'ok' | 'full' | 'not_found' | 'offline' | 'unavailable';
 
 export type EventTeamApi = {
   get(eventId: string): EventTeam | null;
@@ -23,6 +25,10 @@ export type EventTeamApi = {
   create(event: PilgrimageEvent, me: Omit<TeamMember, 'steps'>): Promise<EventTeamResult>;
   join(event: PilgrimageEvent, code: string, me: Omit<TeamMember, 'steps'>): Promise<EventTeamResult>;
   start(event: PilgrimageEvent): Promise<{ ok: true } | { ok: false; reason: StartFailure }>;
+  /** The maker accepts or turns down someone who asked to join. */
+  answerRequest(event: PilgrimageEvent, requestId: string, accept: boolean): Promise<AnswerResult>;
+  /** The player takes back their own request. */
+  cancelRequest(eventId: string): Promise<boolean>;
   leave(eventId: string, userId: string): Promise<boolean>;
   claim(event: PilgrimageEvent): Promise<boolean>;
   /** The arrival ceremony for the next unseen spot has been shown. */
@@ -30,6 +36,8 @@ export type EventTeamApi = {
 };
 
 const teams = new Map<string, EventTeam>();
+/** The request this player has sent and not had answered yet, with the name of the maker. */
+const pendingRequests = new Map<string, { id: string; creatorName: string } | null>();
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(fn => fn());
 
@@ -74,7 +82,7 @@ function reachedCount(event: PilgrimageEvent, team: Pick<EventTeam, 'members'>) 
   return eventProgress(event, teamSteps(team)).reached;
 }
 
-type ServerTeam = { code?: unknown; status?: unknown; members?: unknown; claimed?: unknown };
+type ServerTeam = { code?: unknown; status?: unknown; members?: unknown; claimed?: unknown; requests?: unknown };
 
 function fromServer(event: PilgrimageEvent, raw: ServerTeam | null | undefined, meId: string | undefined, seen: SeenRecord | null): EventTeam | null {
   if (!raw || typeof raw.code !== 'string' || !Array.isArray(raw.members)) return null;
@@ -83,7 +91,11 @@ function fromServer(event: PilgrimageEvent, raw: ServerTeam | null | undefined, 
     return typeof m.id === 'string' ? [{ id: m.id, name: typeof m.name === 'string' ? m.name : 'もびさん', petId: typeof m.petId === 'string' ? m.petId : 'mobibou', steps: typeof m.steps === 'number' ? m.steps : 0 }] : [];
   });
   const status = raw.status === 'active' || raw.status === 'cleared' ? raw.status : 'recruiting';
-  const team: EventTeam = { code: raw.code, status, members, claimed: raw.claimed === true, seen: 0, meId };
+  const requests: TeamRequest[] = Array.isArray(raw.requests) ? raw.requests.flatMap(item => {
+    const r = item as { id?: unknown; name?: unknown; petId?: unknown };
+    return typeof r.id === 'string' ? [{ id: r.id, name: typeof r.name === 'string' ? r.name : 'もびさん', petId: typeof r.petId === 'string' ? r.petId : 'mobibou' }] : [];
+  }) : [];
+  const team: EventTeam = { code: raw.code, status, members, claimed: raw.claimed === true, seen: 0, meId, requests };
   // A team this device has not seen before (a new phone, a reinstall) starts caught up, so the past arrivals are not replayed.
   team.seen = seen && seen.code === raw.code ? Math.min(seen.seen, reachedCount(event, team)) : reachedCount(event, team);
   return team;
@@ -92,7 +104,7 @@ function fromServer(event: PilgrimageEvent, raw: ServerTeam | null | undefined, 
 type ServerReply = { status: number; data: Record<string, unknown> | null } | null;
 
 const FAILURES: Record<string, JoinFailure> = {
-  invalid_team_code: 'invalid', not_found: 'not_found', full: 'full', already_started: 'already_started', already_member: 'already_member',
+  invalid_team_code: 'invalid', not_found: 'not_found', full: 'full', already_started: 'already_started', already_member: 'already_member', request_pending: 'request_pending',
   profile_required: 'profile_required', event_not_active: 'not_active', too_many_attempts: 'too_many',
 };
 const failureOf = (reply: ServerReply): JoinFailure => {
@@ -116,6 +128,10 @@ async function adopt(event: PilgrimageEvent, reply: ServerReply, fresh: boolean)
     teams.delete(event.id);
     await writeSeen(event.id, null);
   }
+  const asked = (reply?.data as { request?: { id?: unknown; creatorName?: unknown } | null } | null)?.request;
+  pendingRequests.set(event.id, !team && asked && typeof asked.id === 'string'
+    ? { id: asked.id, creatorName: typeof asked.creatorName === 'string' ? asked.creatorName : 'もびさん' }
+    : null);
   emit();
   return team;
 }
@@ -145,9 +161,10 @@ const serverApi: EventTeamApi = {
     knownEvents.set(event.id, event);
     if (!isTeamCode(code)) return { ok: false, reason: 'invalid' };
     const reply = await authedRequest(`/events/${encodeURIComponent(event.id)}/teams/join`, { body: { code: normalizeTeamCode(code) } });
-    if (!reply || reply.status !== 200) return { ok: false, reason: failureOf(reply) };
+    // The server only records the request (202); nobody is added until the maker accepts.
+    if (!reply || (reply.status !== 202 && reply.status !== 200)) return { ok: false, reason: failureOf(reply) };
     const team = await adopt(event, reply, true);
-    return team ? { ok: true, team } : { ok: false, reason: 'unavailable' };
+    return team || pendingRequests.get(event.id) ? { ok: true, team } : { ok: false, reason: 'unavailable' };
   },
   async start(event) {
     const current = teams.get(event.id);
@@ -162,6 +179,25 @@ const serverApi: EventTeamApi = {
     // The first arrival is shown from zero for the team that has just set out.
     if (team) { team.seen = 0; await writeSeen(event.id, { code: team.code, seen: 0 }); emit(); }
     return { ok: true };
+  },
+  async answerRequest(event, requestId, accept) {
+    knownEvents.set(event.id, event);
+    const reply = await authedRequest(`/events/${encodeURIComponent(event.id)}/requests/${encodeURIComponent(requestId)}/answer`, { body: { accept } });
+    if (!reply) return 'offline';
+    if (reply.status !== 200) {
+      const code = typeof reply.data?.error === 'string' ? reply.data.error : '';
+      if (code === 'full') { await serverApi.refresh(event.id); return 'full'; }
+      return code === 'request_not_found' ? 'not_found' : 'unavailable';
+    }
+    await adopt(event, reply, false);
+    return 'ok';
+  },
+  async cancelRequest(eventId) {
+    const reply = await authedRequest(`/events/${encodeURIComponent(eventId)}/requests/cancel`, { body: {} });
+    if (!reply || reply.status !== 200) return false;
+    const event = knownEvents.get(eventId);
+    if (event) await adopt(event, reply, false); else { pendingRequests.set(eventId, null); emit(); }
+    return true;
   },
   async leave(eventId) {
     const reply = await authedRequest(`/events/${encodeURIComponent(eventId)}/leave`, { body: {} });
@@ -224,6 +260,8 @@ const localApi: EventTeamApi = {
     emit();
     return { ok: true };
   },
+  async answerRequest() { return 'unavailable'; },
+  async cancelRequest() { return true; },
   async leave(eventId, userId) {
     const team = teams.get(eventId);
     if (!team || !canLeave(team)) return false;
@@ -255,7 +293,9 @@ export const devEventTeam = {
     const team = teams.get(eventId);
     if (!team) return;
     const id = `dev-${team.members.length}`;
-    teams.set(eventId, { ...team, members: [...team.members, { id, name, petId: 'mobibou', steps: 0 }] });
+    const members = [...team.members, { id, name, petId: 'mobibou', steps: 0 }];
+    // Like the real thing: a second member sets the team out.
+    teams.set(eventId, { ...team, members, status: team.status === 'recruiting' && members.length >= 2 ? 'active' : team.status });
     emit();
   },
   addSteps(eventId: string, steps: number) {
@@ -287,6 +327,17 @@ export function useEventAvailable(eventId: string): boolean {
     return () => { listeners.delete(update); };
   }, [eventId]);
   return value;
+}
+
+export function useEventPendingRequest(eventId: string): { id: string; creatorName: string } | null {
+  const [pending, setPending] = useState(() => pendingRequests.get(eventId) ?? null);
+  useEffect(() => {
+    const update = () => setPending(pendingRequests.get(eventId) ?? null);
+    listeners.add(update);
+    update();
+    return () => { listeners.delete(update); };
+  }, [eventId]);
+  return pending;
 }
 
 export function useEventTeam(eventId: string): EventTeam | null {

@@ -391,7 +391,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     if (!journey.ready || data.demo || !data.onboarded || eventPreviewing) return undefined;
     void loadEventTeam(TOKI_MEGURU);
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') void loadEventTeam(TOKI_MEGURU); });
-    return () => subscription.remove();
+    // Someone may ask to join while the app is open: look again now and then.
+    const timer = setInterval(() => { if (AppState.currentState === 'active') void loadEventTeam(TOKI_MEGURU); }, 60_000);
+    return () => { subscription.remove(); clearInterval(timer); };
   }, [journey.ready, data.demo, data.onboarded, eventPreviewing]);
   useEffect(() => {
     if (!journey.ready || data.demo || !data.onboarded || eventPreviewing || !eventTeamSetOut || data.source === 'none') return undefined;
@@ -735,6 +737,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const notices: AppNotice[] = [
     ...(activeRoute && progress.completedAt ? [{ id: `todo:complete:${activeRoute.id}:${progress.completedAt}`, kind: 'todo' as const, icon: 'ribbon-outline' as const, title: `${activeRoute.name}を結願しました`, body: '次の巡礼へ出かけましょう。', actionLabel: '次の巡礼へ進む', onAction: advanceToNextRoute }] : []),
     ...(!omikujiDrawn ? [{ id: `todo:omikuji:${omikujiDay}`, kind: 'todo' as const, icon: 'document-text-outline' as const, title: '今日のおみくじを引こう', body: '一日一度のご縁です。', actionLabel: 'おみくじを引く', onAction: () => { move('home'); setOmikujiModal(true); } }] : []),
+    ...((eventTeam?.requests?.length ?? 0) > 0 && eventTeam && eventTeam.members.length < (TOKI_MEGURU.maxMembers ?? 4) ? [{ id: `todo:event-requests:${eventTeam.requests?.map(row => row.id).join(',')}`, kind: 'todo' as const, icon: 'people-outline' as const, title: 'チームへの参加の申請が届いています', body: `${eventTeam.requests?.map(row => row.name).join('、')}さんが、あなたのチームに入りたがっています。イベントの画面で、承認してください。`, actionLabel: 'イベントをひらく', onAction: () => setEventSheet('main') }] : []),
     ...(hasStarter(data.mobbies) && ticketCount(data.mobbies) > 0 ? [{ id: `todo:gacha:${ticketCount(data.mobbies)}`, kind: 'todo' as const, icon: 'gift-outline' as const, title: 'ガチャを引けます', body: `無料で引けるのは${ticketCount(data.mobbies)}回です。新しいモビーに出会えます。`, actionLabel: 'ガチャをひらく', onAction: () => setGachaOpen(true) }] : []),
     ...(data.source === 'none' && !data.demo ? [{ id: 'todo:steps', kind: 'todo' as const, icon: 'footsteps-outline' as const, title: '歩数を連携しよう', body: '歩いた分だけ、巡礼が進みます。', actionLabel: '歩数を連携する', onAction: () => void journey.connect() }] : []),
     ...(activeRoute && next ? [{ id: 'status:next', kind: 'status' as const, icon: 'navigate-outline' as const, title: `次は${next.name}まで あと${fmt(stepsLeft)}歩`, body: activeRoute.name, actionLabel: '巡礼絵図を見る', onAction: () => openSection('walk', 'walkMap') }] : []),

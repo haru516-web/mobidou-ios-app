@@ -22,6 +22,7 @@ npx wrangler d1 execute mobidou --remote --file migrations/0004_gacha_ops.sql
 npx wrangler d1 execute mobidou --remote --file migrations/0005_purchase_environment.sql
 npx wrangler d1 execute mobidou --remote --file migrations/0006_apple_refresh_token.sql
 npx wrangler d1 execute mobidou --remote --file migrations/0007_blocks_and_reports.sql
+npx wrangler d1 execute mobidou --remote --file migrations/0008_event_join_requests.sql
 ```
 
 | ファイル | 内容 |
@@ -31,6 +32,7 @@ npx wrangler d1 execute mobidou --remote --file migrations/0007_blocks_and_repor
 | 0005 | 購入の環境（Production / Sandbox）の記録 |
 | 0006 | Sign in with Apple のリフレッシュトークン（削除時の取消用） |
 | 0007 | ブロックと通報 |
+| 0008 | イベントのチームへの参加の申請（つくった人が承認する） |
 
 ## 2. イベントの登録
 
