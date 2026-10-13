@@ -2,6 +2,18 @@
 
 コードの変更は、この順番で反映します。順番を変えると、サーバーが、まだ無い列を読もうとして、エラーになります。
 
+## 公開日の切り替え（公開日に必ず行う）
+
+テスト・開発用のものは、公開日をもって、次のとおり外す。
+
+1. **テスト用ギフトを消す。** `server/wrangler.toml` の `GIFTS_JSON`（`testflight-2026-10`）を `'[]'` にして、`npx wrangler deploy`。
+2. **イベントの開始を、公開と同時にする。** `events` の `starts_at`（UTC）を、公開の時刻に合わせる。まだ seed を流していなければ `migrations/0003_seed_toki_meguru.sql` の `starts_at` を直してから流す。流し済みなら、次を実行する。
+   `npx wrangler d1 execute mobidou --remote --command "UPDATE events SET starts_at = '<公開時刻のUTC ISO8601>' WHERE id = 'toki-meguru'"`
+   終了は `2026-11-30T15:00:00.000Z`（12/1 00:00 JST）のまま。
+3. **Sandbox の購入を受け付けている間は、`PURCHASE_ENVIRONMENTS` を変えない。** 審査（と TestFlight）は Sandbox で購入する。審査が通って公開できた後に、`Production` だけにする（§4）。
+4. **開発用の機能が、製品ビルドに出ないことを確認する。** 開発用の表示・解除（`__DEV__`、`EXPO_PUBLIC_DEV_UNLOCK_ALL`）は、製品版では動かない。ビルドの環境変数に `EXPO_PUBLIC_DEV_UNLOCK_ALL` と `EXPO_PUBLIC_SERVER_URL`（開発用）が入っていないことを確認する。
+5. **サポート・プライバシー・特商法の3ページが開く**ことを確認する（`/support` `/privacy` `/legal`）。App Store Connect のサポート URL には `/support` を入れる。
+
 ## 1. データベースの更新（既存の本番 D1 に、一度だけ）
 
 `server/` で、番号の順に実行します（新しいデータベースなら `schema.sql` だけで足ります）。

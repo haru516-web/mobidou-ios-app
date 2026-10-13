@@ -3,6 +3,7 @@ import { isNameAllowed } from "./config/ngWords.ts";
 import { appleRevocationConfigured, equalSecretHash, exchangeAppleAuthorizationCode, hashSecret, randomToken, revokeAppleToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
 import { documentPageHtml, privacyPageHtml } from "./privacyPolicy.ts";
+import { SUPPORT_MARKDOWN, SUPPORT_TITLE } from "./supportPage.ts";
 import { LEGAL_MARKDOWN, LEGAL_NOTICE_TITLE } from "./legalNotice.ts";
 import type { AgeGroup, Env, EventRecord, EventTeamView, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 
@@ -217,6 +218,9 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   const path = url.pathname.replace(/\/$/, "") || "/";
 
   if (method === "GET" && path === "/health") return json({ ok: true });
+  if (method === "GET" && path === "/support") {
+    return new Response(documentPageHtml(SUPPORT_TITLE, SUPPORT_MARKDOWN), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
+  }
   if (method === "GET" && path === "/legal") {
     return new Response(documentPageHtml(LEGAL_NOTICE_TITLE, LEGAL_MARKDOWN), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
   }

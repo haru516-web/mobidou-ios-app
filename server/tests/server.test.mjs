@@ -950,6 +950,16 @@ test("GET /wallet reports the balances of the signed-in user", async () => {
   assert.deepEqual(await response.json(), { paid: 3, free: 0, paidPulls: 0, refundDebt: 0 });
 });
 
+test("the support page is public and gives the contact address and where to cancel", async () => {
+  const context = createContext();
+  const response = await handleWithStore(new Request("https://server.test/support"), env, context.store, new Date("2026-10-15T00:00:00Z"));
+  const page = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(page, /info@mobby.online/);
+  assert.match(page, /サブスクリプション/);
+  assert.match(page, /<h3>/);
+});
+
 test("monthly spending cap by age group: set once, can be lowered but not raised, counted per Tokyo month", async () => {
   const context = createContext();
   const account = await register(context);

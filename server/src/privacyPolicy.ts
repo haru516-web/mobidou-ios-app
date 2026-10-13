@@ -111,6 +111,7 @@ export function markdownToHtml(markdown: string): string {
     const line = lines[i];
     if (!line.trim()) continue;
     if (line.startsWith("# ")) { out.push(`<h1>${inline(line.slice(2))}</h1>`); continue; }
+    if (line.startsWith("### ")) { out.push(`<h3>${inline(line.slice(4))}</h3>`); continue; }
     if (line.startsWith("## ")) { out.push(`<h2>${inline(line.slice(3))}</h2>`); continue; }
     if (line.startsWith("- ")) {
       const items: string[] = [];

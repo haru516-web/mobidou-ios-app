@@ -135,6 +135,7 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
           <Button title="プライバシーとデータ" secondary onPress={() => setInfo('privacy')} />
           <Button title="プライバシーポリシー（ウェブ）" secondary onPress={() => void Linking.openURL(`${SERVER_URL}/privacy`).catch(() => {})} style={{ marginTop: 10 }} />
           <Button title="特定商取引法に基づく表記" secondary onPress={() => void Linking.openURL(`${SERVER_URL}/legal`).catch(() => {})} style={{ marginTop: 10 }} />
+          <Button title="サポート・お問い合わせ" secondary onPress={() => void Linking.openURL(`${SERVER_URL}/support`).catch(() => {})} style={{ marginTop: 10 }} />
           <Button title="もび道について・利用上の案内" secondary onPress={() => setInfo('about')} style={{ marginTop: 10 }} />
           <Text style={S.footerNote}>{'もび道（もびどう） 1.0.0\n今日の一歩に、小さなご縁を。'}</Text>
         </View>
