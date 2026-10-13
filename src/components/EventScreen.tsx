@@ -89,7 +89,7 @@ function Members({ team, event }: { team: EventTeam; event: PilgrimageEvent }) {
   </PaperCard>;
 }
 
-export function EventScreen({ visible, onClose, event, pet, initialCode = '' }: { visible: boolean; onClose: () => void; event: PilgrimageEvent; pet: Pet; /** A code that came with an invite link; it is filled in when the screen opens. */ initialCode?: string }) {
+export function EventScreen({ visible, onClose, event, pet, initialCode = '', onOpenProfile }: { visible: boolean; onOpenProfile?: () => void; /** Opens the friends sheet, where the profile name is set. */ onClose: () => void; event: PilgrimageEvent; pet: Pet; /** A code that came with an invite link; it is filled in when the screen opens. */ initialCode?: string }) {
   const team = useEventTeam(event.id);
   const [code, setCode] = useState(initialCode);
   useEffect(() => { if (initialCode) setCode(initialCode); }, [initialCode]);
@@ -170,20 +170,20 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '' }: 
       <Text style={S.body}>・フレンドと{min}〜{max}人のチームで参加します（ひとりでは参加できません）{'\n'}・全員の歩数を合わせて、イベントの道を進みます{'\n'}・クリアすると、参加した全員が受け取れます：{event.reward}</Text>
     </PaperCard>);
     body.push(<View key="actions" style={S.actions}>
-      {needName && <Text style={S.label}>あなたの名前（チームのみんなに見えます）</Text>}
-      {needName && <View style={[S.joinRow]}>
-        <WashiArt />
-        <WashiInput value={name} onChangeText={setName} maxLength={12} placeholder="名前（チームのみんなに見えます）" placeholderTextColor="#B7A58F" autoCorrect={false} accessibilityLabel="名前" style={S.codeInput} />
-      </View>}
-      <Button title="チームをつくる" disabled={busy || (needName && !name.trim())} onPress={create} />
-      {needName && !name.trim() && <Text style={S.hint}>名前を入れると、チームをつくれます（12文字まで）</Text>}
-      <Text style={S.label}>チームコードで参加する</Text>
-      <Text style={S.small}>フレンドから教えてもらったチームコード（7文字）を入れて、「参加」を押します。</Text>
-      <View style={[S.joinRow]}>
+      {needName && <PaperCard key="profile">
+        <Text style={S.label}>はじめに、プロフィールの名前を決めましょう</Text>
+        <Text style={S.small}>名前は、チームのメンバーとフレンドに見えます。ニックネームでかまいません（12文字まで）。決めたら、このイベントの画面にもどって、チームをつくります。</Text>
+      </PaperCard>}
+      {needName
+        ? <Button title="プロフィールを決める" onPress={() => (onOpenProfile ?? onClose)()} />
+        : <Button title="チームをつくる" disabled={busy} onPress={create} />}
+      {!needName && <Text style={S.label}>チームコードで参加する</Text>}
+      {!needName && <Text style={S.small}>フレンドから教えてもらったチームコード（7文字）を入れて、「参加」を押します。</Text>}
+      {!needName && <View style={[S.joinRow]}>
         <WashiArt />
         <WashiInput value={code} onChangeText={value => setCode(value.toUpperCase())} maxLength={7} placeholder="チームコード" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="チームコード" style={S.codeInput} />
         <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={busy || !code.trim() || (needName && !name.trim())} onPress={join} style={[S.primarySmall, (busy || !code.trim()) && S.disabled]}><Text style={S.primarySmallText}>参加</Text></Pressable>
-      </View>
+      </View>}
       {!!notice && <Text accessibilityLiveRegion="polite" style={S.notice}>{notice}</Text>}
     </View>);
   } else if (team.status === 'recruiting') {

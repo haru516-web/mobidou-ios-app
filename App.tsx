@@ -871,8 +871,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     return () => subscription.remove();
   }, []);
   useEffect(() => {
-    if (teamInviteCode && journey.ready && data.onboarded && !data.demo && firstRunStage === null && !openingVisible && !eventSheet) setEventSheet('main');
-  }, [teamInviteCode, journey.ready, data.onboarded, data.demo, firstRunStage, openingVisible, eventSheet]);
+    if (teamInviteCode && journey.ready && data.onboarded && !data.demo && firstRunStage === null && !openingVisible && !eventSheet && !socialSheet) setEventSheet('main');
+  }, [teamInviteCode, journey.ready, data.onboarded, data.demo, firstRunStage, openingVisible, eventSheet, socialSheet]);
   useEffect(() => {
     if (!SOCIAL_ONLINE) return undefined;
     const take = (url: string | null) => { const code = friendCodeFromUrl(url); if (code) setInviteCode(code); };
@@ -1088,7 +1088,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
-    <EventScreen visible={eventSheet === 'main'} onClose={() => { setEventSheet(null); setTeamInviteCode(''); }} event={TOKI_MEGURU} pet={pet} initialCode={teamInviteCode} />
+    <EventScreen visible={eventSheet === 'main'} onClose={() => { setEventSheet(null); setTeamInviteCode(''); }} event={TOKI_MEGURU} pet={pet} initialCode={teamInviteCode} onOpenProfile={() => { setEventSheet(null); setSocialSheet('friends'); }} />
     <EventAnnouncePopup visible={eventAnnounceOpen} event={TOKI_MEGURU} statusLabel={eventStatusLabel} hideNextTime={eventAnnounceHidden === true} onHideNextTimeChange={changeEventAnnounceHidden} onOpenEvent={() => { setEventAnnounceOpen(false); setEventSheet('main'); }} onClose={() => setEventAnnounceOpen(false)} />
     <EventListPopup visible={eventListOpen} onClose={() => setEventListOpen(false)} event={TOKI_MEGURU} statusLabel={eventStatusLabel} onViewCollection={() => { setEventListOpen(false); setCollectionPage('room'); setEventCollection(true); }} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
