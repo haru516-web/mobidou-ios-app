@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DAILY_STEPS_MAX, openStepsDay, submitEventSteps, tokyoDayRange, type EventStepsRequest, type EventStepsResponse } from '../src/services/eventSteps.ts';
+import { DAILY_STEPS_MAX, openStepsDay, rangeSince, submitEventSteps, tokyoDayRange, type EventStepsRequest, type EventStepsResponse } from '../src/services/eventSteps.ts';
 
 const jst = (iso: string) => new Date(`${iso}+09:00`);
 
@@ -66,4 +66,18 @@ test('server answers map to results', async () => {
   assert.deepEqual(await submitEventSteps({ ...base, transport: async () => ok(409, { error: 'steps_day_mismatch', openDay: '2026-10-01' }) }), { ok: false, reason: 'day_mismatch', openDay: '2026-10-01' });
   assert.deepEqual(await submitEventSteps({ ...base, transport: async () => ok(409, { error: 'event_not_active' }) }), { ok: false, reason: 'rejected' });
   assert.deepEqual(await submitEventSteps({ ...base, transport: async () => { throw new Error('network'); } }), { ok: false, reason: 'offline' });
+});
+
+test('only the steps after joining count: a morning join adds nothing for yesterday and takes today from the joining time', () => {
+  const joined = Date.parse('2026-10-01T10:00:00+09:00');
+  const yesterday = tokyoDayRange('2026-09-30');
+  const today = tokyoDayRange('2026-10-01');
+  // At 10:00 the open day is still yesterday, and the whole of it is before the join.
+  assert.equal(rangeSince(yesterday.start, Math.min(yesterday.end, joined), joined), null);
+  // Today's day opens at 20:00 and is read from the joining time to midnight.
+  assert.deepEqual(rangeSince(today.start, today.end, joined), { start: joined, end: today.end });
+  // A player who has been in the team from before the day counts the whole day.
+  assert.deepEqual(rangeSince(today.start, today.end, today.start - 1), { start: today.start, end: today.end });
+  // No joining time known (an older server): nothing is cut.
+  assert.deepEqual(rangeSince(today.start, today.end, undefined), { start: today.start, end: today.end });
 });

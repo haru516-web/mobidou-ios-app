@@ -231,7 +231,7 @@ class MemoryStore {
     const team = this.teamOf(userId, eventId);
     if (!team) return null;
     const members = team.members.map((id) => ({ id, name: this.users.get(id)?.name ?? "もびさん", petId: this.users.get(id)?.petId ?? null, steps: this.stepsOf(id, eventId) }));
-    return { id: team.id, code: team.code, status: team.status, creatorId: team.members[0], members, claimed: this.eventClaims.has(`${userId}:${eventId}`) };
+    return { id: team.id, code: team.code, status: team.status, creatorId: team.members[0], members, startedAt: team.status === "recruiting" ? null : "2026-09-30T00:00:00.000Z", claimed: this.eventClaims.has(`${userId}:${eventId}`) };
   }
   async createEventTeam(userId, eventId, teamId, code) {
     if (this.teamOf(userId, eventId)) return "already_member";

@@ -32,6 +32,15 @@ export function tokyoDayRange(day: string): { start: number; end: number } {
   return { start, end: start + DAY_MS };
 }
 
+/**
+ * The part of a day's range that counts for a player whose steps count from `since` (epoch ms): the time they joined the
+ * team, or the time the team set out if that was later. Null when none of the range counts, such as the day before.
+ */
+export function rangeSince(start: number, end: number, since: number | undefined): { start: number; end: number } | null {
+  const from = Math.max(start, since ?? 0);
+  return end > from ? { start: from, end } : null;
+}
+
 export type EventStepsRequest = { eventId: string; day: string; cumulative: number };
 export type EventStepsResponse = { status: number; body: unknown };
 export type EventStepsTransport = (request: EventStepsRequest) => Promise<EventStepsResponse>;

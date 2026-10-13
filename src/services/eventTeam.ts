@@ -10,7 +10,7 @@ export type TeamMember = { id: string; name: string; petId: string; steps: numbe
 /** Someone who asked to join; the player who made the team answers. */
 export type TeamRequest = { id: string; name: string; petId: string };
 /** `seen`: how many reached spots the arrival ceremony has already been shown for. */
-export type EventTeam = { code: string; status: TeamStatus; members: TeamMember[]; claimed: boolean; seen: number; /** Players who asked to join; only the player who made the team gets them. */ requests?: TeamRequest[]; /** The player's own member id, so the screens can tell which member is them. */ meId?: string };
+export type EventTeam = { code: string; status: TeamStatus; members: TeamMember[]; claimed: boolean; seen: number; /** Players who asked to join; only the player who made the team gets them. */ requests?: TeamRequest[]; /** Epoch ms from which this player's steps count: when they joined, or when the team set out if later. */ since?: number; /** The player's own member id, so the screens can tell which member is them. */ meId?: string };
 
 /** Team code alphabet: same as friend codes (no 0/O/1/I). */
 const CODE = /^[A-HJ-NP-Z2-9]{6}$/;

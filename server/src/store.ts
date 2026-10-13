@@ -373,17 +373,17 @@ export class D1Store implements Store {
   }
 
   async eventTeam(userId: string, eventId: string): Promise<EventTeamView | null> {
-    const mine = await this.db.prepare(`SELECT t.id, t.invite_code, t.status FROM event_members m JOIN event_teams t ON t.id = m.team_id
-      WHERE m.event_id = ? AND m.user_id = ?`).bind(eventId, userId).first<{ id: string; invite_code: string | null; status: "recruiting" | "active" }>();
+    const mine = await this.db.prepare(`SELECT t.id, t.invite_code, t.status, t.started_at FROM event_members m JOIN event_teams t ON t.id = m.team_id
+      WHERE m.event_id = ? AND m.user_id = ?`).bind(eventId, userId).first<{ id: string; invite_code: string | null; status: "recruiting" | "active"; started_at: string | null }>();
     if (!mine) return null;
     const rows = await this.db.prepare(`SELECT u.id, u.name, u.pet_id AS petId, m.joined_at AS joinedAt,
         COALESCE((SELECT SUM(s.cumulative) FROM event_steps s WHERE s.user_id = u.id AND s.event_id = m.event_id), 0) AS steps
       FROM event_members m JOIN users u ON u.id = m.user_id
       WHERE m.team_id = ? ORDER BY m.joined_at ASC, u.id ASC`).bind(mine.id)
       .all<{ id: string; name: string | null; petId: string | null; joinedAt: string; steps: number }>();
-    const members = (rows.results ?? []).map((row) => ({ id: row.id, name: row.name ?? "もびさん", petId: row.petId, steps: row.steps }));
+    const members = (rows.results ?? []).map((row) => ({ id: row.id, name: row.name ?? "もびさん", petId: row.petId, steps: row.steps, joinedAt: row.joinedAt }));
     const claimed = !!(await this.db.prepare("SELECT 1 AS found FROM event_claims WHERE user_id = ? AND event_id = ?").bind(userId, eventId).first());
-    return { id: mine.id, code: mine.invite_code ?? "", status: mine.status, creatorId: members[0]?.id ?? userId, members, claimed };
+    return { id: mine.id, code: mine.invite_code ?? "", status: mine.status, creatorId: members[0]?.id ?? userId, members, startedAt: mine.started_at, claimed };
   }
 
   async createEventTeam(userId: string, eventId: string, teamId: string, code: string): Promise<"ok" | "already_member" | "code_taken"> {

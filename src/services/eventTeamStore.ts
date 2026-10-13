@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PilgrimageEvent } from '../data/events';
 import { authedRequest, readServerAccount, SERVER_URL } from './server';
 import { readStepsBetween, type StepSource } from './steps';
-import { submitEventSteps } from './eventSteps';
+import { rangeSince, submitEventSteps } from './eventSteps';
 import { canJoin, canLeave, eventProgress, isTeamCode, normalizeTeamCode, startBlocker, teamSteps, type EventTeam, type JoinFailure, type TeamRequest, type StartFailure, type TeamMember } from './eventTeam';
 
 /** `team` is null when the player only asked to join: the maker has to accept first. */
@@ -82,7 +82,7 @@ function reachedCount(event: PilgrimageEvent, team: Pick<EventTeam, 'members'>) 
   return eventProgress(event, teamSteps(team)).reached;
 }
 
-type ServerTeam = { code?: unknown; status?: unknown; members?: unknown; claimed?: unknown; requests?: unknown };
+type ServerTeam = { code?: unknown; status?: unknown; members?: unknown; claimed?: unknown; requests?: unknown; startedAt?: unknown };
 
 function fromServer(event: PilgrimageEvent, raw: ServerTeam | null | undefined, meId: string | undefined, seen: SeenRecord | null): EventTeam | null {
   if (!raw || typeof raw.code !== 'string' || !Array.isArray(raw.members)) return null;
@@ -95,7 +95,12 @@ function fromServer(event: PilgrimageEvent, raw: ServerTeam | null | undefined, 
     const r = item as { id?: unknown; name?: unknown; petId?: unknown };
     return typeof r.id === 'string' ? [{ id: r.id, name: typeof r.name === 'string' ? r.name : 'もびさん', petId: typeof r.petId === 'string' ? r.petId : 'mobibou' }] : [];
   }) : [];
-  const team: EventTeam = { code: raw.code, status, members, claimed: raw.claimed === true, seen: 0, meId, requests };
+  // This player's steps count from when they joined, or from when the team set out if that was later.
+  const mine = (raw.members as { id?: unknown; joinedAt?: unknown }[]).find(item => item.id === meId);
+  const joined = typeof mine?.joinedAt === 'string' ? Date.parse(mine.joinedAt) : NaN;
+  const started = typeof raw.startedAt === 'string' ? Date.parse(raw.startedAt) : NaN;
+  const since = Math.max(Number.isFinite(joined) ? joined : 0, Number.isFinite(started) ? started : 0);
+  const team: EventTeam = { code: raw.code, status, members, claimed: raw.claimed === true, seen: 0, meId, requests, since: since > 0 ? since : undefined };
   // A team this device has not seen before (a new phone, a reinstall) starts caught up, so the past arrivals are not replayed.
   team.seen = seen && seen.code === raw.code ? Math.min(seen.seen, reachedCount(event, team)) : reachedCount(event, team);
   return team;
@@ -370,7 +375,10 @@ export async function sendEventSteps(event: PilgrimageEvent, source: StepSource,
     const result = await submitEventSteps({
       eventId: event.id,
       now,
-      readSteps: (start, end) => readStepsBetween(source, start, end),
+      readSteps: async (start, end) => {
+        const range = rangeSince(start, end, team.since);
+        return range ? readStepsBetween(source, range.start, range.end) : 0;
+      },
       transport: async request => {
         const reply = await authedRequest(`/events/${encodeURIComponent(request.eventId)}/steps`, { body: { cumulative: request.cumulative, day: request.day } });
         if (!reply) throw new Error('offline');

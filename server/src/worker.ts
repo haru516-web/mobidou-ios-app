@@ -65,7 +65,7 @@ function teamResponse(event: EventRecord, team: EventTeamView | null, extras: { 
   const cleared = team.status === "active" && event.goalSteps > 0 && totalSteps >= event.goalSteps;
   return {
     event: info,
-    team: { code: team.code, status: cleared ? "cleared" : team.status, creatorId: team.creatorId, members: team.members, claimed: team.claimed, requests: (extras.requests ?? []).map((row) => ({ id: row.id, name: row.name, petId: row.petId })) },
+    team: { code: team.code, status: cleared ? "cleared" : team.status, creatorId: team.creatorId, members: team.members, startedAt: team.startedAt, claimed: team.claimed, requests: (extras.requests ?? []).map((row) => ({ id: row.id, name: row.name, petId: row.petId })) },
     totalSteps
   };
 }

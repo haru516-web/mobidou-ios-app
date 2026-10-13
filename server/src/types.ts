@@ -109,6 +109,8 @@ export interface EventTeamMemberView {
   petId: string | null;
   /** Everything this member has walked for the event. */
   steps: number;
+  /** When this member joined the team (ISO 8601); their steps count from then on. */
+  joinedAt: string;
 }
 
 export interface EventTeamView {
@@ -119,6 +121,8 @@ export interface EventTeamView {
   /** The member who joined first; they start the team. */
   creatorId: string;
   members: EventTeamMemberView[];
+  /** When the team set out (ISO 8601); null while it is still recruiting. */
+  startedAt: string | null;
   /** Whether the asking player has already received the reward. */
   claimed: boolean;
 }
