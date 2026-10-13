@@ -250,45 +250,82 @@ const SHOW_CURL_DEBUG = __DEV__;
 
 /**
  * The iOS page curl turning the app's own book: every spread is drawn once by the app (off screen), saved as a picture, and the
- * curl turns halves of those pictures. Until the pictures exist, or if taking them fails, the app's own page turn is shown.
+ * curl turns halves of those pictures. The pictures are taken nearest the open page first (the page itself, then the next, then the
+ * previous, then outward), and the curl takes over as soon as the open page and its two neighbours exist; the rest follow while it is
+ * already usable. Until then, or if taking them fails, the app's own page turn is shown.
  */
 const SnapshotCurlBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function SnapshotCurlBookPageTurn(props, ref) {
   const { itemCount, renderSpread, contentKey, style } = props;
   const [size, setSize] = useState({ width: 0, height: 0 });
+  // One entry per spread, '' for a spread that is not photographed yet. Only set once the open page and its neighbours exist.
   const [uris, setUris] = useState<string[] | null>(null);
   const shots = useRef<(View | null)[]>([]);
+  const taken = useRef<string[]>([]);
+  const turning = useRef(false);
+  const unsent = useRef(false);
+  const currentRef = useRef(props.selectedIndex);
+  currentRef.current = props.selectedIndex;
   const signature = `${contentKey ?? ''}|${itemCount}|${(props.nativePages ?? []).map(page => `${page.name}:${page.acquired}`).join(',')}|${Math.round(size.width)}x${Math.round(size.height)}`;
   const renderSpreadRef = useRef(renderSpread);
   renderSpreadRef.current = renderSpread;
 
+  // Hand the pictures to the curl once the open page and both neighbours exist; never while a page is turning.
+  const publish = useCallback(() => {
+    const current = Math.max(0, Math.min(currentRef.current, itemCount - 1));
+    const needed = [current, current + 1, current - 1].filter(index => index >= 0 && index < itemCount);
+    if (!needed.every(index => !!taken.current[index])) return;
+    if (turning.current) { unsent.current = true; return; }
+    unsent.current = false;
+    setUris(taken.current.slice());
+  }, [itemCount]);
+  const handleBusyChange = useCallback((busy: boolean) => {
+    turning.current = busy;
+    if (!busy && unsent.current) publish();
+    props.onBusyChange?.(busy);
+  }, [publish, props.onBusyChange]);
+
   useEffect(() => {
     if (size.width <= 0 || size.height <= 0 || itemCount < 2) return undefined;
     let cancelled = false;
+    taken.current = new Array(itemCount).fill('');
+    turning.current = false;
+    unsent.current = false;
     // Let the pictures inside the spreads load before they are photographed.
     const timer = setTimeout(async () => {
       try {
-        const taken: string[] = [];
-        for (let index = 0; index < itemCount; index += 1) {
-          const target = shots.current[index];
+        for (;;) {
+          const current = currentRef.current;
+          let next = -1;
+          let best = Infinity;
+          for (let index = 0; index < itemCount; index += 1) {
+            if (taken.current[index]) continue;
+            // Nearest the open page first, and the page ahead before the one behind.
+            const distance = Math.abs(index - current) + (index < current ? 0.5 : 0);
+            if (distance < best) { best = distance; next = index; }
+          }
+          if (next < 0) break;
+          const target = shots.current[next];
           if (!target) throw new Error('spread view missing');
-          taken.push(await captureView(target));
+          const uri = await captureView(target);
+          if (cancelled) return;
+          taken.current[next] = uri;
+          publish();
         }
-        if (!cancelled) setUris(taken);
       } catch {
         if (!cancelled) setUris(null);
       }
     }, 900);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [signature]);
+  }, [signature]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <View style={style} onLayout={event => { const { width, height } = event.nativeEvent.layout; setSize(previous => Math.abs(previous.width - width) < 1 && Math.abs(previous.height - height) < 1 ? previous : { width, height }); }}>
     {size.width > 0 && <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={[S.offscreen, { left: 0, width: size.width }]}>
       {Array.from({ length: itemCount }, (_, index) => <View key={index} ref={node => { shots.current[index] = node; }} collapsable={false} style={{ position: 'absolute', left: 0, top: 0, width: size.width, height: size.height }}>{renderSpreadRef.current(index)}</View>)}
     </View>}
     {uris && uris.length === itemCount
-      ? <NativeBookPageTurn forwardedRef={ref} spreadUris={uris} selectedIndex={props.selectedIndex} onCommit={props.onCommit} onBusyChange={props.onBusyChange} onOpenDetail={props.onOpenDetail} style={S.fill} />
+      ? <NativeBookPageTurn forwardedRef={ref} spreadUris={uris} selectedIndex={props.selectedIndex} onCommit={props.onCommit} onBusyChange={handleBusyChange} onOpenDetail={props.onOpenDetail} style={S.fill} />
       : <SimulatedBookPageTurn {...props} ref={ref} style={S.fill} />}
-    {SHOW_CURL_DEBUG && uris && uris[0] && <View pointerEvents="none" style={{ position: 'absolute', right: 4, top: 4, width: 150, backgroundColor: '#000C', padding: 3 }}>
+    {SHOW_CURL_DEBUG && uris && !!uris[0] && <View pointerEvents="none" style={{ position: 'absolute', right: 4, top: 4, width: 150, backgroundColor: '#000C', padding: 3 }}>
       <RNImage source={{ uri: uris[0] }} style={{ width: 144, height: 144 * (size.height / Math.max(1, size.width)), backgroundColor: '#8886' }} resizeMode="contain" />
       <Text style={{ color: '#fff', fontSize: 8 }}>{`spread0 ${uris.length}p ${uris[0].slice(0, 7)}…${uris[0].slice(-14)}`}</Text>
     </View>}
