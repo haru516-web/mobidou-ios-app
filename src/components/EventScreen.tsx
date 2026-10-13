@@ -172,6 +172,15 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
     return ok;
   });
   const share = (t: EventTeam) => void Share.share({ message: inviteMessage(event, t.code, teamInviteLink(SERVER_URL, t.code)) }).catch(() => undefined);
+  /** The team code with its share button: shown while the team can still take someone in, before and after it sets out. */
+  const codeCard = (t: EventTeam) => (<PaperCard key="code">
+        <Text style={S.label}>チームコード</Text>
+        <View style={S.rowBetween}>
+          <Text selectable style={S.code}>{normalizeTeamCode(t.code)}</Text>
+          <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="チームコードと招待リンクを共有" onPress={() => share(t)} style={S.iconButton}><Icon name="share-outline" size={20} color={C.red} /></Pressable>
+        </View>
+        <Text style={S.small}>フレンドや、まだアプリを持っていない友だちにも送れます。コードを入れた人から申請が届くので、あなたが承認すると、チームに入れます。</Text>
+      </PaperCard>);
 
   const body: React.ReactElement[] = [];
   if (!team && pending) {
@@ -211,14 +220,7 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
   } else if (team.status === 'recruiting') {
     // The way back to the first screen (make a team / enter a code). It is the same as leaving the team, so it sits first, not on the second page.
     body.push(<Pressable key="back" plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="前の画面にもどる（チームをぬける）" onPress={leave} style={S.back}><Icon name="chevron-back" size={16} color={C.red} /><Text style={S.secondarySmallText}>{team.members.length > 1 ? 'チームをぬけて、もどる' : 'もどる'}</Text></Pressable>);
-    body.push(<PaperCard key="code">
-      <Text style={S.label}>チームコード</Text>
-      <View style={S.rowBetween}>
-        <Text selectable style={S.code}>{normalizeTeamCode(team.code)}</Text>
-        <Pressable artwork={false} accessibilityRole="button" accessibilityLabel="チームコードと招待リンクを共有" onPress={() => share(team)} style={S.iconButton}><Icon name="share-outline" size={20} color={C.red} /></Pressable>
-      </View>
-      <Text style={S.small}>フレンドや、まだアプリを持っていない友だちにも送れます。リンクから参加すると、そのままフレンドになります。</Text>
-    </PaperCard>);
+    body.push(codeCard(team));
     body.push(<Members key="members" team={team} event={event} />);
     const asking = requestCard(team.requests ?? []);
     if (asking) body.push(asking);
@@ -241,6 +243,7 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
     body.push(<Members key="members" team={team} event={event} />);
     const asking = team.members.length < max ? requestCard(team.requests ?? []) : null;
     if (asking) body.push(asking);
+    if (team.members.length < max) body.push(codeCard(team));
     if (progress.cleared) body.push(<View key="claim" style={S.actions}>
       <Button title={team.claimed ? '受け取りました' : '報酬を受け取る'} disabled={team.claimed || busy} onPress={claim} />
       <Text style={S.hint}>{event.reward}</Text>
