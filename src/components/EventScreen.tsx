@@ -170,11 +170,15 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '' }: 
       <Text style={S.body}>・フレンドと{min}〜{max}人のチームで参加します（ひとりでは参加できません）{'\n'}・全員の歩数を合わせて、イベントの道を進みます{'\n'}・クリアすると、参加した全員が受け取れます：{event.reward}</Text>
     </PaperCard>);
     body.push(<View key="actions" style={S.actions}>
+      {needName && <Text style={S.label}>あなたの名前（チームのみんなに見えます）</Text>}
       {needName && <View style={[S.joinRow]}>
         <WashiArt />
         <WashiInput value={name} onChangeText={setName} maxLength={12} placeholder="名前（チームのみんなに見えます）" placeholderTextColor="#B7A58F" autoCorrect={false} accessibilityLabel="名前" style={S.codeInput} />
       </View>}
       <Button title="チームをつくる" disabled={busy || (needName && !name.trim())} onPress={create} />
+      {needName && !name.trim() && <Text style={S.hint}>名前を入れると、チームをつくれます（12文字まで）</Text>}
+      <Text style={S.label}>チームコードで参加する</Text>
+      <Text style={S.small}>フレンドから教えてもらったチームコード（7文字）を入れて、「参加」を押します。</Text>
       <View style={[S.joinRow]}>
         <WashiArt />
         <WashiInput value={code} onChangeText={value => setCode(value.toUpperCase())} maxLength={7} placeholder="チームコード" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="チームコード" style={S.codeInput} />
