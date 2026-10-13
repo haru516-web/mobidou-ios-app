@@ -31,6 +31,8 @@
 | BL02 返金 | 返金は未使用分の回収のみ（負債なし）に決定・実装。プラスは返金通知で当該期間を即時終了し、未使用の月次1回分を回収。使用後の返金が180日で2回あると購入を停止（サーバーが `restricted` を返し、アプリが文言を表示）。特商法の返金の文言も更新。 | 返金・取消・Ask to Buy の Sandbox 試験。Apple通知の欠落時のServer API再照合は未実装（公開後の改善。次回起動時の購入確認で状態は直る） |
 | BL03 Apple連携の削除 | Apple連携アカウントは、Appleへのトークン取消ができるまで削除しない（鍵未設定は503、トークンなしは409でアプリがAppleサインインを再要求、取消拒否は502）。 | **鍵（APPLE_TEAM_ID / APPLE_SIGN_IN_KEY_ID / APPLE_SIGN_IN_PRIVATE_KEY）の登録**（デプロイ手順§3）。未登録だとApple連携ユーザーは削除できない。実機での削除試験 |
 | BL06 歩数 | HealthKitの歩数読取から手入力サンプルを除外。改造クライアントへの対策（サーバー側の急増検知など）は公開後に必要なら追加（現状は日次10万歩の上限のみ）。 | 実機でのヘルスケア手入力の確認（Swiftは未ビルド） |
+| BL07 ライセンス・Privacy Manifest | 設定に「ライセンス」画面を追加（Shippori Mincho / Yuji Syuku の著作権表示とSIL OFL 1.1全文、OSSの使用表示）。`app.json` の `ios.privacyManifests` にUserDefaults（CA92.1・1C8F.1。アプリとウィジェットの共有App Group）を宣言。 | Archive後に `PrivacyInfo.xcprivacy` の中身（Required Reason API）を確認 |
+| BL08 依存の脆弱性 | `npm audit --omit=dev` の critical 1（shell-quote）・high 8は、いずれも開発サーバー（Metro）・ビルドツール（expo prebuild等）の依存で、アプリのバイナリには入らない。端末で実行されないため利用者への影響なし。修正は React Native の major 更新を要するため、公開前には行わない。 | 公開後のSDK更新時に再評価 |
 | サポートURL | サーバーに `/support`（連絡先・FAQ）を追加。設定画面に「サポート・お問い合わせ」ボタンを追加。 | App Store Connect の「バージョン」ページの「サポートURL」に入力 |
 | 特商法 | プラスプラン（月額300円・内容・自動更新・解約方法）を追記し、そのまま公開できる文面にした。販売者の住所・電話は請求時開示のまま。 | — |
 | テスト用ギフト・開発用機能 | 公開日に外す手順を `docs/release-deploy-steps.md` 冒頭に記載（`GIFTS_JSON`を空に、イベント開始を公開時刻に、Sandboxは審査通過まで維持、開発用環境変数がビルドに入らないことの確認）。開発用機能は`__DEV__`ガードで製品版では動かない。 | 公開日に手順を実行 |

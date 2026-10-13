@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LICENSES_TEXT } from '../data/licenses';
 import { playSfx, useAudioSettings } from '../services/audio';
 import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,11 +16,12 @@ import { Close, M, Meta } from './ModalParts';
 
 const SETTINGS_BACKGROUND = require('../../assets/ui-washi/settings/settings-bg.webp');
 
-type InfoKind = 'privacy' | 'about';
+type InfoKind = 'privacy' | 'about' | 'licenses';
 
-const INFO_TITLE: Record<InfoKind, string> = { privacy: 'プライバシーとデータ', about: 'もび道について' };
+const INFO_TITLE: Record<InfoKind, string> = { privacy: 'プライバシーとデータ', about: 'もび道について', licenses: 'ライセンス' };
 
 const INFO_BODY: Record<InfoKind, string> = {
+  licenses: LICENSES_TEXT,
   privacy: 'もび道は、今日の歩数・集めた御朱印・選んだモビー・ふれあい回数・設定を端末内に保存します。\n\n広告、アクセス解析、GPSの利用、ヘルスケアへの書き込みはありません。匿名のIDで、購入・木札・ガチャの記録や年齢の区分をサーバーに送ります。フレンドを使う場合は表示名・メインモビー・フレンド関係、チームに参加する場合はチーム情報、通報・ブロックを行う場合はその情報も送ります。\n\nAppleでサインインすると、機種変更の引き継ぎのために、歩数の合計・日ごとの歩数・御朱印・モビー・設定をサーバーへ保存します。Appleとつながなくても、イベントにチームで出発した場合は、日ごとの歩数の合計をチームの集計のために送ります。歩数は広告や分析には使いません。\n\n引き継ぎは設定のアカウント管理から行えます。アプリを削除するだけではサーバーの情報は消えません。サーバーの情報も消す場合は、アカウント管理の「アカウントを削除する」を使ってください。歩数アクセスはiPhoneの設定からいつでも変更できます。詳しい送信内容と保存期間は、ウェブのプライバシーポリシーをご確認ください。',
   about: 'もび道（もびどう）は、モビーと歩いて架空の御朱印を集めるアプリです。\n\n巡礼は、日常の場所から特別な場所へ移動し、道中の祈りや記録を経て日常へ戻る旅。もび道では、神域参詣・山岳修行・札所周回・観音巡礼・七願掛け・物語の聖地巡礼という6つの旅の型から選べます。\n\n各地点は社・宮・寺・観音堂などの参拝先として設計し、参拝後に境内の授与所で御朱印を授かります。登場する社・宮・地名・御朱印はすべて、もびの世界の創作です。実在の宗教施設や実際の参拝・授与品とは関係ありません。\n\n歩数は1日単位で、端末の現地時間に合わせて切り替わります。御朱印は順番に解放され、最後まで歩き切ると結願証・称号・専用の結願印を授かります。\n\n歩きながらの画面操作は立ち止まって。体調に合わせて、無理なく楽しんでください。',
 };
@@ -137,6 +139,7 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
           <Button title="特定商取引法に基づく表記" secondary onPress={() => void Linking.openURL(`${SERVER_URL}/legal`).catch(() => {})} style={{ marginTop: 10 }} />
           <Button title="サポート・お問い合わせ" secondary onPress={() => void Linking.openURL(`${SERVER_URL}/support`).catch(() => {})} style={{ marginTop: 10 }} />
           <Button title="もび道について・利用上の案内" secondary onPress={() => setInfo('about')} style={{ marginTop: 10 }} />
+          <Button title="ライセンス" secondary onPress={() => setInfo('licenses')} style={{ marginTop: 10 }} />
           <Text style={S.footerNote}>{'もび道（もびどう） 1.0.0\n今日の一歩に、小さなご縁を。'}</Text>
         </View>
       </ScrollView>
