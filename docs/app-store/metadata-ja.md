@@ -11,7 +11,7 @@
 | キーワード | 歩数,散歩,御朱印,モビー,巡礼,コレクション,ウォーキング |
 | 配信国 | 日本のみ（運営者承認） |
 | プライバシーポリシーURL | https://mobidou-server.mobidou.workers.dev/privacy （2026-10-12 GET200。修正文言の反映は要デプロイ） |
-| サポートURL候補 | https://mobidou-server.mobidou.workers.dev/privacy （Mobby・info@mobby.onlineを記載）。サポートページとしての採用・メール受信対応は要承認。`/support`は未認証GET401で正式URLにしない |
+| サポートURL | https://mobidou-server.mobidou.workers.dev/support （連絡先 info@mobby.online・FAQ。2026-10-13 GET200） |
 | 利用規約 | Apple標準EULA https://www.apple.com/legal/internet-services/itunes/dev/stdeula/ |
 | 販売表記 | https://mobidou-server.mobidou.workers.dev/legal （GET200、個別適法性とサブスク追記は要確認） |
 
