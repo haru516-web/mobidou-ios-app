@@ -20,5 +20,5 @@ export const SHOP_GROUPS: readonly { kind: ShopProduct['kind']; heading: string;
 export const SHOP_PRODUCTS: readonly ShopProduct[] = [
   { id: 'pull1', kind: 'pull', title: 'プレミアム木札1枚', detail: 'ひもを1回引いて、モビーを1体迎えます', price: '300円' },
   { id: 'pull5', kind: 'pull', title: 'プレミアム木札5枚セット', detail: 'プレミアム木札が5枚まとまり、1枚あたり240円とお得。引くタイミングは自由で、好きなときに1枚ずつ使えます', price: '1,200円' },
-  { id: 'plus', kind: 'plan', title: 'プラスプラン', detail: 'ミニチュアがもらえる確率が、10%から100%に。さらに毎月、ガチャの木札が1枚つきます（持ち越せます）', price: '300円/月' },
+  { id: 'plus', kind: 'plan', title: 'プラスプラン', detail: 'ミニチュアがもらえる確率が、10%から100%に。さらに毎月、プレミアム木札が1枚つきます（持ち越せます）', price: '300円/月' },
 ];
