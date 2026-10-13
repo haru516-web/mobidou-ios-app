@@ -1088,7 +1088,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => setEventListOpen(true)} />
         </View>}
         <TourAnchor id="collection-tabs" style={S.jumpRow}>
-          {COLLECTION_PAGES.map((entry, index) => <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />)}
+          {[COLLECTION_PAGES[1]!, COLLECTION_PAGES[0]!, COLLECTION_PAGES[2]!].map((entry, index) => {
+            const button = <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />;
+            // The exhibition room is the page itself and the other two open over it: it sits in the middle, on a dark wooden board of its own.
+            return entry.id === 'room'
+              ? <View key={entry.id} style={S.collectionMainCell}><View pointerEvents="none" style={S.collectionMainBoard}><Image accessible={false} source={require('./assets/ui-round3/collection/collection-wood-base-bold-v1.webp')} contentFit="cover" style={StyleSheet.absoluteFill} /></View>{button}</View>
+              : button;
+          })}
         </TourAnchor>
         <CollectionGallery scrollX={collectionScrollX} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} rewardDates={inEventCollection ? eventRewardDates : collectionRewardDates} special={inEventCollection ? eventSpecial : journey.special} eventName={inEventCollection ? TOKI_MEGURU.name : undefined} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={selectCollectionGoshuin} onClosePage={() => setCollectionPage('room')} />
       </>}
@@ -1304,6 +1310,8 @@ const S = StyleSheet.create({
   sectionBlock: { marginTop: 18 },
   sectionHeading: { fontFamily: BRUSH, fontSize: 21, letterSpacing: 1, color: C.ink, marginBottom: 4, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
   jumpRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: -4, marginBottom: 8 },
+  collectionMainCell: { flex: 1 },
+  collectionMainBoard: { position: 'absolute', left: -2, right: -2, top: -6, bottom: -6, borderRadius: 14, overflow: 'hidden', borderWidth: 2, borderColor: '#C9A46A', shadowColor: '#2A1408', shadowOffset: { width: 0, height: 3 }, shadowOpacity: .35, shadowRadius: 5 },
   indexLead: { fontFamily: BRUSH, fontSize: 17, color: C.ink, marginBottom: 4 },
   largeTitle: { flexShrink: 1, fontFamily: BRUSH, fontSize: 28, letterSpacing: 1.5, color: C.ink, textShadowColor: '#FFF9EFD9', textShadowRadius: 10 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
