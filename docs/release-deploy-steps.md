@@ -7,9 +7,7 @@
 テスト・開発用のものは、公開日をもって、次のとおり外す。
 
 1. **テスト用ギフトを消す。** `server/wrangler.toml` の `GIFTS_JSON`（`testflight-2026-10`）を `'[]'` にして、`npx wrangler deploy`。
-2. **イベントの開始を、公開と同時にする。** `events` の `starts_at`（UTC）を、公開の時刻に合わせる。まだ seed を流していなければ `migrations/0003_seed_toki_meguru.sql` の `starts_at` を直してから流す。流し済みなら、次を実行する。
-   `npx wrangler d1 execute mobidou --remote --command "UPDATE events SET starts_at = '<公開時刻のUTC ISO8601>' WHERE id = 'toki-meguru'"`
-   終了は `2026-11-30T15:00:00.000Z`（12/1 00:00 JST）のまま。
+2. **イベント（「時をめぐる道」）は、§2 の seed を流した時点から始まる。** 開始は 2026-10-13 00:00 JST、終了は 2026-12-01 00:00 JST。公開日の作業は不要（審査より前に seed を流しておく）。
 3. **Sandbox の購入を受け付けている間は、`PURCHASE_ENVIRONMENTS` を変えない。** 審査（と TestFlight）は Sandbox で購入する。審査が通って公開できた後に、`Production` だけにする（§4）。
 4. **開発用の機能が、製品ビルドに出ないことを確認する。** 開発用の表示・解除（`__DEV__`、`EXPO_PUBLIC_DEV_UNLOCK_ALL`）は、製品版では動かない。ビルドの環境変数に `EXPO_PUBLIC_DEV_UNLOCK_ALL` と `EXPO_PUBLIC_SERVER_URL`（開発用）が入っていないことを確認する。
 5. **サポート・プライバシー・特商法の3ページが開く**ことを確認する（`/support` `/privacy` `/legal`）。App Store Connect のサポート URL には `/support` を入れる。
@@ -36,7 +34,7 @@ npx wrangler d1 execute mobidou --remote --file migrations/0007_blocks_and_repor
 
 ## 2. イベントの登録
 
-`migrations/0003_seed_toki_meguru.sql` の **開催期間**（`starts_at` / `ends_at`、UTC）を決めて、実行します。期間外は、チームをつくれず、歩数も受け付けません。
+`migrations/0003_seed_toki_meguru.sql` を実行します。開催期間（`starts_at` / `ends_at`、UTC）は、2026-10-13 00:00 JST 〜 2026-12-01 00:00 JST（終了は含まない）です。実行した時点でイベントが始まります。期間外は、チームをつくれず、歩数も受け付けません。
 
 ```bash
 npx wrangler d1 execute mobidou --remote --file migrations/0003_seed_toki_meguru.sql

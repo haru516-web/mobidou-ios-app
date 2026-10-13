@@ -110,11 +110,12 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
           })}
           <View style={{ width: 180, flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={S.label}>ふれあいの振動</Text><WashiSwitch accessibilityLabel="ふれあいの振動" value={data.haptics} onValueChange={journey.toggleHaptics} /></View>
         </ScrollView>
-        <View key="demo">
+        {/* The trial book is for development builds; a release build only shows it to leave a trial that was already started. */}
+        {(__DEV__ || data.demo) && <View key="demo">
           <Section title="もび道を体験" />
           <Text style={M.settingHelp}>体験用の御朱印帳で、お散歩と授与演出を試せます。本番の記録には影響しません。</Text>
           <Button title={data.demo ? '体験を終えて実記録にもどる' : '体験モードをはじめる'} secondary onPress={onToggleDemo} />
-        </View>
+        </View>}
         <View key="tutorial">
           <Section title="チュートリアル" />
           <Text style={M.settingHelp}>各画面の使い方を、もう一度ゆっくり見られます。</Text>
