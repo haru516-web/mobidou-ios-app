@@ -1,4 +1,4 @@
-import type { AgeGroup, AppleLinkResult, CloudSave, D1Database, Draw, EventJoinResult, EventRecord, EventStartResult, EventTeamView, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+import type { AgeGroup, AppleLinkResult, CloudSave, D1Database, Draw, EventJoinResult, EventRecord, EventStartResult, EventTeamView, Gift, JoinRequestAnswerResult, JoinRequestRequestResult, JoinRequestView, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 import { randomToken } from "./crypto.ts";
 
 const nowIso = (): string => new Date().toISOString();
@@ -411,6 +411,68 @@ export class D1Store implements Store {
     if ((result.meta?.changes ?? 0) > 0) return "ok";
     const again = await this.db.prepare("SELECT status FROM event_teams WHERE id = ?").bind(team.id).first<{ status: string }>();
     return again?.status === "recruiting" ? "full" : "already_started";
+  }
+
+  async requestJoinEventTeam(userId: string, eventId: string, code: string, maxMembers: number): Promise<{ result: JoinRequestRequestResult; request?: { id: string } }> {
+    const team = await this.db.prepare("SELECT id FROM event_teams WHERE event_id = ? AND invite_code = ?").bind(eventId, code).first<{ id: string }>();
+    if (!team) return { result: "not_found" };
+    if (await this.db.prepare("SELECT 1 AS found FROM event_members WHERE event_id = ? AND user_id = ?").bind(eventId, userId).first()) return { result: "already_member" };
+    const open = await this.db.prepare("SELECT id, team_id FROM event_join_requests WHERE event_id = ? AND user_id = ?").bind(eventId, userId).first<{ id: string; team_id: string }>();
+    if (open) return open.team_id === team.id ? { result: "already_requested", request: { id: open.id } } : { result: "request_pending" };
+    const count = await this.db.prepare("SELECT COUNT(*) AS n FROM event_members WHERE team_id = ?").bind(team.id).first<{ n: number }>();
+    if ((count?.n ?? 0) >= maxMembers) return { result: "full" };
+    const id = crypto.randomUUID();
+    await this.db.prepare("INSERT INTO event_join_requests (id, event_id, team_id, user_id, created_at) VALUES (?, ?, ?, ?, ?)").bind(id, eventId, team.id, userId, nowIso()).run();
+    return { result: "ok", request: { id } };
+  }
+
+  async eventJoinRequests(creatorId: string, eventId: string): Promise<JoinRequestView[]> {
+    const rows = await this.db.prepare(`SELECT r.id, u.id AS userId, u.name AS name, u.pet_id AS petId
+      FROM event_join_requests r JOIN users u ON u.id = r.user_id
+      WHERE r.event_id = ? AND r.team_id = (SELECT m.team_id FROM event_members m WHERE m.event_id = ? AND m.user_id = ?)
+        AND ? = (SELECT m2.user_id FROM event_members m2 WHERE m2.team_id = r.team_id ORDER BY m2.joined_at ASC, m2.user_id ASC LIMIT 1)
+      ORDER BY r.created_at ASC`).bind(eventId, eventId, creatorId, creatorId).all<{ id: string; userId: string; name: string | null; petId: string | null }>();
+    return (rows.results ?? []).map((row) => ({ id: row.id, userId: row.userId, name: row.name ?? "もびさん", petId: row.petId }));
+  }
+
+  async pendingJoinRequest(userId: string, eventId: string): Promise<{ id: string; creatorName: string } | null> {
+    const row = await this.db.prepare(`SELECT r.id AS id, (SELECT u.name FROM users u WHERE u.id = (SELECT m.user_id FROM event_members m WHERE m.team_id = r.team_id ORDER BY m.joined_at ASC, m.user_id ASC LIMIT 1)) AS creatorName
+      FROM event_join_requests r WHERE r.event_id = ? AND r.user_id = ?`).bind(eventId, userId).first<{ id: string; creatorName: string | null }>();
+    return row ? { id: row.id, creatorName: row.creatorName ?? "もびさん" } : null;
+  }
+
+  async answerJoinRequest(creatorId: string, eventId: string, requestId: string, accept: boolean, maxMembers: number, minMembers: number): Promise<{ result: JoinRequestAnswerResult; requesterId?: string }> {
+    const request = await this.db.prepare("SELECT id, team_id, user_id FROM event_join_requests WHERE id = ? AND event_id = ?").bind(requestId, eventId).first<{ id: string; team_id: string; user_id: string }>();
+    if (!request) return { result: "not_found" };
+    const creator = await this.db.prepare("SELECT user_id FROM event_members WHERE team_id = ? ORDER BY joined_at ASC, user_id ASC LIMIT 1").bind(request.team_id).first<{ user_id: string }>();
+    if (!creator || creator.user_id !== creatorId) return { result: "not_creator" };
+    if (!accept) {
+      await this.db.prepare("DELETE FROM event_join_requests WHERE id = ?").bind(request.id).run();
+      return { result: "declined", requesterId: request.user_id };
+    }
+    // One statement checks the room and inserts, so two answers cannot take the last place together.
+    const added = await this.db.prepare(`INSERT INTO event_members (event_id, team_id, user_id, joined_at)
+      SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM event_members WHERE team_id = ?) < ?
+        AND NOT EXISTS (SELECT 1 FROM event_members WHERE event_id = ? AND user_id = ?)`)
+      .bind(eventId, request.team_id, request.user_id, nowIso(), request.team_id, maxMembers, eventId, request.user_id).run();
+    if ((added.meta?.changes ?? 0) === 0) {
+      await this.db.prepare("DELETE FROM event_join_requests WHERE id = ?").bind(request.id).run();
+      return { result: "full" };
+    }
+    await this.db.batch([
+      this.db.prepare("DELETE FROM event_join_requests WHERE id = ?").bind(request.id),
+      // The team sets out as soon as it has the least number of members it needs.
+      this.db.prepare("UPDATE event_teams SET status = 'active', started_at = ? WHERE id = ? AND status = 'recruiting' AND (SELECT COUNT(*) FROM event_members WHERE team_id = ?) >= ?")
+        .bind(nowIso(), request.team_id, request.team_id, minMembers),
+      // A team with no room left has no use for the requests that are still open.
+      this.db.prepare("DELETE FROM event_join_requests WHERE team_id = ? AND (SELECT COUNT(*) FROM event_members WHERE team_id = ?) >= ?").bind(request.team_id, request.team_id, maxMembers),
+    ]);
+    return { result: "accepted", requesterId: request.user_id };
+  }
+
+  async cancelJoinRequest(userId: string, eventId: string): Promise<boolean> {
+    const result = await this.db.prepare("DELETE FROM event_join_requests WHERE event_id = ? AND user_id = ?").bind(eventId, userId).run();
+    return (result.meta?.changes ?? 0) > 0;
   }
 
   async startEventTeam(userId: string, eventId: string, minMembers: number): Promise<EventStartResult> {

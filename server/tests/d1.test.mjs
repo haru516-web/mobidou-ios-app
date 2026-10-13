@@ -185,7 +185,7 @@ test("D1 deleting a user removes every row that belongs to the user and leaves o
   await store.deleteUser("gone");
 
   // Every table with a column that points at a user must have no row for the deleted user.
-  const columns = { users: "id", friendships: "user_id", friend_requests: "from_id", purchases: "user_id", entitlements: "user_id", ticket_ledger: "user_id", gift_claims: "user_id", gacha_wallet: "user_id", gacha_wallet_ledger: "user_id", gacha_pulls: "user_id", gacha_state: "user_id", user_pets: "user_id", free_pull_claims: "user_id", event_members: "user_id", event_steps: "user_id", apple_links: "user_id", user_limits: "user_id", cloud_saves: "user_id", refund_debt: "user_id", refund_events: "user_id", purchase_settlements: "user_id" };
+  const columns = { users: "id", friendships: "user_id", friend_requests: "from_id", purchases: "user_id", entitlements: "user_id", ticket_ledger: "user_id", gift_claims: "user_id", gacha_wallet: "user_id", gacha_wallet_ledger: "user_id", gacha_pulls: "user_id", gacha_state: "user_id", user_pets: "user_id", free_pull_claims: "user_id", event_members: "user_id", event_steps: "user_id", apple_links: "user_id", user_limits: "user_id", cloud_saves: "user_id", refund_debt: "user_id", refund_events: "user_id", purchase_settlements: "user_id", event_join_requests: "user_id" };
   for (const [table, column] of Object.entries(columns)) {
     assert.equal(database.prepare("SELECT COUNT(*) AS n FROM " + table + " WHERE " + column + " = 'gone'").get().n, 0, table);
   }
@@ -306,6 +306,46 @@ test("D1 event teams: make, join up to the limit, set out, count steps, claim on
   assert.equal(await store.eventTeam("u4", "toki"), null);
   assert.equal(database.prepare("SELECT COUNT(*) AS n FROM event_teams WHERE id = 'team-4'").get().n, 0);
   assert.equal(await store.leaveEventTeam("u4", "toki"), "no_team");
+});
+
+test("D1 join requests: asked, answered by the maker, set out at two members, full at the limit, gone with the team", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  for (const [index, id] of ["m", "a", "b", "c", "d"].entries()) await store.registerUser({ id, friendCode: `REQ${index}${index}${index}${index}${index}${index}${index}`, name: `N-${id}`, petId: null, goshuinCount: 0, routeName: null }, `hash-${id}`);
+  database.exec("INSERT INTO events (id, name, starts_at, ends_at, map_id, min_members, max_members, goal_steps) VALUES ('toki', 'Toki', '2026-09-01T00:00:00.000Z', '2026-10-31T00:00:00.000Z', 'map', 2, 3, 1000)");
+  assert.equal(await store.createEventTeam("m", "toki", "team-m", "ABCDEF"), "ok");
+
+  const asked = await store.requestJoinEventTeam("a", "toki", "ABCDEF", 3);
+  assert.equal(asked.result, "ok");
+  assert.equal((await store.requestJoinEventTeam("a", "toki", "ABCDEF", 3)).result, "already_requested");
+  assert.equal((await store.requestJoinEventTeam("a", "toki", "ZZZZZZ", 3)).result, "not_found");
+  assert.equal((await store.requestJoinEventTeam("m", "toki", "ABCDEF", 3)).result, "already_member");
+  assert.deepEqual((await store.pendingJoinRequest("a", "toki")), { id: asked.request.id, creatorName: "N-m" });
+  assert.deepEqual((await store.eventJoinRequests("m", "toki")).map((row) => row.name), ["N-a"]);
+  assert.deepEqual(await store.eventJoinRequests("a", "toki"), [], "only the maker sees the requests");
+  assert.equal((await store.eventTeam("m", "toki")).members.length, 1, "asking adds nobody");
+
+  assert.equal((await store.answerJoinRequest("a", "toki", asked.request.id, true, 3, 2)).result, "not_creator");
+  const accepted = await store.answerJoinRequest("m", "toki", asked.request.id, true, 3, 2);
+  assert.deepEqual([accepted.result, accepted.requesterId], ["accepted", "a"]);
+  assert.equal((await store.eventTeam("m", "toki")).status, "active", "the second member sets the team out");
+  assert.equal(await store.pendingJoinRequest("a", "toki"), null);
+
+  // Members may still be added after setting out, up to the limit; then the requests left over are dropped.
+  const b = await store.requestJoinEventTeam("b", "toki", "ABCDEF", 3);
+  const c = await store.requestJoinEventTeam("c", "toki", "ABCDEF", 3);
+  assert.equal((await store.answerJoinRequest("m", "toki", b.request.id, true, 3, 2)).result, "accepted");
+  assert.equal((await store.eventTeam("m", "toki")).members.length, 3);
+  assert.equal(await store.pendingJoinRequest("c", "toki"), null, "no room left, so the open request is gone");
+  assert.equal((await store.answerJoinRequest("m", "toki", c.request.id, true, 3, 2)).result, "not_found");
+  assert.equal((await store.requestJoinEventTeam("d", "toki", "ABCDEF", 3)).result, "full");
+
+  // Declining removes the request and adds nobody; taking one back works once.
+  await store.createEventTeam("d", "toki", "team-d", "GHJKLM");
+  assert.equal(await store.leaveEventTeam("d", "toki"), "ok");
+  await store.createEventTeam("d", "toki", "team-d2", "NPQRST");
+  assert.equal(await store.cancelJoinRequest("d", "toki"), false);
 });
 
 test("D1 draws: a stale paid-pull count writes nothing, and an operation id keeps the answer", async () => {

@@ -124,6 +124,9 @@ export interface EventTeamView {
 }
 
 export type EventJoinResult = "ok" | "not_found" | "full" | "already_started" | "already_member";
+export type JoinRequestRequestResult = "ok" | "already_requested" | "not_found" | "already_member" | "full" | "request_pending";
+export type JoinRequestAnswerResult = "accepted" | "declined" | "not_found" | "not_creator" | "full";
+export type JoinRequestView = { id: string; userId: string; name: string; petId: string | null };
 export type EventStartResult = "ok" | "no_team" | "not_creator" | "not_recruiting" | "too_few";
 
 export type AgeGroup = "under16" | "16to19" | "adult";
@@ -214,6 +217,15 @@ export interface Store {
   createEventTeam(userId: string, eventId: string, teamId: string, code: string): Promise<"ok" | "already_member" | "code_taken">;
   joinEventTeam(userId: string, eventId: string, code: string, maxMembers: number): Promise<EventJoinResult>;
   startEventTeam(userId: string, eventId: string, minMembers: number): Promise<EventStartResult>;
+  /** A player asks to join the team with this code. The player who made the team answers; nobody is added until then. */
+  requestJoinEventTeam(userId: string, eventId: string, code: string, maxMembers: number): Promise<{ result: JoinRequestRequestResult; request?: { id: string } }>;
+  /** The open requests of the team this player made (empty for anyone else). */
+  eventJoinRequests(creatorId: string, eventId: string): Promise<JoinRequestView[]>;
+  /** The open request this player sent, with the name of the player who will answer it. */
+  pendingJoinRequest(userId: string, eventId: string): Promise<{ id: string; creatorName: string } | null>;
+  /** Accepting adds the member and, once the team has minMembers, sets it out. */
+  answerJoinRequest(creatorId: string, eventId: string, requestId: string, accept: boolean, maxMembers: number, minMembers: number): Promise<{ result: JoinRequestAnswerResult; requesterId?: string }>;
+  cancelJoinRequest(userId: string, eventId: string): Promise<boolean>;
   leaveEventTeam(userId: string, eventId: string): Promise<"ok" | "no_team" | "already_started">;
   /** Records that this player took the reward. False if they already had. */
   claimEvent(userId: string, eventId: string): Promise<boolean>;

@@ -248,6 +248,49 @@ class MemoryStore {
     team.members.push(userId);
     return "ok";
   }
+  joinRequests = new Map();
+  async requestJoinEventTeam(userId, eventId, code, maxMembers) {
+    const team = [...this.teams.values()].find((row) => row.eventId === eventId && row.code === code);
+    if (!team) return { result: "not_found" };
+    if (this.teamOf(userId, eventId)) return { result: "already_member" };
+    const open = [...this.joinRequests.values()].find((row) => row.eventId === eventId && row.userId === userId);
+    if (open) return open.teamId === team.id ? { result: "already_requested", request: { id: open.id } } : { result: "request_pending" };
+    if (team.members.length >= maxMembers) return { result: "full" };
+    const id = `req-${this.joinRequests.size + 1}-${userId}`;
+    this.joinRequests.set(id, { id, eventId, teamId: team.id, userId });
+    return { result: "ok", request: { id } };
+  }
+  async eventJoinRequests(creatorId, eventId) {
+    const team = this.teamOf(creatorId, eventId);
+    if (!team || team.members[0] !== creatorId) return [];
+    return [...this.joinRequests.values()].filter((row) => row.teamId === team.id)
+      .map((row) => ({ id: row.id, userId: row.userId, name: this.users.get(row.userId)?.name ?? "もびさん", petId: this.users.get(row.userId)?.petId ?? null }));
+  }
+  async pendingJoinRequest(userId, eventId) {
+    const row = [...this.joinRequests.values()].find((entry) => entry.eventId === eventId && entry.userId === userId);
+    if (!row) return null;
+    const team = this.teams.get(row.teamId);
+    return { id: row.id, creatorName: this.users.get(team?.members[0])?.name ?? "もびさん" };
+  }
+  async answerJoinRequest(creatorId, eventId, requestId, accept, maxMembers, minMembers) {
+    const row = this.joinRequests.get(requestId);
+    if (!row || row.eventId !== eventId) return { result: "not_found" };
+    const team = this.teams.get(row.teamId);
+    if (!team || team.members[0] !== creatorId) return { result: "not_creator" };
+    this.joinRequests.delete(requestId);
+    if (!accept) return { result: "declined", requesterId: row.userId };
+    if (team.members.length >= maxMembers || this.teamOf(row.userId, eventId)) return { result: "full" };
+    team.members.push(row.userId);
+    if (team.status === "recruiting" && team.members.length >= minMembers) team.status = "active";
+    if (team.members.length >= maxMembers) for (const [id, other] of [...this.joinRequests]) if (other.teamId === team.id) this.joinRequests.delete(id);
+    return { result: "accepted", requesterId: row.userId };
+  }
+  async cancelJoinRequest(userId, eventId) {
+    const row = [...this.joinRequests.values()].find((entry) => entry.eventId === eventId && entry.userId === userId);
+    if (!row) return false;
+    this.joinRequests.delete(row.id);
+    return true;
+  }
   async startEventTeam(userId, eventId, minMembers) {
     const team = this.teamOf(userId, eventId);
     if (!team) return "no_team";
@@ -262,7 +305,7 @@ class MemoryStore {
     if (!team) return "no_team";
     if (team.status !== "recruiting") return "already_started";
     team.members = team.members.filter((id) => id !== userId);
-    if (team.members.length === 0) this.teams.delete(team.id);
+    if (team.members.length === 0) { this.teams.delete(team.id); for (const [id, row] of [...this.joinRequests]) if (row.teamId === team.id) this.joinRequests.delete(id); }
     return "ok";
   }
   async claimEvent(userId, eventId) {
@@ -290,13 +333,23 @@ const env = {
 
 const createContext = () => ({ store: new MemoryStore(), credentials: new Map() });
 const EVENT_WINDOW_NOW = new Date("2026-09-30T11:10:00.000Z");
-/** The player makes a team on their own and sets out (the test event allows a team of one). */
+/** The player makes a team, a second player asks to join and is accepted: that sets the team out. */
 async function setOut(context, account, eventId) {
   await call(context, "POST", `/profile`, { name: "Tester" }, account.userId);
   const created = await call(context, "POST", `/events/${eventId}/teams`, {}, account.userId, EVENT_WINDOW_NOW);
   assert.equal(created.status, 201);
-  const started = await call(context, "POST", `/events/${eventId}/teams/start`, {}, account.userId, EVENT_WINDOW_NOW);
-  assert.equal(started.status, 200);
+  const code = (await created.json()).team.code;
+  const helper = await register(context, "Helper");
+  await call(context, "POST", `/profile`, { name: "Helper" }, helper.userId);
+  const answered = await joinAndApprove(context, eventId, code, helper, account);
+  assert.equal(answered.status, 200);
+}
+/** Asks to join with the code, then the maker accepts. Returns the maker's answer. */
+async function joinAndApprove(context, eventId, code, joiner, maker, now = EVENT_WINDOW_NOW) {
+  const asked = await call(context, "POST", `/events/${eventId}/teams/join`, { code }, joiner.userId, now);
+  assert.equal(asked.status, 202);
+  const requestId = (await asked.json()).request.id;
+  return call(context, "POST", `/events/${eventId}/requests/${requestId}/answer`, { accept: true }, maker.userId, now);
 }
 async function register(context, name = "Tester") {
   const response = await handleWithStore(new Request("https://server.test/auth/register", { method: "POST", body: JSON.stringify({ name }) }), env, context.store);
@@ -738,7 +791,7 @@ async function namedAccount(context, name) {
 }
 const teamEvent = { id: "toki", name: "Toki", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "map", minMembers: 2, maxMembers: 3, goalSteps: 1000 };
 
-test("a team is made, joined with its code, and set out by whoever made it", async () => {
+test("a team is made, joined by asking its maker, and sets out when the second member is accepted", async () => {
   const context = createContext();
   context.store.events.set("toki", teamEvent);
   const maker = await namedAccount(context, "Maker");
@@ -754,35 +807,54 @@ test("a team is made, joined with its code, and set out by whoever made it", asy
   assert.equal(team.status, "recruiting");
   assert.equal(team.members.length, 1);
 
-  // Starting alone is not allowed, and only the maker may start.
-  const tooFew = await call(context, "POST", "/events/toki/teams/start", {}, maker.userId, EVENT_WINDOW_NOW);
-  assert.deepEqual([tooFew.status, (await tooFew.json()).error], [409, "too_few"]);
+  // There is no start button any more: the team sets out by itself.
+  const gone = await call(context, "POST", "/events/toki/teams/start", {}, maker.userId, EVENT_WINDOW_NOW);
+  assert.equal(gone.status, 404);
 
-  const joined = await call(context, "POST", "/events/toki/teams/join", { code: team.code.toLowerCase().replace(/(...)(...)/, "$1-$2") }, friend.userId, EVENT_WINDOW_NOW);
-  assert.equal(joined.status, 200);
-  assert.deepEqual((await joined.json()).team.members.map((member) => member.name), ["Maker", "Friend"]);
+  // Asking does not add anyone. The asker sees who will answer; the maker sees the request.
+  const asked = await call(context, "POST", "/events/toki/teams/join", { code: team.code.toLowerCase().replace(/(...)(...)/, "$1-$2") }, friend.userId, EVENT_WINDOW_NOW);
+  assert.equal(asked.status, 202);
+  const askedBody = await asked.json();
+  assert.equal(askedBody.team, null);
+  assert.equal(askedBody.request.creatorName, "Maker");
+  assert.equal(await context.store.friendshipExists(friend.userId, maker.userId), false);
+  const waiting = await (await call(context, "GET", "/events/toki/team", undefined, maker.userId, EVENT_WINDOW_NOW)).json();
+  assert.equal(waiting.team.status, "recruiting");
+  assert.deepEqual(waiting.team.members.map((member) => member.name), ["Maker"]);
+  assert.deepEqual(waiting.team.requests.map((row) => row.name), ["Friend"]);
+  // The same request again changes nothing.
+  assert.equal((await call(context, "POST", "/events/toki/teams/join", { code: team.code }, friend.userId, EVENT_WINDOW_NOW)).status, 202);
+
+  // Only the maker answers.
+  const notMaker = await call(context, "POST", `/events/toki/requests/${askedBody.request.id}/answer`, { accept: true }, friend.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([notMaker.status, (await notMaker.json()).error], [403, "not_creator"]);
+
+  const accepted = await call(context, "POST", `/events/toki/requests/${askedBody.request.id}/answer`, { accept: true }, maker.userId, EVENT_WINDOW_NOW);
+  assert.equal(accepted.status, 200);
+  const view = (await accepted.json()).team;
+  assert.equal(view.status, "active", "two members: the team sets out");
+  assert.deepEqual(view.members.map((member) => member.name), ["Maker", "Friend"]);
   assert.equal(await context.store.friendshipExists(friend.userId, maker.userId), true);
 
-  const notMaker = await call(context, "POST", "/events/toki/teams/start", {}, friend.userId, EVENT_WINDOW_NOW);
-  assert.deepEqual([notMaker.status, (await notMaker.json()).error], [409, "not_creator"]);
-  const started = await call(context, "POST", "/events/toki/teams/start", {}, maker.userId, EVENT_WINDOW_NOW);
-  assert.equal((await started.json()).team.status, "active");
-
-  // After setting out nobody can join or leave.
+  // After setting out a third player may still ask and be accepted; nobody can leave.
   const late = await namedAccount(context, "Late");
-  const lateJoin = await call(context, "POST", "/events/toki/teams/join", { code: team.code }, late.userId, EVENT_WINDOW_NOW);
-  assert.deepEqual([lateJoin.status, (await lateJoin.json()).error], [409, "already_started"]);
+  assert.equal((await joinAndApprove(context, "toki", team.code, late, maker)).status, 200);
   const leave = await call(context, "POST", "/events/toki/leave", {}, friend.userId, EVENT_WINDOW_NOW);
   assert.deepEqual([leave.status, (await leave.json()).error], [409, "already_started"]);
 });
 
-test("a team has a limit on its size and a player is in one team only", async () => {
+test("a team has a limit on its size, a player is in one team only, and has one open request", async () => {
   const context = createContext();
   context.store.events.set("toki", teamEvent);
   const accounts = [];
-  for (const name of ["A", "B", "C", "D"]) accounts.push(await namedAccount(context, name));
+  for (const name of ["A", "B", "C", "D", "E"]) accounts.push(await namedAccount(context, name));
   const code = (await (await call(context, "POST", "/events/toki/teams", {}, accounts[0].userId, EVENT_WINDOW_NOW)).json()).team.code;
-  for (const account of accounts.slice(1, 3)) assert.equal((await call(context, "POST", "/events/toki/teams/join", { code }, account.userId, EVENT_WINDOW_NOW)).status, 200);
+  // D asks early; the maker answers B and C first, so the team (3 at most) is full when D's turn comes.
+  const early = await call(context, "POST", "/events/toki/teams/join", { code }, accounts[3].userId, EVENT_WINDOW_NOW);
+  assert.equal(early.status, 202);
+  for (const account of accounts.slice(1, 3)) assert.equal((await joinAndApprove(context, "toki", code, account, accounts[0])).status, 200);
+  const pendingId = (await context.store.pendingJoinRequest(accounts[3].userId, "toki"));
+  assert.equal(pendingId, null, "a team with no room drops the requests still open");
   const full = await call(context, "POST", "/events/toki/teams/join", { code }, accounts[3].userId, EVENT_WINDOW_NOW);
   assert.deepEqual([full.status, (await full.json()).error], [409, "full"]);
   const again = await call(context, "POST", "/events/toki/teams/join", { code }, accounts[1].userId, EVENT_WINDOW_NOW);
@@ -792,6 +864,38 @@ test("a team has a limit on its size and a player is in one team only", async ()
   const nobody = await call(context, "POST", "/events/toki/teams/join", { code: "ZZZZZZ" }, accounts[3].userId, EVENT_WINDOW_NOW);
   assert.deepEqual([nobody.status, (await nobody.json()).error], [404, "not_found"]);
   const bad = await call(context, "POST", "/events/toki/teams/join", { code: "ABC" }, accounts[3].userId, EVENT_WINDOW_NOW);
+  assert.equal(bad.status, 400);
+
+  // One open request at a time: D makes a team and E asks it; E cannot ask another team until that is answered or taken back.
+  const otherCode = (await (await call(context, "POST", "/events/toki/teams", {}, accounts[3].userId, EVENT_WINDOW_NOW)).json()).team.code;
+  const toFirst = await call(context, "POST", "/events/toki/teams/join", { code: otherCode }, accounts[4].userId, EVENT_WINDOW_NOW);
+  assert.equal(toFirst.status, 202);
+  const toSecond = await call(context, "POST", "/events/toki/teams/join", { code }, accounts[4].userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([toSecond.status, (await toSecond.json()).error], [409, "request_pending"]);
+  assert.equal((await call(context, "POST", "/events/toki/requests/cancel", {}, accounts[4].userId, EVENT_WINDOW_NOW)).status, 200);
+  const nowFull = await call(context, "POST", "/events/toki/teams/join", { code }, accounts[4].userId, EVENT_WINDOW_NOW);
+  assert.deepEqual([nowFull.status, (await nowFull.json()).error], [409, "full"]);
+  assert.equal((await call(context, "POST", "/events/toki/teams/join", { code: otherCode }, accounts[4].userId, EVENT_WINDOW_NOW)).status, 202);
+});
+
+test("the maker can decline a request, and the asker can take it back", async () => {
+  const context = createContext();
+  context.store.events.set("toki", teamEvent);
+  const maker = await namedAccount(context, "Maker");
+  const asker = await namedAccount(context, "Asker");
+  const code = (await (await call(context, "POST", "/events/toki/teams", {}, maker.userId, EVENT_WINDOW_NOW)).json()).team.code;
+  const asked = await call(context, "POST", "/events/toki/teams/join", { code }, asker.userId, EVENT_WINDOW_NOW);
+  const id = (await asked.json()).request.id;
+  const declined = await call(context, "POST", `/events/toki/requests/${id}/answer`, { accept: false }, maker.userId, EVENT_WINDOW_NOW);
+  assert.equal(declined.status, 200);
+  assert.deepEqual((await declined.json()).team.members.map((member) => member.name), ["Maker"]);
+  const none = await (await call(context, "GET", "/events/toki/team", undefined, asker.userId, EVENT_WINDOW_NOW)).json();
+  assert.deepEqual([none.team, none.request], [null, null]);
+  assert.equal(await context.store.friendshipExists(asker.userId, maker.userId), false);
+  // A request that is gone cannot be answered, and a bad body is refused.
+  const gone = await call(context, "POST", `/events/toki/requests/${id}/answer`, { accept: true }, maker.userId, EVENT_WINDOW_NOW);
+  assert.equal(gone.status, 404);
+  const bad = await call(context, "POST", "/events/toki/requests/x/answer", { accept: "yes" }, maker.userId, EVENT_WINDOW_NOW);
   assert.equal(bad.status, 400);
 });
 
@@ -809,20 +913,16 @@ test("teams need a profile name and an event that is running", async () => {
   assert.equal(unknown.status, 404);
 });
 
-test("a recruiting team can be left; the next member then starts it", async () => {
+test("a maker who is still alone can leave, and the requests to that team go with it", async () => {
   const context = createContext();
-  context.store.events.set("toki", { ...teamEvent, minMembers: 1 });
+  context.store.events.set("toki", teamEvent);
   const first = await namedAccount(context, "First");
   const second = await namedAccount(context, "Second");
   const code = (await (await call(context, "POST", "/events/toki/teams", {}, first.userId, EVENT_WINDOW_NOW)).json()).team.code;
-  await call(context, "POST", "/events/toki/teams/join", { code }, second.userId, EVENT_WINDOW_NOW);
+  assert.equal((await call(context, "POST", "/events/toki/teams/join", { code }, second.userId, EVENT_WINDOW_NOW)).status, 202);
   assert.equal((await call(context, "POST", "/events/toki/leave", {}, first.userId, EVENT_WINDOW_NOW)).status, 200);
-  const view = await (await call(context, "GET", "/events/toki/team", undefined, second.userId, EVENT_WINDOW_NOW)).json();
-  assert.deepEqual(view.team.members.map((member) => member.name), ["Second"]);
-  const started = await call(context, "POST", "/events/toki/teams/start", {}, second.userId, EVENT_WINDOW_NOW);
-  assert.equal(started.status, 200);
-  const none = await call(context, "GET", "/events/toki/team", undefined, first.userId, EVENT_WINDOW_NOW);
-  assert.equal((await none.json()).team, null);
+  const none = await (await call(context, "GET", "/events/toki/team", undefined, second.userId, EVENT_WINDOW_NOW)).json();
+  assert.deepEqual([none.team, none.request], [null, null]);
 });
 
 test("steps count for the team: only after setting out, summed, and the reward is taken once", async () => {
@@ -831,12 +931,11 @@ test("steps count for the team: only after setting out, summed, and the reward i
   const one = await namedAccount(context, "One");
   const two = await namedAccount(context, "Two");
   const code = (await (await call(context, "POST", "/events/toki/teams", {}, one.userId, EVENT_WINDOW_NOW)).json()).team.code;
-  await call(context, "POST", "/events/toki/teams/join", { code }, two.userId, EVENT_WINDOW_NOW);
 
-  // Before setting out there is no team to count for.
+  // Before the second member is accepted there is no active team to count for.
   const early = await call(context, "POST", "/events/toki/steps", { cumulative: 100 }, one.userId, EVENT_WINDOW_NOW);
   assert.deepEqual([early.status, (await early.json()).error], [409, "no_active_team"]);
-  await call(context, "POST", "/events/toki/teams/start", {}, one.userId, EVENT_WINDOW_NOW);
+  assert.equal((await joinAndApprove(context, "toki", code, two, one)).status, 200);
   assert.equal((await call(context, "POST", "/events/toki/steps", { cumulative: 600 }, one.userId, EVENT_WINDOW_NOW)).status, 200);
 
   // Not cleared yet: no reward.

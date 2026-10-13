@@ -5,7 +5,7 @@ import { D1Store } from "./store.ts";
 import { documentPageHtml, privacyPageHtml } from "./privacyPolicy.ts";
 import { SUPPORT_MARKDOWN, SUPPORT_TITLE } from "./supportPage.ts";
 import { LEGAL_MARKDOWN, LEGAL_NOTICE_TITLE } from "./legalNotice.ts";
-import type { AgeGroup, Env, EventRecord, EventTeamView, ExecutionContext, Gift, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+import type { AgeGroup, Env, EventRecord, EventTeamView, ExecutionContext, Gift, JoinRequestView, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 
 /** Monthly spending caps in yen by self-declared age group, following the Japanese online-game industry guideline. null means no cap. */
 const MONTHLY_CAP_YEN: Record<AgeGroup, number | null> = { under16: 5000, "16to19": 10000, adult: null };
@@ -58,14 +58,14 @@ const normalizeTeamCode = (value: string) => value.replace(/[\s-]/g, "").toUpper
 const isTeamCode = (value: string) => /^[A-HJ-NP-Z2-9]{6}$/.test(value);
 
 /** What the app needs to draw the event screens: the limits, and the player's team with its total. */
-function teamResponse(event: EventRecord, team: EventTeamView | null) {
+function teamResponse(event: EventRecord, team: EventTeamView | null, extras: { requests?: readonly JoinRequestView[]; request?: { id: string; creatorName: string } | null } = {}) {
   const info = { id: event.id, name: event.name, startsAt: event.startsAt, endsAt: event.endsAt, minMembers: event.minMembers, maxMembers: event.maxMembers, goalSteps: event.goalSteps };
-  if (!team) return { event: info, team: null, totalSteps: 0 };
+  if (!team) return { event: info, team: null, totalSteps: 0, request: extras.request ?? null };
   const totalSteps = team.members.reduce((sum, member) => sum + member.steps, 0);
   const cleared = team.status === "active" && event.goalSteps > 0 && totalSteps >= event.goalSteps;
   return {
     event: info,
-    team: { code: team.code, status: cleared ? "cleared" : team.status, creatorId: team.creatorId, members: team.members, claimed: team.claimed },
+    team: { code: team.code, status: cleared ? "cleared" : team.status, creatorId: team.creatorId, members: team.members, claimed: team.claimed, requests: (extras.requests ?? []).map((row) => ({ id: row.id, name: row.name, petId: row.petId })) },
     totalSteps
   };
 }
@@ -612,7 +612,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     return json({ day, cumulative: saved });
   }
 
-  const eventTeamMatch = /^\/events\/([^/]+)\/(team|teams|teams\/join|teams\/start|leave|claim)$/.exec(path);
+  const eventTeamMatch = /^\/events\/([^/]+)\/(team|teams|teams\/join|leave|claim|requests\/cancel|requests\/[^/]+\/answer)$/.exec(path);
   if (eventTeamMatch) {
     const eventId = decodeURIComponent(eventTeamMatch[1]);
     const action = eventTeamMatch[2];
@@ -620,7 +620,12 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     if (!event) throw new HttpError(404, "event_not_found");
     const inWindow = now.getTime() >= Date.parse(event.startsAt) && now.getTime() < Date.parse(event.endsAt);
 
-    if (method === "GET" && action === "team") return json(teamResponse(event, await store.eventTeam(userId, eventId)));
+    const teamView = async (status = 200): Promise<Response> => {
+      const team = await store.eventTeam(userId, eventId);
+      if (team) return json(teamResponse(event, team, { requests: team.creatorId === userId ? await store.eventJoinRequests(userId, eventId) : [] }), status);
+      return json(teamResponse(event, null, { request: await store.pendingJoinRequest(userId, eventId) }), status);
+    };
+    if (method === "GET" && action === "team") return teamView();
 
     if (method === "POST" && action === "teams") {
       await limit(store, "team-create", userId, 3_600_000, 10, now);
@@ -647,18 +652,29 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       if (!isTeamCode(code)) throw new HttpError(400, "invalid_team_code");
       const present = await store.eventTeamMemberIdsByCode(eventId, code);
       for (const memberId of present) if (await store.blockedEither(userId, memberId)) throw new HttpError(404, "not_found");
-      const result = await store.joinEventTeam(userId, eventId, code, event.maxMembers);
-      if (result !== "ok") throw new HttpError(result === "not_found" ? 404 : 409, result);
-      const team = await store.eventTeam(userId, eventId);
-      // Joining a team makes the player a friend of whoever made it.
-      if (team && team.creatorId !== userId) await store.makeFriends(userId, team.creatorId);
-      return json(teamResponse(event, team));
+      // Asking only: the player who made the team answers, and nobody is added before that.
+      const asked = await store.requestJoinEventTeam(userId, eventId, code, event.maxMembers);
+      if (asked.result === "not_found") throw new HttpError(404, "not_found");
+      if (asked.result !== "ok" && asked.result !== "already_requested") throw new HttpError(409, asked.result);
+      return teamView(202);
     }
 
-    if (method === "POST" && action === "teams/start") {
-      const result = await store.startEventTeam(userId, eventId, event.minMembers);
-      if (result !== "ok") throw new HttpError(result === "no_team" ? 404 : 409, result);
-      return json(teamResponse(event, await store.eventTeam(userId, eventId)));
+    const answerMatch = /^requests\/([^/]+)\/answer$/.exec(action);
+    if (method === "POST" && answerMatch) {
+      const input = await body(request);
+      if (typeof input.accept !== "boolean") throw new HttpError(400, "invalid_answer");
+      const result = await store.answerJoinRequest(userId, eventId, decodeURIComponent(answerMatch[1]), input.accept, event.maxMembers, event.minMembers);
+      if (result.result === "not_found") throw new HttpError(404, "request_not_found");
+      if (result.result === "not_creator") throw new HttpError(403, "not_creator");
+      if (result.result === "full") throw new HttpError(409, "full");
+      // Accepted: the two become friends, as joining a team always has done.
+      if (result.result === "accepted" && result.requesterId) await store.makeFriends(userId, result.requesterId);
+      return teamView();
+    }
+
+    if (method === "POST" && action === "requests/cancel") {
+      await store.cancelJoinRequest(userId, eventId);
+      return teamView();
     }
 
     if (method === "POST" && action === "leave") {
