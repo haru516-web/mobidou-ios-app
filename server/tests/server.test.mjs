@@ -89,6 +89,8 @@ class MemoryStore {
   }
   refundDebts = new Map();
   refunded = new Set();
+  shortfalls = [];
+  async refundShortfalls(userId, since) { return this.shortfalls.filter((entry) => entry.userId === userId && entry.at >= since).length; }
   async revokePurchase(transactionId, paidPulls = 0) {
     const userId = this.purchases.get(transactionId);
     this.purchases.delete(transactionId);
@@ -98,7 +100,7 @@ class MemoryStore {
     const wallet = this.walletRows.get(userId);
     const taken = Math.min(paidPulls, wallet.paid);
     wallet.paid -= taken;
-    this.refundDebts.set(userId, (this.refundDebts.get(userId) ?? 0) + paidPulls - taken);
+    if (taken < paidPulls) this.shortfalls.push({ userId, at: new Date().toISOString() });
   }
   purchaseLog = [];
   ageGroups = new Map();
@@ -956,7 +958,7 @@ test("monthly spending cap by age group: set once, can be lowered but not raised
   const setGroup = (ageGroup) => call(context, "POST", "/profile/age-group", { ageGroup }, account.userId);
   const october = new Date("2026-10-15T03:00:00Z");
 
-  assert.deepEqual(await limits(october), { ageGroup: null, capYen: 5000, spentYen: 0, remainingYen: 5000 });
+  assert.deepEqual(await limits(october), { ageGroup: null, capYen: 5000, spentYen: 0, remainingYen: 5000, restricted: false });
   assert.equal((await setGroup("teenager")).status, 400);
   assert.equal((await setGroup("16to19")).status, 200);
   assert.equal((await limits(october)).capYen, 10000);
@@ -967,11 +969,19 @@ test("monthly spending cap by age group: set once, can be lowered but not raised
     await context.store.recordPurchase(account.userId, { transactionId: id, productId, purchaseDate: Date.parse(purchaseDate) }, { paidPulls: 1 });
   }
   // 2026-09-30T14:59Z is 23:59 on 30 September in Tokyo; 2026-11-01T00:00Z is 09:00 on 1 November.
-  assert.deepEqual(await limits(october), { ageGroup: "under16", capYen: 5000, spentYen: 1500, remainingYen: 3500 });
+  assert.deepEqual(await limits(october), { ageGroup: "under16", capYen: 5000, spentYen: 1500, remainingYen: 3500, restricted: false });
 
   assert.equal((await setGroup("adult")).status, 409);
   context.store.ageGroups.set(account.userId, "adult");
-  assert.deepEqual(await limits(october), { ageGroup: "adult", capYen: null, spentYen: 1500, remainingYen: null });
+  assert.deepEqual(await limits(october), { ageGroup: "adult", capYen: null, spentYen: 1500, remainingYen: null, restricted: false });
+
+  // Two refunds that came after tickets were spent pause buying; a refund of unspent tickets does not count.
+  assert.equal((await limits(october)).restricted, false);
+  const at = new Date(october.getTime() - 86_400_000).toISOString();
+  context.store.shortfalls.push({ userId: account.userId, at });
+  assert.equal((await limits(october)).restricted, false);
+  context.store.shortfalls.push({ userId: account.userId, at });
+  assert.equal((await limits(october)).restricted, true);
 });
 
 test("profile: a short name and a known main Mobby are saved and read back; bad input is refused", async () => {

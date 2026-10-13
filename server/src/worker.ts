@@ -143,6 +143,15 @@ function configuredGifts(env: Env): Gift[] {
 }
 
 /** A plan's billing period: remembered, and its monthly 木札 credited once (an expired period grants nothing). */
+/** The plan period a transaction opened, so a refund can end it. */
+function planOf(product: ProductDefinition | undefined, transaction: VerifiedTransaction): { name: string; periodStart: string } | undefined {
+  return product?.plan && transaction.expiresDate ? { name: product.plan, periodStart: new Date(transaction.purchaseDate).toISOString() } : undefined;
+}
+
+// Two refunds that came after the tickets were spent, within half a year, stop further purchases.
+const REFUND_RESTRICT_COUNT = 2;
+const REFUND_RESTRICT_WINDOW_MS = 180 * 86_400_000;
+
 async function recordPlanPeriod(store: Store, userId: string, transaction: VerifiedTransaction, product: ProductDefinition, now: Date): Promise<void> {
   if (!product.plan || !transaction.expiresDate || transaction.revocationDate) return;
   const expired = transaction.expiresDate <= now.getTime();
@@ -275,7 +284,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
         transaction = await verifySignedTransaction(data.signedTransactionInfo, env);
       } catch { throw new HttpError(400, "invalid_notification_transaction"); }
       if (transaction.revocationDate || notification.notificationType === "REFUND" || notification.notificationType === "REVOKE") {
-        await store.revokePurchase(transaction.transactionId, configuredProducts(env)[transaction.productId]?.paidPulls ?? 0);
+        const refunded = configuredProducts(env)[transaction.productId];
+        await store.revokePurchase(transaction.transactionId, refunded?.paidPulls ?? 0, planOf(refunded, transaction));
       } else if (transaction.appAccountToken && environmentAccepted(env, transaction)) {
         const user = await store.user(transaction.appAccountToken);
         const product = configuredProducts(env)[transaction.productId];
@@ -443,7 +453,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     if (!transaction.appAccountToken) throw new HttpError(400, "missing_app_account_token");
     if (transaction.appAccountToken !== userId) throw new HttpError(403, "app_account_token_mismatch");
     if (transaction.revocationDate) {
-      await store.revokePurchase(transaction.transactionId, product.paidPulls ?? 0);
+      await store.revokePurchase(transaction.transactionId, product.paidPulls ?? 0, planOf(product, transaction));
       return json({ status: "revoked" });
     }
     const effectiveProduct = transaction.expiresDate && transaction.expiresDate <= now.getTime()
@@ -505,7 +515,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     const spentYen = (await store.purchasedProducts(userId, from, to)).reduce((sum, productId) => sum + (products[productId]?.priceYen ?? 0), 0);
     // Until an age group is chosen the strictest cap applies.
     const capYen = MONTHLY_CAP_YEN[ageGroup ?? "under16"];
-    return json({ ageGroup, capYen, spentYen, remainingYen: capYen === null ? null : Math.max(0, capYen - spentYen) });
+    const restricted = await store.refundShortfalls(userId, new Date(now.getTime() - REFUND_RESTRICT_WINDOW_MS).toISOString()) >= REFUND_RESTRICT_COUNT;
+    return json({ ageGroup, capYen, spentYen, remainingYen: capYen === null ? null : Math.max(0, capYen - spentYen), restricted });
   }
 
   if (method === "GET" && path === "/wallet") return json(await store.wallet(userId));

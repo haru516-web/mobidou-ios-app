@@ -198,7 +198,7 @@ test("D1 deleting a user removes every row that belongs to the user and leaves o
   assert.deepEqual(await store.friends("stay"), []);
 });
 
-test("D1 refunds: unspent tickets are taken back, the spent part becomes a debt the next purchase pays off first, and repeats change nothing", async () => {
+test("D1 refunds: only unspent tickets are taken back, nothing is owed, repeats change nothing, and shortfalls are counted", async () => {
   const database = new DatabaseSync(":memory:");
   database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
   const store = new D1Store(new SQLiteD1(database));
@@ -207,45 +207,49 @@ test("D1 refunds: unspent tickets are taken back, the spent part becomes a debt 
   const buy = (id, productId, purchaseDate = Date.parse("2026-10-04T00:00:00Z")) => store.recordPurchase("fay", { transactionId: id, productId, purchaseDate }, { paidPulls: productId === "five" ? 5 : 1 });
   const state = async () => { const w = await store.wallet("fay"); return [w.paid, w.refundDebt]; };
   const spend = (count) => store.commitDraws("fay", Array.from({ length: count }, () => ({ petId: "pet-a", kind: "paid", isNew: false, guaranteed: false })), "paid", count);
+  const since = "2026-01-01T00:00:00.000Z";
 
-  // Buy five, spend three, get the purchase refunded: two unspent are taken back, three become a debt.
+  // Buy five, spend three, get the purchase refunded: the two unspent are taken back and nothing is owed.
   assert.equal(await buy("tx1", "five"), true);
-  assert.deepEqual(await state(), [5, 0]);
   await spend(3);
   assert.deepEqual(await state(), [2, 0]);
   await store.revokePurchase("tx1", 5);
-  assert.deepEqual(await state(), [0, 3]);
   await store.revokePurchase("tx1", 5);
-  await store.revokePurchase("tx1", 5);
-  assert.deepEqual(await state(), [0, 3], "the same refund twice changes nothing");
+  assert.deepEqual(await state(), [0, 0], "the same refund twice changes nothing");
+  assert.equal(await store.refundShortfalls("fay", since), 1, "the refund came after some were spent");
 
-  // The next purchase pays the debt first.
+  // The next purchase arrives whole.
   assert.equal(await buy("tx2", "five"), true);
-  assert.deepEqual(await state(), [2, 0]);
-  assert.equal(await buy("tx2", "five"), false);
-  assert.deepEqual(await state(), [2, 0], "the same purchase twice changes nothing");
-
-  // Refunding that purchase puts things back as they were.
-  await store.revokePurchase("tx2", 5);
-  assert.deepEqual(await state(), [0, 3]);
-
-  // A small purchase is absorbed by the debt entirely; refunding it adds the debt back.
-  assert.equal(await buy("tx3", "single"), true);
-  assert.deepEqual(await state(), [0, 2]);
-  await store.revokePurchase("tx3", 1);
-  assert.deepEqual(await state(), [0, 3]);
+  assert.deepEqual(await state(), [5, 0]);
 
   // A refund of something never recorded does nothing.
   await store.revokePurchase("unknown", 5);
-  assert.deepEqual(await state(), [0, 3]);
+  assert.deepEqual(await state(), [5, 0]);
 
-  // Refunding a purchase that was never spent takes it all back and owes nothing.
+  // Refunding a purchase that was never spent takes it all back and is not a shortfall.
   await make("gus", "GUS1234567");
   await store.recordPurchase("gus", { transactionId: "g1", productId: "five", purchaseDate: 0 }, { paidPulls: 5 });
   await store.revokePurchase("g1", 5);
-  const gus = await store.wallet("gus");
-  assert.deepEqual([gus.paid, gus.refundDebt], [0, 0]);
+  assert.equal((await store.wallet("gus")).paid, 0);
+  assert.equal(await store.refundShortfalls("gus", since), 0);
   assert.equal(database.prepare("SELECT revoked_at IS NOT NULL AS revoked FROM purchases WHERE apple_transaction_id = 'g1'").get().revoked, 1);
+});
+
+test("D1 refunds: a refunded plan period ends at once and its unspent monthly pull is taken back", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  await store.registerUser({ id: "hal", friendCode: "HAL1234567", name: "hal", petId: null, goshuinCount: 0, routeName: null }, "hash-hal");
+  const start = "2026-10-04T00:00:00.000Z";
+  const end = "2036-10-04T00:00:00.000Z";
+  await store.recordPurchase("hal", { transactionId: "p1", productId: "plus", purchaseDate: Date.parse(start), expiresDate: Date.parse(end) }, { plan: "plus" });
+  await store.recordPlanPeriod("hal", "plus", start, end, 1, "p1");
+  assert.equal(await store.activePlan("hal", "2026-10-05T00:00:00.000Z"), "plus");
+  assert.equal((await store.wallet("hal")).paid, 1);
+  await store.revokePurchase("p1", 0, { name: "plus", periodStart: start });
+  await store.revokePurchase("p1", 0, { name: "plus", periodStart: start });
+  assert.equal(await store.activePlan("hal", new Date().toISOString()), null);
+  assert.equal((await store.wallet("hal")).paid, 0);
 });
 
 test("D1 event teams: make, join up to the limit, set out, count steps, claim once, and leave only while recruiting", async () => {

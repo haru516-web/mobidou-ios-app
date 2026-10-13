@@ -26,7 +26,10 @@ public class MobiHealthModule: Module {
       }
       let start = Date(timeIntervalSince1970: startMillis / 1000)
       let end = Date(timeIntervalSince1970: endMillis / 1000)
-      let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+      let inRange = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+      // Steps typed into the Health app by hand do not count (samples without the key are kept).
+      let typedIn = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeyWasUserEntered, operatorType: .equalTo, value: true)
+      let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [inRange, NSCompoundPredicate(notPredicateWithSubpredicate: typedIn)])
       let query = HKStatisticsQuery(quantityType: steps, quantitySamplePredicate: predicate,
         options: .cumulativeSum) { _, statistics, error in
         if let error = error { promise.reject("READ", error.localizedDescription) }

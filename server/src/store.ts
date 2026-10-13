@@ -213,26 +213,46 @@ export class D1Store implements Store {
     return row?.plan ?? null;
   }
 
-  async revokePurchase(transactionId: string, paidPulls = 0): Promise<void> {
+  async revokePurchase(transactionId: string, paidPulls = 0, plan?: { name: string; periodStart: string }): Promise<void> {
     const now = nowIso();
     const statements = [this.db.prepare("UPDATE purchases SET revoked_at = ? WHERE apple_transaction_id = ? AND revoked_at IS NULL").bind(now, transactionId)];
+    // Only what is still unspent is taken back, up to what this purchase put in the wallet. What was already spent is not
+    // charged to anyone (no debt); a shortfall is only recorded so that repeated refunds can restrict buying.
     if (paidPulls > 0) {
-      // Take back what is still unspent, up to this purchase's tickets; what was already spent becomes a debt.
       statements.push(
-        this.db.prepare(`INSERT OR IGNORE INTO refund_events (transaction_id, user_id, pulls, taken, debt, created_at)
-          SELECT p.apple_transaction_id, p.user_id, ?, MIN(?, w.paid_balance), ? - MIN(?, w.paid_balance), ?
+        this.db.prepare(`INSERT OR IGNORE INTO refund_events (transaction_id, user_id, pulls, taken, debt, debt_applied, created_at)
+          SELECT p.apple_transaction_id, p.user_id, ?, MIN(?, w.paid_balance), ? - MIN(?, w.paid_balance), 1, ?
           FROM purchases p JOIN gacha_wallet w ON w.user_id = p.user_id WHERE p.apple_transaction_id = ?`)
-          .bind(paidPulls, paidPulls, paidPulls, paidPulls, now, transactionId),
+          .bind(paidPulls, paidPulls, paidPulls, paidPulls, now, transactionId)
+      );
+    } else if (plan) {
+      // A refunded plan period ends now, and its monthly pull is taken back if it is still unspent.
+      statements.push(
+        this.db.prepare("UPDATE entitlements SET period_end = ? WHERE plan = ? AND period_start = ? AND period_end > ? AND user_id = (SELECT user_id FROM purchases WHERE apple_transaction_id = ?)")
+          .bind(now, plan.name, plan.periodStart, now, transactionId),
+        this.db.prepare(`INSERT OR IGNORE INTO refund_events (transaction_id, user_id, pulls, taken, debt, debt_applied, created_at)
+          SELECT p.apple_transaction_id, p.user_id, l.delta, MIN(l.delta, w.paid_balance), l.delta - MIN(l.delta, w.paid_balance), 1, ?
+          FROM purchases p JOIN gacha_wallet w ON w.user_id = p.user_id
+          JOIN gacha_wallet_ledger l ON l.id = 'plan:' || p.apple_transaction_id AND l.delta > 0
+          WHERE p.apple_transaction_id = ?`)
+          .bind(now, transactionId)
+      );
+    }
+    if (paidPulls > 0 || plan) {
+      statements.push(
         this.db.prepare(`INSERT OR IGNORE INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at)
           SELECT 'refund:' || transaction_id, user_id, 'paid', -taken, 'refund', transaction_id, ? FROM refund_events WHERE transaction_id = ? AND taken > 0`)
-          .bind(now, transactionId),
-        this.db.prepare(`INSERT INTO refund_debt (user_id, pulls) SELECT user_id, debt FROM refund_events WHERE transaction_id = ? AND debt > 0 AND debt_applied = 0
-          ON CONFLICT (user_id) DO UPDATE SET pulls = pulls + excluded.pulls`)
-          .bind(transactionId),
-        this.db.prepare("UPDATE refund_events SET debt_applied = 1 WHERE transaction_id = ?").bind(transactionId)
+          .bind(now, transactionId)
       );
     }
     await this.db.batch(statements);
+  }
+
+  /** How many refunds since `since` came after some of the tickets were already spent. */
+  async refundShortfalls(userId: string, since: string): Promise<number> {
+    const row = await this.db.prepare("SELECT COUNT(*) AS n FROM refund_events WHERE user_id = ? AND debt > 0 AND created_at >= ?")
+      .bind(userId, since).first<{ n: number }>();
+    return row?.n ?? 0;
   }
 
   async wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number; refundDebt: number }> {

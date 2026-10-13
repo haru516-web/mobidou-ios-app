@@ -172,7 +172,8 @@ export interface Store {
   /** The plan whose billing period covers `at`, or null. */
   activePlan(userId: string, at: string): Promise<string | null>;
   /** Apple refunded this purchase: take back its unspent tickets and record the spent part as a debt. Safe to repeat. */
-  revokePurchase(transactionId: string, paidPulls?: number): Promise<void>;
+  revokePurchase(transactionId: string, paidPulls?: number, plan?: { name: string; periodStart: string }): Promise<void>;
+  refundShortfalls(userId: string, since: string): Promise<number>;
   wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number; refundDebt: number }>;
   ownedPets(userId: string): Promise<Record<string, number>>;
   chooseStarter(userId: string, petId: string): Promise<boolean>;

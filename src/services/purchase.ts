@@ -31,10 +31,12 @@ export type BuyOutcome =
   /** The player has not said which age group they are in yet; ask, call `setAgeGroup`, then buy again. */
   | { ok: false; reason: 'age_needed' }
   /** This purchase would go over the monthly cap for the player's age group. */
-  | { ok: false; reason: 'limit'; capYen: number; remainingYen: number };
+  | { ok: false; reason: 'limit'; capYen: number; remainingYen: number }
+  /** Purchases are paused for this account after repeated refunds of tickets that had been used. */
+  | { ok: false; reason: 'restricted' };
 
 export type AgeGroup = 'under16' | '16to19' | 'adult';
-export type Limits = { ageGroup: AgeGroup | null; capYen: number | null; remainingYen: number | null };
+export type Limits = { ageGroup: AgeGroup | null; capYen: number | null; remainingYen: number | null; restricted?: boolean };
 
 /** What the screen does once a purchase has ended. Kept apart from the screen so every ending has a tested answer. */
 export type FollowUp =
@@ -63,6 +65,9 @@ function unavailableText(detail: string | undefined): string {
 export function purchaseFollowUp(outcome: BuyOutcome, showDetail = false): FollowUp {
   if (outcome.ok) return { kind: 'done' };
   if (outcome.reason === 'age_needed') return { kind: 'askAge' };
+  if (outcome.reason === 'restricted') {
+    return { kind: 'message', text: '返金が続いたため、このアカウントでは、いまは購入をお受けできません。心当たりがない場合は、運営者までご連絡ください。' };
+  }
   if (outcome.reason === 'limit') {
     return { kind: 'message', text: `今月の購入の上限（${outcome.capYen.toLocaleString('ja-JP')}円）まで、あと${outcome.remainingYen.toLocaleString('ja-JP')}円です。この商品は上限を超えるため、購入できません。\n上限は、毎月1日にリセットされます。` };
   }
@@ -132,7 +137,7 @@ export async function fetchLimits(api: PurchaseApi = serverApi): Promise<Limits 
   if (!ok(reply) || !data) return null;
   const group = data.ageGroup;
   const number = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null;
-  return { ageGroup: group === 'under16' || group === '16to19' || group === 'adult' ? group : null, capYen: number(data.capYen), remainingYen: number(data.remainingYen) };
+  return { ageGroup: group === 'under16' || group === '16to19' || group === 'adult' ? group : null, capYen: number(data.capYen), remainingYen: number(data.remainingYen), restricted: data.restricted === true };
 }
 
 /** Record which age group the player is in. A mistaken choice may be lowered later but not raised. */
@@ -154,6 +159,7 @@ export async function buyPulls(productId: PullProductId, store: PurchaseStore | 
   onStage?.('limits');
   const limits = await fetchLimits(api);
   if (!limits) return { ok: false, reason: 'offline' };
+  if (limits.restricted) return { ok: false, reason: 'restricted' };
   if (limits.ageGroup === null) return { ok: false, reason: 'age_needed' };
   if (limits.capYen !== null && limits.remainingYen !== null && product.priceYen > limits.remainingYen) return { ok: false, reason: 'limit', capYen: limits.capYen, remainingYen: limits.remainingYen };
 
@@ -181,6 +187,7 @@ export async function buyPlan(store: PurchaseStore | null, api: PurchaseApi = se
   onStage?.('limits');
   const limits = await fetchLimits(api);
   if (!limits) return { ok: false, reason: 'offline' };
+  if (limits.restricted) return { ok: false, reason: 'restricted' };
   if (limits.ageGroup === null) return { ok: false, reason: 'age_needed' };
   if (limits.capYen !== null && limits.remainingYen !== null && PLUS_PRODUCT.priceYen > limits.remainingYen) return { ok: false, reason: 'limit', capYen: limits.capYen, remainingYen: limits.remainingYen };
   let bought: PurchasedItem | 'cancelled';

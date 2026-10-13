@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buyPlan, buyPulls, drawPaidTickets, fetchLimits, fetchPaidTickets, recoverPaidDraws, restorePurchases, setAgeGroup, setPendingDrawStore, settleCredits, settlePaidDraws, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
+import { buyPlan, buyPulls, drawPaidTickets, fetchLimits, fetchPaidTickets, purchaseFollowUp, recoverPaidDraws, restorePurchases, setAgeGroup, setPendingDrawStore, settleCredits, settlePaidDraws, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
 import { applyServerPulls, emptyMobbyCollection, setPaidTickets, ticketCount } from '../src/services/gacha.ts';
 
 const SINGLE = 'jp.mobby.mobidou.gacha.single';
@@ -162,6 +162,15 @@ test('the ticket count is free plus bought, and the stored balance follows the s
 
 const limitsReply = (ageGroup: string | null, capYen: number | null, remainingYen: number | null) => () => reply(200, { ageGroup, capYen, spentYen: 0, remainingYen });
 
+test('after repeated refunds the server pauses buying, and nothing reaches the store', async () => {
+  const { api } = fakeApi({ 'GET /limits': () => reply(200, { ageGroup: 'adult', capYen: null, spentYen: 0, remainingYen: null, restricted: true }) });
+  const { store, events } = fakeStore();
+  assert.deepEqual(await buyPulls('pull1', store, api), { ok: false, reason: 'restricted' });
+  assert.deepEqual(await buyPlan(store, api), { ok: false, reason: 'restricted' });
+  assert.deepEqual(events, []);
+  assert.equal(purchaseFollowUp({ ok: false, reason: 'restricted' }).kind, 'message');
+});
+
 test('nothing is charged until the player has said which age group they are in', async () => {
   const { api } = fakeApi({ 'GET /limits': limitsReply(null, 5000, 5000) });
   const { store, events } = fakeStore();
@@ -193,7 +202,7 @@ test('if the limits cannot be read, nothing is charged', async () => {
 
 test('limits and the age group are read and written through the server', async () => {
   const { api, calls } = fakeApi({ 'GET /limits': limitsReply('16to19', 10000, 8800), '/profile/age-group': () => reply(200, { ageGroup: '16to19' }) });
-  assert.deepEqual(await fetchLimits(api), { ageGroup: '16to19', capYen: 10000, remainingYen: 8800 });
+  assert.deepEqual(await fetchLimits(api), { ageGroup: '16to19', capYen: 10000, remainingYen: 8800, restricted: false });
   assert.equal(await setAgeGroup('16to19', api), true);
   assert.deepEqual(calls, ['GET /limits', '/profile/age-group']);
   assert.equal(await setAgeGroup('adult', fakeApi({ '/profile/age-group': () => reply(409, { error: 'age_group_cannot_be_raised' }) }).api), false);
