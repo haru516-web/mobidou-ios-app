@@ -512,7 +512,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Already holding this goshuin (another lap, or the same shrine in another route) makes the visit short.
   const pendingGoshuinOwned = !!pending && (progress.lapBase !== undefined || Object.entries(routeRecords).some(([routeId, record]) => routeId !== activeRoute?.id && record.rewards.some(reward => reward.id === pending.id)));
   // Not while the first-run tutorial is guiding the player: closing the award jumps to the book, which would strand the tutorial on the wrong screen.
-  const awardVisibleBase = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal;
+  const awardVisibleBase = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null;
   // The team reaching an event spot plays the same arrival ceremony as a pilgrimage stop, once the ordinary one and the event screen are out of the way.
   const eventAwardSpot = eventState && eventTeam && eventTeam.seen < eventState.reached ? TOKI_MEGURU.spots?.[eventTeam.seen] ?? null : null;
   const eventAwardVisible = !!eventAwardSpot && !awardVisibleBase && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !gachaOpen;
@@ -672,7 +672,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     ? getNextPilgrimageId(activeRoute.id, Object.entries(routeRecords).filter(([, record]) => !!record.completedAt).map(([routeId]) => routeId))
     : undefined;
   const dueRoute = dueRouteId && !routeRecords[dueRouteId]?.completedAt ? getPilgrimage(dueRouteId) : undefined;
-  const routeAdvanceVisible = !!dueRoute && !pending && data.onboarded && firstRunStage === null && openingHomeReady && !openingVisible && !settings && !detail && !homePopup && !omikujiModal && !gachaOpen && !overlayBusy;
+  const routeAdvanceVisible = !!dueRoute && !pending && data.onboarded && firstRunStage === null && openingHomeReady && !openingVisible && !settings && !detail && !homePopup && !omikujiModal && !gachaOpen && !overlayBusy && eventSheet === null;
   const selectPilgrimageRoute = (routeId: string) => {
     const beginningFirstRun = firstRunStage === 'route';
     if (beginningFirstRun) setFirstRunStage('homeCompanion');
@@ -860,15 +860,20 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     remainingSteps: homeNextPointSteps ?? undefined,
     affinityStage: affinityStageFor(data.affection[data.pet] ?? 0),
   };
+  // Anything that comes up by itself waits while the event screen or its announcements are on screen, and the Mobby menu's scrim never outlives them.
+  const eventUiBusy = eventSheet !== null || eventAnnounceOpen || eventMobbiesOpen || eventListOpen;
+  const eventUiBusyRef = useRef(false);
+  eventUiBusyRef.current = eventUiBusy;
+  useEffect(() => { setMobbyMenuOpen(false); }, [eventSheet]);
   // Last week's look-back appears once per week, after the day's other popups are out of the way.
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const weeklySummary = useMemo(() => summarizeWeek(data.dayLog, progress.rewards, previousWeekStart()), [weeklyOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const weeklyPlaces = useMemo(() => weeklySummary.rewardIds.map(id => activeShrines[activeRoute?.ids.indexOf(id) ?? -1]?.name).filter((name): name is string => !!name), [weeklySummary]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || !weeklyDue(data.weekSeen, data.dayLog)) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || eventUiBusy || !weeklyDue(data.weekSeen, data.dayLog)) return undefined;
     const timer = setTimeout(() => setWeeklyOpen(true), 1200);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventUiBusy]);
   // Friends see the main Mobby, so a change of Mobby is passed on right away.
   useEffect(() => {
     if (journey.ready && !data.demo && data.onboarded) void syncProfilePet(data.pet);
@@ -909,11 +914,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const profileGuideChecked = useRef(false);
   useEffect(() => {
     if (!SOCIAL_ONLINE || profileGuideChecked.current) return undefined;
-    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || eventAnnounceOpen) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || eventAnnounceOpen || eventUiBusy) return undefined;
     const timer = setTimeout(() => {
       profileGuideChecked.current = true;
       void (async () => {
         if ((await wasProfileGuideShown()) || (await hasSavedProfileName())) return;
+        // The event screen may have opened while the storage was being read: try again once it is closed.
+        if (eventUiBusyRef.current) { profileGuideChecked.current = false; return; }
         await markProfileGuideShown();
         Alert.alert('プロフィールを登録しよう', 'フレンドと遊ぶために、名前を登録します。フレンドに見えるのは、名前と、いまのメインモビーだけです。', [
           { text: 'あとで', style: 'cancel' },
@@ -922,7 +929,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       })();
     }, 2500);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen, eventUiBusy]);
   useAppAudioCues({ firstRunStage, openingVisible, mobbyMenuOpen, homeEditing: homePopup === 'custom', milestoneToast, error: journey.error ?? null, weeklyOpen, pet: data.pet });
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
