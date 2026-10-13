@@ -24,7 +24,7 @@ export function EventAnnouncePopup({ visible, event, statusLabel, hideNextTime, 
           <Text style={S.name}>{event.name}</Text>
           <Text style={S.tagline}>{event.tagline}</Text>
         </View>
-        <Button title="イベントを見る" onPress={onOpenEvent} />
+        <Button title="次へ" onPress={onOpenEvent} />
         <Pressable artwork={false} accessibilityRole="checkbox" accessibilityState={{ checked: hideNextTime }} accessibilityLabel="今後は、アプリを開いたときに表示しない" onPress={() => onHideNextTimeChange(!hideNextTime)} style={S.hideRow}>
           <Icon name={hideNextTime ? 'checkbox' : 'square-outline'} size={20} color={C.red} />
           <Text style={S.hideText}>今後は表示しない</Text>

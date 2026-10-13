@@ -47,6 +47,7 @@ import { EVENT_PET_CHARACTERS } from './src/petCatalog';
 import { eventTicketsEarned } from './src/services/eventGacha';
 import { EventListPopup } from './src/components/EventListPopup';
 import { EventAnnouncePopup } from './src/components/EventAnnouncePopup';
+import { CharacterIntroPopup, EventMobbiesPopup } from './src/components/MobbyIntroPopups';
 import { isEventAnnounceHidden, setEventAnnounceHidden } from './src/services/eventAnnounce';
 import './src/services/pendingDraws';
 import { EVENT_SHRINES } from './src/data/eventShrines';
@@ -371,6 +372,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [eventBook, setEventBook] = useState(false);
   const [eventFeatured, setEventFeatured] = useState(0);
   const [eventSheet, setEventSheet] = useState<null | 'main'>(null);
+  // The Mobbies shown together: everyone, before the guide's first gacha; and the four of the event, after its announcement.
+  const [characterIntroOpen, setCharacterIntroOpen] = useState(false);
+  const [eventMobbiesOpen, setEventMobbiesOpen] = useState(false);
   const [eventGachaOpen, setEventGachaOpen] = useState(false);
   const eventTeam = useEventTeam(TOKI_MEGURU.id);
   // False until the server is known to have the event; the buttons into it stay hidden until then.
@@ -750,14 +754,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const seen = notices.filter(notice => notice.kind !== 'status').map(notice => notice.id);
     void markNoticesRead(seen).then(() => setReadNoticeIds(previous => new Set([...previous, ...seen])));
   };
+  const continueGuideToGacha = () => {
+    setCharacterIntroOpen(false);
+    journey.grantWelcomePull();
+    setFirstRunStage('gacha');
+    setGachaOpen(true);
+  };
   const receiveGift = async (gift: Gift) => {
     if (gift.id === TUTORIAL_GIFT.id) {
       // The guide's own present: not saved as received, so an interrupted guide can hand it over again.
       setSocialSheet(null);
       if (onboardingPreview) { setFirstRunStage(null); return; }
-      journey.grantWelcomePull();
-      setFirstRunStage('gacha');
-      setGachaOpen(true);
+      // The roster is shown first; its "next" goes on to the guide's gacha (continueGuideToGacha).
+      setCharacterIntroOpen(true);
       return;
     }
     if (receivedGiftIds.has(gift.id)) return;
@@ -1092,7 +1101,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
     <EventScreen visible={eventSheet === 'main'} onClose={() => { setEventSheet(null); setTeamInviteCode(''); }} event={TOKI_MEGURU} pet={pet} initialCode={teamInviteCode} onOpenProfile={() => { setEventSheet(null); setSocialSheet('friends'); }} />
-    <EventAnnouncePopup visible={eventAnnounceOpen} event={TOKI_MEGURU} statusLabel={eventStatusLabel} hideNextTime={eventAnnounceHidden === true} onHideNextTimeChange={changeEventAnnounceHidden} onOpenEvent={() => { setEventAnnounceOpen(false); setEventSheet('main'); }} onClose={() => setEventAnnounceOpen(false)} />
+    <EventAnnouncePopup visible={eventAnnounceOpen} event={TOKI_MEGURU} statusLabel={eventStatusLabel} hideNextTime={eventAnnounceHidden === true} onHideNextTimeChange={changeEventAnnounceHidden} onOpenEvent={() => { setEventAnnounceOpen(false); setEventMobbiesOpen(true); }} onClose={() => setEventAnnounceOpen(false)} />
+    <EventMobbiesPopup visible={eventMobbiesOpen} eventName={TOKI_MEGURU.name} onOpenEvent={() => { setEventMobbiesOpen(false); setEventSheet('main'); }} onClose={() => setEventMobbiesOpen(false)} />
+    <CharacterIntroPopup visible={characterIntroOpen} onNext={continueGuideToGacha} />
     <EventListPopup visible={eventListOpen} onClose={() => setEventListOpen(false)} event={TOKI_MEGURU} statusLabel={eventStatusLabel} onViewCollection={() => { setEventListOpen(false); setCollectionPage('room'); setEventCollection(true); }} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
     <BookIndexPopup event={inEventBook} visible={bookIndexOpen} title="目次" subtitle={inEventBook ? TOKI_MEGURU.name : activeRoute?.name} shrines={inEventBook ? EVENT_SHRINES : activeShrines} ownedIds={inEventBook ? EVENT_SHRINES.slice(0, eventReached).map(shrine => shrine.id) : collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
