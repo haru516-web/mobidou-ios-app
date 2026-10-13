@@ -329,8 +329,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const recoverPending = async () => {
     const recovered = await recoverPaidDraws();
     if (!recovered) return;
-    journey.applyPaidPulls(recovered.results, recovered.paidPulls, recovered.paidTickets);
-    void settlePaidDraws(recovered.opIds);
+    // The ids are forgotten only once the results are on the device's storage; otherwise they are asked for again next time.
+    const saved = await journey.applyPaidPullOps(recovered.ops, recovered.paidPulls, recovered.paidTickets);
+    if (saved) void settlePaidDraws(recovered.opIds);
     Alert.alert('ガチャ', '前回の結果を受け取りました。コレクションを見てみましょう。');
   };
   useEffect(() => {
@@ -348,8 +349,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       await recoverPending();
       const drawn = await drawPaidTickets(paid, mobbies);
       if (!drawn) { Alert.alert('ガチャ', 'サーバーにつながりませんでした。木札の消費を確認できていません。しばらくしてから開き直すと、結果を受け取れます。'); return false; }
-      journey.applyPaidPulls(drawn.results, drawn.paidPulls, drawn.paidTickets);
-      void settlePaidDraws(drawn.opIds);
+      const saved = await journey.applyPaidPullOps(drawn.ops, drawn.paidPulls, drawn.paidTickets);
+      if (saved) void settlePaidDraws(drawn.opIds);
       if (!drawn.complete) Alert.alert('ガチャ', '一部だけ引けました。残りの木札は減っていないので、もう一度お試しください。');
     }
     if (free > 0) journey.drawFreeMobby(free);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buyPlan, buyPulls, drawPaidTickets, fetchLimits, fetchPaidTickets, purchaseFollowUp, recoverPaidDraws, restorePurchases, setAgeGroup, setPendingDrawStore, settleCredits, settlePaidDraws, type PurchaseApi, type PurchasedItem, type PurchaseStore, type Reply } from '../src/services/purchase.ts';
-import { applyServerPulls, emptyMobbyCollection, setPaidTickets, ticketCount } from '../src/services/gacha.ts';
+import { applyServerOps, applyServerPulls, emptyMobbyCollection, normalizeMobbyCollection, setPaidTickets, ticketCount } from '../src/services/gacha.ts';
 
 const SINGLE = 'jp.mobby.mobidou.gacha.single';
 const FIVE = 'jp.mobby.mobidou.gacha.five';
@@ -150,6 +150,23 @@ test('server pulls are recorded on the device: new vs duplicate is decided local
   assert.deepEqual(next.unrevealed.map(entry => [entry.petId, entry.isNew, entry.guaranteed]), [['yami', true, false], ['yami', false, true]]);
   assert.equal(next.paidPulls, 9);
   assert.equal(next.paidTickets, 2);
+});
+
+test('a server operation is taken in once, even when its answer arrives again after a restart', () => {
+  const known = () => true;
+  const op = { opId: 'op-1', results: [{ petId: 'yami', isNew: true, guaranteed: false, kind: 'paid' as const }] };
+  const once = applyServerOps(mobbies, [op], 1, known, 3);
+  assert.equal(once.owned.yami, 1);
+  assert.equal(once.unrevealed.length, 1);
+  assert.deepEqual(once.appliedOps, ['op-1']);
+  // The same id again (saved, but not yet forgotten when the app was closed) changes no copy and adds no result.
+  const again = applyServerOps(once, [op], 1, known, 3);
+  assert.deepEqual([again.owned.yami, again.unrevealed.length], [1, 1]);
+  // A new id beside the old one is taken in; only the new one counts.
+  const both = applyServerOps(once, [op, { opId: 'op-2', results: [{ petId: 'yami', isNew: false, guaranteed: false, kind: 'paid' as const }] }], 2, known, 2);
+  assert.deepEqual([both.owned.yami, both.unrevealed.length, both.appliedOps], [2, 2, ['op-1', 'op-2']]);
+  // The ids survive a save and load.
+  assert.deepEqual(normalizeMobbyCollection(JSON.parse(JSON.stringify(both)), known).appliedOps, ['op-1', 'op-2']);
 });
 
 test('the ticket count is free plus bought, and the stored balance follows the server', () => {

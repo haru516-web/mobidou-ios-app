@@ -34,6 +34,8 @@ export type MobbyCollection = {
   freePullRoutes: string[];
   /** Results waiting for the reveal ceremony; persisted so closing the app cannot lose a pull. */
   unrevealed: PullResult[];
+  /** Operation ids of server draws already taken into this collection, so a repeated answer is never applied twice. The newest are kept. */
+  appliedOps?: string[];
 };
 
 export const emptyMobbyCollection = (): MobbyCollection => ({ owned: {}, paidPulls: 0, freePulls: 0, paidTickets: 0, freePullRoutes: [], unrevealed: [] });
@@ -66,6 +68,7 @@ export function normalizeMobbyCollection(value: unknown, isKnownPet: (id: string
     paidTickets: count(source.paidTickets),
     freePullRoutes: Array.isArray(source.freePullRoutes) ? [...new Set(source.freePullRoutes.filter((id): id is string => typeof id === 'string'))] : [],
     unrevealed: Array.isArray(source.unrevealed) ? source.unrevealed.map(normalizePullResult).filter((result): result is PullResult => !!result && isKnownPet(result.petId)) : [],
+    ...(Array.isArray(source.appliedOps) && source.appliedOps.some(id => typeof id === 'string') ? { appliedOps: source.appliedOps.filter((id): id is string => typeof id === 'string').slice(-APPLIED_OPS_KEPT) } : {}),
   };
 }
 
@@ -135,6 +138,26 @@ export function applyServerPulls(collection: MobbyCollection, results: readonly 
     next = { ...next, owned: { ...next.owned, [result.petId]: (next.owned[result.petId] ?? 0) + 1 }, unrevealed: [...next.unrevealed, entry] };
   }
   return { ...next, paidPulls: Math.max(next.paidPulls, count(paidPulls)), paidTickets: paidTickets === undefined ? next.paidTickets : count(paidTickets) };
+}
+
+const APPLIED_OPS_KEPT = 100;
+
+/**
+ * Take in the draws of several server operations, each at most once: an operation id already in `appliedOps` is skipped,
+ * so asking the server again (after a restart that came between saving and forgetting the id) cannot add a result twice.
+ */
+export function applyServerOps(collection: MobbyCollection, ops: readonly { opId: string; results: readonly PullResult[] }[], paidPulls: number, isKnownPet: (id: string) => boolean, paidTickets?: number): MobbyCollection {
+  const seen = new Set(collection.appliedOps ?? []);
+  let next = collection;
+  const added: string[] = [];
+  for (const op of ops) {
+    if (seen.has(op.opId)) continue;
+    next = applyServerPulls(next, op.results, 0, isKnownPet);
+    seen.add(op.opId);
+    added.push(op.opId);
+  }
+  const appliedOps = [...(collection.appliedOps ?? []), ...added].slice(-APPLIED_OPS_KEPT);
+  return { ...next, appliedOps, paidPulls: Math.max(next.paidPulls, count(paidPulls)), paidTickets: paidTickets === undefined ? next.paidTickets : count(paidTickets) };
 }
 
 /** The balance the server reported for bought 木札. */

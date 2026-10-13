@@ -1,4 +1,3 @@
-import { freshAuthorizationCode } from './appleAccount.ts';
 import { authedRequest, readServerAccount } from './server.ts';
 
 /*
@@ -19,6 +18,8 @@ export async function deleteServerAccount(): Promise<DeletionResult> {
   let reply = await authedRequest('/account/delete', { body: { confirm: 'delete' } });
   // The server holds no Apple token for this Apple-linked account: sign in with Apple again and send the fresh code.
   if (reply?.status === 409 && reply.data?.error === 'apple_reauth_required') {
+    // Loaded here, not at the top, because the Apple sign-in code pulls in react-native, which plain-Node tests cannot load.
+    const { freshAuthorizationCode } = require('./appleAccount') as typeof import('./appleAccount');
     const authorizationCode = await freshAuthorizationCode();
     if (!authorizationCode) return 'apple_needed';
     reply = await authedRequest('/account/delete', { body: { confirm: 'delete', authorizationCode } });

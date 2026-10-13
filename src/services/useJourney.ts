@@ -6,7 +6,7 @@ import { getPilgrimage } from '../data/pilgrimages';
 import { normalizeDayLog, recordDay, weekStartDay, type DayLog } from './weekly';
 import { connectSteps, readMissedDays, readTodaySteps, type StepSource } from './steps';
 import { EVENT_PET_CHARACTERS, isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
-import { acknowledgePulls, applyServerPulls, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, setPaidTickets, type MobbyCollection, type PullResult } from './gacha';
+import { acknowledgePulls, applyServerOps, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, setPaidTickets, type MobbyCollection, type PullResult } from './gacha';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
 import { claimWeeklyPass, emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
@@ -405,8 +405,20 @@ export function useJourney() {
       for (let pull = 0; pull < count; pull++) mobbies = pullOnce(mobbies, pool, 'free');
       return mobbies === p.mobbies ? p : { ...p, mobbies };
     }),
-    /** Pulls the server drew with bought 木札; they wait in `unrevealed` for the reveal. `paidTickets` is what is left. */
-    applyPaidPulls: (results: readonly PullResult[], paidPulls: number, paidTickets: number) => change(p => ({ ...p, mobbies: applyServerPulls(p.mobbies, results, paidPulls, isPetId, paidTickets) })),
+    /**
+     * Pulls the server drew with bought 木札; they wait in `unrevealed` for the reveal. `paidTickets` is what is left.
+     * Takes in the draws of server operations (each at most once) and reports whether they are on the device's storage now.
+     * Only then may the operation ids be forgotten: forgetting them first would lose the results if the app is closed in between.
+     */
+    applyPaidPullOps: async (ops: readonly { opId: string; results: readonly PullResult[] }[], paidPulls: number, paidTickets: number): Promise<boolean> => {
+      change(p => ({ ...p, mobbies: applyServerOps(p.mobbies, ops, paidPulls, isPetId, paidTickets) }));
+      await writing.current;
+      try {
+        const saved = JSON.parse(await AsyncStorage.getItem(KEY) ?? 'null') as { mobbies?: { appliedOps?: unknown } } | null;
+        const stored = Array.isArray(saved?.mobbies?.appliedOps) ? saved.mobbies.appliedOps : [];
+        return ops.every(op => stored.includes(op.opId));
+      } catch { return false; }
+    },
     /** The server's balance of bought 木札. */
     setPaidTickets: (amount: number) => change(p => { const mobbies = setPaidTickets(p.mobbies, amount); return mobbies === p.mobbies ? p : { ...p, mobbies }; }),
     /** 木札 from a gift or a purchase. */

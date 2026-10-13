@@ -243,6 +243,8 @@ export type PaidDraw = {
   results: PullResult[]; paidPulls: number; paidTickets: number; complete: boolean;
   /** The operation ids behind these results. Hand them to `settlePaidDraws` once the results are in the player's collection. */
   opIds: string[];
+  /** The same results, per operation, so each can be taken in once (see `applyServerOps`). */
+  ops: { opId: string; results: PullResult[] }[];
 };
 
 /*
@@ -275,17 +277,18 @@ export async function recoverPaidDraws(api: PurchaseApi = serverApi): Promise<Pa
   if (pending.length === 0) return null;
   const results: PullResult[] = [];
   const opIds: string[] = [];
+  const ops: PaidDraw['ops'] = [];
   let paidPulls = 0;
   let paidTickets = 0;
   for (const entry of pending) {
     const reply = await api.post('/gacha/pull', { count: entry.count, kind: 'paid', opId: entry.opId });
     if (reply === null) break; // no connection: keep it for next time
     const drawn = readPulls(reply);
-    if (drawn) { results.push(...drawn.results); opIds.push(entry.opId); paidPulls = drawn.paidPulls; paidTickets = drawn.remaining; continue; }
+    if (drawn) { results.push(...drawn.results); opIds.push(entry.opId); ops.push({ opId: entry.opId, results: drawn.results }); paidPulls = drawn.paidPulls; paidTickets = drawn.remaining; continue; }
     // The server answered "no": it will never become a draw (no balance left, a refused request), so stop waiting for it.
     if (reply.status >= 400 && reply.status < 500 && reply.status !== 429) await settlePaidDraws([entry.opId]);
   }
-  return results.length ? { results, paidPulls, paidTickets, complete: true, opIds } : null;
+  return results.length ? { results, paidPulls, paidTickets, complete: true, opIds, ops } : null;
 }
 
 function readPulls(reply: Reply): { results: PullResult[]; paidPulls: number; remaining: number } | null {
@@ -311,6 +314,7 @@ export async function drawPaidTickets(count: number, mobbies: MobbyCollection, a
   if (!ok(await api.post('/pets/sync', { owned: mobbies.owned }))) return null;
   const results: PullResult[] = [];
   const opIds: string[] = [];
+  const ops: PaidDraw['ops'] = [];
   let paidPulls = 0;
   let paidTickets = 0;
   let left = count;
@@ -325,7 +329,7 @@ export async function drawPaidTickets(count: number, mobbies: MobbyCollection, a
       if (reply !== null && reply.status >= 400 && reply.status < 500 && reply.status !== 429) await settlePaidDraws([opId]);
       break;
     }
-    results.push(...drawn.results); opIds.push(opId); paidPulls = drawn.paidPulls; paidTickets = drawn.remaining; left -= chunk;
+    results.push(...drawn.results); opIds.push(opId); ops.push({ opId, results: drawn.results }); paidPulls = drawn.paidPulls; paidTickets = drawn.remaining; left -= chunk;
   }
-  return results.length ? { results, paidPulls, paidTickets, complete: left === 0, opIds } : null;
+  return results.length ? { results, paidPulls, paidTickets, complete: left === 0, opIds, ops } : null;
 }
