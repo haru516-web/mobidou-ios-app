@@ -23,6 +23,6 @@ export function WashiInput({ style, multiline, ...props }: TextInputProps) {
   const inset = multiline ? 12 : 16;
   return <View style={[{ justifyContent: 'center' }, outer as ViewStyle]}>
     {multiline ? <SlicedArt name="cardFrameInset" corner={14} /> : <SlicedArt name="inputFrame" />}
-    <TextInput {...props} multiline={multiline} style={[{ flexGrow: 1, paddingHorizontal: inset }, multiline && { paddingVertical: inset }, inner as TextStyle]} />
+    <TextInput {...props} multiline={multiline} style={[{ flexGrow: 1, paddingHorizontal: inset, position: 'relative', zIndex: 1 }, multiline && { paddingVertical: inset }, inner as TextStyle]} />
   </View>;
 }
