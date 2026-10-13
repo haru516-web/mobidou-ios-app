@@ -187,7 +187,7 @@ export function AccountCenter({
       const result = await onDeleteAccount();
       setDeleteBusy(false);
       if (result === 'deleted') onAccountDeleted();
-      else setDeleteMessage(result === 'offline' ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。削除は、まだ行われていません。' : '削除できませんでした。しばらくしてから、もう一度お試しください。削除は、まだ行われていません。');
+      else setDeleteMessage(result === 'apple_needed' ? 'Appleでのサインインが必要です。Apple IDとのつながりを解除するため、もう一度「Appleでサインイン」を確認してください。削除は、まだ行われていません。' : result === 'offline' ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。削除は、まだ行われていません。' : '削除できませんでした。しばらくしてから、もう一度お試しください。削除は、まだ行われていません。');
     };
     return <AccountBody>
       <View style={S.statusCard}>

@@ -28,6 +28,12 @@ async function identityToken(): Promise<Token> {
   }
 }
 
+/** A fresh Apple authorization code, for deleting an account whose Apple token the server does not hold. */
+export async function freshAuthorizationCode(): Promise<string | null> {
+  const got = await identityToken();
+  return 'reason' in got ? null : got.authorizationCode ?? null;
+}
+
 export async function linkApple(): Promise<AppleOutcome> {
   const got = await identityToken();
   if ('reason' in got) return { ok: false, reason: got.reason };

@@ -328,9 +328,16 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   if (method === "POST" && path === "/account/delete") {
     const input = await body(request);
     if (input.confirm !== "delete") throw new HttpError(400, "confirmation_required");
-    // Apple must be told the app no longer holds this Apple ID's authorization. If that fails the account is kept, so it can be tried again.
-    const refreshToken = await store.appleRefreshToken(userId);
-    if (refreshToken && appleRevocationConfigured(env)) {
+    // An account tied to an Apple ID is never erased without telling Apple that the app no longer holds that authorization.
+    // If that cannot be done the account is kept, so it can be tried again: no key set up (503), no token held and no
+    // fresh authorization code sent (409: the app signs in with Apple again and repeats), or Apple refusing (502).
+    if (await store.appleLinked(userId)) {
+      if (!appleRevocationConfigured(env)) throw new HttpError(503, "apple_revocation_unavailable");
+      let refreshToken = await store.appleRefreshToken(userId);
+      if (!refreshToken && typeof input.authorizationCode === "string" && input.authorizationCode.length >= 8 && input.authorizationCode.length <= 2000) {
+        try { refreshToken = await exchangeAppleAuthorizationCode(input.authorizationCode, env, now.getTime()); } catch { refreshToken = null; }
+      }
+      if (!refreshToken) throw new HttpError(409, "apple_reauth_required");
       let revoked = false;
       try { revoked = await revokeAppleToken(refreshToken, env, now.getTime()); } catch { revoked = false; }
       if (!revoked) throw new HttpError(502, "apple_revoke_failed");

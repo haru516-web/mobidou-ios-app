@@ -1117,6 +1117,44 @@ ${pkcs8}
   }
 });
 
+test("an Apple-linked account is not deleted until Apple has been told: no key (503), no token (409), then a fresh code works", async () => {
+  const context = createContext();
+  const { token, appleEnv } = await appleFixture();
+  const pair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pkcs8 = Buffer.from(await webcrypto.subtle.exportKey("pkcs8", pair.privateKey)).toString("base64");
+  const signInEnv = { ...appleEnv, APPLE_TEAM_ID: "TEAM123456", APPLE_SIGN_IN_KEY_ID: "KEY1234567", APPLE_SIGN_IN_PRIVATE_KEY: `-----BEGIN PRIVATE KEY-----
+${pkcs8}
+-----END PRIVATE KEY-----` };
+  const realFetch = globalThis.fetch;
+  let exchangeWorks = false;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith("/auth/token")) return exchangeWorks ? new Response(JSON.stringify({ refresh_token: "refresh-xyz" }), { status: 200 }) : new Response("{}", { status: 400 });
+    return new Response("{}", { status: 200 });
+  };
+  try {
+    const account = await register(context);
+    const send = (path, body, env) => handleWithStore(new Request("https://server.test" + path, {
+      method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + context.credentials.get(account.userId) }, body: JSON.stringify(body)
+    }), env, context.store);
+    // Linked while the exchange does not work, so no token is held.
+    assert.equal((await send("/account/apple/link", { identityToken: await token(), authorizationCode: "code-from-the-sign-in" }, signInEnv)).status, 200);
+    assert.equal(await context.store.appleRefreshToken(account.userId), null);
+
+    const noKey = await send("/account/delete", { confirm: "delete" }, appleEnv);
+    assert.deepEqual([noKey.status, (await noKey.json()).error], [503, "apple_revocation_unavailable"]);
+    const noToken = await send("/account/delete", { confirm: "delete" }, signInEnv);
+    assert.deepEqual([noToken.status, (await noToken.json()).error], [409, "apple_reauth_required"]);
+    assert.ok(await context.store.user(account.userId), "still there");
+
+    exchangeWorks = true;
+    const done = await send("/account/delete", { confirm: "delete", authorizationCode: "fresh-code-from-apple" }, signInEnv);
+    assert.equal(done.status, 200);
+    assert.equal(await context.store.user(account.userId), null);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 test("account deletion without the Sign in with Apple key set up still deletes (nothing to revoke there)", async () => {
   const context = createContext();
   const account = await register(context);
@@ -1209,7 +1247,20 @@ test("account deletion needs the confirmation word, removes everything of the ac
   assert.equal((await call(context, "GET", "/profile", undefined, ann.userId)).status, 200, "still there");
   assert.equal((await call(context, "POST", "/account/delete", { confirm: "delete" })).status, 401);
 
-  const deleted = await call(context, "POST", "/account/delete", { confirm: "delete" }, ann.userId);
+  // Ann is tied to an Apple ID, so Apple is told first (the key is set up and Apple answers).
+  const pair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pkcs8 = Buffer.from(await webcrypto.subtle.exportKey("pkcs8", pair.privateKey)).toString("base64");
+  const signInEnv = { ...appleEnv, APPLE_TEAM_ID: "TEAM123456", APPLE_SIGN_IN_KEY_ID: "KEY1234567", APPLE_SIGN_IN_PRIVATE_KEY: `-----BEGIN PRIVATE KEY-----
+${pkcs8}
+-----END PRIVATE KEY-----` };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => String(url).endsWith("/auth/token") ? new Response(JSON.stringify({ refresh_token: "refresh-ann" }), { status: 200 }) : new Response("{}", { status: 200 });
+  let deleted;
+  try {
+    deleted = await handleWithStore(new Request("https://server.test/account/delete", {
+      method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + context.credentials.get(ann.userId) }, body: JSON.stringify({ confirm: "delete", authorizationCode: "fresh-code-from-apple" })
+    }), signInEnv, context.store);
+  } finally { globalThis.fetch = realFetch; }
   assert.equal(deleted.status, 200);
   assert.equal((await call(context, "GET", "/profile", undefined, ann.userId)).status, 401, "signed out at once");
   assert.equal(await context.store.cloudSave(ann.userId), null);
