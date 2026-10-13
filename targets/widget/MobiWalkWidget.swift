@@ -25,51 +25,37 @@ struct WalkEntry: TimelineEntry {
   let date: Date
   let petId: String
   let steps: Int
-  /// Index into the walk sheet's poses: 0..<frameCount(petId).
-  let frame: Int
 }
 
 struct WalkProvider: TimelineProvider {
-  private static let frameSeconds = 0.5
-  private static let framesPerTimeline = 240
-
   private func snapshot() -> (petId: String, steps: Int, day: String) {
     let defaults = UserDefaults(suiteName: Shared.group)
     let stored = defaults?.string(forKey: "petId") ?? Shared.fallbackPet
-    let petId = UIImage(named: "\(stored)_0") != nil ? stored : Shared.fallbackPet
+    let petId = UIImage(named: "\(stored)_front") != nil ? stored : Shared.fallbackPet
     let steps = defaults?.object(forKey: "steps") as? Int ?? Int((defaults?.object(forKey: "steps") as? Double) ?? 0)
     return (petId, steps, defaults?.string(forKey: "day") ?? "")
   }
 
-  /// Poses a Mobby has in the widget's asset catalog (4 in the original sheets, 8 in the regenerated ones).
-  private func frameCount(_ petId: String) -> Int {
-    var count = 0
-    while count < 16 && UIImage(named: "\(petId)_\(count)") != nil { count += 1 }
-    return max(1, count)
-  }
-
-  private func entry(at date: Date, frame: Int) -> WalkEntry {
+  private func entry(at date: Date) -> WalkEntry {
     let saved = snapshot()
     // A reading from yesterday is not today's count: show 0 until the app writes a new one.
-    return WalkEntry(date: date, petId: saved.petId, steps: saved.day == localDay(date) ? max(0, saved.steps) : 0, frame: frame % frameCount(saved.petId))
+    return WalkEntry(date: date, petId: saved.petId, steps: saved.day == localDay(date) ? max(0, saved.steps) : 0)
   }
 
   func placeholder(in context: Context) -> WalkEntry {
-    WalkEntry(date: Date(), petId: Shared.fallbackPet, steps: 4280, frame: 1)
+    WalkEntry(date: Date(), petId: Shared.fallbackPet, steps: 4280)
   }
 
   func getSnapshot(in context: Context, completion: @escaping (WalkEntry) -> Void) {
-    completion(context.isPreview ? placeholder(in: context) : entry(at: Date(), frame: 1))
+    completion(context.isPreview ? placeholder(in: context) : entry(at: Date()))
   }
 
-  // WidgetKit has no continuous animation: the walk is a run of timeline entries, one pose each.
-  // The system may show them more slowly than asked, so the picture must also read as a still.
+  // The picture is still: one entry for now, and one at the next midnight so the count falls back to 0 on a new day.
+  // The app asks for a reload whenever the steps or the chosen Mobby change.
   func getTimeline(in context: Context, completion: @escaping (Timeline<WalkEntry>) -> Void) {
-    let start = Date()
-    let entries = (0..<Self.framesPerTimeline).map { index in
-      entry(at: start.addingTimeInterval(Double(index) * Self.frameSeconds), frame: index)
-    }
-    completion(Timeline(entries: entries, policy: .after(start.addingTimeInterval(Double(Self.framesPerTimeline) * Self.frameSeconds))))
+    let now = Date()
+    let midnight = Calendar.current.startOfDay(for: now).addingTimeInterval(24 * 3600)
+    completion(Timeline(entries: [entry(at: now), entry(at: midnight)], policy: .atEnd))
   }
 }
 
@@ -84,10 +70,10 @@ private let paper = adaptive(light: (0.97, 0.94, 0.88), dark: (0.17, 0.14, 0.13)
 private let ink = adaptive(light: (0.23, 0.18, 0.16), dark: (0.95, 0.92, 0.86))
 private let vermilion = adaptive(light: (0.78, 0.27, 0.17), dark: (0.93, 0.45, 0.33))
 
-struct WalkingMobby: View {
+struct FrontMobby: View {
   let entry: WalkEntry
   var body: some View {
-    Image("\(entry.petId)_\(entry.frame)")
+    Image("\(entry.petId)_front")
       .resizable()
       .scaledToFit()
       .accessibilityHidden(true)
@@ -125,13 +111,13 @@ struct MobiWalkWidgetView: View {
     switch family {
     case .systemMedium:
       HStack(spacing: 12) {
-        WalkingMobby(entry: entry).frame(maxWidth: 110)
+        FrontMobby(entry: entry).frame(maxWidth: 110)
         StepsText(steps: entry.steps, big: true)
         Spacer(minLength: 0)
       }
     default:
       VStack(spacing: 4) {
-        WalkingMobby(entry: entry)
+        FrontMobby(entry: entry)
         StepsText(steps: entry.steps, big: false)
       }
     }
