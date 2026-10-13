@@ -178,7 +178,7 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
         ? <Button title="プロフィールを決める" onPress={() => (onOpenProfile ?? onClose)()} />
         : <Button title="チームをつくる" disabled={busy} onPress={create} />}
       {!needName && <Text style={S.label}>チームコードで参加する</Text>}
-      {!needName && <Text style={S.small}>フレンドから教えてもらったチームコード（7文字）を入れて、「参加」を押します。</Text>}
+      {!needName && <Text style={S.small}>フレンドから教えてもらったチームコード（英数字6文字）を入れて、「参加」を押します。</Text>}
       {!needName && <View style={[S.joinRow]}>
         <WashiArt />
         <WashiInput value={code} onChangeText={value => setCode(value.toUpperCase())} maxLength={7} placeholder="チームコード" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="チームコード" style={S.codeInput} />
