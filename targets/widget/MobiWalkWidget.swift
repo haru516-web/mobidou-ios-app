@@ -44,7 +44,7 @@ struct WalkProvider: TimelineProvider {
   /// Poses a Mobby has in the widget's asset catalog (4 in the original sheets, 8 in the regenerated ones).
   private func frameCount(_ petId: String) -> Int {
     var count = 0
-    while count < 16 && UIImage(named: "(petId)_(count)") != nil { count += 1 }
+    while count < 16 && UIImage(named: "\(petId)_\(count)") != nil { count += 1 }
     return max(1, count)
   }
 
