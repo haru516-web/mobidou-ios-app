@@ -112,18 +112,16 @@ test('the trial book never earns real free pulls', () => {
   assert.equal(loaded.mobbies.freePulls, 0);
 });
 
-test('a transfer code carries the 木札 account, and codes without one (or with a broken one) carry none', async () => {
-  const { createTransferCode, readTransferData, readTransferServerAccount } = await import('../src/services/useJourney.ts');
+test('a transfer code carries the record only, never the account key, and an old code that has one is read without it', async () => {
+  const { createTransferCode, readTransferData } = await import('../src/services/useJourney.ts');
   const fresh = { day: '2026-09-09', steps: 0, totalSteps: 0, dayStart: 0, rewards: [], pending: [] };
   const saved = normalizeSaved({ version: 1, onboarded: true, real: fresh, trial: fresh });
 
-  const withAccount = createTransferCode(saved, { userId: 'user-1', secret: 'secret-1' });
-  assert.deepEqual(readTransferServerAccount(withAccount), { userId: 'user-1', secret: 'secret-1' });
-  assert.equal(readTransferData(withAccount).onboarded, true);
-
-  assert.equal(readTransferServerAccount(createTransferCode(saved)), null);
-  assert.equal(readTransferServerAccount(createTransferCode(saved, null)), null);
-  assert.equal(readTransferServerAccount('not json'), null);
-  assert.equal(readTransferServerAccount(JSON.stringify({ server: { userId: 1, secret: 'x' } })), null);
-  assert.equal(readTransferServerAccount(JSON.stringify({ server: { userId: '', secret: 'x' } })), null);
+  const code = createTransferCode(saved);
+  assert.equal(JSON.parse(code).server, undefined);
+  assert.equal(code.includes('secret'), false);
+  assert.equal(readTransferData(code).onboarded, true);
+  // A code made by an older version may still hold an account: it is ignored, the record is restored.
+  const old = JSON.stringify({ ...JSON.parse(code), server: { userId: 'user-1', secret: 'secret-1' } });
+  assert.equal(readTransferData(old).onboarded, true);
 });

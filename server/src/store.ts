@@ -386,7 +386,12 @@ export class D1Store implements Store {
       FROM event_members m JOIN users u ON u.id = m.user_id
       WHERE m.team_id = ? ORDER BY m.joined_at ASC, u.id ASC`).bind(mine.id)
       .all<{ id: string; name: string | null; petId: string | null; joinedAt: string; steps: number }>();
-    const members = (rows.results ?? []).map((row) => ({ id: row.id, name: row.name ?? "もびさん", petId: row.petId, steps: row.steps, joinedAt: row.joinedAt }));
+    // Someone blocked in either direction stays in the count (their steps are the team's) but is shown without a name or Mobby.
+    const hidden = new Set((await this.db.prepare("SELECT blocked_id AS id FROM user_blocks WHERE blocker_id = ? UNION SELECT blocker_id AS id FROM user_blocks WHERE blocked_id = ?")
+      .bind(userId, userId).all<{ id: string }>()).results?.map((row) => row.id) ?? []);
+    const members = (rows.results ?? []).map((row) => hidden.has(row.id)
+      ? { id: row.id, name: "非表示のメンバー", petId: null, steps: row.steps, joinedAt: row.joinedAt }
+      : { id: row.id, name: row.name ?? "もびさん", petId: row.petId, steps: row.steps, joinedAt: row.joinedAt });
     const claimed = !!(await this.db.prepare("SELECT 1 AS found FROM event_claims WHERE user_id = ? AND event_id = ?").bind(userId, eventId).first());
     return { id: mine.id, code: mine.invite_code ?? "", status: mine.status, creatorId: members[0]?.id ?? userId, members, startedAt: mine.started_at, claimed };
   }
@@ -436,7 +441,8 @@ export class D1Store implements Store {
       FROM event_join_requests r JOIN users u ON u.id = r.user_id
       WHERE r.event_id = ? AND r.team_id = (SELECT m.team_id FROM event_members m WHERE m.event_id = ? AND m.user_id = ?)
         AND ? = (SELECT m2.user_id FROM event_members m2 WHERE m2.team_id = r.team_id ORDER BY m2.joined_at ASC, m2.user_id ASC LIMIT 1)
-      ORDER BY r.created_at ASC`).bind(eventId, eventId, creatorId, creatorId).all<{ id: string; userId: string; name: string | null; petId: string | null }>();
+        AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = ? AND b.blocked_id = r.user_id) OR (b.blocker_id = r.user_id AND b.blocked_id = ?))
+      ORDER BY r.created_at ASC`).bind(eventId, eventId, creatorId, creatorId, creatorId, creatorId).all<{ id: string; userId: string; name: string | null; petId: string | null }>();
     return (rows.results ?? []).map((row) => ({ id: row.id, userId: row.userId, name: row.name ?? "もびさん", petId: row.petId }));
   }
 
@@ -451,6 +457,11 @@ export class D1Store implements Store {
     if (!request) return { result: "not_found" };
     const creator = await this.db.prepare("SELECT user_id FROM event_members WHERE team_id = ? ORDER BY joined_at ASC, user_id ASC LIMIT 1").bind(request.team_id).first<{ user_id: string }>();
     if (!creator || creator.user_id !== creatorId) return { result: "not_creator" };
+    // A block made after the request was sent still counts: the request is dropped, as if it had been declined.
+    if (accept && await this.blockedEither(creatorId, request.user_id)) {
+      await this.db.prepare("DELETE FROM event_join_requests WHERE id = ?").bind(request.id).run();
+      return { result: "declined", requesterId: request.user_id };
+    }
     if (!accept) {
       await this.db.prepare("DELETE FROM event_join_requests WHERE id = ?").bind(request.id).run();
       return { result: "declined", requesterId: request.user_id };

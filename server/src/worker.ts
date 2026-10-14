@@ -42,6 +42,12 @@ function teamInvitePage(code: string): Response {
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
 }
 
+/** Shown to other players: short, no control characters, nothing obviously offensive. Null when the name is fine. */
+function displayNameProblem(name: string, ngWords: string | undefined): "invalid_name" | "inappropriate_name" | null {
+  if (name.length < 1 || name.length > 12 || /[\u0000-\u001f\u007f]/.test(name)) return "invalid_name";
+  return isNameAllowed(name, ngWords) ? null : "inappropriate_name";
+}
+
 /** The largest record kept for one account. A real record is a few kilobytes. */
 const MAX_SAVE_CHARS = 200_000;
 
@@ -251,7 +257,10 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     const input = await body(request);
     const id = crypto.randomUUID();
     const secret = randomToken(32);
-    const user: User = { id, friendCode: newFriendCode(), name: typeof input.name === "string" ? input.name.slice(0, 40) : "", petId: null, goshuinCount: 0, routeName: null };
+    // A name given at sign-up is shown to others like any other, so it passes the same checks (no name at all is allowed).
+    const given = typeof input.name === "string" ? input.name.trim() : "";
+    if (given) { const problem = displayNameProblem(given, env.NG_WORDS); if (problem) throw new HttpError(400, problem); }
+    const user: User = { id, friendCode: newFriendCode(), name: given, petId: null, goshuinCount: 0, routeName: null };
     await store.registerUser(user, await hashSecret(secret));
     return json({ userId: id, secret, friendCode: user.friendCode }, 201);
   }
@@ -373,10 +382,9 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     await limit(store, "profile", userId, 3_600_000, 30, now);
     const input = await body(request);
     const name = typeof input.name === "string" ? input.name.trim() : "";
-    // Shown to friends: short, and no control characters.
-    if (name.length < 1 || name.length > 12 || /[\u0000-\u001f\u007f]/.test(name)) throw new HttpError(400, "invalid_name");
     // Other players read this name, so an obviously offensive one is refused (reports and blocks cover the rest).
-    if (!isNameAllowed(name, env.NG_WORDS)) throw new HttpError(400, "inappropriate_name");
+    const problem = displayNameProblem(name, env.NG_WORDS);
+    if (problem) throw new HttpError(400, problem);
     const petId = input.petId === undefined || input.petId === null ? null : input.petId;
     if (petId !== null && (typeof petId !== "string" || !gachaPetIds().includes(petId as typeof GACHA_PET_IDS[number]))) throw new HttpError(400, "unknown_pet");
     await store.updateProfile(userId, name, petId);

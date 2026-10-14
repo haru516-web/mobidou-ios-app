@@ -229,7 +229,9 @@ class MemoryStore {
   async eventTeam(userId, eventId) {
     const team = this.teamOf(userId, eventId);
     if (!team) return null;
-    const members = team.members.map((id) => ({ id, name: this.users.get(id)?.name ?? "もびさん", petId: this.users.get(id)?.petId ?? null, steps: this.stepsOf(id, eventId) }));
+    const members = team.members.map((id) => (id !== userId && (this.blocks.has(`${userId}:${id}`) || this.blocks.has(`${id}:${userId}`)))
+      ? { id, name: "非表示のメンバー", petId: null, steps: this.stepsOf(id, eventId) }
+      : { id, name: this.users.get(id)?.name ?? "もびさん", petId: this.users.get(id)?.petId ?? null, steps: this.stepsOf(id, eventId) });
     return { id: team.id, code: team.code, status: team.status, creatorId: team.members[0], members, startedAt: team.status === "recruiting" ? null : "2026-09-30T00:00:00.000Z", claimed: this.eventClaims.has(`${userId}:${eventId}`) };
   }
   async createEventTeam(userId, eventId, teamId, code) {
@@ -262,7 +264,7 @@ class MemoryStore {
   async eventJoinRequests(creatorId, eventId) {
     const team = this.teamOf(creatorId, eventId);
     if (!team || team.members[0] !== creatorId) return [];
-    return [...this.joinRequests.values()].filter((row) => row.teamId === team.id)
+    return [...this.joinRequests.values()].filter((row) => row.teamId === team.id && !this.blocks.has(`${creatorId}:${row.userId}`) && !this.blocks.has(`${row.userId}:${creatorId}`))
       .map((row) => ({ id: row.id, userId: row.userId, name: this.users.get(row.userId)?.name ?? "もびさん", petId: this.users.get(row.userId)?.petId ?? null }));
   }
   async pendingJoinRequest(userId, eventId) {
@@ -277,6 +279,7 @@ class MemoryStore {
     const team = this.teams.get(row.teamId);
     if (!team || team.members[0] !== creatorId) return { result: "not_creator" };
     this.joinRequests.delete(requestId);
+    if (accept && (this.blocks.has(`${creatorId}:${row.userId}`) || this.blocks.has(`${row.userId}:${creatorId}`))) return { result: "declined", requesterId: row.userId };
     if (!accept) return { result: "declined", requesterId: row.userId };
     if (team.members.length >= maxMembers || this.teamOf(row.userId, eventId)) return { result: "full" };
     team.members.push(row.userId);
@@ -1507,4 +1510,44 @@ test("the signing chain must be leaf, intermediate and root, each with Apple's m
   for (const x5c of [good.x5c.slice(0, 2), [...good.x5c, good.x5c[2]], good.x5c.slice(0, 1)]) {
     assert.equal((await verifyWith({ ...good, x5c }, {})).status, 400, String(x5c.length));
   }
+});
+
+test("a name given at sign-up passes the same checks as a profile name", async () => {
+  const context = createContext();
+  const post = (name) => handleWithStore(new Request("https://server.test/auth/register", { method: "POST", body: JSON.stringify({ name }) }), env, context.store);
+  assert.equal((await post("かすみ")).status, 201);
+  assert.equal((await handleWithStore(new Request("https://server.test/auth/register", { method: "POST", body: JSON.stringify({}) }), env, context.store)).status, 201);
+  const bad = await post("ころす");
+  assert.deepEqual([bad.status, (await bad.json()).error], [400, "inappropriate_name"]);
+  const long = await post("あ".repeat(13));
+  assert.deepEqual([long.status, (await long.json()).error], [400, "invalid_name"]);
+});
+
+test("a join request is not accepted after its sender was blocked, and a blocked member is shown without a name", async () => {
+  const context = createContext();
+  context.store.events.set("toki", { id: "toki", name: "Toki", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "m", minMembers: 2, maxMembers: 4, goalSteps: 1000 });
+  const maker = await namedAccount(context, "Maker");
+  const asker = await namedAccount(context, "Asker");
+  const member = await namedAccount(context, "Member");
+  const code = (await (await call(context, "POST", "/events/toki/teams", {}, maker.userId, EVENT_WINDOW_NOW)).json()).team.code;
+  // Member joins and is accepted first, so the team is a real one.
+  const memberAsked = await (await call(context, "POST", "/events/toki/teams/join", { code }, member.userId, EVENT_WINDOW_NOW)).json();
+  const memberRequest = [...context.store.joinRequests.values()].find((row) => row.userId === member.userId).id;
+  await call(context, "POST", `/events/toki/requests/${memberRequest}/answer`, { accept: true }, maker.userId, EVENT_WINDOW_NOW);
+  assert.ok(memberAsked);
+  // Asker asks, then is blocked before being answered: accepting changes nothing.
+  await call(context, "POST", "/events/toki/teams/join", { code }, asker.userId, EVENT_WINDOW_NOW);
+  const askerRequest = [...context.store.joinRequests.values()].find((row) => row.userId === asker.userId).id;
+  await call(context, "POST", "/blocks", { userId: asker.userId }, maker.userId);
+  const view = await (await call(context, "GET", "/events/toki/team", undefined, maker.userId, EVENT_WINDOW_NOW)).json();
+  assert.equal(view.team.requests.length, 0);
+  await call(context, "POST", `/events/toki/requests/${askerRequest}/answer`, { accept: true }, maker.userId, EVENT_WINDOW_NOW);
+  const after = await (await call(context, "GET", "/events/toki/team", undefined, maker.userId, EVENT_WINDOW_NOW)).json();
+  assert.deepEqual(after.team.members.map((row) => row.id).sort(), [maker.userId, member.userId].sort());
+  // A member who is blocked later stays in the count, but is shown without a name or Mobby.
+  await call(context, "POST", "/blocks", { userId: member.userId }, maker.userId);
+  const hidden = await (await call(context, "GET", "/events/toki/team", undefined, maker.userId, EVENT_WINDOW_NOW)).json();
+  const shown = hidden.team.members.find((row) => row.id === member.userId);
+  assert.deepEqual([shown.name, shown.petId], ["非表示のメンバー", null]);
+  assert.equal(hidden.team.members.length, 2);
 });

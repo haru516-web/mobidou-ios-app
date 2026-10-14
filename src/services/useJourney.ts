@@ -13,7 +13,7 @@ import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidg
 import { localOmikujiDay } from '../data/omikuji';
 import { creditEventTickets, emptyEventGacha, normalizeEventGacha, settleLegacyEventGacha, type EventGachaState } from './eventGacha';
 import { DEV_UNLOCK_ALL, devUnlockAll } from './devUnlock';
-import { adoptServerAccount, readServerAccount, syncServer, type ServerAccount } from './server';
+import { syncServer } from './server';
 import { fetchPaidTickets } from './purchase';
 import { MIN_UPLOAD_GAP_MS, uploadSave } from './cloudSave';
 import { isAppStorageKey } from './accountDeletion';
@@ -177,16 +177,9 @@ function transferChecksum(data: unknown): string {
 }
 
 /** `server` is the anonymous account that owns the bought 木札; without it a new device would start with none. */
-export function createTransferCode(saved: Saved, server?: ServerAccount | null): string {
-  return JSON.stringify({ format: 'mobidou-transfer', version: 1, checksum: transferChecksum(saved), data: saved, ...(server ? { server: { userId: server.userId, secret: server.secret } } : {}) });
-}
-
-/** The account carried by a code, or null for codes made before this existed. */
-export function readTransferServerAccount(raw: string): ServerAccount | null {
-  try {
-    const server = (JSON.parse(raw) as { server?: { userId?: unknown; secret?: unknown } }).server;
-    return server && typeof server.userId === 'string' && typeof server.secret === 'string' && server.userId && server.secret ? { userId: server.userId, secret: server.secret } : null;
-  } catch { return null; }
+/** The record only. The account key (the 木札 and friends) is never put in a code: a code that leaks must not be able to act as the player. */
+export function createTransferCode(saved: Saved): string {
+  return JSON.stringify({ format: 'mobidou-transfer', version: 1, checksum: transferChecksum(saved), data: saved });
 }
 
 export function readTransferData(raw: string): Saved {
@@ -330,7 +323,7 @@ export function useJourney() {
   const exportRecord = useCallback(async () => { await writing.current; return createTransferCode(current.current); }, []);
   const exportTransfer = useCallback(async () => {
     await writing.current;
-    return createTransferCode(current.current, await readServerAccount());
+    return createTransferCode(current.current);
   }, []);
   const previewTransfer = useCallback((raw: string) => transferSummary(readTransferData(raw)), []);
   const importTransfer = useCallback(async (raw: string) => {
@@ -343,8 +336,6 @@ export function useJourney() {
     try {
       await writing.current;
       await AsyncStorage.setItem(KEY, JSON.stringify(imported));
-      const account = readTransferServerAccount(raw);
-      if (account) await adoptServerAccount(account);
       epoch.current++;
       current.current = imported;
       setData(imported);
@@ -352,8 +343,8 @@ export function useJourney() {
       setSynced('');
       setError('');
       writing.current = Promise.resolve();
-      // The 木札 balance belongs to the account that came with the code.
-      if (account) void fetchPaidTickets().then(paid => { if (paid !== null) change(p => { const mobbies = setPaidTickets(p.mobbies, paid); return mobbies === p.mobbies ? p : { ...p, mobbies }; }); });
+      // The 木札 balance belongs to this device's own account, not to the code: read it again so the record's old count is not shown.
+      void fetchPaidTickets().then(paid => { if (paid !== null) change(p => { const mobbies = setPaidTickets(p.mobbies, paid); return mobbies === p.mobbies ? p : { ...p, mobbies }; }); });
     } catch {
       throw new Error('引き継いだ記録を保存できませんでした。端末の空き容量を確認してください。');
     } finally {

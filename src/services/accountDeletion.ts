@@ -11,7 +11,7 @@ import { authedRequest, readServerAccount } from './server.ts';
 /** The word the player types at the last step. */
 export const DELETE_CONFIRMATION_WORD = '削除';
 
-export type DeletionResult = 'deleted' | 'offline' | 'failed' | 'apple_needed';
+export type DeletionResult = 'deleted' | 'offline' | 'failed' | 'apple_needed' | 'signed_out';
 
 export async function deleteServerAccount(): Promise<DeletionResult> {
   if (!(await readServerAccount())) return 'deleted';
@@ -25,8 +25,10 @@ export async function deleteServerAccount(): Promise<DeletionResult> {
     reply = await authedRequest('/account/delete', { body: { confirm: 'delete', authorizationCode } });
   }
   if (!reply) return 'offline';
-  // 401: the server no longer knows this account (already deleted), so there is nothing left to remove.
-  if (reply.status === 200 || reply.status === 401) return 'deleted';
+  // 401 only says this device's key is not accepted (another device signed in with Apple and took the account over,
+  // or the account is gone): it is not a deletion, so nothing is erased until the player signs in again.
+  if (reply.status === 401) return 'signed_out';
+  if (reply.status === 200) return 'deleted';
   return 'failed';
 }
 

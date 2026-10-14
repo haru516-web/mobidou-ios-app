@@ -187,7 +187,7 @@ export function AccountCenter({
       const result = await onDeleteAccount();
       setDeleteBusy(false);
       if (result === 'deleted') onAccountDeleted();
-      else setDeleteMessage(result === 'apple_needed' ? 'Appleでのサインインが必要です。Apple IDとのつながりを解除するため、もう一度「Appleでサインイン」を確認してください。削除は、まだ行われていません。' : result === 'offline' ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。削除は、まだ行われていません。' : '削除できませんでした。しばらくしてから、もう一度お試しください。削除は、まだ行われていません。');
+      else setDeleteMessage(result === 'signed_out' ? 'この端末の認証が切れています。別の端末でサインインした場合は、この端末でも「Appleでサインイン」をしてから、もう一度お試しください。削除は、まだ行われていません。解決しない場合は、サポートまでご連絡ください。' : result === 'apple_needed' ? 'Appleでのサインインが必要です。Apple IDとのつながりを解除するため、もう一度「Appleでサインイン」を確認してください。削除は、まだ行われていません。' : result === 'offline' ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。削除は、まだ行われていません。' : '削除できませんでした。しばらくしてから、もう一度お試しください。削除は、まだ行われていません。');
     };
     return <AccountBody>
       <View style={S.statusCard}>
@@ -240,7 +240,7 @@ export function AccountCenter({
         </View>
         <Button title={isFirstLaunch ? '旅をはじめる' : 'アカウント画面へ戻る'} icon="arrow-forward" onPress={onFinishImport} style={S.primary} />
       </> : <>
-        <Text key="lead" style={S.body}>元の端末で作ったコードを新しい端末に貼り付けると、記録を移せます。引き継ぎを実行すると、この端末の記録はコードの内容に置き換わります。</Text>
+        <Text key="lead" style={S.body}>元の端末で作ったコードを新しい端末に貼り付けると、記録を移せます。引き継ぎを実行すると、この端末の記録はコードの内容に置き換わります。コードには、木札・フレンド・プロフィールは入りません。これらを移すには、Apple IDとつないで、新しい端末でサインインしてください。</Text>
         <View key="export" style={S.transferSection}>
           <Section title="この端末の記録を書き出す" />
           <Text style={S.small}>コードを作成し、すべて選択してコピーします。安全な方法で新しい端末へ渡してください。</Text>
