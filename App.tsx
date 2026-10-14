@@ -373,6 +373,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [eventBook, setEventBook] = useState(false);
   const [eventFeatured, setEventFeatured] = useState(0);
   const [eventSheet, setEventSheet] = useState<null | 'main'>(null);
+  // The event sheet takes a moment to slide away; nothing comes up by itself until it has gone.
+  const [eventSettling, setEventSettling] = useState(false);
+  useEffect(() => {
+    if (eventSheet !== null) { setEventSettling(true); return undefined; }
+    const timer = setTimeout(() => setEventSettling(false), 700);
+    return () => clearTimeout(timer);
+  }, [eventSheet]);
   // The Mobbies shown together: everyone, before the guide's first gacha; and the four of the event, after its announcement.
   const [characterIntroOpen, setCharacterIntroOpen] = useState(false);
   const [eventMobbiesOpen, setEventMobbiesOpen] = useState(false);
@@ -512,10 +519,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Already holding this goshuin (another lap, or the same shrine in another route) makes the visit short.
   const pendingGoshuinOwned = !!pending && (progress.lapBase !== undefined || Object.entries(routeRecords).some(([routeId, record]) => routeId !== activeRoute?.id && record.rewards.some(reward => reward.id === pending.id)));
   // Not while the first-run tutorial is guiding the player: closing the award jumps to the book, which would strand the tutorial on the wrong screen.
-  const awardVisibleBase = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null;
+  const awardVisibleBase = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !eventSettling;
   // The team reaching an event spot plays the same arrival ceremony as a pilgrimage stop, once the ordinary one and the event screen are out of the way.
   const eventAwardSpot = eventState && eventTeam && eventTeam.seen < eventState.reached ? TOKI_MEGURU.spots?.[eventTeam.seen] ?? null : null;
-  const eventAwardVisible = !!eventAwardSpot && !awardVisibleBase && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !gachaOpen;
+  const eventAwardVisible = !!eventAwardSpot && !awardVisibleBase && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !eventSettling && !gachaOpen;
   const awardVisible = awardVisibleBase;
   // Like a UITabBarController, each tab keeps the sub-screen it was left on.
   // Local testing: closing the omikuji after a draw makes it drawable again (see devUnlock.ts).
@@ -672,7 +679,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     ? getNextPilgrimageId(activeRoute.id, Object.entries(routeRecords).filter(([, record]) => !!record.completedAt).map(([routeId]) => routeId))
     : undefined;
   const dueRoute = dueRouteId && !routeRecords[dueRouteId]?.completedAt ? getPilgrimage(dueRouteId) : undefined;
-  const routeAdvanceVisible = !!dueRoute && !pending && data.onboarded && firstRunStage === null && openingHomeReady && !openingVisible && !settings && !detail && !homePopup && !omikujiModal && !gachaOpen && !overlayBusy && eventSheet === null;
+  const routeAdvanceVisible = !!dueRoute && !pending && data.onboarded && firstRunStage === null && openingHomeReady && !openingVisible && !settings && !detail && !homePopup && !omikujiModal && !gachaOpen && !overlayBusy && eventSheet === null && !eventSettling;
   const selectPilgrimageRoute = (routeId: string) => {
     const beginningFirstRun = firstRunStage === 'route';
     if (beginningFirstRun) setFirstRunStage('homeCompanion');
@@ -861,7 +868,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     affinityStage: affinityStageFor(data.affection[data.pet] ?? 0),
   };
   // Anything that comes up by itself waits while the event screen or its announcements are on screen, and the Mobby menu's scrim never outlives them.
-  const eventUiBusy = eventSheet !== null || eventAnnounceOpen || eventMobbiesOpen || eventListOpen;
+  const eventUiBusy = eventSheet !== null || eventSettling || eventAnnounceOpen || eventMobbiesOpen || eventListOpen;
   // What the person is doing on the home screen right now (the Mobby menu, the feature tour) also holds the automatic popups back.
   const autoPopupBlocked = eventUiBusy || mobbyMenuOpen || !!tour || !!tourRequest;
   const eventUiBusyRef = useRef(false);
