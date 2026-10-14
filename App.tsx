@@ -910,7 +910,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const timer = setTimeout(() => {
       eventAnnounceChecked.current = true;
       setEventAnnounceOpen(true);
-    }, 1200);
+    }, 400);
     return () => clearTimeout(timer);
   }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden, eventAvailable, mobbyMenuOpen, tour, tourRequest]);
   const profileGuideChecked = useRef(false);
