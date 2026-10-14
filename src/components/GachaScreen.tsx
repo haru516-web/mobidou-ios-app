@@ -613,7 +613,7 @@ export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls 
     {!guided && !playing && <View pointerEvents="box-none" style={[S.status, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} miniaturePasses={passes} plusActive={plusActive} show="shopRight" onOpenShop={showShop && !shopOpen ? () => setTab('shop') : undefined} /></View>}
     {!guided && !playing && <View pointerEvents="box-none" style={[S.statusLeft, { top: 26 + insets.top }]}><HomeStatusBar tickets={normalPulls} premiumTickets={premiumPulls} miniaturePasses={passes} plusActive={plusActive} show="shopLeft" onOpenShop={showShop && !shopOpen ? () => setTab('shop') : undefined} /></View>}
 
-    {!guided && !playing && !!eventButton && <View pointerEvents="box-none" style={[S.eventButton, { top: 96 + insets.top }]}>{eventButton}</View>}
+    {!guided && !playing && !shopOpen && !!eventButton && <View pointerEvents="box-none" style={[S.eventButton, { top: (showShop ? 124 : 96) + insets.top }]}>{eventButton}</View>}
 
     {/* Once the Mobby has been revealed, one tap shows it large and another tap puts it back. */}
     {canZoom && <Pressable accessibilityRole="button" accessibilityLabel={zoomed ? 'モビーを小さく戻す' : 'モビーを大きく見る'} onPress={() => setZoomed(value => !value)} style={StyleSheet.absoluteFillObject}>
