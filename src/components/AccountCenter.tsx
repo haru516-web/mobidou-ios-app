@@ -174,7 +174,7 @@ export function AccountCenter({
       {recordRestored && <Button title="旅をはじめる" icon="arrow-forward" onPress={onFinishImport} style={S.primary} />}
       {!recordRestored && (isFirstLaunch || !appleLinked) && <Button title={appleBusy ? 'サインイン中…' : isFirstLaunch ? 'Appleでサインインして引き継ぐ' : 'Apple IDとつなぐ'} icon="logo-apple" disabled={appleBusy} onPress={() => void signInWithApple()} style={S.primary} />}
       <Section title="記録の保存" />
-      <Text style={S.body}>Apple IDとつなぐと、御朱印・歩数・集めたモビーの記録も、サーバーに自動で保存されます。つながないかぎり、記録は送りません。</Text>
+      <Text style={S.body}>Apple IDとつなぐと、御朱印・歩数・集めたモビーの記録も、サーバーに自動で保存されます。つながなくても、最初に選んだモビー・モビーの所持記録・ガチャの結果は、サーバーに送ります。</Text>
       {appleLinked !== true && <Button title="データ引き継ぎへ" icon="swap-horizontal-outline" secondary onPress={() => onNavigate('transfer')} style={S.secondaryButton} />}
       <Button title="アカウント画面へ戻る" secondary onPress={onBack} style={S.secondaryButton} />
     </AccountBody>;
