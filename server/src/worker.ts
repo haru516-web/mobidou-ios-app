@@ -1,4 +1,5 @@
 import { GACHA_PET_IDS, validateGachaPetIds } from "./config/gacha.ts";
+import { isFreePullRoute } from "./config/freePullRoutes.ts";
 import { isNameAllowed } from "./config/ngWords.ts";
 import { appleRevocationConfigured, equalSecretHash, exchangeAppleAuthorizationCode, hashSecret, randomToken, revokeAppleToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
@@ -72,7 +73,7 @@ function teamResponse(event: EventRecord, team: EventTeamView | null, extras: { 
 
 /** Whether purchases from this StoreKit environment are credited. TestFlight and App Review buy in the Sandbox. */
 function environmentAccepted(env: Env, transaction: VerifiedTransaction): boolean {
-  const accepted = (env.PURCHASE_ENVIRONMENTS ?? "Production,Sandbox").split(",").map((name) => name.trim()).filter(Boolean);
+  const accepted = (env.PURCHASE_ENVIRONMENTS ?? "Production").split(",").map((name) => name.trim()).filter(Boolean);
   return accepted.includes(transaction.environment ?? "Production");
 }
 
@@ -155,6 +156,8 @@ const REFUND_RESTRICT_WINDOW_MS = 180 * 86_400_000;
 
 async function recordPlanPeriod(store: Store, userId: string, transaction: VerifiedTransaction, product: ProductDefinition, now: Date): Promise<void> {
   if (!product.plan || !transaction.expiresDate || transaction.revocationDate) return;
+  // A refund can reach the server before the purchase does: its pull is not credited afterwards.
+  if (await store.isRevoked(transaction.transactionId)) return;
   const expired = transaction.expiresDate <= now.getTime();
   await store.recordPlanPeriod(userId, product.plan, new Date(transaction.purchaseDate).toISOString(), new Date(transaction.expiresDate).toISOString(), expired ? 0 : product.monthlyPulls ?? 0, transaction.transactionId);
 }
@@ -467,6 +470,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       await store.revokePurchase(transaction.transactionId, product.paidPulls ?? 0, planOf(product, transaction));
       return json({ status: "revoked" });
     }
+    // A refund that arrived first is remembered: the older, still validly signed purchase credits nothing.
+    if (await store.isRevoked(transaction.transactionId)) return json({ status: "revoked" });
     const effectiveProduct = transaction.expiresDate && transaction.expiresDate <= now.getTime()
       ? { ...product, monthlyTickets: 0 }
       : product;
@@ -494,18 +499,17 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     return json({ petId, copies: 1 }, 201);
   }
 
+  // What a player owns is decided by the server's own draws and starter choice, never by what the app says it has:
+  // the body is still checked (older apps keep working), but only the server's record is returned.
   if (method === "POST" && path === "/pets/sync") {
     const input = await body(request);
     const sent = input.owned && typeof input.owned === "object" && !Array.isArray(input.owned) ? input.owned as Record<string, unknown> : null;
     if (!sent) throw new HttpError(400, "invalid_owned");
     const pool = gachaPetIds();
-    const owned: Record<string, number> = {};
     for (const [petId, copies] of Object.entries(sent)) {
       if (!pool.includes(petId as typeof GACHA_PET_IDS[number])) continue;
       if (typeof copies !== "number" || !Number.isSafeInteger(copies) || copies < 1 || copies > 999) throw new HttpError(400, "invalid_owned");
-      owned[petId] = copies;
     }
-    await store.mergeOwnedPets(userId, owned);
     return json({ owned: await store.ownedPets(userId) });
   }
 
@@ -537,6 +541,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   if (method === "POST" && path === "/free-pulls/claim") {
     const input = await body(request);
     const routeId = requireString(input.routeId, "invalid_route_id", 160);
+    // Only a route the app really has can pay out, so an invented id is not a free draw.
+    if (!isFreePullRoute(routeId)) throw new HttpError(400, "unknown_route");
     const claimed = await store.claimFreePull(userId, routeId);
     return json({ status: claimed ? "claimed" : "already_claimed" });
   }

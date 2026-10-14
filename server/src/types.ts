@@ -30,7 +30,7 @@ export interface Env {
   APPLE_TEAM_ID?: string;
   APPLE_SIGN_IN_KEY_ID?: string;
   APPLE_SIGN_IN_PRIVATE_KEY?: string;
-  /** Comma-separated purchase environments to accept; default "Production,Sandbox". Drop "Sandbox" to stop test purchases from being credited. */
+  /** Comma-separated purchase environments to accept; default "Production". Add "Sandbox" only while testing (TestFlight, App Review). */
   PURCHASE_ENVIRONMENTS?: string;
   /** Extra words a display name may not contain, comma-separated (added to the built-in list). */
   NG_WORDS?: string;
@@ -184,8 +184,8 @@ export interface Store {
   wallet(userId: string): Promise<{ paid: number; free: number; paidPulls: number; refundDebt: number }>;
   ownedPets(userId: string): Promise<Record<string, number>>;
   chooseStarter(userId: string, petId: string): Promise<boolean>;
-  /** Raise each pet's copy count to at least the given number (never lowers it). */
-  mergeOwnedPets(userId: string, owned: Record<string, number>): Promise<void>;
+  /** Whether a refund or revocation of this transaction is on record (it may have arrived before the purchase did). */
+  isRevoked(transactionId: string): Promise<boolean>;
   claimFreePull(userId: string, routeId: string): Promise<boolean>;
   /**
    * Records draws and spends the balance in one step. `previousPaidPulls` is the count the draw was worked out from:

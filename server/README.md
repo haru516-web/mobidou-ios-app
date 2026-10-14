@@ -24,7 +24,7 @@ Optional local `.dev.vars` / deployment settings are read by name only here; thi
 - `CATALOG_JSON`: static public catalog JSON served from `/catalog.json`.
 - `APPLE_JWKS_JSON`: optional public identity-token key override (normally Apple keys are fetched).
 - `APPLE_TEAM_ID`, `APPLE_SIGN_IN_KEY_ID`, `APPLE_SIGN_IN_PRIVATE_KEY`: token revocation configuration; store the private key as a Worker secret. Successful token exchange and storage must also be verified.
-- `PURCHASE_ENVIRONMENTS`: accepted StoreKit environments; defaults to `Production,Sandbox`.
+- `PURCHASE_ENVIRONMENTS`: accepted StoreKit environments; defaults to `Production` only. wrangler.toml lists `Production,Sandbox` for TestFlight; remove `Sandbox` before the public release.
 - `NG_WORDS`: additional blocked display-name words, comma-separated.
 - `EVENT_STEPS_WINDOW_START`: Tokyo-local `HH:mm` when a day's submission window opens; default 20:00. The window for day D runs until the same time on D+1, so a submission before that time on D+1 is recorded for D.
 - `EVENT_STEPS_DAILY_MAX`: maximum accepted cumulative steps per user/day; default is 100000.
@@ -49,7 +49,7 @@ Wrangler local values belong in an ignored `.dev.vars` file. Never commit privat
 - `GET /gacha/odds` returns the equal per-Mobby rates. The roster lives in `src/config/gacha.ts` and intentionally mirrors `src/petCatalog.ts` without importing app code.
 - `POST /gacha/pull` takes an optional `opId` (8-64 letters, digits or hyphens). The answer is stored with the draw, so asking again with the same id returns it without drawing again; the app keeps the id until it has the result. A stale paid-pull count makes the draw fail (409) instead of double-spending.
 - `POST /blocks` / `POST /blocks/remove` with `{ userId }`, `GET /blocks`: blocking ends the friendship and pending requests and hides both players from each other (friends, requests, team joins). `POST /reports` with `{ userId, reason: name|behavior|other, note? }` stores a report in `user_reports` (10 a day per player). Display names containing words from `src/config/ngWords.ts` (plus `NG_WORDS`) are refused with `inappropriate_name`.
-- `POST /purchases/verify` credits Production and Sandbox purchases by default; set `PURCHASE_ENVIRONMENTS=Production` to refuse Sandbox ones. The environment is stored on each purchase.
+- `POST /purchases/verify` credits Production purchases by default; `PURCHASE_ENVIRONMENTS` adds Sandbox (TestFlight) while testing. The environment is stored on each purchase.
 - `POST /account/delete` revokes the Sign in with Apple token first when `APPLE_TEAM_ID`, `APPLE_SIGN_IN_KEY_ID` and `APPLE_SIGN_IN_PRIVATE_KEY` are set (the app sends the authorization code with the sign-in); if Apple refuses, the account is kept (502 `apple_revoke_failed`) so deletion can be tried again.
 - A cron trigger (hourly) removes finished rate-limit counters and stored draw answers older than 30 days.
 - Event teams (all need the sign-in header; the player needs a profile name to make or join one):

@@ -23,6 +23,7 @@ npx wrangler d1 execute mobidou --remote --file migrations/0005_purchase_environ
 npx wrangler d1 execute mobidou --remote --file migrations/0006_apple_refresh_token.sql
 npx wrangler d1 execute mobidou --remote --file migrations/0007_blocks_and_reports.sql
 npx wrangler d1 execute mobidou --remote --file migrations/0008_event_join_requests.sql
+npx wrangler d1 execute mobidou --remote --file migrations/0009_revoked_transactions_and_indexes.sql
 ```
 
 | ファイル | 内容 |
@@ -33,6 +34,7 @@ npx wrangler d1 execute mobidou --remote --file migrations/0008_event_join_reque
 | 0006 | Sign in with Apple のリフレッシュトークン（削除時の取消用） |
 | 0007 | ブロックと通報 |
 | 0008 | イベントのチームへの参加の申請（つくった人が承認する） |
+| 0009 | 返金の記録（購入より先に届いた返金も覚える）と、検索を速くする索引。**Worker を更新する前に必ず適用する**（先に Worker だけ更新すると、購入の確認と返金の通知が失敗します） |
 
 ## 2. イベントの登録
 
@@ -56,7 +58,7 @@ npx wrangler secret put APPLE_SIGN_IN_PRIVATE_KEY   # .p8 ファイルの中身�
 
 ## 4. 購入の環境（任意）
 
-`PURCHASE_ENVIRONMENTS` の既定は `Production,Sandbox`（TestFlight と審査は Sandbox で購入します）。審査と TestFlight の期間が終わったら、`Production` だけにすると、Sandbox の購入は、木札になりません。
+コード上の `PURCHASE_ENVIRONMENTS` の既定は `Production` のみです。TestFlight と審査は Sandbox で購入するため、`server/wrangler.toml` に `Production,Sandbox` を明示しています。一般公開の前に `Sandbox` を外してください（外さないと、無料のSandbox購入が木札になります）。
 
 ## 5. 不適切な名前の追加語（任意）
 

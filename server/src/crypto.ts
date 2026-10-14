@@ -15,7 +15,13 @@ type Certificate = {
   isCa: boolean;
   canSignCertificates: boolean | null;
   canSignData: boolean | null;
+  /** Every extension OID the certificate carries (Apple marks App Store signing certificates with its own). */
+  extensionOids: Set<string>;
 };
+
+/** Apple's marker extensions: the StoreKit signing certificate, and the intermediate that issues them. Other Apple-issued certificates lack them. */
+const APPLE_STOREKIT_LEAF_OID = "1.2.840.113635.100.6.11.1";
+const APPLE_STOREKIT_INTERMEDIATE_OID = "1.2.840.113635.100.6.2.1";
 
 const toBase64Url = (bytes: Uint8Array): string =>
   btoa(String.fromCharCode(...bytes)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -153,10 +159,12 @@ function parseCertificate(der: Uint8Array): Certificate {
   let isCa = false;
   let canSignCertificates: boolean | null = null;
   let canSignData: boolean | null = null;
+  const extensionOids = new Set<string>();
   for (const extensionContainer of tbsFields.filter((field) => field.tag === 0xa3)) {
     const extensionSequence = children(der, extensionContainer)[0];
     for (const extension of children(der, extensionSequence)) {
       const parsed = extensionProperties(der, extension);
+      extensionOids.add(parsed.oid);
       const valueElement = readElement(parsed.value, 0);
       if (parsed.oid === "2.5.29.19") {
         const basicFields = children(parsed.value, valueElement);
@@ -180,7 +188,8 @@ function parseCertificate(der: Uint8Array): Certificate {
     notAfter: parseAsn1Date(der, validity[1]),
     isCa,
     canSignCertificates,
-    canSignData
+    canSignData,
+    extensionOids
   };
 }
 
@@ -243,15 +252,26 @@ function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-async function validateChain(x5c: string[], rootsPem: string, now = new Date()): Promise<Certificate> {
-  if (x5c.length === 0 || x5c.length > 6) throw new Error("JWS certificate chain is missing or too long");
+/**
+ * `at` is the moment the signature was made (the payload's own signedDate): Apple's certificates expire long before the
+ * purchases they signed stop mattering, so the leaf and intermediate only have to have been valid then. The root is checked against `now`.
+ */
+async function validateChain(x5c: string[], rootsPem: string, at: Date, now = new Date()): Promise<Certificate> {
+  // Apple signs with a leaf, an intermediate and the root, exactly as its own server libraries require.
+  if (x5c.length !== 3) throw new Error("JWS certificate chain must be leaf, intermediate and root");
   const chain = x5c.map((entry) => parseCertificate(Uint8Array.from(atob(entry), (character) => character.charCodeAt(0))));
   const roots = pemCertificates(rootsPem);
   if (roots.length === 0) throw new Error("No Apple root certificates are configured");
-  for (const certificate of [...chain, ...roots]) {
-    if (now < certificate.notBefore || now > certificate.notAfter) throw new Error("Certificate is outside its validity period");
+  for (const certificate of chain) {
+    if (at < certificate.notBefore || at > certificate.notAfter) throw new Error("Certificate was outside its validity period when it signed");
+  }
+  for (const certificate of roots) {
+    if (now < certificate.notBefore || now > certificate.notAfter) throw new Error("Root certificate is outside its validity period");
   }
   if (chain[0].isCa || chain[0].canSignData === false) throw new Error("JWS signing certificate is not permitted to sign data");
+  // Every certificate Apple issues chains to the same root: only the App Store's own signing chain may vouch for a purchase.
+  if (!chain[0].extensionOids.has(APPLE_STOREKIT_LEAF_OID)) throw new Error("JWS signing certificate is not an App Store signing certificate");
+  if (chain.length < 2 || !chain[1].extensionOids.has(APPLE_STOREKIT_INTERMEDIATE_OID)) throw new Error("JWS intermediate certificate is not an App Store intermediate");
   for (let i = 0; i < chain.length - 1; i += 1) {
     const child = chain[i];
     const issuer = chain[i + 1];
@@ -281,7 +301,15 @@ export async function verifySignedPayload(jws: string, env: Pick<Env, "APPLE_ROO
     throw new Error("Only ES256 JWS with an x5c chain is accepted");
   }
   if (!env.APPLE_ROOT_CERTIFICATES) throw new Error("APPLE_ROOT_CERTIFICATES is not configured");
-  const leaf = await validateChain(header.x5c, env.APPLE_ROOT_CERTIFICATES);
+  // The signing date is read before the signature is checked, but the signature covers it: a forged date fails below.
+  // A date in the future is ignored (the current time is used), so a later date can never loosen the check.
+  const now = Date.now();
+  let signedAt = now;
+  try {
+    const claimed = (JSON.parse(new TextDecoder().decode(fromBase64Url(parts[1]))) as { signedDate?: unknown }).signedDate;
+    if (typeof claimed === "number" && Number.isFinite(claimed) && claimed > 0 && claimed <= now) signedAt = claimed;
+  } catch { /* the payload is parsed again, and refused, below */ }
+  const leaf = await validateChain(header.x5c, env.APPLE_ROOT_CERTIFICATES, new Date(signedAt), new Date(now));
   const key = keyInfo(leaf.spki);
   if (key.type !== "EC" || key.curve !== "P-256") throw new Error("StoreKit JWS signing key must be P-256");
   const publicKey = await crypto.subtle.importKey("spki", asArrayBuffer(leaf.spki), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);

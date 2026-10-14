@@ -65,8 +65,8 @@ test("D1 schema and ledger operations enforce idempotency and wallet constraints
   assert.equal(await store.chooseStarter(alice.id, "mobibou"), true);
   assert.equal(await store.chooseStarter(alice.id, "mobirin"), false);
   assert.deepEqual(await store.ownedPets(alice.id), { mobibou: 1 });
-  assert.equal(await store.claimFreePull(alice.id, "route-a"), true);
-  assert.equal(await store.claimFreePull(alice.id, "route-a"), false);
+  assert.equal(await store.claimFreePull(alice.id, "sanctuary"), true);
+  assert.equal(await store.claimFreePull(alice.id, "sanctuary"), false);
   assert.deepEqual(await store.wallet(alice.id), { paid: 5, free: 2, paidPulls: 0, refundDebt: 0 });
 
   await store.commitDraws(alice.id, [{ petId: "mobibou", kind: "free", isNew: false, guaranteed: false }], "free", 0);
@@ -117,15 +117,34 @@ test("D1 rate limit counts within a window and drops every older window of the s
   assert.deepEqual(database.prepare("SELECT key FROM rate_limits ORDER BY key").all().map((row) => row.key), ["register:day:a", "register:minute:c"]);
 });
 
-test("D1 mergeOwnedPets only raises copy counts", async () => {
+test("D1 a refund that arrives before its purchase is remembered, so the purchase credits nothing", async () => {
   const database = new DatabaseSync(":memory:");
   database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
   const store = new D1Store(new SQLiteD1(database));
   await store.registerUser({ id: "carol", friendCode: "CAROL12345", name: "Carol", petId: null, goshuinCount: 0, routeName: null }, "hash-c");
-  await store.mergeOwnedPets("carol", { a: 2, b: 1 });
-  await store.mergeOwnedPets("carol", { a: 1, c: 3 });
-  await store.mergeOwnedPets("carol", {});
-  assert.deepEqual(await store.ownedPets("carol"), { a: 2, b: 1, c: 3 });
+  const transaction = { transactionId: "tx-early", productId: "gacha.five", bundleId: "b", purchaseDate: Date.now(), appAccountToken: "carol", environment: "Production" };
+  assert.equal(await store.isRevoked("tx-early"), false);
+  await store.revokePurchase("tx-early", 5);
+  assert.equal(await store.isRevoked("tx-early"), true);
+  assert.equal(await store.recordPurchase("carol", transaction, { paidPulls: 5 }), false);
+  assert.equal((await store.wallet("carol")).paid, 0);
+  // A different, unrefunded transaction is credited as before.
+  assert.equal(await store.recordPurchase("carol", { ...transaction, transactionId: "tx-ok" }, { paidPulls: 5 }), true);
+  assert.equal((await store.wallet("carol")).paid, 5);
+});
+
+test("D1 the event, team, purchase, refund and friend-request lookups use an index", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const plan = (sql) => database.prepare("EXPLAIN QUERY PLAN " + sql).all().map((row) => row.detail).join(" | ");
+  const queries = [
+    "SELECT COALESCE(SUM(cumulative), 0), COUNT(DISTINCT user_id) FROM event_steps WHERE event_id = 'e'",
+    "SELECT COUNT(*) FROM event_members WHERE team_id = 't'",
+    "SELECT product_id FROM purchases WHERE user_id = 'u' AND granted_at >= 'a' AND granted_at < 'b'",
+    "SELECT COUNT(*) FROM refund_events WHERE user_id = 'u' AND debt > 0 AND created_at >= 'a'",
+    "SELECT 1 FROM friend_requests WHERE from_id = 'a' AND to_id = 'b' AND status = 'pending'"
+  ];
+  for (const sql of queries) assert.match(plan(sql), /USING (COVERING )?INDEX|USING PRIMARY KEY/, sql);
 });
 
 test("D1 age group and monthly purchases", async () => {
@@ -168,7 +187,7 @@ test("D1 deleting a user removes every row that belongs to the user and leaves o
   await make("gone", "GONE123456");
   await make("stay", "STAY123456");
 
-  await store.claimFreePull("gone", "route-1");
+  await store.claimFreePull("gone", "sanctuary");
   await store.chooseStarter("gone", "pet-a");
   await store.putCloudSave("gone", "{\"a\":1}", 0);
   await store.linkApple("gone", "apple-sub-gone");
@@ -177,7 +196,7 @@ test("D1 deleting a user removes every row that belongs to the user and leaves o
   await store.answerFriendRequest("stay", "req-1", "accepted");
   database.prepare("INSERT INTO purchases (apple_transaction_id, user_id, product_id, original_transaction_id, granted_at, revoked_at) VALUES ('tx-1', 'gone', 'p', NULL, '2026-10-01T00:00:00.000Z', NULL)").run();
   database.prepare("INSERT INTO gacha_pulls (id, user_id, result_pet_id, pulled_at, kind, is_new, guaranteed) VALUES ('pull-1', 'gone', 'pet-a', '2026-10-01T00:00:00.000Z', 'paid', 1, 0)").run();
-  await store.claimFreePull("stay", "route-9");
+  await store.claimFreePull("stay", "mountain");
   database.prepare("INSERT INTO refund_debt (user_id, pulls) VALUES ('gone', 2)").run();
   database.prepare("INSERT INTO refund_events (transaction_id, user_id, pulls, taken, debt, debt_applied, created_at) VALUES ('tx-r', 'gone', 5, 3, 2, 1, '2026-10-01T00:00:00.000Z')").run();
   database.prepare("INSERT INTO purchase_settlements (transaction_id, user_id, pulls, paid_off, credited, created_at) VALUES ('tx-s', 'gone', 5, 0, 5, '2026-10-01T00:00:00.000Z')").run();
@@ -424,4 +443,40 @@ test("D1 purge drops finished counters of every clock and old stored draw answer
   await store.purgeExpired(now);
   const left = database.prepare("SELECT key FROM rate_limits ORDER BY key").all().map((row) => row.key);
   assert.deepEqual(left, ["register:minute:new", "report:new", "team-join:new"]);
+});
+
+test("D1 a plan period is not written for a transaction that is already refunded", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  await store.registerUser({ id: "dana", friendCode: "DANA123456", name: "Dana", petId: null, goshuinCount: 0, routeName: null }, "hash-d");
+  const start = new Date(Date.now() - 1000).toISOString();
+  const end = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  await store.revokePurchase("plan-tx", 0, { name: "plus", periodStart: start });
+  await store.recordPlanPeriod("dana", "plus", start, end, 1, "plan-tx");
+  assert.equal(await store.activePlan("dana", new Date().toISOString()), null);
+  assert.equal((await store.wallet("dana")).paid, 0);
+  await store.recordPlanPeriod("dana", "plus", start, end, 1, "plan-ok");
+  assert.equal(await store.activePlan("dana", new Date().toISOString()), "plus");
+  assert.equal((await store.wallet("dana")).paid, 1);
+});
+
+test("D1 sending the same plan period twice credits it once, and a refund after that takes it back and ends the plan", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  await store.registerUser({ id: "erin", friendCode: "ERIN123456", name: "Erin", petId: null, goshuinCount: 0, routeName: null }, "hash-e");
+  const start = new Date(Date.now() - 1000).toISOString();
+  const end = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  const transaction = { transactionId: "plan-twice", productId: "plus.monthly", bundleId: "b", purchaseDate: Date.parse(start), expiresDate: Date.parse(end), appAccountToken: "erin", environment: "Production" };
+  await store.recordPurchase("erin", transaction, { plan: "plus", monthlyPulls: 1 });
+  await store.recordPlanPeriod("erin", "plus", start, end, 1, "plan-twice");
+  await store.recordPlanPeriod("erin", "plus", start, end, 1, "plan-twice");
+  assert.equal((await store.wallet("erin")).paid, 1);
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM entitlements WHERE user_id = 'erin'").get().n, 1);
+  await store.revokePurchase("plan-twice", 0, { name: "plus", periodStart: start });
+  assert.equal(await store.activePlan("erin", new Date().toISOString()), null);
+  assert.equal((await store.wallet("erin")).paid, 0);
+  await store.recordPlanPeriod("erin", "plus", start, end, 1, "plan-twice");
+  assert.equal((await store.wallet("erin")).paid, 0);
 });

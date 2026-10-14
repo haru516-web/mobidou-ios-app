@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
@@ -61,8 +62,10 @@ class MemoryStore {
     this.tickets.push({ userId, amount, reason: "monthly_subscription", ref, periodEnd });
     return true;
   }
+  revokedIds = new Set();
+  async isRevoked(transactionId) { return this.revokedIds.has(transactionId); }
   async recordPurchase(userId, transaction, product) {
-    if (this.purchases.has(transaction.transactionId)) return false;
+    if (this.purchases.has(transaction.transactionId) || this.revokedIds.has(transaction.transactionId)) return false;
     this.purchases.set(transaction.transactionId, userId);
     this.purchaseLog.push({ id: transaction.transactionId, userId, productId: transaction.productId, at: new Date(transaction.purchaseDate).toISOString() });
     const wallet = this.walletRows.get(userId);
@@ -92,6 +95,7 @@ class MemoryStore {
   shortfalls = [];
   async refundShortfalls(userId, since) { return this.shortfalls.filter((entry) => entry.userId === userId && entry.at >= since).length; }
   async revokePurchase(transactionId, paidPulls = 0) {
+    this.revokedIds.add(transactionId);
     const userId = this.purchases.get(transactionId);
     this.purchases.delete(transactionId);
     this.purchaseLog = this.purchaseLog.filter((entry) => entry.id !== transactionId);
@@ -114,11 +118,6 @@ class MemoryStore {
     if (Object.keys(owned).length > 0) return false;
     this.owned.set(userId, { [petId]: 1 });
     return true;
-  }
-  async mergeOwnedPets(userId, owned) {
-    const current = this.owned.get(userId) ?? {};
-    for (const [petId, copies] of Object.entries(owned)) current[petId] = Math.max(current[petId] ?? 0, copies);
-    this.owned.set(userId, current);
   }
   async claimFreePull(userId, routeId) {
     const key = `${userId}:${routeId}`;
@@ -404,33 +403,42 @@ function timeValue(date) {
   return der(0x17, Buffer.from(date.toISOString().slice(2, 19).replace(/[-:T]/g, "") + "Z"));
 }
 
-async function createCertificate(subjectName, issuerName, publicKey, signingKey, serialNumber, isCa) {
+async function createCertificate(subjectName, issuerName, publicKey, signingKey, serialNumber, isCa, markerOid = null, notAfter = "20350101000000Z") {
   const spki = Buffer.from(await crypto.subtle.exportKey("spki", publicKey));
-  const validity = sequence(timeValue(new Date("2025-01-01T00:00:00.000Z")), der(0x18, Buffer.from("20350101000000Z")));
+  const validity = sequence(timeValue(new Date("2025-01-01T00:00:00.000Z")), der(0x18, Buffer.from(notAfter)));
   const signatureAlgorithm = sequence(oid("1.2.840.10045.4.3.2"));
   const basicConstraints = sequence(oid("2.5.29.19"), der(0x01, Buffer.from([0xff])), der(0x04, sequence(...(isCa ? [der(0x01, Buffer.from([0xff]))] : []))));
   const keyUsageBits = isCa ? Buffer.from([2, 4]) : Buffer.from([7, 0x80]);
   const keyUsage = [sequence(oid("2.5.29.15"), der(0x01, Buffer.from([0xff])), der(0x04, der(0x03, keyUsageBits)))];
-  const extensions = der(0xa3, sequence(basicConstraints, ...keyUsage));
+  const marker = markerOid ? [sequence(oid(markerOid), der(0x04, Buffer.from([5, 0])))] : [];
+  const extensions = der(0xa3, sequence(basicConstraints, ...keyUsage, ...marker));
   const tbs = sequence(der(0xa0, der(0x02, Buffer.from([2]))), integer(Buffer.from([serialNumber])), signatureAlgorithm, issuerName, validity, subjectName, spki, extensions);
   const signature = Buffer.from(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, signingKey, tbs));
   return sequence(tbs, signatureAlgorithm, der(0x03, Buffer.concat([Buffer.from([0]), ecdsaDerSignature(signature)])));
 }
 
-async function selfSignedTestRoot() {
-  const rootPair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-  const rootName = sequence(der(0x31, sequence(oid("2.5.4.3"), der(0x0c, Buffer.from("Self-Signed Test Root")))));
+const APPLE_LEAF_OID = "1.2.840.113635.100.6.11.1";
+const APPLE_INTERMEDIATE_OID = "1.2.840.113635.100.6.2.1";
+
+/** A root, an intermediate and a signing leaf. `markers: false` leaves out Apple's App Store marker extensions, like any other certificate the same root could issue. */
+async function selfSignedTestRoot({ markers = true, leafNotAfter, leafMarker = true, middleMarker = true } = {}) {
+  const name = (text) => sequence(der(0x31, sequence(oid("2.5.4.3"), der(0x0c, Buffer.from(text)))));
+  const keyPair = () => crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const rootPair = await keyPair();
+  const rootName = name("Self-Signed Test Root");
   const rootDer = await createCertificate(rootName, rootName, rootPair.publicKey, rootPair.privateKey, 1, true);
-  const leafPair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-  const leafName = sequence(der(0x31, sequence(oid("2.5.4.3"), der(0x0c, Buffer.from("StoreKit Test Signer")))));
-  const leafDer = await createCertificate(leafName, rootName, leafPair.publicKey, rootPair.privateKey, 2, false);
+  const middlePair = await keyPair();
+  const middleName = name("Test Intermediate");
+  const middleDer = await createCertificate(middleName, rootName, middlePair.publicKey, rootPair.privateKey, 3, true, markers && middleMarker ? APPLE_INTERMEDIATE_OID : null);
+  const leafPair = await keyPair();
+  const leafDer = await createCertificate(name("StoreKit Test Signer"), middleName, leafPair.publicKey, middlePair.privateKey, 2, false, markers && leafMarker ? APPLE_LEAF_OID : null, leafNotAfter);
   const pem = `-----BEGIN CERTIFICATE-----\n${rootDer.toString("base64").match(/.{1,64}/g).join("\n")}\n-----END CERTIFICATE-----`;
-  return { pair: leafPair, certificate: leafDer, pem };
+  return { pair: leafPair, certificate: leafDer, x5c: [leafDer.toString("base64"), middleDer.toString("base64"), rootDer.toString("base64")], pem };
 }
 
 async function signedTransaction(root, overrides = {}) {
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
-  const header = encode({ alg: "ES256", x5c: [root.certificate.toString("base64")] });
+  const header = encode({ alg: "ES256", x5c: root.x5c });
   const payload = encode({ transactionId: "tx-001", originalTransactionId: "original-001", productId: "plus.monthly", bundleId: "com.example.mobidou", purchaseDate: Date.now(), expiresDate: Date.now() + 30 * 86400000, ...overrides });
   const data = `${header}.${payload}`;
   const signature = Buffer.from(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, root.pair.privateKey, Buffer.from(data))).toString("base64url");
@@ -537,7 +545,7 @@ test("purchase verification requires appAccountToken to match the authenticated 
   }), testEnv, context.store)).status, 403);
 });
 
-test("purchases are accepted by environment: Sandbox is credited unless the server is set to Production only", async () => {
+test("purchases are accepted by environment: Production only unless Sandbox is switched on", async () => {
   const root = await selfSignedTestRoot();
   const context = createContext();
   const account = await register(context, "Alice");
@@ -548,9 +556,12 @@ test("purchases are accepted by environment: Sandbox is credited unless the serv
   const sandbox = await signedTransaction(root, { transactionId: "tx-sandbox", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Sandbox", expiresDate: undefined });
   const production = await signedTransaction(root, { transactionId: "tx-production", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Production", expiresDate: undefined });
   const base = { ...env, APPLE_ROOT_CERTIFICATES: root.pem };
-  // Default: both are credited.
-  assert.equal((await verify(base, sandbox)).status, 200);
-  assert.equal((await verify(base, production)).status, 200);
+  // Without any setting a Sandbox purchase is refused; a real one is credited.
+  const unset = { ...base, PURCHASE_ENVIRONMENTS: undefined };
+  assert.equal((await verify(unset, sandbox)).status, 403);
+  assert.equal((await verify(unset, production)).status, 200);
+  // While testing, Sandbox is switched on explicitly.
+  assert.equal((await verify({ ...base, PURCHASE_ENVIRONMENTS: "Production,Sandbox" }, sandbox)).status, 200);
   // Production only: a Sandbox purchase is refused, a real one is still credited.
   const strict = { ...base, PURCHASE_ENVIRONMENTS: "Production" };
   const another = await signedTransaction(root, { transactionId: "tx-sandbox-2", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Sandbox", expiresDate: undefined });
@@ -668,8 +679,8 @@ test("starter and first-clear free pulls are each idempotent, and free five-pull
   assert.equal((await call(context, "POST", "/pets/starter", { petId: "mobibou" }, account.userId)).status, 201);
   assert.equal((await call(context, "POST", "/pets/starter", { petId: "mobirin" }, account.userId)).status, 409);
   assert.equal((await call(context, "POST", "/pets/starter", { petId: "not-a-mobby" }, account.userId)).status, 400);
-  assert.equal((await (await call(context, "POST", "/free-pulls/claim", { routeId: "route-a" }, account.userId)).json()).status, "claimed");
-  assert.equal((await (await call(context, "POST", "/free-pulls/claim", { routeId: "route-a" }, account.userId)).json()).status, "already_claimed");
+  assert.equal((await (await call(context, "POST", "/free-pulls/claim", { routeId: "sanctuary" }, account.userId)).json()).status, "claimed");
+  assert.equal((await (await call(context, "POST", "/free-pulls/claim", { routeId: "sanctuary" }, account.userId)).json()).status, "already_claimed");
   assert.equal((await context.store.wallet(account.userId)).free, 1);
   assert.equal((await call(context, "POST", "/gacha/pull", { count: 5, kind: "free" }, account.userId)).status, 400);
 });
@@ -678,7 +689,7 @@ test("free pulls do not advance the paid pull count and duplicate copies set isN
   const context = createContext();
   const account = await register(context);
   await call(context, "POST", "/pets/starter", { petId: GACHA_PET_IDS[0] }, account.userId);
-  await call(context, "POST", "/free-pulls/claim", { routeId: "route-a" }, account.userId);
+  await call(context, "POST", "/free-pulls/claim", { routeId: "sanctuary" }, account.userId);
   context.store.paidPullCounts.set(account.userId, 24);
   const response = await call(context, "POST", "/gacha/pull", { count: 1, kind: "free" }, account.userId, undefined, () => 0);
   const result = (await response.json()).results[0];
@@ -962,7 +973,7 @@ test("Apple notification route validates its signed envelope and handles revocat
   const root = await selfSignedTestRoot();
   const transaction = await signedTransaction(root, { revocationDate: Date.now() });
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
-  const header = encode({ alg: "ES256", x5c: [root.certificate.toString("base64")] });
+  const header = encode({ alg: "ES256", x5c: root.x5c });
   const payload = encode({ notificationType: "REFUND", data: { bundleId: "com.example.mobidou", signedTransactionInfo: transaction } });
   const input = `${header}.${payload}`;
   const signature = Buffer.from(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, root.pair.privateKey, Buffer.from(input))).toString("base64url");
@@ -981,7 +992,7 @@ test("Apple notification grants by the transaction appAccountToken, not a top-le
   const wrong = await register(context, "Wrong");
   const transaction = await signedTransaction(root, { transactionId: "notification-grant", appAccountToken: correct.userId });
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
-  const header = encode({ alg: "ES256", x5c: [root.certificate.toString("base64")] });
+  const header = encode({ alg: "ES256", x5c: root.x5c });
   const payload = encode({
     notificationType: "DID_RENEW",
     appAccountToken: wrong.userId,
@@ -1026,18 +1037,59 @@ test("CORS: preflight is answered and every response allows cross-origin callers
   assert.equal(refused.headers.get("access-control-allow-origin"), "*");
 });
 
-test("pets/sync raises owned copies without lowering them, ignores unknown pets, and feeds the paid-pull guarantee", async () => {
+test("pets/sync never grants what the app claims: it only returns the server's own record", async () => {
   const context = createContext();
   const account = await register(context);
   const [first, second] = GACHA_PET_IDS;
-  const synced = await call(context, "POST", "/pets/sync", { owned: { [first]: 2, "not-a-pet": 5 } }, account.userId);
+  const synced = await call(context, "POST", "/pets/sync", { owned: { [first]: 2, [second]: 999, "not-a-pet": 5 } }, account.userId);
   assert.equal(synced.status, 200);
-  assert.deepEqual((await synced.json()).owned, { [first]: 2 });
-  const lowered = await call(context, "POST", "/pets/sync", { owned: { [first]: 1, [second]: 1 } }, account.userId);
-  assert.deepEqual((await lowered.json()).owned, { [first]: 2, [second]: 1 });
+  assert.deepEqual((await synced.json()).owned, {});
+  assert.deepEqual(await context.store.ownedPets(account.userId), {});
+  await call(context, "POST", "/pets/starter", { petId: first }, account.userId);
+  assert.deepEqual((await (await call(context, "POST", "/pets/sync", { owned: { [second]: 1 } }, account.userId)).json()).owned, { [first]: 1 });
   assert.equal((await call(context, "POST", "/pets/sync", { owned: { [first]: 0 } }, account.userId)).status, 400);
   assert.equal((await call(context, "POST", "/pets/sync", { owned: [] }, account.userId)).status, 400);
   assert.equal((await call(context, "POST", "/pets/sync", { owned: {} })).status, 401);
+});
+
+test("free pulls are only paid for the app's own routes, and the list matches the app's pilgrimages", async () => {
+  const context = createContext();
+  const account = await register(context);
+  const invented = await call(context, "POST", "/free-pulls/claim", { routeId: "made-up-route-1" }, account.userId);
+  assert.deepEqual([invented.status, (await invented.json()).error], [400, "unknown_route"]);
+  assert.equal((await context.store.wallet(account.userId)).free, 0);
+  const source = readFileSync(new URL("../../src/data/pilgrimages.ts", import.meta.url), "utf8");
+  const ids = [...source.matchAll(/^  \{ id: '([A-Za-z0-9_-]+)'/gm)].map((match) => match[1]);
+  assert.ok(ids.length >= 10);
+  for (const id of ids) assert.equal((await call(context, "POST", "/free-pulls/claim", { routeId: id }, account.userId)).status, 200, id);
+});
+
+test("a refund that arrives before its purchase leaves the later purchase uncredited", async () => {
+  const root = await selfSignedTestRoot();
+  const context = createContext();
+  const account = await register(context, "Alice");
+  const verify = (jws) => handleWithStore(new Request("https://server.test/purchases/verify", {
+    method: "POST", headers: { authorization: `Bearer ${context.credentials.get(account.userId)}`, "content-type": "application/json" },
+    body: JSON.stringify({ signedTransactionInfo: jws })
+  }), { ...env, APPLE_ROOT_CERTIFICATES: root.pem }, context.store);
+  await context.store.revokePurchase("tx-early-refund", 1);
+  const late = await signedTransaction(root, { transactionId: "tx-early-refund", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Production", expiresDate: undefined });
+  const reply = await verify(late);
+  assert.deepEqual([reply.status, (await reply.json()).status], [200, "revoked"]);
+  assert.equal((await context.store.wallet(account.userId)).paid, 0);
+});
+
+test("a signature from another Apple-issued certificate (without the App Store markers) is refused", async () => {
+  const root = await selfSignedTestRoot({ markers: false });
+  const context = createContext();
+  const account = await register(context, "Alice");
+  const jws = await signedTransaction(root, { transactionId: "tx-foreign", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Production", expiresDate: undefined });
+  const reply = await handleWithStore(new Request("https://server.test/purchases/verify", {
+    method: "POST", headers: { authorization: `Bearer ${context.credentials.get(account.userId)}`, "content-type": "application/json" },
+    body: JSON.stringify({ signedTransactionInfo: jws })
+  }), { ...env, APPLE_ROOT_CERTIFICATES: root.pem }, context.store);
+  assert.deepEqual([reply.status, (await reply.json()).error], [400, "invalid_storekit_transaction"]);
+  assert.equal((await context.store.wallet(account.userId)).paid, 0);
 });
 
 test("GET /wallet reports the balances of the signed-in user", async () => {
@@ -1418,4 +1470,41 @@ test("a plan purchase credits one gacha 木札 per period once and /plan reports
   const renewal = await signedTransaction(root, { appAccountToken: account.userId, productId: "plus.pulls", transactionId: "plan-002", purchaseDate: Date.now() + 30 * 86400000, expiresDate: Date.now() + 60 * 86400000 });
   await verify(renewal);
   assert.equal((await context.store.wallet(account.userId)).paid, 2);
+});
+
+const verifyWith = async (root, jwsOptions) => {
+  const context = createContext();
+  const account = await register(context, "Alice");
+  const jws = await signedTransaction(root, { transactionId: "tx-edge", productId: "gacha.ticket", appAccountToken: account.userId, environment: "Production", expiresDate: undefined, ...jwsOptions });
+  const reply = await handleWithStore(new Request("https://server.test/purchases/verify", {
+    method: "POST", headers: { authorization: `Bearer ${context.credentials.get(account.userId)}`, "content-type": "application/json" },
+    body: JSON.stringify({ signedTransactionInfo: jws })
+  }), { ...env, APPLE_ROOT_CERTIFICATES: root.pem }, context.store);
+  return { status: reply.status, body: await reply.json(), context, account };
+};
+
+test("a purchase signed while the certificate was valid is still accepted after the certificate expired; one signed after expiry is not", async () => {
+  const expired = await selfSignedTestRoot({ leafNotAfter: "20260101000000Z" });
+  const old = await verifyWith(expired, { signedDate: Date.parse("2025-06-01T00:00:00Z") });
+  assert.equal(old.status, 200);
+  assert.equal((await old.context.store.purchaseLog.length), 1);
+  // No signing date (or one after the expiry) is judged at the current time, when the certificate has expired.
+  assert.equal((await verifyWith(expired, {})).status, 400);
+  assert.equal((await verifyWith(expired, { signedDate: Date.parse("2026-06-01T00:00:00Z") })).status, 400);
+  // A date in the future cannot make an expired certificate look valid.
+  assert.equal((await verifyWith(expired, { signedDate: Date.now() + 86_400_000 })).status, 400);
+  // A signing date before the certificate began is refused too.
+  assert.equal((await verifyWith(await selfSignedTestRoot(), { signedDate: Date.parse("2024-06-01T00:00:00Z") })).status, 400);
+});
+
+test("the signing chain must be leaf, intermediate and root, each with Apple's marker", async () => {
+  const good = await selfSignedTestRoot();
+  assert.equal((await verifyWith(good, {})).status, 200);
+  for (const options of [{ leafMarker: false }, { middleMarker: false }]) {
+    const broken = await selfSignedTestRoot(options);
+    assert.equal((await verifyWith(broken, {})).status, 400, JSON.stringify(options));
+  }
+  for (const x5c of [good.x5c.slice(0, 2), [...good.x5c, good.x5c[2]], good.x5c.slice(0, 1)]) {
+    assert.equal((await verifyWith({ ...good, x5c }, {})).status, 400, String(x5c.length));
+  }
 });

@@ -162,8 +162,10 @@ export class D1Store implements Store {
   async recordPurchase(userId: string, transaction: VerifiedTransaction, product: ProductDefinition): Promise<boolean> {
     const now = nowIso();
     const statements = [
-      this.db.prepare("INSERT OR IGNORE INTO purchases (apple_transaction_id, user_id, product_id, original_transaction_id, granted_at, revoked_at, environment) VALUES (?, ?, ?, ?, ?, NULL, ?)")
-        .bind(transaction.transactionId, userId, transaction.productId, transaction.originalTransactionId ?? null, now, transaction.environment ?? "Production")
+      // Nothing is granted for a transaction whose refund is already on record: the statements below follow `changes()`.
+      this.db.prepare(`INSERT OR IGNORE INTO purchases (apple_transaction_id, user_id, product_id, original_transaction_id, granted_at, revoked_at, environment)
+        SELECT ?, ?, ?, ?, ?, NULL, ? WHERE NOT EXISTS (SELECT 1 FROM revoked_transactions WHERE transaction_id = ?)`)
+        .bind(transaction.transactionId, userId, transaction.productId, transaction.originalTransactionId ?? null, now, transaction.environment ?? "Production", transaction.transactionId)
     ];
     if ((product.paidPulls ?? 0) > 0) {
       // The tickets first pay off any refund debt; only the rest reaches the wallet. Every step is repeat-safe, and the batch is atomic.
@@ -198,11 +200,13 @@ export class D1Store implements Store {
   }
 
   async recordPlanPeriod(userId: string, plan: string, periodStart: string, periodEnd: string, pulls: number, transactionId: string): Promise<void> {
+    // The refund check is part of each statement, so a refund that lands between the caller's check and this write still wins.
+    const notRefunded = "WHERE NOT EXISTS (SELECT 1 FROM revoked_transactions WHERE transaction_id = ?)";
     const statements = [
-      this.db.prepare("INSERT OR IGNORE INTO entitlements (user_id, plan, period_start, period_end, tickets_granted_period) VALUES (?, ?, ?, ?, ?)")
-        .bind(userId, plan, periodStart, periodEnd, pulls),
-      ...(pulls > 0 ? [this.db.prepare("INSERT OR IGNORE INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at) VALUES (?, ?, 'paid', ?, 'plan_monthly', ?, ?)")
-        .bind(`plan:${transactionId}`, userId, pulls, transactionId, nowIso())] : []),
+      this.db.prepare(`INSERT OR IGNORE INTO entitlements (user_id, plan, period_start, period_end, tickets_granted_period) SELECT ?, ?, ?, ?, ? ${notRefunded}`)
+        .bind(userId, plan, periodStart, periodEnd, pulls, transactionId),
+      ...(pulls > 0 ? [this.db.prepare(`INSERT OR IGNORE INTO gacha_wallet_ledger (id, user_id, currency, delta, reason, ref, created_at) SELECT ?, ?, 'paid', ?, 'plan_monthly', ?, ? ${notRefunded}`)
+        .bind(`plan:${transactionId}`, userId, pulls, transactionId, nowIso(), transactionId)] : []),
     ];
     await this.db.batch(statements);
   }
@@ -215,7 +219,11 @@ export class D1Store implements Store {
 
   async revokePurchase(transactionId: string, paidPulls = 0, plan?: { name: string; periodStart: string }): Promise<void> {
     const now = nowIso();
-    const statements = [this.db.prepare("UPDATE purchases SET revoked_at = ? WHERE apple_transaction_id = ? AND revoked_at IS NULL").bind(now, transactionId)];
+    const statements = [
+      // Remembered even when the purchase has not been seen yet, so a purchase that arrives later is not credited.
+      this.db.prepare("INSERT OR IGNORE INTO revoked_transactions (transaction_id, revoked_at) VALUES (?, ?)").bind(transactionId, now),
+      this.db.prepare("UPDATE purchases SET revoked_at = ? WHERE apple_transaction_id = ? AND revoked_at IS NULL").bind(now, transactionId)
+    ];
     // Only what is still unspent is taken back, up to what this purchase put in the wallet. What was already spent is not
     // charged to anyone (no debt); a shortfall is only recorded so that repeated refunds can restrict buying.
     if (paidPulls > 0) {
@@ -248,6 +256,10 @@ export class D1Store implements Store {
     await this.db.batch(statements);
   }
 
+  async isRevoked(transactionId: string): Promise<boolean> {
+    return !!(await this.db.prepare("SELECT 1 AS found FROM revoked_transactions WHERE transaction_id = ?").bind(transactionId).first());
+  }
+
   /** How many refunds since `since` came after some of the tickets were already spent. */
   async refundShortfalls(userId: string, since: string): Promise<number> {
     const row = await this.db.prepare("SELECT COUNT(*) AS n FROM refund_events WHERE user_id = ? AND debt > 0 AND created_at >= ?")
@@ -274,13 +286,6 @@ export class D1Store implements Store {
       SELECT ?, ?, 1 WHERE NOT EXISTS (SELECT 1 FROM user_pets WHERE user_id = ?)`)
       .bind(userId, petId, userId).run();
     return (result.meta?.changes ?? 0) > 0;
-  }
-
-  async mergeOwnedPets(userId: string, owned: Record<string, number>): Promise<void> {
-    const statements = Object.entries(owned).map(([petId, copies]) =>
-      this.db.prepare(`INSERT INTO user_pets (user_id, pet_id, copies) VALUES (?, ?, ?)
-        ON CONFLICT(user_id, pet_id) DO UPDATE SET copies = MAX(copies, excluded.copies)`).bind(userId, petId, copies));
-    if (statements.length) await this.db.batch(statements);
   }
 
   async claimFreePull(userId: string, routeId: string): Promise<boolean> {
