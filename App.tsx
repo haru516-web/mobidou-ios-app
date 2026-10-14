@@ -48,7 +48,7 @@ import { EVENT_PET_CHARACTERS } from './src/petCatalog';
 import { eventTicketsEarned } from './src/services/eventGacha';
 import { EventListPopup } from './src/components/EventListPopup';
 import { EventAnnouncePopup } from './src/components/EventAnnouncePopup';
-import { CharacterIntroPopup, EventMobbiesPopup } from './src/components/MobbyIntroPopups';
+import { CharacterIntroPopup } from './src/components/MobbyIntroPopups';
 import { isEventAnnounceHidden, setEventAnnounceHidden } from './src/services/eventAnnounce';
 import './src/services/pendingDraws';
 import { EVENT_SHRINES } from './src/data/eventShrines';
@@ -1124,8 +1124,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
     <EventScreen visible={eventSheet === 'main'} onClose={() => { setEventSheet(null); setTeamInviteCode(''); }} event={TOKI_MEGURU} pet={pet} initialCode={teamInviteCode} onOpenProfile={() => { setEventSheet(null); setSocialSheet('friends'); }} />
-    <EventAnnouncePopup visible={eventAnnounceOpen} event={TOKI_MEGURU} statusLabel={eventStatusLabel} hideNextTime={eventAnnounceHidden === true} onHideNextTimeChange={changeEventAnnounceHidden} onOpenEvent={() => { setEventAnnounceOpen(false); setEventMobbiesOpen(true); }} onClose={() => setEventAnnounceOpen(false)} />
-    <EventMobbiesPopup visible={eventMobbiesOpen} eventName={TOKI_MEGURU.name} onOpenEvent={() => { setEventMobbiesOpen(false); setEventSheet('main'); }} onClose={() => setEventMobbiesOpen(false)} />
+    <EventAnnouncePopup visible={eventAnnounceOpen || eventMobbiesOpen} showMobbies={eventMobbiesOpen} event={TOKI_MEGURU} statusLabel={eventStatusLabel} hideNextTime={eventAnnounceHidden === true} onHideNextTimeChange={changeEventAnnounceHidden} onOpenEvent={() => { setEventAnnounceOpen(false); setEventMobbiesOpen(true); }} onOpenEventFromMobbies={() => { setEventMobbiesOpen(false); setEventSheet('main'); }} onClose={() => { setEventAnnounceOpen(false); setEventMobbiesOpen(false); }} />
     <CharacterIntroPopup visible={characterIntroOpen} onNext={continueGuideToGacha} />
     <EventListPopup visible={eventListOpen} onClose={() => setEventListOpen(false)} event={TOKI_MEGURU} statusLabel={eventStatusLabel} onViewCollection={() => { setEventListOpen(false); setCollectionPage('room'); setEventCollection(true); }} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />

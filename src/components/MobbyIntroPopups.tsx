@@ -42,13 +42,17 @@ export function CharacterIntroPopup({ visible, onNext }: { visible: boolean; onN
 }
 
 /** The second popup of an event: the Mobbies that only the event gives. */
+export function EventMobbiesBody({ paper, eventName, onOpenEvent }: { paper: ScrollPaper; eventName: string; onOpenEvent: () => void }) {
+  return <View style={S.body}>
+    <Text style={S.lead}>「{eventName}」でしか会えない{EVENT_PET_CHARACTERS.length}人です。</Text>
+    <Grid pets={EVENT_PET_CHARACTERS} columns={2} paper={paper} reserved={110} showCatchphrase />
+    <Button title="イベントを見る" onPress={onOpenEvent} />
+  </View>;
+}
+
 export function EventMobbiesPopup({ visible, eventName, onOpenEvent, onClose }: { visible: boolean; eventName: string; onOpenEvent: () => void; onClose: () => void }) {
   return <ScrollPopup event visible={visible} title="イベント限定のモビー" onClose={onClose}>
-    {paper => <View style={S.body}>
-      <Text style={S.lead}>「{eventName}」でしか会えない{EVENT_PET_CHARACTERS.length}人です。</Text>
-      <Grid pets={EVENT_PET_CHARACTERS} columns={2} paper={paper} reserved={110} showCatchphrase />
-      <Button title="イベントを見る" onPress={onOpenEvent} />
-    </View>}
+    {paper => <EventMobbiesBody paper={paper} eventName={eventName} onOpenEvent={onOpenEvent} />}
   </ScrollPopup>;
 }
 
