@@ -862,18 +862,20 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   };
   // Anything that comes up by itself waits while the event screen or its announcements are on screen, and the Mobby menu's scrim never outlives them.
   const eventUiBusy = eventSheet !== null || eventAnnounceOpen || eventMobbiesOpen || eventListOpen;
+  // What the person is doing on the home screen right now (the Mobby menu, the feature tour) also holds the automatic popups back.
+  const autoPopupBlocked = eventUiBusy || mobbyMenuOpen || !!tour || !!tourRequest;
   const eventUiBusyRef = useRef(false);
-  eventUiBusyRef.current = eventUiBusy;
-  useEffect(() => { setMobbyMenuOpen(false); }, [eventSheet]);
+  eventUiBusyRef.current = autoPopupBlocked;
+  useEffect(() => { setMobbyMenuOpen(false); }, [eventSheet, eventAnnounceOpen, eventMobbiesOpen, eventListOpen]);
   // Last week's look-back appears once per week, after the day's other popups are out of the way.
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const weeklySummary = useMemo(() => summarizeWeek(data.dayLog, progress.rewards, previousWeekStart()), [weeklyOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const weeklyPlaces = useMemo(() => weeklySummary.rewardIds.map(id => activeShrines[activeRoute?.ids.indexOf(id) ?? -1]?.name).filter((name): name is string => !!name), [weeklySummary]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || eventUiBusy || !weeklyDue(data.weekSeen, data.dayLog)) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || autoPopupBlocked || !weeklyDue(data.weekSeen, data.dayLog)) return undefined;
     const timer = setTimeout(() => setWeeklyOpen(true), 1200);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventUiBusy]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, autoPopupBlocked]);
   // Friends see the main Mobby, so a change of Mobby is passed on right away.
   useEffect(() => {
     if (journey.ready && !data.demo && data.onboarded) void syncProfilePet(data.pet);
@@ -904,17 +906,17 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Once the tutorial is over and the home screen is quiet, offer to register the profile (name + main Mobby) once.
   useEffect(() => {
     if (eventAnnounceChecked.current || TOKI_MEGURU.status !== 'open' || eventAnnounceHidden !== false || !eventAvailable) return undefined;
-    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || !hasStarter(data.mobbies) || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || !!eventSheet || eventListOpen) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || !hasStarter(data.mobbies) || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || !!eventSheet || eventListOpen || mobbyMenuOpen || !!tour || !!tourRequest) return undefined;
     const timer = setTimeout(() => {
       eventAnnounceChecked.current = true;
       setEventAnnounceOpen(true);
     }, 1200);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden, eventAvailable]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden, eventAvailable, mobbyMenuOpen, tour, tourRequest]);
   const profileGuideChecked = useRef(false);
   useEffect(() => {
     if (!SOCIAL_ONLINE || profileGuideChecked.current) return undefined;
-    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || eventAnnounceOpen || eventUiBusy) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || eventAnnounceOpen || autoPopupBlocked) return undefined;
     const timer = setTimeout(() => {
       profileGuideChecked.current = true;
       void (async () => {
@@ -929,7 +931,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       })();
     }, 2500);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen, eventUiBusy]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen, autoPopupBlocked]);
   useAppAudioCues({ firstRunStage, openingVisible, mobbyMenuOpen, homeEditing: homePopup === 'custom', milestoneToast, error: journey.error ?? null, weeklyOpen, pet: data.pet });
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
