@@ -11,8 +11,8 @@ const JST_OFFSET_MS = 9 * HOUR_MS;
 
 /** 20:05 Japan time. */
 export const REMINDER_MINUTE_OF_DAY = 20 * 60 + 5;
-/** How many evenings ahead are scheduled at once; the plan is made again whenever the app is opened. */
-export const REMINDER_DAYS_AHEAD = 3;
+/** How many evenings ahead are scheduled at once (iOS keeps up to 64); the plan is made again whenever the app is opened, so someone who stays away still gets a reminder every evening for two weeks. */
+export const REMINDER_DAYS_AHEAD = 14;
 
 export type ReminderOptions = {
   /** Reminders are off in the settings, or notifications are not allowed. */

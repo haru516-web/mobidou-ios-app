@@ -40,7 +40,7 @@
 | [x] | 通知のきっかけ（サーバー） | 参加申請・返事・チーム出発・目標到達（1回のみ）・フレンド申請・承認 | `worker.ts`、server.test.mjs |
 | [x] | 通知の許可の尋ね方 | チームをつくる・参加・フレンド申請のあとに、はじめて尋ねる | `notifications.ts` |
 | [x] | 設定の「お知らせの通知」 | オン／オフ（オフでトークンも削除） | `SettingsModal.tsx` |
-| [x] | 20時すぎの歩数リマインド（端末内） | 20:05 JST、3日先まで。チームが出発している間のみ | `notificationPlan.ts`、eventSteps.test.ts |
+| [x] | 20時すぎの歩数リマインド（端末内） | 20:05 JST、14日先まで（開かない人にも届く）。チームが出発している間のみ | `notificationPlan.ts`、eventSteps.test.ts |
 | [x] | 受付の猶予日 | 当日と前2日分を受理（`EVENT_STEPS_GRACE_DAYS`）。チーム出発前の日は拒否 | server.test.mjs |
 | [x] | 歩数の送信を3日分に | 空の日と送信済みの日は送らない | `eventSteps.ts`、eventSteps.test.ts |
 | [x] | ポーリングの削除 | 8秒・60秒・10分のタイマーを撤去。開いたとき・戻ったとき・更新ボタン | `EventScreen.tsx`、`App.tsx` |

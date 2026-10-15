@@ -125,17 +125,30 @@ test('catching up sends each day with steps once, skips empty and already-sent d
   assert.equal(refused.outcome, 'failed');
 });
 
+/** Three evenings ahead, to keep the expectations short. */
+const soon = (now: Date, options: Parameters<typeof reminderTimes>[1]) => reminderTimes(now, options, 3);
+
 test('the evening reminder: 20:05 Tokyo time, a few days ahead, only while a team is out and the event runs', () => {
   const at = (iso: string) => new Date(`${iso}+09:00`).getTime();
   const options = { enabled: true, teamActive: true };
-  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), options), [at('2026-10-05T20:05:00'), at('2026-10-06T20:05:00'), at('2026-10-07T20:05:00')]);
+  assert.deepEqual(soon(jst('2026-10-05T09:00:00'), options), [at('2026-10-05T20:05:00'), at('2026-10-06T20:05:00'), at('2026-10-07T20:05:00')]);
   // After tonight's time has passed, the next evenings.
-  assert.deepEqual(reminderTimes(jst('2026-10-05T21:00:00'), options), [at('2026-10-06T20:05:00'), at('2026-10-07T20:05:00'), at('2026-10-08T20:05:00')]);
-  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), { ...options, teamActive: false }), []);
-  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), { ...options, enabled: false }), []);
+  assert.deepEqual(soon(jst('2026-10-05T21:00:00'), options), [at('2026-10-06T20:05:00'), at('2026-10-07T20:05:00'), at('2026-10-08T20:05:00')]);
+  assert.deepEqual(soon(jst('2026-10-05T09:00:00'), { ...options, teamActive: false }), []);
+  assert.deepEqual(soon(jst('2026-10-05T09:00:00'), { ...options, enabled: false }), []);
   // Nothing at or after the end of the event, nor before it starts.
-  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), { ...options, eventEndsAt: at('2026-10-07T00:00:00') }), [at('2026-10-05T20:05:00'), at('2026-10-06T20:05:00')]);
-  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), { ...options, eventStartsAt: at('2026-10-06T00:00:00') }), [at('2026-10-06T20:05:00'), at('2026-10-07T20:05:00'), at('2026-10-08T20:05:00')]);
+  assert.deepEqual(soon(jst('2026-10-05T09:00:00'), { ...options, eventEndsAt: at('2026-10-07T00:00:00') }), [at('2026-10-05T20:05:00'), at('2026-10-06T20:05:00')]);
+  assert.deepEqual(soon(jst('2026-10-05T09:00:00'), { ...options, eventStartsAt: at('2026-10-06T00:00:00') }), [at('2026-10-06T20:05:00'), at('2026-10-07T20:05:00'), at('2026-10-08T20:05:00')]);
   // Same instants wherever the phone is: it is all in Tokyo time.
-  assert.deepEqual(reminderTimes(new Date('2026-10-05T00:00:00Z'), options), reminderTimes(jst('2026-10-05T09:00:00'), options));
+  assert.deepEqual(soon(new Date('2026-10-05T00:00:00Z'), options), soon(jst('2026-10-05T09:00:00'), options));
+});
+
+test('the reminder is planned two weeks ahead, so someone who does not open the app is still reminded', () => {
+  const times = reminderTimes(jst('2026-10-05T09:00:00'), { enabled: true, teamActive: true });
+  assert.equal(times.length, 14);
+  assert.equal(times[0], new Date('2026-10-05T20:05:00+09:00').getTime());
+  assert.equal(times[13], new Date('2026-10-18T20:05:00+09:00').getTime());
+  // The end of the event cuts it short.
+  const ends = new Date('2026-10-08T00:00:00+09:00').getTime();
+  assert.equal(reminderTimes(jst('2026-10-05T09:00:00'), { enabled: true, teamActive: true, eventEndsAt: ends }).length, 3);
 });
