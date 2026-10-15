@@ -1,4 +1,4 @@
-import { addUnresolved, markAccountLost, readLostAccounts, readServerAccount, removeLostAccounts, request, type ServerAccount } from './server.ts';
+import { markAccountLost, moveLostToUnresolved, readLostAccounts, readServerAccount, removeLostAccounts, request, type ServerAccount } from './server.ts';
 
 /*
  * Deleting the account.
@@ -69,8 +69,7 @@ export async function deleteServerAccount(): Promise<DeletionResult> {
     if (result !== 'deleted') return result;
   }
   // The numbers are kept on the device before the entries are struck off, so they survive closing the app.
-  await addUnresolved(givenUp);
-  await removeLostAccounts(givenUp);
+  await moveLostToUnresolved(givenUp);
   leftBehind = givenUp;
   return givenUp.length > 0 ? 'partly' : 'deleted';
 }

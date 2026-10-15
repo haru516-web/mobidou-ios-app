@@ -135,3 +135,25 @@ test("a 401 on the account in use keeps it as lost, so another Apple ID signing 
     assert.deepEqual([...deletion.leftBehindAccounts()], ["user-1"]);
   });
 });
+
+test("moving lost accounts to numbers is one write: when it fails they stay in the lost list", async () => {
+  const { server } = await loadModules();
+  const kept = new Map<string, string>();
+  let failNext = false;
+  server.useServerStorageForTests({ getItem: async key => kept.get(key) ?? null, setItem: async (key, value) => { if (failNext) { failNext = false; throw new Error("disk"); } kept.set(key, value); } });
+  await server.adoptServerAccount({ userId: "user-1", secret: "secret-1" });
+  await server.markAccountLost({ userId: "user-1", secret: "secret-1" });
+  failNext = true;
+  assert.equal(await server.moveLostToUnresolved(["user-1"]), false);
+  assert.equal((await server.readLostAccounts()).length, 1);
+  assert.deepEqual(await server.readUnresolved(), []);
+  assert.equal(await server.moveLostToUnresolved(["user-1"]), true);
+  assert.deepEqual(await server.readLostAccounts(), []);
+  assert.deepEqual(await server.readUnresolved(), ["user-1"]);
+});
+
+test("numbers that could not be deleted are never cut, however many there are", async () => {
+  const { server } = await loadModules();
+  const ids = Array.from({ length: 201 }, (_, index) => `old-${index}`);
+  assert.equal(server.normalizeServerState({ unresolved: ids }).unresolved.length, 201);
+});

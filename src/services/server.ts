@@ -44,7 +44,8 @@ export function normalizeServerState(value: unknown): ServerState {
   return {
     account,
     lost: lost.slice(-20),
-    unresolved: (Array.isArray(source.unresolved) ? [...new Set(source.unresolved.filter((id): id is string => typeof id === 'string' && id.length > 0))] : []).slice(-200),
+    // Never cut: a number dropped here could not be given to support any more.
+    unresolved: Array.isArray(source.unresolved) ? [...new Set(source.unresolved.filter((id): id is string => typeof id === 'string' && id.length > 0))] : [],
     starterDone: source.starterDone === true,
     claimedRoutes: Array.isArray(source.claimedRoutes) ? [...new Set(source.claimedRoutes.filter((id): id is string => typeof id === 'string'))] : [],
   };
@@ -87,7 +88,8 @@ export function useServerStorageForTests(replacement: typeof storage): void { st
 async function loadState() {
   try { return normalizeServerState(JSON.parse(await storage.getItem(STATE_KEY) ?? 'null')); } catch { return emptyServerState(); }
 }
-const saveState = (state: ServerState) => storage.setItem(STATE_KEY, JSON.stringify(state)).catch(() => undefined);
+/** Resolves to whether the state was written. */
+const saveState = (state: ServerState) => storage.setItem(STATE_KEY, JSON.stringify(state)).then(() => true, () => false);
 
 /** Told when the account on this device changes (registered, taken over, dropped): the push registration follows it. */
 const accountListeners = new Set<() => void>();
@@ -171,17 +173,22 @@ export function removeLostAccounts(userIds: readonly string[]): Promise<void> {
 function dropAccount(state: ServerState, account: ServerAccount): ServerState {
   const all = [...state.lost.filter(known => known.userId !== account.userId), account];
   const overflow = all.slice(0, Math.max(0, all.length - 20)).map(known => known.userId);
-  return { ...state, account: null, lost: all.slice(-20), unresolved: [...new Set([...state.unresolved, ...overflow])].slice(-200) };
+  return { ...state, account: null, lost: all.slice(-20), unresolved: [...new Set([...state.unresolved, ...overflow])] };
 }
 
 /** Numbers of accounts that could not be deleted from this device: kept until the device is erased. */
 export async function readUnresolved(): Promise<string[]> {
   return exclusive(async () => (await loadState()).unresolved);
 }
-export function addUnresolved(userIds: readonly string[]): Promise<void> {
+/**
+ * Lost accounts that could not be deleted become numbers in one write: either both changes are saved or neither is,
+ * so a failed write leaves them in the lost list. Resolves to whether it was saved.
+ */
+export function moveLostToUnresolved(userIds: readonly string[]): Promise<boolean> {
   return exclusive(async () => {
+    if (userIds.length === 0) return true;
     const state = await loadState();
-    await saveState({ ...state, unresolved: [...new Set([...state.unresolved, ...userIds])].slice(-200) });
+    return saveState({ ...state, lost: state.lost.filter(known => !userIds.includes(known.userId)), unresolved: [...new Set([...state.unresolved, ...userIds])] });
   });
 }
 

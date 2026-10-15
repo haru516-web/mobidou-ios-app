@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { WashiInput } from './WashiInput';
 import { BRUSH, Button, C, Icon, SERIF, Section } from '../components';
@@ -92,7 +92,13 @@ export function AccountCenter({
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [imported, setImported] = useState(false);
 
+  /** Counts visits to a page: an answer that arrives after the page was left or entered again is not shown. */
+  const visit = useRef(0);
   useEffect(() => {
+    visit.current += 1;
+    const mine = visit.current;
+    setDeleteBusy(false);
+    setAppleBusy(false);
     setError('');
     setPreview(null);
     setConfirmReplace(false);
@@ -106,7 +112,7 @@ export function AccountCenter({
     setLeftBehind(null);
     setDeleteCanReauth(false);
     setDeleteTarget(null);
-    if (page === 'delete') void readUnresolved().then(setUnresolved);
+    if (page === 'delete') void readUnresolved().then(list => { if (visit.current === mine) setUnresolved(list); });
     if (page === 'login' || page === 'manage') onAppleStatus?.();
   }, [page]);
 
@@ -196,15 +202,20 @@ export function AccountCenter({
 
   if (page === 'delete') {
     const deleteNow = async () => {
+      const mine = visit.current;
       setDeleteBusy(true);
       setDeleteMessage('');
       const target = (await readServerAccount())?.userId ?? null;
+      if (visit.current !== mine) return;
       setDeleteTarget(target);
       const result = await onDeleteAccount();
+      // The server data is gone whatever screen is showing: the device is erased to match.
+      if (result === 'deleted') { onAccountDeleted(); return; }
+      // Any other answer belongs to a visit that is over: the screen now showing is not changed by it.
+      if (visit.current !== mine) return;
       setDeleteBusy(false);
       setDeleteCanReauth(result === 'signed_out' || result === 'apple_needed');
-      if (result === 'deleted') onAccountDeleted();
-      else if (result === 'partly') setLeftBehind(leftBehindAccounts());
+      if (result === 'partly') setLeftBehind(leftBehindAccounts());
       else setDeleteMessage(result === 'apple_mismatch' ? 'このアカウントにつないでいるApple IDとは、別のApple IDでサインインされました。つないでいるApple IDで、もう一度お試しください。削除は、まだ行われていません。' : result === 'signed_out' ? 'この端末の認証が切れています。別の端末でサインインした場合は、この端末でも「Appleでサインイン」をしてから、もう一度お試しください。削除は、まだ行われていません。解決しない場合は、サポートまでご連絡ください。' : result === 'apple_needed' ? 'Appleでのサインインが必要です。Apple IDとのつながりを解除するため、もう一度「Appleでサインイン」を確認してください。削除は、まだ行われていません。' : result === 'offline' ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。削除は、まだ行われていません。' : '削除できませんでした。しばらくしてから、もう一度お試しください。削除は、まだ行われていません。');
     };
     // The account in use is deleted, but an older one the device holds no accepted key for could not be: say so, with its number.
@@ -245,14 +256,17 @@ export function AccountCenter({
       </View>
       {!!deleteMessage && <Text accessibilityLiveRegion="polite" style={S.body}>{deleteMessage}</Text>}
       {deleteCanReauth && <Button title={appleBusy ? 'サインイン中…' : 'Appleでサインインし直す'} secondary disabled={appleBusy || deleteBusy} onPress={async () => {
+        const mine = visit.current;
         setAppleBusy(true);
         setDeleteBusy(true);
         const outcome = await onAppleRestore();
+        if (visit.current !== mine) return;
         setAppleBusy(false);
         setDeleteBusy(false);
         if (!outcome.ok) { setDeleteMessage(appleMessages[outcome.reason]); return; }
         setDeleteCanReauth(false);
         const now = (await readServerAccount())?.userId ?? null;
+        if (visit.current !== mine) return;
         // Not the same account as the one deletion was started for (including when it was started with none): confirm again.
         if (now !== deleteTarget) {
           // Another account came back: that is not the one that was being deleted, so the confirmation is asked again from the start.
