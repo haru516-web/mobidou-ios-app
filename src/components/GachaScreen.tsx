@@ -148,8 +148,6 @@ export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls 
   const [detailOpen, setDetailOpen] = useState(false);
   const [navH, setNavH] = useState(72);
   const ropeReady = stage === 'rope';
-  // The cord can also be pulled straight from the lobby (one draw), unless there are results still waiting to be opened.
-  const ropeUsable = ropeReady || (!guided && unrevealed.length === 0);
   // The scene fills the screen edge to edge, but the title, tabs and buttons keep clear of the notch and the home indicator.
   const insets = useSafeAreaInsets();
   const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
@@ -416,21 +414,20 @@ export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls 
   }), [boardEnabled, lift, settleBoard]);
 
   const requestDraw = useCallback(() => {
-    const count = ropeReady ? batch : 1;
-    if (playing || freePulls < count || drawRequested.current) return;
+    if (playing || freePulls < batch || drawRequested.current) return;
     drawRequested.current = true;
     playSfx('sfx_ticket_use');
-    const drawn = onDraw(count, source);
+    const drawn = onDraw(batch, source);
     if (drawn && typeof drawn.then === 'function') void drawn.then(done => { if (done === false) { drawRequested.current = false; ropeShift.setValue(0); setRopeGone(false); setStage('lobby'); } });
-  }, [playing, freePulls, batch, ropeReady, onDraw, source]);
+  }, [playing, freePulls, batch, onDraw, source]);
 
   const ropePan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => !playing && freePulls > 0 && ropeUsable && !drawRequested.current,
-    onMoveShouldSetPanResponder: () => !playing && freePulls > 0 && ropeUsable && !drawRequested.current,
+    onStartShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady && !drawRequested.current,
+    onMoveShouldSetPanResponder: () => !playing && freePulls > 0 && ropeReady && !drawRequested.current,
     onPanResponderMove: (_, gesture) => { playSfx('sfx_rope_pull', { rate: .7 + Math.min(1, gesture.dy / PULL_TO_DRAW), debounceMs: 180, gain: .4 }); setPull(Math.max(0, Math.min(maxPull, gesture.dy))); },
     onPanResponderRelease: (_, gesture) => { playSfx(gesture.dy >= PULL_TO_DRAW ? 'sfx_rope_catch' : 'sfx_rope_cancel'); if (gesture.dy < PULL_TO_DRAW) { setPull(0); return; } requestDraw(); if (drawRequested.current) { const drop = Math.min(maxPull, gesture.dy); setRetracting(true); Animated.timing(ropeShift, { toValue: -(Math.min(300, height * .48) + maxPull + drop), duration: 420, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => { setRopeGone(true); setRetracting(false); setPull(0); }); } else setPull(0); },
     onPanResponderTerminate: () => setPull(0),
-  }), [playing, freePulls, ropeUsable, requestDraw, maxPull, height, ropeShift]);
+  }), [playing, freePulls, ropeReady, requestDraw, maxPull, height, ropeShift]);
 
   const next = () => {
     playSfx('sfx_card_flip');
@@ -600,7 +597,7 @@ export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls 
     {(!playing || retracting) && !shopOpen && !ropeGone && <View {...ropePan.panHandlers} accessible accessibilityRole="button" accessibilityLabel="ひもを引いてモビーに出会う" accessibilityState={{ disabled: freePulls <= 0 }} accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={requestDraw} style={[S.ropeArea, { left: width / 2 - 52, height: Math.min(300, height * .48) + maxPull }]}>
       <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center', transform: [{ translateY: ropeShift }] }}><Part part="rope" style={[S.rope, { width: (Math.min(300, height * .48) + maxPull) / 4, height: Math.min(300, height * .48) + maxPull, top: -maxPull + (pull > 0 ? pull : bob) }]} /></Animated.View>
     </View>}
-    {!playing && !shopOpen && freePulls > 0 && ropeUsable && <View pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 90, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}><Text style={S.ropeHintText}>下にひっぱってね</Text><MotionArrow direction="down" /></View>}
+    {!playing && !shopOpen && freePulls > 0 && ropeReady && <View pointerEvents="none" style={[S.ropeHint, { top: ropeLength + BOB_PX + 90, opacity: Math.max(0, 1 - pull / PULL_TO_DRAW) }]}><Text style={S.ropeHintText}>下にひっぱってね</Text><MotionArrow direction="down" /></View>}
 
     <View style={[S.top, { top: 32 + insets.top }]}>
       <Text accessibilityRole="header" style={[S.title, ((!playing && !shopOpen) || (playing && !done && phase === 'ready')) && S.titleHidden]}>{shopOpen ? '購入' : !playing ? 'ご縁を結ぶ' : done ? 'ご縁が結ばれました' : phase === 'curtain' ? '幕が開きます' : phase === 'roll' ? 'モビーが荷を運んできました' : phase === 'settle' ? '荷が届きました' : phase === 'ready' ? '前の板を、上へ引き上げて' : phase === 'charge' ? '光が集まっています' : '光があふれています'}</Text>
