@@ -7,7 +7,7 @@ import { getPetCharacter, type PetId } from '../petCatalog';
 import { WashiArt } from './Washi';
 import { appleMessages, type AppleOutcome } from '../services/appleOutcome';
 import { DELETE_CONFIRMATION_WORD, leftBehindAccounts, type DeletionResult } from '../services/accountDeletion';
-import { readServerAccount } from '../services/server';
+import { readServerAccount, readUnresolved } from '../services/server';
 
 export type AccountPage = 'welcome' | 'manage' | 'login' | 'transfer' | 'delete';
 export type AccountTransferSummary = {
@@ -79,6 +79,8 @@ export function AccountCenter({
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   /** Numbers of older accounts that could not be deleted (shown to be given to support). */
   const [leftBehind, setLeftBehind] = useState<readonly string[] | null>(null);
+  /** Numbers of older accounts that could not be deleted earlier (kept on the device until it is erased). */
+  const [unresolved, setUnresolved] = useState<readonly string[]>([]);
   const [appleBusy, setAppleBusy] = useState(false);
   const [appleMessage, setAppleMessage] = useState('');
   const [recordRestored, setRecordRestored] = useState(false);
@@ -100,6 +102,11 @@ export function AccountCenter({
     setDeleteStep(1);
     setDeleteWord('');
     setDeleteMessage('');
+    // A result of an earlier deletion is not carried into a new visit (another account may be here now).
+    setLeftBehind(null);
+    setDeleteCanReauth(false);
+    setDeleteTarget(null);
+    if (page === 'delete') void readUnresolved().then(setUnresolved);
     if (page === 'login' || page === 'manage') onAppleStatus?.();
   }, [page]);
 
@@ -221,6 +228,10 @@ export function AccountCenter({
           <Text style={S.statusTitle}>アカウントを削除しますか？</Text>
           <Text style={S.body}>削除すると、次のものがすべて消えます。{'\n'}・この端末の記録（御朱印・歩数・集めたモビー・設定）{'\n'}・サーバーにあるデータ（プロフィール・フレンド・木札・ガチャの記録・保存された記録）{'\n'}・Apple IDとのつながり</Text>
         </>}
+        {deleteStep === 1 && unresolved.length > 0 && <>
+          <Text style={S.small}>前に削除できなかった、以前のアカウントの番号です。サポートへお伝えください。</Text>
+          {unresolved.map(id => <Text key={id} selectable style={S.small}>{id}</Text>)}
+        </>}
         {deleteStep === 2 && <>
           <Text style={S.statusTitle}>本当に削除しますか？</Text>
           <Text style={S.body}>{tickets > 0 ? `いま持っている木札 ${tickets} 枚も、消えます。購入した分も、返金や復元はできません。` : '消えたデータは、元に戻せません。'}{'\n'}Appleでの購入の履歴は、Appleに残ります。{'\n\n'}契約中のサブスクリプション（プラスプラン）は、アカウントを削除しても、自動では解約されません。請求を止めるには、Appleの「サブスクリプション」で解約してください。</Text>
@@ -235,12 +246,15 @@ export function AccountCenter({
       {!!deleteMessage && <Text accessibilityLiveRegion="polite" style={S.body}>{deleteMessage}</Text>}
       {deleteCanReauth && <Button title={appleBusy ? 'サインイン中…' : 'Appleでサインインし直す'} secondary disabled={appleBusy || deleteBusy} onPress={async () => {
         setAppleBusy(true);
+        setDeleteBusy(true);
         const outcome = await onAppleRestore();
         setAppleBusy(false);
+        setDeleteBusy(false);
         if (!outcome.ok) { setDeleteMessage(appleMessages[outcome.reason]); return; }
         setDeleteCanReauth(false);
         const now = (await readServerAccount())?.userId ?? null;
-        if (deleteTarget && now !== deleteTarget) {
+        // Not the same account as the one deletion was started for (including when it was started with none): confirm again.
+        if (now !== deleteTarget) {
           // Another account came back: that is not the one that was being deleted, so the confirmation is asked again from the start.
           setDeleteStep(1);
           setDeleteWord('');

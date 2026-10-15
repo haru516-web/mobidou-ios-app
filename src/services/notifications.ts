@@ -47,10 +47,14 @@ if (supported) {
 
 async function load(): Promise<NotificationSetting> {
   if (loaded) return current;
+  const before = generation;
+  let stored: NotificationSetting = 'unset';
   try {
     const value = await AsyncStorage.getItem(ENABLED_KEY);
-    current = value === 'on' || value === 'off' ? value : 'unset';
-  } catch { current = 'unset'; }
+    stored = value === 'on' || value === 'off' ? value : 'unset';
+  } catch { stored = 'unset'; }
+  // A decision made while the setting was being read stands: the older value read from storage does not undo it.
+  if (generation === before) current = stored;
   loaded = true;
   return current;
 }

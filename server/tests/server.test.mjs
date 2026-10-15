@@ -1214,6 +1214,9 @@ test("the invite link page shows only the code, and only for a well-formed code"
   assert.equal((await call(context, "GET", "/f/ABCDEFGH23" + "<script>")).status, 401);
 });
 
+
+/** What Apple returns from the token endpoint: the id_token carries the Apple ID (sub) the authorization belongs to. */
+const appleIdToken = (sub = "apple-person-1") => `${Buffer.from("{}").toString("base64url")}.${Buffer.from(JSON.stringify({ sub })).toString("base64url")}.sig`;
 async function appleFixture() {
   const pair = await webcrypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
   const jwk = { ...(await webcrypto.subtle.exportKey("jwk", pair.publicKey)), kid: "test-key", alg: "RS256", use: "sig" };
@@ -1254,7 +1257,7 @@ ${pkcs8}
   globalThis.fetch = async (url, init) => {
     const form = Object.fromEntries(new URLSearchParams(String(init.body)));
     asked.push({ url: String(url), form });
-    if (String(url).endsWith("/auth/token")) return new Response(JSON.stringify({ refresh_token: "refresh-abc" }), { status: 200 });
+    if (String(url).endsWith("/auth/token")) return new Response(JSON.stringify({ refresh_token: "refresh-abc", id_token: appleIdToken() }), { status: 200 });
     return new Response("{}", { status: revokeAnswer ? 200 : 400 });
   };
   try {
@@ -1297,7 +1300,7 @@ ${pkcs8}
   const realFetch = globalThis.fetch;
   let exchangeWorks = false;
   globalThis.fetch = async (url) => {
-    if (String(url).endsWith("/auth/token")) return exchangeWorks ? new Response(JSON.stringify({ refresh_token: "refresh-xyz" }), { status: 200 }) : new Response("{}", { status: 400 });
+    if (String(url).endsWith("/auth/token")) return exchangeWorks ? new Response(JSON.stringify({ refresh_token: "refresh-xyz", id_token: appleIdToken() }), { status: 200 }) : new Response("{}", { status: 400 });
     return new Response("{}", { status: 200 });
   };
   try {
@@ -1423,7 +1426,7 @@ test("account deletion needs the confirmation word, removes everything of the ac
 ${pkcs8}
 -----END PRIVATE KEY-----` };
   const realFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => String(url).endsWith("/auth/token") ? new Response(JSON.stringify({ refresh_token: "refresh-ann" }), { status: 200 }) : new Response("{}", { status: 200 });
+  globalThis.fetch = async (url) => String(url).endsWith("/auth/token") ? new Response(JSON.stringify({ refresh_token: "refresh-ann", id_token: appleIdToken() }), { status: 200 }) : new Response("{}", { status: 200 });
   let deleted;
   try {
     deleted = await handleWithStore(new Request("https://server.test/account/delete", {
@@ -1778,6 +1781,46 @@ ${pkcs8}
     assert.equal(right.status, 200);
     assert.equal(seen.some((url) => url.endsWith("/auth/revoke")), true);
     assert.equal(await context.store.user(account.userId), null);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("an Apple refresh token is kept only when its authorization is shown to be the Apple ID signing in; one with no id_token is not deleted with", async () => {
+  const context = createContext();
+  const { token, appleEnv } = await appleFixture();
+  const pair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pkcs8 = Buffer.from(await webcrypto.subtle.exportKey("pkcs8", pair.privateKey)).toString("base64");
+  const signInEnv = { ...appleEnv, APPLE_TEAM_ID: "TEAM123456", APPLE_SIGN_IN_KEY_ID: "KEY1234567", APPLE_SIGN_IN_PRIVATE_KEY: `-----BEGIN PRIVATE KEY-----
+${pkcs8}
+-----END PRIVATE KEY-----` };
+  const realFetch = globalThis.fetch;
+  let answer = {};
+  const seen = [];
+  globalThis.fetch = async (url) => {
+    seen.push(String(url));
+    if (String(url).endsWith("/auth/token")) return new Response(JSON.stringify(answer), { status: 200 });
+    return new Response("{}", { status: 200 });
+  };
+  try {
+    const account = await register(context);
+    const send = (path, body) => handleWithStore(new Request("https://server.test" + path, {
+      method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + context.credentials.get(account.userId) }, body: JSON.stringify(body)
+    }), signInEnv, context.store);
+    // At sign-in the authorization is another Apple ID's: the account links, but that token is not kept.
+    answer = { refresh_token: "someone-elses", id_token: appleIdToken("apple-person-2") };
+    assert.equal((await send("/account/apple/link", { identityToken: await token(), authorizationCode: "code-of-another" })).status, 200);
+    assert.equal(await context.store.appleRefreshToken(account.userId), null);
+    // No id_token at all: not kept either, and a deletion with such a code is refused (nothing revoked, nothing deleted).
+    answer = { refresh_token: "no-identity" };
+    const refused = await send("/account/delete", { confirm: "delete", authorizationCode: "code-without-identity" });
+    assert.deepEqual([refused.status, (await refused.json()).error], [409, "apple_identity_unverified"]);
+    assert.equal(seen.some((url) => url.endsWith("/auth/revoke")), false);
+    assert.ok(await context.store.user(account.userId));
+    // The matching id_token is kept at sign-in.
+    answer = { refresh_token: "own-token", id_token: appleIdToken("apple-person-1") };
+    await send("/account/apple/link", { identityToken: await token(), authorizationCode: "code-of-own" });
+    assert.equal(await context.store.appleRefreshToken(account.userId), "own-token");
   } finally {
     globalThis.fetch = realFetch;
   }

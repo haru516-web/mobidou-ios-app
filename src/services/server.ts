@@ -22,12 +22,14 @@ export type ServerState = {
   account: ServerAccount | null;
   /** Accounts the server stopped accepting. Kept so that deleting the account still reaches them (another call's 401 does not forget them). */
   lost: ServerAccount[];
+  /** Numbers (userIds) of accounts that could not be deleted from this device: shown again, to be given to support. */
+  unresolved: string[];
   starterDone: boolean;
   claimedRoutes: string[];
 };
 export type ServerOp = { type: 'starter'; petId: string } | { type: 'claim'; routeId: string };
 
-export const emptyServerState = (): ServerState => ({ account: null, lost: [], starterDone: false, claimedRoutes: [] });
+export const emptyServerState = (): ServerState => ({ account: null, lost: [], unresolved: [], starterDone: false, claimedRoutes: [] });
 
 export function normalizeServerState(value: unknown): ServerState {
   const source = value && typeof value === 'object' ? value as Partial<ServerState> : {};
@@ -42,6 +44,7 @@ export function normalizeServerState(value: unknown): ServerState {
   return {
     account,
     lost: lost.slice(-20),
+    unresolved: (Array.isArray(source.unresolved) ? [...new Set(source.unresolved.filter((id): id is string => typeof id === 'string' && id.length > 0))] : []).slice(-200),
     starterDone: source.starterDone === true,
     claimedRoutes: Array.isArray(source.claimedRoutes) ? [...new Set(source.claimedRoutes.filter((id): id is string => typeof id === 'string'))] : [],
   };
@@ -129,7 +132,7 @@ export async function authedRequest(path: string, init: { method?: string; body?
     // The account is dropped so the next call registers again, but it is remembered as lost until it has been dealt with.
     // Only when it is still the very account (and key) this call was made with: a late 401 for an old key does not undo a newer sign-in.
     if (state.account?.userId === account.userId && state.account.secret === account.secret) {
-      await saveState({ ...state, account: null, lost: withLost(state.lost, account) });
+      await saveState(dropAccount(state, account));
       accountChanged();
     }
   });
@@ -149,7 +152,7 @@ export function adoptServerAccount(account: ServerAccount): Promise<void> {
   return exclusive(async () => {
     const before = await loadState();
     // The same account signing in again resolves its own loss; another account's loss stays until it has been dealt with.
-    await saveState({ ...emptyServerState(), account, lost: before.lost.filter(known => known.userId !== account.userId) });
+    await saveState({ ...emptyServerState(), account, lost: before.lost.filter(known => known.userId !== account.userId), unresolved: before.unresolved });
     accountChanged();
   });
 }
@@ -164,15 +167,30 @@ export function removeLostAccounts(userIds: readonly string[]): Promise<void> {
     if (state.lost.some(known => userIds.includes(known.userId))) await saveState({ ...state, lost: state.lost.filter(known => !userIds.includes(known.userId)) });
   });
 }
-const withLost = (lost: readonly ServerAccount[], account: ServerAccount): ServerAccount[] =>
-  [...lost.filter(known => known.userId !== account.userId), account].slice(-20);
+/** The account is dropped and kept as lost. When more are lost than are kept, the oldest become "unresolved" numbers: nothing is discarded silently. */
+function dropAccount(state: ServerState, account: ServerAccount): ServerState {
+  const all = [...state.lost.filter(known => known.userId !== account.userId), account];
+  const overflow = all.slice(0, Math.max(0, all.length - 20)).map(known => known.userId);
+  return { ...state, account: null, lost: all.slice(-20), unresolved: [...new Set([...state.unresolved, ...overflow])].slice(-200) };
+}
+
+/** Numbers of accounts that could not be deleted from this device: kept until the device is erased. */
+export async function readUnresolved(): Promise<string[]> {
+  return exclusive(async () => (await loadState()).unresolved);
+}
+export function addUnresolved(userIds: readonly string[]): Promise<void> {
+  return exclusive(async () => {
+    const state = await loadState();
+    await saveState({ ...state, unresolved: [...new Set([...state.unresolved, ...userIds])].slice(-200) });
+  });
+}
 
 /** The account in use is not accepted: it is kept as lost (and the device has none for now), as a 401 on any call does. */
 export function markAccountLost(account: ServerAccount): Promise<void> {
   return exclusive(async () => {
     const state = await loadState();
     if (state.account?.userId === account.userId && state.account.secret === account.secret) {
-      await saveState({ ...state, account: null, lost: withLost(state.lost, account) });
+      await saveState(dropAccount(state, account));
       accountChanged();
     }
   });
@@ -202,7 +220,7 @@ async function runOnce(mobbies: MobbyCollection) {
       : await request('/free-pulls/claim', { body: { routeId: op.routeId }, account: state.account });
     if (!result) return;
     // The server no longer knows this account (for example a reset database): register again next time.
-    if (result.status === 401) { await saveState({ ...state, account: null, lost: state.account ? withLost(state.lost, state.account) : state.lost }); accountChanged(); return; }
+    if (result.status === 401) { await saveState(state.account ? dropAccount(state, state.account) : { ...state, account: null }); accountChanged(); return; }
     // Accepted, already known (409), or refused as invalid (400): none of these will change on a retry.
     const settled = result.status === 200 || result.status === 201 || result.status === 409 || result.status === 400;
     if (!settled) return;

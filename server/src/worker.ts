@@ -2,7 +2,7 @@ import { GACHA_PET_IDS, validateGachaPetIds } from "./config/gacha.ts";
 import { isFreePullRoute } from "./config/freePullRoutes.ts";
 import { createExpoNotifier, noNotify, type Notify } from "./push.ts";
 import { isNameAllowed } from "./config/ngWords.ts";
-import { appleRevocationConfigured, equalSecretHash, exchangeAppleAuthorizationCode, exchangeAppleAuthorizationCodeFull, hashSecret, randomToken, revokeAppleToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
+import { appleRevocationConfigured, equalSecretHash, exchangeAppleAuthorizationCodeFull, hashSecret, randomToken, revokeAppleToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
 import { documentPageHtml, privacyPageHtml } from "./privacyPolicy.ts";
 import { SUPPORT_MARKDOWN, SUPPORT_TITLE } from "./supportPage.ts";
@@ -85,11 +85,12 @@ function environmentAccepted(env: Env, transaction: VerifiedTransaction): boolea
 }
 
 /** After a sign-in, trade its authorization code for Apple's refresh token and keep it, so it can be revoked on deletion. */
-async function keepAppleRefreshToken(env: Env, store: Store, userId: string, authorizationCode: unknown, now: Date): Promise<void> {
+async function keepAppleRefreshToken(env: Env, store: Store, userId: string, authorizationCode: unknown, now: Date, expectedSubject: string): Promise<void> {
   if (!appleRevocationConfigured(env) || typeof authorizationCode !== "string" || authorizationCode.length < 8 || authorizationCode.length > 2000) return;
   try {
-    const token = await exchangeAppleAuthorizationCode(authorizationCode, env, now.getTime());
-    if (token) await store.setAppleRefreshToken(userId, token);
+    const exchanged = await exchangeAppleAuthorizationCodeFull(authorizationCode, env, now.getTime());
+    // Only a token that is shown to belong to the Apple ID being signed in is kept (an unknown or other ID's is not).
+    if (exchanged && exchanged.subject === expectedSubject) await store.setAppleRefreshToken(userId, exchanged.refreshToken);
   } catch { /* the sign-in itself succeeded; the token is only needed at deletion */ }
 }
 
@@ -312,7 +313,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     catch { throw new HttpError(401, "invalid_apple_token"); }
     const userId = await store.userByApple(appleSub);
     if (!userId) throw new HttpError(404, "no_linked_account");
-    await keepAppleRefreshToken(env, store, userId, input.authorizationCode, now);
+    await keepAppleRefreshToken(env, store, userId, input.authorizationCode, now, appleSub);
     // A new device takes the account over: the old device's secret stops working.
     const secret = randomToken(32);
     await store.rotateSecret(userId, await hashSecret(secret));
@@ -393,7 +394,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     catch { throw new HttpError(401, "invalid_apple_token"); }
     const result = await store.linkApple(userId, appleSub);
     if (result === "apple_in_use" || result === "account_has_other_apple") throw new HttpError(409, result);
-    await keepAppleRefreshToken(env, store, userId, input.authorizationCode, now);
+    await keepAppleRefreshToken(env, store, userId, input.authorizationCode, now, appleSub);
     return json({ status: result });
   }
 
@@ -413,7 +414,11 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
         try { exchanged = await exchangeAppleAuthorizationCodeFull(input.authorizationCode, env, now.getTime()); } catch { exchanged = null; }
         // The authorization has to be this account's own Apple ID: another person's must not be revoked, nor this account deleted by it.
         const linked = await store.appleSubOf(userId);
-        if (exchanged?.subject && linked && exchanged.subject !== linked) throw new HttpError(409, "apple_account_mismatch");
+        if (exchanged) {
+          // Nothing is revoked or deleted unless the authorization is shown to be this account's own Apple ID.
+          if (!exchanged.subject || !linked) throw new HttpError(409, "apple_identity_unverified");
+          if (exchanged.subject !== linked) throw new HttpError(409, "apple_account_mismatch");
+        }
         refreshToken = exchanged?.refreshToken ?? null;
       }
       if (!refreshToken) throw new HttpError(409, "apple_reauth_required");

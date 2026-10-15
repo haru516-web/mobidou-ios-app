@@ -1,4 +1,4 @@
-import { markAccountLost, readLostAccounts, readServerAccount, removeLostAccounts, request, type ServerAccount } from './server.ts';
+import { addUnresolved, markAccountLost, readLostAccounts, readServerAccount, removeLostAccounts, request, type ServerAccount } from './server.ts';
 
 /*
  * Deleting the account.
@@ -41,7 +41,7 @@ async function deleteWith(account: ServerAccount): Promise<DeletionResult> {
     reply = await request('/account/delete', { body: { confirm: 'delete', authorizationCode }, account });
   }
   if (!reply) return 'offline';
-  if (reply.status === 409 && reply.data?.error === 'apple_account_mismatch') return 'apple_mismatch';
+  if (reply.status === 409 && (reply.data?.error === 'apple_account_mismatch' || reply.data?.error === 'apple_identity_unverified')) return 'apple_mismatch';
   // 401 only says this device's key is not accepted (another device signed in with Apple and took the account over,
   // or the account is gone): it is not a deletion.
   if (reply.status === 401) return 'signed_out';
@@ -68,6 +68,8 @@ export async function deleteServerAccount(): Promise<DeletionResult> {
     }
     if (result !== 'deleted') return result;
   }
+  // The numbers are kept on the device before the entries are struck off, so they survive closing the app.
+  await addUnresolved(givenUp);
   await removeLostAccounts(givenUp);
   leftBehind = givenUp;
   return givenUp.length > 0 ? 'partly' : 'deleted';
