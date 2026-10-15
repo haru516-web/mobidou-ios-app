@@ -199,6 +199,7 @@ class MemoryStore {
   }
   refreshTokens = new Map();
   async appleRefreshToken(userId) { return this.refreshTokens.get(userId) ?? null; }
+  async appleSubOf(userId) { for (const [sub, id] of this.appleLinks) if (id === userId) return sub; return null; }
   async setAppleRefreshToken(userId, token) { this.refreshTokens.set(userId, token); }
   async userByApple(sub) { return this.appleLinks.get(sub) ?? null; }
   async appleLinked(userId) { return [...this.appleLinks.values()].includes(userId); }
@@ -1732,4 +1733,52 @@ test("a request body over the limit is refused with 413 before it is parsed, by 
   assert.equal(tooBig.status, 413);
   // Nothing was changed by the refused calls.
   assert.equal((await context.store.user(account.userId)).name, "a");
+});
+
+test("deleting with an Apple authorization of another Apple ID is refused: it is neither revoked nor does it delete the account", async () => {
+  const context = createContext();
+  const { token, appleEnv } = await appleFixture();
+  const pair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pkcs8 = Buffer.from(await webcrypto.subtle.exportKey("pkcs8", pair.privateKey)).toString("base64");
+  const signInEnv = { ...appleEnv, APPLE_TEAM_ID: "TEAM123456", APPLE_SIGN_IN_KEY_ID: "KEY1234567", APPLE_SIGN_IN_PRIVATE_KEY: `-----BEGIN PRIVATE KEY-----
+${pkcs8}
+-----END PRIVATE KEY-----` };
+  const idTokenFor = (sub) => `${Buffer.from("{}").toString("base64url")}.${Buffer.from(JSON.stringify({ sub })).toString("base64url")}.sig`;
+  const realFetch = globalThis.fetch;
+  let exchangeFor = "apple-person-1";
+  const seen = [];
+  globalThis.fetch = async (url) => {
+    seen.push(String(url));
+    if (String(url).endsWith("/auth/token")) return new Response(JSON.stringify({ refresh_token: "refresh-mm", id_token: idTokenFor(exchangeFor) }), { status: 200 });
+    return new Response("{}", { status: 200 });
+  };
+  try {
+    const account = await register(context);
+    const send = (path, body, useEnv) => handleWithStore(new Request("https://server.test" + path, {
+      method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + context.credentials.get(account.userId) }, body: JSON.stringify(body)
+    }), useEnv, context.store);
+    // Linked, with no refresh token kept (the exchange at link time is not what is under test).
+    globalThis.fetch = async () => new Response("{}", { status: 400 });
+    assert.equal((await send("/account/apple/link", { identityToken: await token(), authorizationCode: "code-at-link" }, signInEnv)).status, 200);
+    globalThis.fetch = async (url) => {
+      seen.push(String(url));
+      if (String(url).endsWith("/auth/token")) return new Response(JSON.stringify({ refresh_token: "refresh-mm", id_token: idTokenFor(exchangeFor) }), { status: 200 });
+      return new Response("{}", { status: 200 });
+    };
+    // Another person's Apple ID: refused, nothing revoked, the account is still there.
+    exchangeFor = "apple-person-2";
+    seen.length = 0;
+    const wrong = await send("/account/delete", { confirm: "delete", authorizationCode: "someone-elses-code" }, signInEnv);
+    assert.deepEqual([wrong.status, (await wrong.json()).error], [409, "apple_account_mismatch"]);
+    assert.equal(seen.some((url) => url.endsWith("/auth/revoke")), false);
+    assert.ok(await context.store.user(account.userId));
+    // The account's own Apple ID: revoked and deleted.
+    exchangeFor = "apple-person-1";
+    const right = await send("/account/delete", { confirm: "delete", authorizationCode: "own-code" }, signInEnv);
+    assert.equal(right.status, 200);
+    assert.equal(seen.some((url) => url.endsWith("/auth/revoke")), true);
+    assert.equal(await context.store.user(account.userId), null);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

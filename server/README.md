@@ -2,6 +2,16 @@
 
 This Cloudflare Workers + D1 server implements purchases, event teams, cloud saves, account deletion, and moderation. The app defaults to the public Worker URL. Its health, privacy and legal routes answered HTTP 200 on 2026-10-12; this does not verify the deployed revision, database migrations, secrets, or Apple integration. No private credentials should be committed. The configured Apple root certificate is public trust material.
 
+## Deleting an account the app could not delete
+
+If a player gives the number the app showed after a deletion ("一部を削除できませんでした"), it is a `users.id`. After checking who is asking, remove it by hand; the foreign keys remove the rest:
+
+```bash
+npx wrangler d1 execute mobidou --remote --command "DELETE FROM users WHERE id = '<the number>'"
+```
+
+An account linked to an Apple ID must first have its authorization revoked (the app does this at deletion; for a hand deletion, revoke the stored refresh token of `apple_links` through Apple's revoke endpoint).
+
 ## Local setup
 
 From `server/`:

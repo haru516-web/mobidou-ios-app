@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { WashiInput } from './WashiInput';
 import { BRUSH, Button, C, Icon, SERIF, Section } from '../components';
 import { getPilgrimage } from '../data/pilgrimages';
 import { getPetCharacter, type PetId } from '../petCatalog';
 import { WashiArt } from './Washi';
 import { appleMessages, type AppleOutcome } from '../services/appleOutcome';
-import { DELETE_CONFIRMATION_WORD, type DeletionResult } from '../services/accountDeletion';
+import { DELETE_CONFIRMATION_WORD, leftBehindAccounts, type DeletionResult } from '../services/accountDeletion';
+import { readServerAccount } from '../services/server';
 
 export type AccountPage = 'welcome' | 'manage' | 'login' | 'transfer' | 'delete';
 export type AccountTransferSummary = {
@@ -74,6 +75,10 @@ export function AccountCenter({
   const [deleteMessage, setDeleteMessage] = useState('');
   /** The deletion was refused because this device's key is not accepted: signing in with Apple again gets it back. */
   const [deleteCanReauth, setDeleteCanReauth] = useState(false);
+  /** The account this deletion was started for: a sign-in that brings back another one does not carry the confirmation over. */
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  /** Numbers of older accounts that could not be deleted (shown to be given to support). */
+  const [leftBehind, setLeftBehind] = useState<readonly string[] | null>(null);
   const [appleBusy, setAppleBusy] = useState(false);
   const [appleMessage, setAppleMessage] = useState('');
   const [recordRestored, setRecordRestored] = useState(false);
@@ -186,18 +191,27 @@ export function AccountCenter({
     const deleteNow = async () => {
       setDeleteBusy(true);
       setDeleteMessage('');
+      const target = (await readServerAccount())?.userId ?? null;
+      setDeleteTarget(target);
       const result = await onDeleteAccount();
       setDeleteBusy(false);
       setDeleteCanReauth(result === 'signed_out' || result === 'apple_needed');
       if (result === 'deleted') onAccountDeleted();
-      else if (result === 'partly') {
-        // The account in use is deleted; an older one the device no longer holds the key to is not: say so, then finish.
-        const message = '現在のアカウントと、この端末の記録を削除しました。以前のアカウントは、この端末の鍵が使えず、削除できませんでした。Apple IDでつないでいた場合は、新しい端末や再インストール後に「Appleでサインイン」で引き継いだうえで、もう一度削除するか、サポートまでご連絡ください。';
-        if (Platform.OS === 'web') onAccountDeleted();
-        else Alert.alert('削除しました', message, [{ text: 'OK', onPress: onAccountDeleted }]);
-      }
-      else setDeleteMessage(result === 'signed_out' ? 'この端末の認証が切れています。別の端末でサインインした場合は、この端末でも「Appleでサインイン」をしてから、もう一度お試しください。削除は、まだ行われていません。解決しない場合は、サポートまでご連絡ください。' : result === 'apple_needed' ? 'Appleでのサインインが必要です。Apple IDとのつながりを解除するため、もう一度「Appleでサインイン」を確認してください。削除は、まだ行われていません。' : result === 'offline' ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。削除は、まだ行われていません。' : '削除できませんでした。しばらくしてから、もう一度お試しください。削除は、まだ行われていません。');
+      else if (result === 'partly') setLeftBehind(leftBehindAccounts());
+      else setDeleteMessage(result === 'apple_mismatch' ? 'このアカウントにつないでいるApple IDとは、別のApple IDでサインインされました。つないでいるApple IDで、もう一度お試しください。削除は、まだ行われていません。' : result === 'signed_out' ? 'この端末の認証が切れています。別の端末でサインインした場合は、この端末でも「Appleでサインイン」をしてから、もう一度お試しください。削除は、まだ行われていません。解決しない場合は、サポートまでご連絡ください。' : result === 'apple_needed' ? 'Appleでのサインインが必要です。Apple IDとのつながりを解除するため、もう一度「Appleでサインイン」を確認してください。削除は、まだ行われていません。' : result === 'offline' ? 'サーバーにつながりませんでした。電波のよいところで、もう一度お試しください。削除は、まだ行われていません。' : '削除できませんでした。しばらくしてから、もう一度お試しください。削除は、まだ行われていません。');
     };
+    // The account in use is deleted, but an older one the device holds no accepted key for could not be: say so, with its number.
+    if (leftBehind) return <AccountBody>
+      <View style={S.statusCard}>
+        <WashiArt />
+        <View style={S.statusIcon}><Icon name="alert-circle-outline" size={22} color={C.red} /></View>
+        <Text style={S.statusTitle}>一部を削除できませんでした</Text>
+        <Text style={S.body}>現在のアカウントのサーバーのデータは、削除しました。{'\n'}以前のアカウントは、この端末に残っている鍵が使えず、削除できませんでした。次の番号を控えて、サポートまでご連絡ください。運営者が削除します。</Text>
+        {leftBehind.map(id => <Text key={id} selectable style={[S.body, { fontFamily: SERIF }]}>{id}</Text>)}
+        <Text style={S.small}>Apple IDでつないでいた場合は、再インストールして「Appleでサインイン」で引き継ぎ、もう一度削除することもできます。この端末の記録を消すと、この画面には戻れません。</Text>
+      </View>
+      <Button title="この端末の記録を消して終わる" onPress={onAccountDeleted} style={S.primary} />
+    </AccountBody>;
     return <AccountBody>
       <View style={S.statusCard}>
         <WashiArt />
@@ -223,8 +237,15 @@ export function AccountCenter({
         setAppleBusy(true);
         const outcome = await onAppleRestore();
         setAppleBusy(false);
-        setDeleteMessage(outcome.ok ? 'サインインし直しました。もう一度、削除を行ってください。' : appleMessages[outcome.reason]);
-        if (outcome.ok) setDeleteCanReauth(false);
+        if (!outcome.ok) { setDeleteMessage(appleMessages[outcome.reason]); return; }
+        setDeleteCanReauth(false);
+        const now = (await readServerAccount())?.userId ?? null;
+        if (deleteTarget && now !== deleteTarget) {
+          // Another account came back: that is not the one that was being deleted, so the confirmation is asked again from the start.
+          setDeleteStep(1);
+          setDeleteWord('');
+          setDeleteMessage('削除しようとしていたものとは、別のアカウントに切り替わりました。削除する場合は、内容を確認して、最初からやり直してください。');
+        } else setDeleteMessage('サインインし直しました。もう一度、削除を行ってください。');
       }} style={S.secondaryButton} />}
       {deleteStep < 3
         ? <Button title={deleteStep === 1 ? '削除に進む' : '削除を続ける'} icon="arrow-forward" disabled={deleteBusy} onPress={() => setDeleteStep(deleteStep + 1)} style={S.dangerButton} />

@@ -1,4 +1,4 @@
-import { readLostAccounts, readServerAccount, removeLostAccounts, request, type ServerAccount } from './server.ts';
+import { markAccountLost, readLostAccounts, readServerAccount, removeLostAccounts, request, type ServerAccount } from './server.ts';
 
 /*
  * Deleting the account.
@@ -9,18 +9,26 @@ import { readLostAccounts, readServerAccount, removeLostAccounts, request, type 
  *
  * Deletion uses the keys the device holds and never goes through a call that drops an account on a 401: an account
  * the server stopped accepting is kept as "lost" until deletion has been tried for it, so another call's 401, or a
- * new anonymous account made in between, cannot turn "not accepted" into "deleted".
+ * new anonymous account made in between, cannot turn "not accepted" into "deleted". Each account that is deleted is
+ * struck off at once, so a retry after a failure does not ask the server about it again.
  *
  * A lost account whose key the server still refuses cannot be deleted from this device (the key is the only proof
  * there is). It does not block the account the player is using now: that one is deleted, and the result says that
- * an older account was left ('partly'), so the player is told rather than shown a plain success.
+ * an older account was left ('partly'); its number is kept for the screen to show, so the player can quote it to support.
  */
 
 /** The word the player types at the last step. */
 export const DELETE_CONFIRMATION_WORD = '削除';
 
-/** 'partly': the current account was deleted, but an older one could not be (its key is no longer accepted). */
-export type DeletionResult = 'deleted' | 'partly' | 'offline' | 'failed' | 'apple_needed' | 'signed_out';
+/**
+ * 'partly': the current account was deleted, but an older one could not be (its key is no longer accepted).
+ * 'apple_mismatch': the Apple ID signed in with is not the one this account is linked to.
+ */
+export type DeletionResult = 'deleted' | 'partly' | 'offline' | 'failed' | 'apple_needed' | 'apple_mismatch' | 'signed_out';
+
+/** The numbers of the accounts the last deletion could not reach, for the player to give to support. */
+let leftBehind: string[] = [];
+export const leftBehindAccounts = (): readonly string[] => leftBehind;
 
 async function deleteWith(account: ServerAccount): Promise<DeletionResult> {
   let reply = await request('/account/delete', { body: { confirm: 'delete' }, account });
@@ -33,6 +41,7 @@ async function deleteWith(account: ServerAccount): Promise<DeletionResult> {
     reply = await request('/account/delete', { body: { confirm: 'delete', authorizationCode }, account });
   }
   if (!reply) return 'offline';
+  if (reply.status === 409 && reply.data?.error === 'apple_account_mismatch') return 'apple_mismatch';
   // 401 only says this device's key is not accepted (another device signed in with Apple and took the account over,
   // or the account is gone): it is not a deletion.
   if (reply.status === 401) return 'signed_out';
@@ -41,22 +50,27 @@ async function deleteWith(account: ServerAccount): Promise<DeletionResult> {
 }
 
 export async function deleteServerAccount(): Promise<DeletionResult> {
-  const done: string[] = [];
-  const given_up: string[] = [];
+  leftBehind = [];
+  const givenUp: string[] = [];
   for (const lost of await readLostAccounts()) {
     const result = await deleteWith(lost);
-    if (result === 'deleted') done.push(lost.userId);
-    else if (result === 'signed_out') given_up.push(lost.userId);
+    if (result === 'deleted') await removeLostAccounts([lost.userId]);
+    else if (result === 'signed_out') givenUp.push(lost.userId);
     else return result;
   }
   const account = await readServerAccount();
   if (account) {
     const result = await deleteWith(account);
+    if (result === 'signed_out') {
+      // Not accepted: it is kept as lost (so a sign-in with another Apple ID cannot swap what is being deleted).
+      await markAccountLost(account);
+      return result;
+    }
     if (result !== 'deleted') return result;
   }
-  // Everything that could be reached is deleted: the losses are settled (the refused ones are reported, not kept forever).
-  await removeLostAccounts([...done, ...given_up]);
-  return given_up.length > 0 ? 'partly' : 'deleted';
+  await removeLostAccounts(givenUp);
+  leftBehind = givenUp;
+  return givenUp.length > 0 ? 'partly' : 'deleted';
 }
 
 /** Every key this app keeps on the device. */

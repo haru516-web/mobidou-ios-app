@@ -49,6 +49,11 @@ export class D1Store implements Store {
     return "linked";
   }
 
+  async appleSubOf(userId: string): Promise<string | null> {
+    const row = await this.db.prepare("SELECT apple_sub FROM apple_links WHERE user_id = ?").bind(userId).first<{ apple_sub: string }>();
+    return row?.apple_sub ?? null;
+  }
+
   async appleRefreshToken(userId: string): Promise<string | null> {
     const row = await this.db.prepare("SELECT refresh_token FROM apple_links WHERE user_id = ?").bind(userId).first<{ refresh_token: string | null }>();
     return row?.refresh_token ?? null;

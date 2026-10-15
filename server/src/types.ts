@@ -169,6 +169,8 @@ export interface Store {
   linkApple(userId: string, appleSub: string): Promise<AppleLinkResult>;
   userByApple(appleSub: string): Promise<string | null>;
   appleLinked(userId: string): Promise<boolean>;
+  /** The Apple ID (its stable `sub`) this account is linked to, or null. */
+  appleSubOf(userId: string): Promise<string | null>;
   /** Replace the account's secret, so a sign-in on a new device takes over. */
   rotateSecret(userId: string, secretHash: string): Promise<void>;
   /** Name and main Mobby shown to friends. */

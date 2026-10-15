@@ -2,7 +2,7 @@ import { GACHA_PET_IDS, validateGachaPetIds } from "./config/gacha.ts";
 import { isFreePullRoute } from "./config/freePullRoutes.ts";
 import { createExpoNotifier, noNotify, type Notify } from "./push.ts";
 import { isNameAllowed } from "./config/ngWords.ts";
-import { appleRevocationConfigured, equalSecretHash, exchangeAppleAuthorizationCode, hashSecret, randomToken, revokeAppleToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
+import { appleRevocationConfigured, equalSecretHash, exchangeAppleAuthorizationCode, exchangeAppleAuthorizationCodeFull, hashSecret, randomToken, revokeAppleToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
 import { documentPageHtml, privacyPageHtml } from "./privacyPolicy.ts";
 import { SUPPORT_MARKDOWN, SUPPORT_TITLE } from "./supportPage.ts";
@@ -409,7 +409,12 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       if (!appleRevocationConfigured(env)) throw new HttpError(503, "apple_revocation_unavailable");
       let refreshToken = await store.appleRefreshToken(userId);
       if (!refreshToken && typeof input.authorizationCode === "string" && input.authorizationCode.length >= 8 && input.authorizationCode.length <= 2000) {
-        try { refreshToken = await exchangeAppleAuthorizationCode(input.authorizationCode, env, now.getTime()); } catch { refreshToken = null; }
+        let exchanged: { refreshToken: string; subject: string | null } | null = null;
+        try { exchanged = await exchangeAppleAuthorizationCodeFull(input.authorizationCode, env, now.getTime()); } catch { exchanged = null; }
+        // The authorization has to be this account's own Apple ID: another person's must not be revoked, nor this account deleted by it.
+        const linked = await store.appleSubOf(userId);
+        if (exchanged?.subject && linked && exchanged.subject !== linked) throw new HttpError(409, "apple_account_mismatch");
+        refreshToken = exchanged?.refreshToken ?? null;
       }
       if (!refreshToken) throw new HttpError(409, "apple_reauth_required");
       let revoked = false;

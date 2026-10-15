@@ -405,14 +405,30 @@ export const appleRevocationConfigured = (env: Pick<Env, "APPLE_TEAM_ID" | "APPL
 
 /** Trade the authorization code from the sign-in for a refresh token (null when Apple refuses it). */
 export async function exchangeAppleAuthorizationCode(code: string, env: Pick<Env, "APPLE_TEAM_ID" | "APPLE_SIGN_IN_KEY_ID" | "APPLE_SIGN_IN_PRIVATE_KEY" | "APPLE_BUNDLE_ID">, nowMs: number): Promise<string | null> {
+  return (await exchangeAppleAuthorizationCodeFull(code, env, nowMs))?.refreshToken ?? null;
+}
+
+/**
+ * The same, with the Apple ID the authorization belongs to (`sub` of the id_token Apple returns in the same answer; null when
+ * Apple sent none). Apple answers this call directly, so no signature check is needed on that token.
+ */
+export async function exchangeAppleAuthorizationCodeFull(code: string, env: Pick<Env, "APPLE_TEAM_ID" | "APPLE_SIGN_IN_KEY_ID" | "APPLE_SIGN_IN_PRIVATE_KEY" | "APPLE_BUNDLE_ID">, nowMs: number): Promise<{ refreshToken: string; subject: string | null } | null> {
   const response = await fetch("https://appleid.apple.com/auth/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ client_id: env.APPLE_BUNDLE_ID as string, client_secret: await appleClientSecret(env, nowMs), code, grant_type: "authorization_code" })
   });
   if (!response.ok) return null;
-  const data = await response.json().catch(() => null) as { refresh_token?: unknown } | null;
-  return typeof data?.refresh_token === "string" ? data.refresh_token : null;
+  const data = await response.json().catch(() => null) as { refresh_token?: unknown; id_token?: unknown } | null;
+  if (typeof data?.refresh_token !== "string") return null;
+  let subject: string | null = null;
+  if (typeof data.id_token === "string") {
+    try {
+      const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(data.id_token.split(".")[1] ?? ""))) as { sub?: unknown };
+      if (typeof payload.sub === "string" && payload.sub) subject = payload.sub;
+    } catch { subject = null; }
+  }
+  return { refreshToken: data.refresh_token, subject };
 }
 
 /** Tell Apple this app no longer has the account's authorization. True when Apple accepted it. */

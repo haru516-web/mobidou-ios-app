@@ -92,3 +92,46 @@ test("a late 401 for an old key does not undo a newer sign-in of the same accoun
     assert.deepEqual(await server.readLostAccounts(), []);
   });
 });
+
+test("progress is struck off at once: a lost account that was deleted is not asked about again after a later one failed", async () => {
+  await withServer(async ({ calls, refuse, imports: { server, deletion } }) => {
+    // Three lost accounts: A and C are accepted, B cannot be reached (the server is unavailable for it).
+    await server.adoptServerAccount({ userId: "lost-a", secret: "s" });
+    await server.markAccountLost({ userId: "lost-a", secret: "s" });
+    await server.adoptServerAccount({ userId: "lost-b", secret: "s" });
+    await server.markAccountLost({ userId: "lost-b", secret: "s" });
+    await server.adoptServerAccount({ userId: "lost-c", secret: "s" });
+    await server.markAccountLost({ userId: "lost-c", secret: "s" });
+    assert.deepEqual((await server.readLostAccounts()).map(row => row.userId), ["lost-a", "lost-b", "lost-c"]);
+    refuse.clear();
+    const originalFetch = globalThis.fetch;
+    let bFails = true;
+    globalThis.fetch = (async (url: string, init: { headers?: Record<string, string> }) => {
+      const user = (init.headers?.Authorization ?? "").replace("Bearer ", "").split(".")[0];
+      calls.push({ path: new URL(url).pathname, user });
+      if (user === "lost-b" && bFails) throw new Error("offline");
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    try {
+      assert.equal(await deletion.deleteServerAccount(), "offline");
+      assert.deepEqual((await server.readLostAccounts()).map(row => row.userId), ["lost-b", "lost-c"], "A was struck off at once");
+      bFails = false;
+      calls.length = 0;
+      assert.equal(await deletion.deleteServerAccount(), "deleted");
+      assert.deepEqual(calls.map(call => call.user), ["lost-b", "lost-c"], "A is not asked about again");
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test("a 401 on the account in use keeps it as lost, so another Apple ID signing in cannot swap what is being deleted", async () => {
+  await withServer(async ({ imports: { server, deletion } }) => {
+    await server.adoptServerAccount({ userId: "user-1", secret: "secret-1" });
+    assert.equal(await deletion.deleteServerAccount(), "signed_out");
+    assert.equal(await server.readServerAccount(), null);
+    assert.deepEqual((await server.readLostAccounts()).map(row => row.userId), ["user-1"]);
+    // Another Apple ID comes back: the first account is still the lost one, and deleting the new one reports that.
+    await server.adoptServerAccount({ userId: "someone-else", secret: "x" });
+    assert.equal(await deletion.deleteServerAccount(), "partly");
+    assert.deepEqual([...deletion.leftBehindAccounts()], ["user-1"]);
+  });
+});

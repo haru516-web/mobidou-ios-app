@@ -41,7 +41,7 @@ export function normalizeServerState(value: unknown): ServerState {
   }
   return {
     account,
-    lost: lost.slice(-5),
+    lost: lost.slice(-20),
     starterDone: source.starterDone === true,
     claimedRoutes: Array.isArray(source.claimedRoutes) ? [...new Set(source.claimedRoutes.filter((id): id is string => typeof id === 'string'))] : [],
   };
@@ -165,7 +165,18 @@ export function removeLostAccounts(userIds: readonly string[]): Promise<void> {
   });
 }
 const withLost = (lost: readonly ServerAccount[], account: ServerAccount): ServerAccount[] =>
-  [...lost.filter(known => known.userId !== account.userId), account].slice(-5);
+  [...lost.filter(known => known.userId !== account.userId), account].slice(-20);
+
+/** The account in use is not accepted: it is kept as lost (and the device has none for now), as a 401 on any call does. */
+export function markAccountLost(account: ServerAccount): Promise<void> {
+  return exclusive(async () => {
+    const state = await loadState();
+    if (state.account?.userId === account.userId && state.account.secret === account.secret) {
+      await saveState({ ...state, account: null, lost: withLost(state.lost, account) });
+      accountChanged();
+    }
+  });
+}
 
 let running: Promise<void> | null = null;
 let latest: MobbyCollection | null = null;

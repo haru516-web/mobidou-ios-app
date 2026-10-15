@@ -54,9 +54,9 @@ async function load(): Promise<NotificationSetting> {
   loaded = true;
   return current;
 }
-async function store(value: NotificationSetting): Promise<void> {
+async function store(value: NotificationSetting, bump = true): Promise<void> {
   current = value;
-  generation += 1;
+  if (bump) generation += 1;
   loaded = true;
   try { await AsyncStorage.setItem(ENABLED_KEY, value); } catch { /* it lasts until the app is closed */ }
   listeners.forEach(listener => listener());
@@ -168,9 +168,13 @@ export async function offerNotifications(): Promise<void> {
   if (!supported) return;
   const setting = await load();
   if (setting === 'off') return;
-  if (!(await permissionGranted(setting === 'unset'))) { if (setting === 'unset') await store('off'); return; }
-  if (setting === 'unset') await store('on');
-  await registerToken();
+  // This call is the latest decision until another one is made: if the player turns it off (or on again) while the
+  // phone's permission is being asked, that later decision stands and this one is dropped.
+  const requested = ++generation;
+  if (!(await permissionGranted(setting === 'unset'))) { if (setting === 'unset' && requested === generation) await store('off'); return; }
+  if (requested !== generation) return;
+  if (setting === 'unset') await store('on', false);
+  await registerToken(false, requested);
 }
 
 /** The settings switch. Turning it on asks for permission when needed. Returns the resulting setting. */
@@ -183,9 +187,12 @@ export async function setNotificationsEnabled(on: boolean): Promise<Notification
     await cancelByPrefix(ABSENCE_PREFIX);
     return 'off';
   }
-  if (!(await permissionGranted(true))) { await store('off'); return 'off'; }
-  await store('on');
-  await registerToken(true);
+  const requested = ++generation;
+  if (!(await permissionGranted(true))) { if (requested === generation) await store('off', false); return current; }
+  // A later decision (turned off while the permission was asked) stands.
+  if (requested !== generation) return current;
+  await store('on', false);
+  await registerToken(true, requested);
   return 'on';
 }
 
