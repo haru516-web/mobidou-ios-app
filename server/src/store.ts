@@ -617,8 +617,6 @@ export class D1Store implements Store {
       .bind(minute - 10, hour - 3, day - 2).run();
     removed += legacy.meta?.changes ?? 0;
     await this.db.batch([
-      this.db.prepare("DELETE FROM rate_limits WHERE expires_at IS NULL AND ((window >= 1000000 AND window < ?) OR (window >= 100000 AND window < 1000000 AND window < ?) OR (window < 100000 AND window < ?))")
-        .bind(minute - 10, hour - 3, day - 2),
       this.db.prepare("DELETE FROM gacha_ops WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString()),
       this.db.prepare("DELETE FROM push_sent WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString())
     ]);

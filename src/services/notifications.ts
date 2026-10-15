@@ -34,6 +34,8 @@ export type NotificationSetting = 'unset' | 'on' | 'off';
 const supported = Platform.OS === 'ios';
 const listeners = new Set<() => void>();
 let current: NotificationSetting = 'unset';
+/** Changes with every change of the setting: a registration asked for before a change is not carried out after it. */
+let generation = 0;
 let loaded = false;
 
 if (supported) {
@@ -54,6 +56,7 @@ async function load(): Promise<NotificationSetting> {
 }
 async function store(value: NotificationSetting): Promise<void> {
   current = value;
+  generation += 1;
   loaded = true;
   try { await AsyncStorage.setItem(ENABLED_KEY, value); } catch { /* it lasts until the app is closed */ }
   listeners.forEach(listener => listener());
@@ -91,13 +94,20 @@ function serial<T>(job: () => Promise<T>): Promise<T> {
 type PendingRemoval = { token: string; userId: string; generation: number };
 async function readPendingRemoval(): Promise<PendingRemoval | null> {
   try {
-    const parsed = JSON.parse((await AsyncStorage.getItem(REMOVE_KEY)) ?? 'null') as Partial<PendingRemoval> | null;
+    const raw = await AsyncStorage.getItem(REMOVE_KEY);
+    if (!raw) return null;
+    // Builds before this one kept the bare token: its owner is unknown (empty), so it is released by the device, not removed by an owner.
+    if (raw.startsWith('Expo')) return { token: raw, userId: '', generation: 0 };
+    const parsed = JSON.parse(raw) as Partial<PendingRemoval> | null;
     return parsed && typeof parsed.token === 'string' && typeof parsed.userId === 'string' ? { token: parsed.token, userId: parsed.userId, generation: Number(parsed.generation) || 0 } : null;
   } catch { return null; }
 }
 
 /** Tell the server which device to notify (only when the player is signed in to it). */
-async function registerTokenNow(force: boolean): Promise<boolean> {
+async function registerTokenNow(force: boolean, requested: number): Promise<boolean> {
+  // Asked for before the setting changed (turned off in between): not carried out.
+  const stillWanted = async () => requested === generation && (await load()) === 'on';
+  if (!(await stillWanted())) return false;
   const account = supported ? await readServerAccount() : null;
   if (!account) return false;
   try {
@@ -106,6 +116,8 @@ async function registerTokenNow(force: boolean): Promise<boolean> {
     const known = JSON.parse((await AsyncStorage.getItem(TOKEN_KEY)) ?? 'null') as { token?: string; userId?: string; at?: number } | null;
     // The cached answer is only good for the account it was made for: another account on this device registers again.
     if (!force && known?.token === token && known.userId === account.userId && typeof known.at === 'number' && Date.now() - known.at < TOKEN_REFRESH_MS) return true;
+    // The setting may have been turned off while the token was being fetched.
+    if (!(await stillWanted())) return false;
     // Sent with the account that was read above (never "whichever is current by now").
     const reply = await request('/push/token', { body: { token, team: true, friend: true }, account });
     if (reply?.status !== 200) return false;
@@ -116,7 +128,7 @@ async function registerTokenNow(force: boolean): Promise<boolean> {
     return true;
   } catch { return false; }
 }
-const registerToken = (force = false) => serial(() => registerTokenNow(force));
+const registerToken = (force = false, requested = generation) => serial(() => registerTokenNow(force, requested));
 
 /** Send a removal that has not been accepted yet. It is forgotten only when the server says it dropped it, for the account it belongs to. */
 async function retryPendingRemovalNow(): Promise<void> {
@@ -124,9 +136,11 @@ async function retryPendingRemovalNow(): Promise<void> {
     const waiting = await readPendingRemoval();
     if (!waiting) return;
     const account = await readServerAccount();
-    // Another account is on the device: the removal waits for its own account (or for the token to be taken over).
-    if (!account || account.userId !== waiting.userId) return;
-    const reply = await request('/push/token/remove', { body: { token: waiting.token }, account });
+    if (!account) return;
+    // The account it belongs to is the one on the device: removed by it. Another account is on the device now (or the owner is
+    // unknown): the device lets the token go with whichever account it has, the token being the proof that it holds it.
+    const owner = account.userId === waiting.userId;
+    const reply = await request(owner ? '/push/token/remove' : '/push/token/release', { body: { token: waiting.token }, account });
     if (reply?.status !== 200) return;
     const now = await readPendingRemoval();
     if (now && now.token === waiting.token && now.userId === waiting.userId && now.generation === waiting.generation) await AsyncStorage.removeItem(REMOVE_KEY);
@@ -179,10 +193,11 @@ export async function setNotificationsEnabled(on: boolean): Promise<Notification
 export async function refreshRegistration(): Promise<void> {
   if (!supported) return;
   // Notifications were turned off while the server could not be reached: finish dropping the token first.
+  const requested = generation;
   await retryPendingRemoval();
   if ((await load()) !== 'on') return;
   if (!(await permissionGranted(false))) return;
-  await registerToken();
+  await registerToken(false, requested);
 }
 
 async function cancelByPrefix(prefix: string): Promise<void> {

@@ -1566,6 +1566,19 @@ test("a join request is not accepted after its sender was blocked, and a blocked
   assert.equal(hidden.team.members.length, 2);
 });
 
+test("a device token can be released by the device that holds it, from another account, and only with a valid token", async () => {
+  const context = createContext();
+  const a = await register(context);
+  const b = await register(context);
+  const token = "ExponentPushToken[releasereleaserelease]";
+  await call(context, "POST", "/push/token", { token }, a.userId);
+  assert.equal(context.store.pushRows.get(token).userId, a.userId);
+  assert.equal((await call(context, "POST", "/push/token/release", { token: "nope" }, b.userId)).status, 400);
+  assert.equal((await call(context, "POST", "/push/token/release", { token })).status, 401);
+  assert.equal((await call(context, "POST", "/push/token/release", { token }, b.userId)).status, 200);
+  assert.equal(context.store.pushRows.has(token), false);
+});
+
 test("a device token is kept for the signed-in player, checked, and can be taken away", async () => {
   const context = createContext();
   const account = await register(context);

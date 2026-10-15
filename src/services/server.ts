@@ -20,22 +20,28 @@ const TIMEOUT_MS = 8000;
 export type ServerAccount = { userId: string; secret: string };
 export type ServerState = {
   account: ServerAccount | null;
-  /** An account the server stopped accepting. Kept so that deleting the account still reaches it (it is not forgotten by another call's 401). */
-  lost: ServerAccount | null;
+  /** Accounts the server stopped accepting. Kept so that deleting the account still reaches them (another call's 401 does not forget them). */
+  lost: ServerAccount[];
   starterDone: boolean;
   claimedRoutes: string[];
 };
 export type ServerOp = { type: 'starter'; petId: string } | { type: 'claim'; routeId: string };
 
-export const emptyServerState = (): ServerState => ({ account: null, lost: null, starterDone: false, claimedRoutes: [] });
+export const emptyServerState = (): ServerState => ({ account: null, lost: [], starterDone: false, claimedRoutes: [] });
 
 export function normalizeServerState(value: unknown): ServerState {
   const source = value && typeof value === 'object' ? value as Partial<ServerState> : {};
   const account = source.account && typeof source.account.userId === 'string' && typeof source.account.secret === 'string' ? { userId: source.account.userId, secret: source.account.secret } : null;
-  const lost = source.lost && typeof source.lost.userId === 'string' && typeof source.lost.secret === 'string' ? { userId: source.lost.userId, secret: source.lost.secret } : null;
+  // Older builds kept one lost account as an object; it is read as a list of one.
+  const rawLost: unknown[] = Array.isArray(source.lost) ? source.lost : source.lost ? [source.lost] : [];
+  const lost: ServerAccount[] = [];
+  for (const entry of rawLost) {
+    const row = entry as Partial<ServerAccount> | null;
+    if (row && typeof row.userId === 'string' && typeof row.secret === 'string' && !lost.some(known => known.userId === row.userId)) lost.push({ userId: row.userId, secret: row.secret });
+  }
   return {
     account,
-    lost,
+    lost: lost.slice(-5),
     starterDone: source.starterDone === true,
     claimedRoutes: Array.isArray(source.claimedRoutes) ? [...new Set(source.claimedRoutes.filter((id): id is string => typeof id === 'string'))] : [],
   };
@@ -121,7 +127,11 @@ export async function authedRequest(path: string, init: { method?: string; body?
   if (result?.status === 401 && !keepAccountOn401) await exclusive(async () => {
     const state = await loadState();
     // The account is dropped so the next call registers again, but it is remembered as lost until it has been dealt with.
-    if (state.account?.userId === account.userId) { await saveState({ ...state, account: null, lost: state.lost ?? account }); accountChanged(); }
+    // Only when it is still the very account (and key) this call was made with: a late 401 for an old key does not undo a newer sign-in.
+    if (state.account?.userId === account.userId && state.account.secret === account.secret) {
+      await saveState({ ...state, account: null, lost: withLost(state.lost, account) });
+      accountChanged();
+    }
   });
   return result;
 }
@@ -136,16 +146,26 @@ export async function readServerAccount(): Promise<ServerAccount | null> {
  * reported again on the next sync, which the server treats as already done.
  */
 export function adoptServerAccount(account: ServerAccount): Promise<void> {
-  return exclusive(async () => { await saveState({ ...emptyServerState(), account }); accountChanged(); });
+  return exclusive(async () => {
+    const before = await loadState();
+    // The same account signing in again resolves its own loss; another account's loss stays until it has been dealt with.
+    await saveState({ ...emptyServerState(), account, lost: before.lost.filter(known => known.userId !== account.userId) });
+    accountChanged();
+  });
 }
 
-/** An account the server stopped accepting and that has not been deleted yet. */
-export async function readLostAccount(): Promise<ServerAccount | null> {
+/** Accounts the server stopped accepting that have not been deleted yet. */
+export async function readLostAccounts(): Promise<ServerAccount[]> {
   return exclusive(async () => (await loadState()).lost);
 }
-export function clearLostAccount(): Promise<void> {
-  return exclusive(async () => { const state = await loadState(); if (state.lost) await saveState({ ...state, lost: null }); });
+export function removeLostAccounts(userIds: readonly string[]): Promise<void> {
+  return exclusive(async () => {
+    const state = await loadState();
+    if (state.lost.some(known => userIds.includes(known.userId))) await saveState({ ...state, lost: state.lost.filter(known => !userIds.includes(known.userId)) });
+  });
 }
+const withLost = (lost: readonly ServerAccount[], account: ServerAccount): ServerAccount[] =>
+  [...lost.filter(known => known.userId !== account.userId), account].slice(-5);
 
 let running: Promise<void> | null = null;
 let latest: MobbyCollection | null = null;
@@ -171,7 +191,7 @@ async function runOnce(mobbies: MobbyCollection) {
       : await request('/free-pulls/claim', { body: { routeId: op.routeId }, account: state.account });
     if (!result) return;
     // The server no longer knows this account (for example a reset database): register again next time.
-    if (result.status === 401) { await saveState({ ...state, account: null, lost: state.lost ?? state.account }); accountChanged(); return; }
+    if (result.status === 401) { await saveState({ ...state, account: null, lost: state.account ? withLost(state.lost, state.account) : state.lost }); accountChanged(); return; }
     // Accepted, already known (409), or refused as invalid (400): none of these will change on a retry.
     const settled = result.status === 200 || result.status === 201 || result.status === 409 || result.status === 400;
     if (!settled) return;

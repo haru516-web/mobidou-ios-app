@@ -1018,14 +1018,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   useEffect(() => {
     if (!pendingTap) return;
     const busy = !journey.ready || data.demo || !data.onboarded || firstRunStage !== null || !openingHomeReady || openingVisible || onboardingPreview
-      || !!settings || !!detail || !!homePopup || omikujiModal || gachaOpen || eventGachaOpen || eventSettling || !!socialSheet || !!eventSheet || eventPopupOpen
+      || !!settings || !!detail || !!homePopup || omikujiModal || gachaOpen || eventGachaOpen || eventSettling || bookIndexOpen || !!socialSheet || !!eventSheet || eventPopupOpen
       || !!arrivalSummary || awardVisible || eventAwardVisible || routeAdvanceVisible || weeklyOpen || accountEntryVisible || !!tour || !!tourRequest;
     if (busy) return;
     if (pendingTap === 'friend') setSocialSheet('friends');
     else if (pendingTap === 'omikuji') setOmikujiModal(true);
     else setEventSheet('main');
     setPendingTap(null);
-  }, [pendingTap, journey.ready, data.demo, data.onboarded, firstRunStage, openingHomeReady, openingVisible, onboardingPreview, settings, detail, homePopup, omikujiModal, gachaOpen, eventGachaOpen, eventSettling, socialSheet, eventSheet, eventPopupOpen, arrivalSummary, awardVisible, eventAwardVisible, routeAdvanceVisible, weeklyOpen, accountEntryVisible, tour, tourRequest]);
+  }, [pendingTap, journey.ready, data.demo, data.onboarded, firstRunStage, openingHomeReady, openingVisible, onboardingPreview, settings, detail, homePopup, omikujiModal, gachaOpen, eventGachaOpen, eventSettling, bookIndexOpen, socialSheet, eventSheet, eventPopupOpen, arrivalSummary, awardVisible, eventAwardVisible, routeAdvanceVisible, weeklyOpen, accountEntryVisible, tour, tourRequest]);
   const profileGuideChecked = useRef(false);
   useEffect(() => {
     if (!SOCIAL_ONLINE || profileGuideChecked.current) return undefined;

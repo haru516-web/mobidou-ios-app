@@ -362,6 +362,16 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     await store.savePushToken(userId, token, { team: input.team !== false, friend: input.friend !== false });
     return json({ status: "registered" });
   }
+  // The device that holds a token can let it go whichever account it was registered for (the account on the device may
+  // have changed): the token is the proof, as it is the only way to be sent a notification at all.
+  if (method === "POST" && path === "/push/token/release") {
+    await limit(store, "push-token", userId, 3_600_000, 30, now);
+    const input = await body(request);
+    const token = requireString(input.token, "invalid_push_token", 300);
+    if (!PUSH_TOKEN.test(token)) throw new HttpError(400, "invalid_push_token");
+    await store.removePushToken(token);
+    return json({ status: "released" });
+  }
   if (method === "POST" && path === "/push/token/remove") {
     await limit(store, "push-token", userId, 3_600_000, 30, now);
     const input = await body(request);
