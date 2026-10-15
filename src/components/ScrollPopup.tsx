@@ -25,6 +25,8 @@ type ScrollPopupProps = {
   title: string;
   subtitle?: string;
   onClose: () => void;
+  /** No close button, and a tap outside the scroll does not close it: the content has its own way on (a guide step). */
+  hideClose?: boolean;
   onShow?: () => void;
   /** `wide` is a tall, full-width scroll for busy content; it draws no heading or close button of its own. */
   variant?: 'narrow' | 'wide';
@@ -38,7 +40,7 @@ type ScrollPopupProps = {
  * table of contents, the collection's lists and the route picker. Children
  * draw on the paper.
  */
-export function ScrollPopup({ visible, title, subtitle, onClose, onShow, variant = 'narrow', event = false, children }: ScrollPopupProps) {
+export function ScrollPopup({ visible, title, subtitle, onClose, hideClose = false, onShow, variant = 'narrow', event = false, children }: ScrollPopupProps) {
   React.useEffect(() => { if (visible) playSfx('sfx_scroll_open'); }, [visible]);
   const { width, height } = useWindowDimensions();
   if (variant === 'wide') return <WideScroll visible={visible} title={title} onClose={onClose} onShow={onShow} width={width} height={height}>{children}</WideScroll>;
@@ -50,20 +52,20 @@ export function ScrollPopup({ visible, title, subtitle, onClose, onShow, variant
   const paperHeight = scrollHeight * .745;
   // Room for the heading above the content and the close button below it.
   const headingHeight = subtitle ? 62 : 42;
-  const closeHeight = 48;
+  const closeHeight = hideClose ? 0 : 48;
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} onShow={onShow}>
     <View style={S.scrim}>
-      <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel={`${title}を閉じる`} onPress={() => { playSfx('sfx_close'); onClose(); }} style={StyleSheet.absoluteFill} />
+      {!hideClose && <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel={`${title}を閉じる`} onPress={() => { playSfx('sfx_close'); onClose(); }} style={StyleSheet.absoluteFill} />}
       <View accessibilityViewIsModal style={{ width: scrollWidth, height: scrollHeight, overflow: 'hidden' }}>
         <Image accessible={false} source={event ? EVENT_FEEL.scroll : SCROLL_ART} contentFit="fill" pointerEvents="none" style={{ position: 'absolute', left: -SCROLL_LEFT * artWidth, top: 0, width: artWidth, height: artHeight }} />
         <View style={[S.content, { left: scrollWidth * .12, right: scrollWidth * .12, top: scrollHeight * .165, height: paperHeight }]}>
           <Text accessibilityRole="header" style={S.title}>{title}</Text>
           {!!subtitle && <Text numberOfLines={1} style={S.subtitle}>{subtitle}</Text>}
           <View style={{ flex: 1, minHeight: 0 }}>{children({ width: paperWidth, height: paperHeight - headingHeight - closeHeight })}</View>
-          <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => { playSfx('sfx_close'); onClose(); }} style={S.close}>
+          {!hideClose && <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => { playSfx('sfx_close'); onClose(); }} style={S.close}>
             <Text style={S.closeText}>とじる</Text>
             <Image accessible={false} source={UNDERLINE_BRUSH} contentFit="fill" style={S.closeLine} />
-          </Pressable>
+          </Pressable>}
         </View>
       </View>
     </View>

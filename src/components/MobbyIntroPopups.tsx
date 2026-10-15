@@ -37,12 +37,12 @@ export function CharacterIntroPopup({ visible, onNext }: { visible: boolean; onN
   const [page, setPage] = useState(0);
   useEffect(() => { if (visible) setPage(0); }, [visible]);
   const pages = [PET_CHARACTERS.slice(0, FIRST_PAGE), PET_CHARACTERS.slice(FIRST_PAGE)];
-  return <ScrollPopup visible={visible} title="出会えるモビーたち" onClose={onNext}>
+  return <ScrollPopup visible={visible} title="出会えるモビーたち" hideClose onClose={onNext}>
     {paper => <View style={S.body}>
       <Text style={S.lead}>もび道には、こんなモビーたちがいます。</Text>
       {/* Both pages are mounted so the second one's pictures are ready when it is turned to. */}
       {pages.map((pets, index) => <View key={index} style={index === page ? undefined : S.hidden}><Grid pets={pets} columns={3} paper={paper} reserved={96} /></View>)}
-      <Text style={S.note}>{page === 0 ? `1 / 2　（全${PET_CHARACTERS.length}人）` : `2 / 2　イベント限定のモビーもいます。`}</Text>
+      <Text style={S.note}>{page === 0 ? `1 / 2　（全${PET_CHARACTERS.length}体）` : `2 / 2　イベント限定のモビーもいます。`}</Text>
       {page === 0
         ? <Button title="つづきを見る" onPress={() => setPage(1)} />
         : <Button title="次へ" onPress={onNext} />}
