@@ -8,7 +8,7 @@ import { connectSteps, readMissedDays, readTodaySteps, type StepSource } from '.
 import { EVENT_PET_CHARACTERS, isPetId, PET_CHARACTERS, type PetId } from '../petCatalog';
 import { acknowledgePulls, applyServerOps, chooseStarter, emptyMobbyCollection, grantFreePullForClear, grantTickets, hasStarter, normalizeMobbyCollection, ownsMobby, pullOnce, setPaidTickets, type MobbyCollection, type PullResult } from './gacha';
 import { defaultBackgroundId, isBackgroundId, type BackgroundId } from '../data/backgrounds';
-import { claimWeeklyPass, emptySpecialCollection, finishArrival, grantPass, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
+import { claimWeeklyPass, emptySpecialCollection, finishArrival, grantPass, skipArrivals, type SkippedArrival, isKeychainPlan, normalizeSpecialCollection, redeemKeychainTicket, rollKeychainOnArrival, type KeychainPlan, type PassKind, type SpecialCollection } from './specialRewards';
 import { DEFAULT_HOME_WIDGET_ITEMS, DEFAULT_HOME_WIDGET_ORDER, normalizeHomeWidgetItems, normalizeHomeWidgetOrder, type HomeWidgetItems, type HomeWidgetOrder } from './homePreferences';
 import { localOmikujiDay } from '../data/omikuji';
 import { creditEventTickets, emptyEventGacha, normalizeEventGacha, settleLegacyEventGacha, type EventGachaState } from './eventGacha';
@@ -484,6 +484,18 @@ export function useJourney() {
       const claimed = claimWeeklyPass(p[field], weekStartDay());
       return claimed === p[field] ? p : { ...p, [field]: claimed };
     }),
+    /**
+     * Skip the ceremonies of every waiting arrival at once: each shrine rolls its miniature as it would have, the waiting
+     * list is cleared, and what each one gave is returned. With `useTickets`, exchange tickets are spent on the misses.
+     */
+    skipAllArrivals: (shrineIds: readonly string[], useTickets: boolean): SkippedArrival[] => {
+      const state = current.current;
+      const field = state.demo ? 'trialSpecial' : 'realSpecial';
+      const book = state.demo ? 'trial' : 'real';
+      const { collection, results } = skipArrivals(state[field], shrineIds, state.keychainPlan, useTickets);
+      change(p => ({ ...p, [field]: collection, [book]: { ...p[book], pending: p[book].pending.filter(id => !shrineIds.includes(id)) } }));
+      return results;
+    },
     /** Roll the keychain for the arrival ceremony that just opened (once per ceremony). */
     rollKeychain: (shrineId: string) => change(p => {
       const field = p.demo ? 'trialSpecial' : 'realSpecial';

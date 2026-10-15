@@ -56,7 +56,7 @@ function Sprite({ source, metric, frame, size, onLoad }: { source: ImageSourcePr
   </View>;
 }
 
-export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route, stopIndex, special, goshuinOwned = false, event, onArrive, onRedeemKeychainTicket, onClose }: { event?: EventAwardInfo; shrine: { id: string; name: string; theme: string }; pet: PetCharacter; walkSource?: ImageSourcePropType; demo: boolean; haptics: boolean; route?: Pilgrimage; stopIndex: number; special: SpecialCollection; goshuinOwned?: boolean; onArrive: (shrineId: string) => void; onRedeemKeychainTicket: (shrineId: string) => void; onClose: () => void }) {
+export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route, stopIndex, special, goshuinOwned = false, event, onArrive, onRedeemKeychainTicket, onClose, remaining = 1, onSkipAll }: { event?: EventAwardInfo; shrine: { id: string; name: string; theme: string }; pet: PetCharacter; walkSource?: ImageSourcePropType; demo: boolean; haptics: boolean; route?: Pilgrimage; stopIndex: number; special: SpecialCollection; goshuinOwned?: boolean; onArrive: (shrineId: string) => void; onRedeemKeychainTicket: (shrineId: string) => void; onClose: () => void; /** How many ceremonies are waiting, this one included. */ remaining?: number; /** Skips every waiting ceremony at once and goes to the summary. */ onSkipAll?: () => void }) {
   // This is the core acquisition ceremony, so keep the authored sequence
   // visible even when the browser has prefers-reduced-motion enabled. Users
   // who want to leave early can use the explicit skip control below.
@@ -198,7 +198,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
         </View>}
       </View>
     </View>
-    {!showAward && <><View style={S.phaseTrack}>{PHASES.map(p => <View key={p.key} style={[S.phaseDot, { backgroundColor: phase.key === p.key ? '#D4B387' : '#685C49' }]} />)}</View><Button title="演出を省略して御朱印をみる" secondary onPress={() => setFrame(TOTAL_FRAMES)} style={S.skip} /></>}
+    {!showAward && <><View style={S.phaseTrack}>{PHASES.map(p => <View key={p.key} style={[S.phaseDot, { backgroundColor: phase.key === p.key ? '#D4B387' : '#685C49' }]} />)}</View><Button title="演出を省略して御朱印をみる" secondary onPress={() => setFrame(TOTAL_FRAMES)} style={S.skip} />{!event && !!onSkipAll && remaining > 1 && <Button title={`残りの${remaining}か所を、まとめて省略`} secondary onPress={onSkipAll} style={S.skip} />}</>}
     {showAward && page === 'goshuin' && <>
       <View style={S.rewardScene}>
         <AwardFx />
@@ -236,7 +236,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   </View></FitToHeight>
   {/* Outside the scaled area, so it keeps its size and stays tappable however tall the content is. */}
   {/* Always present, so the room left for the scaled content does not change when the button appears. */}
-  <View style={S.closeBar}>{showAward && <Button title={page === 'saying' || (page === 'miniature' && !saying) ? 'ホームへ' : page === 'miniature' || revealDone ? '次へ' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={page === 'saying' || (page === 'miniature' && !saying) ? onClose : page === 'miniature' ? () => setPage('saying') : () => setPage('miniature')} style={{ width: '100%', maxWidth: 350 }} />}</View>
+  <View style={S.closeBar}>{showAward && !event && !!onSkipAll && remaining > 1 && page !== 'saying' && <Button title={`残りの${remaining - 1}か所を、まとめて省略`} secondary onPress={onSkipAll} style={{ width: '100%', maxWidth: 350, marginBottom: 8 }} />}{showAward && <Button title={page === 'saying' || (page === 'miniature' && !saying) ? 'ホームへ' : page === 'miniature' || revealDone ? '次へ' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={page === 'saying' || (page === 'miniature' && !saying) ? onClose : page === 'miniature' ? () => setPage('saying') : () => setPage('miniature')} style={{ width: '100%', maxWidth: 350 }} />}</View>
   </SafeAreaView>;
 }
 const S = StyleSheet.create({

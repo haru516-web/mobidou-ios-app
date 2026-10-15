@@ -12,6 +12,7 @@ import {
   ownsKeychain,
   redeemKeychainTicket,
   rollKeychainOnArrival,
+  skipArrivals,
   weeklyPassAvailable,
 } from '../src/services/specialRewards.ts';
 
@@ -147,4 +148,33 @@ test('the weekly pass record survives a save and rejects a malformed value', () 
   assert.equal(normalizeSpecialCollection(saved).weeklyPassWeek, '2026-10-05');
   assert.equal(normalizeSpecialCollection({ ...saved, weeklyPassWeek: 'yesterday' }).weeklyPassWeek, null);
   assert.equal(normalizeSpecialCollection({ passes: { keychainDrop: 3 } }).weeklyPassWeek, null);
+});
+
+test('skipping every arrival at once rolls each shrine, keeps the one on screen, and leaves no arrival open', () => {
+  const two = (value: number) => () => value;
+  // The first shrine is already on screen (rolled: won); the others roll now.
+  const onScreen = rollKeychainOnArrival(emptySpecialCollection(), 'a', 'none', two(0));
+  const { collection, results } = skipArrivals(onScreen, ['a', 'b', 'c'], 'none', false, two(0.99));
+  assert.deepEqual(results, [{ shrineId: 'a', outcome: 'won' }, { shrineId: 'b', outcome: 'missed' }, { shrineId: 'c', outcome: 'missed' }]);
+  assert.equal(ownsKeychain(collection, 'a'), true);
+  assert.equal(ownsKeychain(collection, 'b'), false);
+  assert.equal(collection.arrival, null);
+});
+
+test('skipping can spend the exchange tickets on the misses, in order, or leave them', () => {
+  const withTickets = grantPass(emptySpecialCollection(), 'keychainDrop', 1);
+  const spent = skipArrivals(withTickets, ['a', 'b'], 'none', true, () => 0.99);
+  assert.deepEqual(spent.results.map(row => row.outcome), ['ticket', 'missed']);
+  assert.equal(ownsKeychain(spent.collection, 'a'), true);
+  assert.equal(spent.collection.passes.keychainDrop, 0);
+  const kept = skipArrivals(withTickets, ['a', 'b'], 'none', false, () => 0.99);
+  assert.deepEqual(kept.results.map(row => row.outcome), ['missed', 'missed']);
+  assert.equal(kept.collection.passes.keychainDrop, 1);
+});
+
+test('skipping gives the plus plan its keychain at every shrine, and an owned one is just owned', () => {
+  const owned = rollKeychainOnArrival(emptySpecialCollection(), 'a', 'plus', () => 0);
+  const done = finishArrival(owned);
+  const { results } = skipArrivals(done, ['a', 'b'], 'plus', false, () => 0.99);
+  assert.deepEqual(results.map(row => row.outcome), ['owned', 'won']);
 });

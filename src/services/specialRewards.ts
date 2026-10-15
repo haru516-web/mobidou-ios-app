@@ -138,3 +138,29 @@ export function claimWeeklyPass(collection: SpecialCollection, week: string): Sp
   if (!weeklyPassAvailable(collection, week)) return collection;
   return { ...grantPass(collection, 'keychainDrop', 1), weeklyPassWeek: week };
 }
+
+export type SkippedArrival = { shrineId: string; outcome: KeychainOutcome };
+
+/**
+ * Settles the arrival ceremonies that were skipped all at once, in order. Each shrine rolls exactly as it would in its own
+ * ceremony (the one already on screen has rolled, and keeps its result). With `useTickets`, an exchange ticket is spent on
+ * each miss while any are left, as the player would have done on the screen of that shrine; without it, none is spent.
+ * No arrival is left open afterwards.
+ */
+export function skipArrivals(
+  collection: SpecialCollection,
+  shrineIds: readonly string[],
+  plan: KeychainPlan = 'none',
+  useTickets = false,
+  random: () => number = Math.random,
+): { collection: SpecialCollection; results: SkippedArrival[] } {
+  let next = collection;
+  const results: SkippedArrival[] = [];
+  for (const shrineId of shrineIds) {
+    if (next.arrival?.shrineId !== shrineId) next = rollKeychainOnArrival({ ...next, arrival: null }, shrineId, plan, random);
+    if (useTickets && next.arrival?.outcome === 'missed') next = redeemKeychainTicket(next, shrineId);
+    results.push({ shrineId, outcome: next.arrival?.outcome ?? 'missed' });
+    next = finishArrival(next);
+  }
+  return { collection: next, results };
+}
