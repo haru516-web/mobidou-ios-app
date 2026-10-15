@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { authedRequest, readServerAccount } from './server';
-import { OMIKUJI_BODY, OMIKUJI_TITLE, omikujiTimes, REMINDER_BODY, REMINDER_TITLE, reminderTimes, type ReminderOptions } from './notificationPlan';
+import { ABSENCE_BODY, ABSENCE_TITLE, absenceTimes, OMIKUJI_BODY, OMIKUJI_TITLE, omikujiTimes, REMINDER_BODY, REMINDER_TITLE, reminderTimes, type ReminderOptions } from './notificationPlan';
 
 /*
  * Notifications.
@@ -23,6 +23,7 @@ const TOKEN_KEY = '@mobidou/notifications/token';
 const REMINDER_PREFIX = 'steps-reminder-';
 const OMIKUJI_KEY = '@mobidou/notifications/omikuji';
 const OMIKUJI_PREFIX = 'omikuji-reminder-';
+const ABSENCE_PREFIX = 'absence-reminder-';
 const TOKEN_REFRESH_MS = 7 * 86_400_000;
 
 /** 'unset' until the player has been asked; then on or off. */
@@ -120,6 +121,7 @@ export async function setNotificationsEnabled(on: boolean): Promise<Notification
     await store('off');
     await unregisterToken();
     await cancelReminders();
+    await cancelByPrefix(ABSENCE_PREFIX);
     return 'off';
   }
   if (!(await permissionGranted(true))) { await store('off'); return 'off'; }
@@ -163,12 +165,13 @@ export async function syncStepReminders(options: Omit<ReminderOptions, 'enabled'
 
 // ---- the daily omikuji reminder: its own switch, off until the player turns it on, on the phone only
 
-let omikujiOn = false;
+let omikujiOn = true;
 let omikujiLoaded = false;
 const omikujiListeners = new Set<() => void>();
 async function loadOmikuji(): Promise<boolean> {
   if (!omikujiLoaded) {
-    try { omikujiOn = (await AsyncStorage.getItem(OMIKUJI_KEY)) === 'on'; } catch { omikujiOn = false; }
+    // On unless the player has turned it off; it only reaches them once the phone's own permission is given.
+    try { omikujiOn = (await AsyncStorage.getItem(OMIKUJI_KEY)) !== 'off'; } catch { omikujiOn = true; }
     omikujiLoaded = true;
   }
   return omikujiOn;
@@ -208,6 +211,22 @@ export async function syncOmikujiReminders(options: { drawnToday: boolean }, now
       await Notifications.scheduleNotificationAsync({
         identifier: `${OMIKUJI_PREFIX}${at}`,
         content: { title: OMIKUJI_TITLE, body: OMIKUJI_BODY, data: { type: 'omikuji' } },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at) },
+      });
+    }
+  } catch { /* a reminder that cannot be set is not worth a message */ }
+}
+
+/** Plan the two "you have been away" reminders from now (day 5 and day 12), or none when notifications are off. */
+export async function syncAbsenceReminders(now = new Date()): Promise<void> {
+  if (!supported) return;
+  await cancelByPrefix(ABSENCE_PREFIX);
+  const enabled = (await load()) === 'on' && await permissionGranted(false);
+  try {
+    for (const at of absenceTimes(now, { enabled })) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: `${ABSENCE_PREFIX}${at}`,
+        content: { title: ABSENCE_TITLE, body: ABSENCE_BODY, data: { type: 'absence' } },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at) },
       });
     }

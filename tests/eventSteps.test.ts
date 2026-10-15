@@ -168,3 +168,13 @@ test('the daily omikuji reminder: 8:00 on the phone clock, two weeks ahead, not 
   assert.equal(omikujiTimes(new Date(2026, 9, 5, 9, 0), { enabled: true, drawnToday: false })[0], eight(6));
   assert.deepEqual(omikujiTimes(morning, { enabled: false, drawnToday: false }), []);
 });
+
+import { absenceTimes } from '../src/services/notificationPlan.ts';
+
+test('the away reminders: day 5 and day 12 after the app was last open, at 18:00 on the phone clock, none when off', () => {
+  const opened = new Date(2026, 9, 5, 21, 30);
+  assert.deepEqual(absenceTimes(opened, { enabled: true }), [new Date(2026, 9, 10, 18, 0).getTime(), new Date(2026, 9, 17, 18, 0).getTime()]);
+  assert.deepEqual(absenceTimes(opened, { enabled: false }), []);
+  // Month ends carry over.
+  assert.deepEqual(absenceTimes(new Date(2026, 9, 30, 9, 0), { enabled: true }), [new Date(2026, 10, 4, 18, 0).getTime(), new Date(2026, 10, 11, 18, 0).getTime()]);
+});

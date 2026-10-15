@@ -54,7 +54,7 @@ import './src/services/pendingDraws';
 import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
-import { onNotificationTap, refreshRegistration, syncOmikujiReminders, syncStepReminders, useNotificationSetting, useOmikujiReminder } from './src/services/notifications';
+import { offerNotifications, onNotificationTap, refreshRegistration, syncAbsenceReminders, syncOmikujiReminders, syncStepReminders, useNotificationSetting, useOmikujiReminder } from './src/services/notifications';
 import { enableBackgroundSteps, onStepsChangedInBackground } from './src/services/steps';
 import { eventProgress, teamSteps } from './src/services/eventTeam';
 import { devEventTeam, eventTeamApi, loadEventTeam, sendEventSteps, useEventAvailable, useEventTeam } from './src/services/eventTeamStore';
@@ -512,6 +512,22 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') plan(); });
     return () => subscription.remove();
   }, [journey.ready, data.demo, data.onboarded, data.omikujiDay, omikujiReminder]);
+  // The "you have been away" reminders restart from every time the app is open.
+  useEffect(() => {
+    if (!journey.ready || data.demo || !data.onboarded) return undefined;
+    const plan = () => void syncAbsenceReminders();
+    plan();
+    const subscription = AppState.addEventListener('change', state => { if (state === 'active') plan(); });
+    return () => subscription.remove();
+  }, [journey.ready, data.demo, data.onboarded, notificationSetting]);
+  // The first omikuji drawn after the first-run guide is the moment to offer the morning reminder (asks the phone's permission once).
+  const lastOmikujiDay = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!journey.ready || data.demo || !data.onboarded || firstRunStage !== null) return;
+    const previous = lastOmikujiDay.current;
+    lastOmikujiDay.current = data.omikujiDay;
+    if (previous !== undefined && previous !== data.omikujiDay && data.omikujiDay === localOmikujiDay() && omikujiReminder) void offerNotifications();
+  }, [journey.ready, data.demo, data.onboarded, firstRunStage, data.omikujiDay, omikujiReminder]);
   const dailyFortune = fortuneForDay(omikujiDay, omikujiDrawn && !onboardingPreview && data.omikujiPetId ? data.omikujiPetId : pet.id);
   const isFirstRunOmikuji = firstRunStage === 'drawOmikuji';
   const firstRunOmikujiComplete = isFirstRunOmikuji && omikujiDrawn && !omikujiAnimating;

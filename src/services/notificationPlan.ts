@@ -60,6 +60,20 @@ export function omikujiTimes(now: Date, options: { enabled: boolean; drawnToday:
   return times;
 }
 
+/**
+ * The reminder for someone who has stayed away: steps older than 14 days (Health) or 7 days (motion sensor) can no
+ * longer be credited when the app is opened, so one goes out on day 5 and one on day 12 after the last time it was open
+ * (at 18:00 on the phone's clock). Opening the app plans them again from that day.
+ */
+export const ABSENCE_DAYS = [5, 12] as const;
+export const ABSENCE_HOUR = 18;
+export function absenceTimes(now: Date, options: { enabled: boolean }): number[] {
+  if (!options.enabled) return [];
+  return ABSENCE_DAYS.map(days => new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, ABSENCE_HOUR, 0, 0, 0).getTime());
+}
+export const ABSENCE_TITLE = 'もび道';
+export const ABSENCE_BODY = 'しばらくお休みですね。もび道を開くと、これまでの歩数が反映されます。';
+
 export const OMIKUJI_TITLE = 'もび道';
 export const OMIKUJI_BODY = '今日のおみくじが引けます。';
 
