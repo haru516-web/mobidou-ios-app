@@ -27,7 +27,8 @@ class MemoryStore {
   failNextCommit = false;
 
   hits = new Map();
-  async hitRateLimit(key, window) {
+  async hitRateLimit(key, window, windowMs) {
+    if (!Number.isFinite(windowMs)) throw new Error("hitRateLimit needs the length of the window");
     const id = `${key}:${window}`;
     this.hits.set(id, (this.hits.get(id) ?? 0) + 1);
     return this.hits.get(id);
@@ -179,7 +180,7 @@ class MemoryStore {
     return "linked";
   }
   blocks = new Set();
-  async purgeExpired() {}
+  async purgeExpired() { return { rateLimitsRemoved: 0, rateLimitsRemaining: 0 }; }
   reports = [];
   async blockedEither(a, b) { return this.blocks.has(`${a}:${b}`) || this.blocks.has(`${b}:${a}`); }
   async blockUser(blockerId, blockedId) {
@@ -1681,4 +1682,41 @@ test("steps are taken only for days that exist and are open: 02-30 is never one 
     const refused = await send(day);
     assert.deepEqual([refused.status, (await refused.json()).error], [409, "steps_day_mismatch"], day);
   }
+});
+
+test("a request body over the limit is refused with 413 before it is parsed, by header or by what is really sent", async () => {
+  const context = createContext();
+  const account = await register(context);
+  const credential = context.credentials.get(account.userId);
+  const send = (path, text, headers = {}) => handleWithStore(new Request(`https://server.test${path}`, {
+    method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${credential}`, ...headers }, body: text
+  }), env, context.store);
+  const padded = (bytes) => JSON.stringify({ name: "a", pad: "x".repeat(bytes) });
+  // An ordinary call: up to 16 KiB passes, one byte over does not, and the answer is 413, not "invalid JSON".
+  const limit = 16_384;
+  const fine = padded(limit - 30);
+  assert.ok(Buffer.byteLength(fine) <= limit);
+  assert.equal((await send("/profile", fine)).status, 200);
+  const big = padded(limit + 100);
+  const refused = await send("/profile", big);
+  assert.deepEqual([refused.status, (await refused.json()).error], [413, "payload_too_large"]);
+  // A false Content-Length does not get a large body through: what is read is counted.
+  const lying = await send("/profile", big, { "content-length": "10" });
+  assert.equal(lying.status, 413);
+  // The header alone is enough to refuse, without reading anything.
+  const declared = await send("/profile", "{}", { "content-length": "999999" });
+  assert.equal(declared.status, 413);
+  // Broken JSON within the limit is still 400.
+  assert.deepEqual([(await send("/profile", "{not json")).status], [400]);
+  // Multi-byte text counts in bytes.
+  const japanese = JSON.stringify({ name: "あ", pad: "あ".repeat(6_000) });
+  assert.equal(Buffer.byteLength(japanese) > limit, true);
+  assert.equal((await send("/profile", japanese)).status, 413);
+  // The larger kinds: a signed transaction has room (it fails as a transaction, not as a size), a body past 256 KiB does not.
+  const signed = await send("/purchases/verify", JSON.stringify({ signedTransactionInfo: "a".repeat(150_000) }));
+  assert.notEqual(signed.status, 413);
+  const tooBig = await send("/purchases/verify", JSON.stringify({ signedTransactionInfo: "a".repeat(270_000) }));
+  assert.equal(tooBig.status, 413);
+  // Nothing was changed by the refused calls.
+  assert.equal((await context.store.user(account.userId)).name, "a");
 });

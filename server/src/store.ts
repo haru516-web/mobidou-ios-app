@@ -2,6 +2,9 @@ import type { AgeGroup, AppleLinkResult, CloudSave, D1Database, Draw, EventJoinR
 import { randomToken } from "./crypto.ts";
 
 const nowIso = (): string => new Date().toISOString();
+/** The hourly clean-up removes expired counters in slices of this many rows, at most this many slices a run. */
+const PURGE_BATCH_ROWS = 500;
+const PURGE_BATCHES = 20;
 const ledgerId = (): string => crypto.randomUUID();
 
 export class D1Store implements Store {
@@ -84,13 +87,10 @@ export class D1Store implements Store {
     return (rows.results ?? []).map((row) => row.product_id);
   }
 
-  async hitRateLimit(key: string, window: number): Promise<number> {
-    const row = await this.db.prepare("INSERT INTO rate_limits (key, window, count) VALUES (?, ?, 1) ON CONFLICT (key, window) DO UPDATE SET count = count + 1 RETURNING count")
-      .bind(key, window).first<{ count: number }>();
-    // Counters of one kind ("register:minute:", "register:day:", ...) share a window numbering, so every older window of that kind is
-    // finished: drop them all, so a source address is not kept after its window has passed.
-    const kind = key.slice(0, key.lastIndexOf(":") + 1);
-    await this.db.prepare("DELETE FROM rate_limits WHERE substr(key, 1, ?) = ? AND window < ?").bind(kind.length, kind, window).run();
+  async hitRateLimit(key: string, window: number, windowMs: number): Promise<number> {
+    // One statement and nothing else: the counter says when it expires, and the hourly clean-up removes it by that time.
+    const row = await this.db.prepare("INSERT INTO rate_limits (key, window, count, expires_at) VALUES (?, ?, 1, ?) ON CONFLICT (key, window) DO UPDATE SET count = count + 1 RETURNING count")
+      .bind(key, window, (window + 2) * windowMs).first<{ count: number }>();
     return row?.count ?? 1;
   }
 
@@ -597,17 +597,27 @@ export class D1Store implements Store {
     return (rows.results ?? []).map((row) => row.id);
   }
 
-  async purgeExpired(now: Date): Promise<void> {
-    // Counters are numbered by their own clock: minutes (about 29 million now), hours (about 490 thousand) and days (about 20 thousand).
-    // The three ranges do not overlap, so each can be cleared against its own clock.
+  async purgeExpired(now: Date): Promise<{ rateLimitsRemoved: number; rateLimitsRemaining: number }> {
+    // Counters that have expired go by the indexed expiry, a slice at a time (a run never takes long, whatever has piled up).
+    let removed = 0;
+    for (let batch = 0; batch < PURGE_BATCHES; batch += 1) {
+      const result = await this.db.prepare("DELETE FROM rate_limits WHERE rowid IN (SELECT rowid FROM rate_limits WHERE expires_at IS NOT NULL AND expires_at < ? LIMIT ?)")
+        .bind(now.getTime(), PURGE_BATCH_ROWS).run();
+      const count = result.meta?.changes ?? 0;
+      removed += count;
+      if (count < PURGE_BATCH_ROWS) break;
+    }
+    // Rows from before the expiry column have none: they go by the number of their window (minutes ~29 million, hours ~490 thousand, days ~20 thousand).
     const minute = Math.floor(now.getTime() / 60_000);
     const hour = Math.floor(now.getTime() / 3_600_000);
     const day = Math.floor(now.getTime() / 86_400_000);
     await this.db.batch([
-      this.db.prepare("DELETE FROM rate_limits WHERE (window >= 1000000 AND window < ?) OR (window >= 100000 AND window < 1000000 AND window < ?) OR (window < 100000 AND window < ?)")
+      this.db.prepare("DELETE FROM rate_limits WHERE expires_at IS NULL AND ((window >= 1000000 AND window < ?) OR (window >= 100000 AND window < 1000000 AND window < ?) OR (window < 100000 AND window < ?))")
         .bind(minute - 10, hour - 3, day - 2),
       this.db.prepare("DELETE FROM gacha_ops WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString()),
       this.db.prepare("DELETE FROM push_sent WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString())
     ]);
+    const remaining = await this.db.prepare("SELECT COUNT(*) AS n FROM rate_limits").first<{ n: number }>();
+    return { rateLimitsRemoved: removed, rateLimitsRemaining: remaining?.n ?? 0 };
   }
 }

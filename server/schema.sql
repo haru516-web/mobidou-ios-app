@@ -272,8 +272,11 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   key TEXT NOT NULL,
   window INTEGER NOT NULL,
   count INTEGER NOT NULL DEFAULT 0,
+  -- When the counter may be dropped (epoch ms). NULL on rows written before the column existed.
+  expires_at INTEGER,
   PRIMARY KEY (key, window)
 );
+CREATE INDEX IF NOT EXISTS rate_limits_expiry ON rate_limits(expires_at);
 
 -- Asking to join an event team: the player who made the team answers each request (accepted ones become members and are removed here).
 CREATE TABLE IF NOT EXISTS event_join_requests (

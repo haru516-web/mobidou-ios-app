@@ -168,7 +168,8 @@ export interface Store {
   /** Product ids of this user's purchases (not revoked) granted in [from, to). */
   purchasedProducts(userId: string, from: string, to: string): Promise<string[]>;
   /** Count one hit against `key` in the fixed window numbered `window`; returns the count including this hit. */
-  hitRateLimit(key: string, window: number): Promise<number>;
+  /** Count one call in this window (`window` is the number of the `windowMs`-long period); the counter expires two periods after it started. */
+  hitRateLimit(key: string, window: number, windowMs: number): Promise<number>;
   registerUser(user: User, secretHash: string): Promise<void>;
   credentialHash(userId: string): Promise<string | null>;
   user(userId: string): Promise<User | null>;
@@ -206,7 +207,7 @@ export interface Store {
    */
   commitDraws(userId: string, draws: Draw[], kind: "free" | "paid", paidPulls: number, options?: { opId?: string; result?: string; previousPaidPulls?: number }): Promise<void>;
   /** Removes counters and stored answers that can no longer matter, so an address or an operation is not kept past its window. */
-  purgeExpired(now: Date): Promise<void>;
+  purgeExpired(now: Date): Promise<{ rateLimitsRemoved: number; rateLimitsRemaining: number }>;
   /** Whether either of the two has blocked the other. */
   blockedEither(a: string, b: string): Promise<boolean>;
   /** Blocks a player: also ends their friendship and any pending requests between the two. */

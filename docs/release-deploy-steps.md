@@ -25,6 +25,7 @@ npx wrangler d1 execute mobidou --remote --file migrations/0007_blocks_and_repor
 npx wrangler d1 execute mobidou --remote --file migrations/0008_event_join_requests.sql
 npx wrangler d1 execute mobidou --remote --file migrations/0009_revoked_transactions_and_indexes.sql
 npx wrangler d1 execute mobidou --remote --file migrations/0010_push_notifications.sql
+npx wrangler d1 execute mobidou --remote --file migrations/0011_rate_limit_expiry.sql
 ```
 
 | ファイル | 内容 |
@@ -37,6 +38,7 @@ npx wrangler d1 execute mobidou --remote --file migrations/0010_push_notificatio
 | 0008 | イベントのチームへの参加の申請（つくった人が承認する） |
 | 0009 | 返金の記録（購入より先に届いた返金も覚える）と、検索を速くする索引。**Worker を更新する前に必ず適用する**（先に Worker だけ更新すると、購入の確認と返金の通知が失敗します） |
 | 0010 | 通知の宛先（端末の通知トークン）と、一度だけ送る通知の記録。**Worker を更新する前に適用する** |
+| 0011 | 回数制限のカウンターに「いつ消してよいか」(`expires_at`)を持たせ、索引をつける。**Worker を更新する前に適用する**(先に Worker だけ更新すると、カウンターの書き込みが失敗します) |
 
 ## 2. イベントの登録
 

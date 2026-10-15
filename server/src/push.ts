@@ -31,7 +31,7 @@ export function createExpoNotifier(
         if (dedupeKey && !(await store.markPushSent(dedupeKey))) return;
         const day = Math.floor(clock().getTime() / 86_400_000);
         const allowed: string[] = [];
-        for (const id of new Set(userIds)) if ((await store.hitRateLimit(`push:${id}`, day)) <= PUSH_PER_PLAYER_PER_DAY) allowed.push(id);
+        for (const id of new Set(userIds)) if ((await store.hitRateLimit(`push:${id}`, day, 86_400_000)) <= PUSH_PER_PLAYER_PER_DAY) allowed.push(id);
         if (allowed.length === 0) return;
         const tokens = await store.pushTokens(allowed, category);
         for (let from = 0; from < tokens.length; from += BATCH) {

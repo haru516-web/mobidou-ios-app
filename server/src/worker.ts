@@ -95,7 +95,7 @@ async function keepAppleRefreshToken(env: Env, store: Store, userId: string, aut
 
 /** At most `max` calls of one kind from one player in the window; the 429 is the same everywhere. */
 async function limit(store: Store, kind: string, userId: string, windowMs: number, max: number, now: Date): Promise<void> {
-  const count = await store.hitRateLimit(`${kind}:${userId}`, Math.floor(now.getTime() / windowMs));
+  const count = await store.hitRateLimit(`${kind}:${userId}`, Math.floor(now.getTime() / windowMs), windowMs);
   if (count > max) throw new HttpError(429, "rate_limited");
 }
 
@@ -110,9 +110,39 @@ const json = (value: unknown, status = 200): Response => new Response(JSON.strin
   headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
 });
 
-async function body(request: Request): Promise<Record<string, unknown>> {
+/**
+ * The largest request body each kind of call may send, in bytes. An ordinary call is a few hundred bytes; a signed
+ * transaction or notification is at most 200,000 characters of base64 plus its wrapper; a save is at most 200,000
+ * characters of text, which in UTF-8 and with the escaping of quotes can be several times that many bytes.
+ */
+const BODY_BYTES = { ordinary: 16_384, signed: 262_144, save: 1_000_000 } as const;
+
+/** The body as bytes, refusing (413) one that is larger than `maxBytes` before it is held or parsed, whatever the header says. */
+async function readBodyBytes(request: Request, maxBytes: number): Promise<Uint8Array> {
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > maxBytes) throw new HttpError(413, "payload_too_large");
+  const reader = request.body?.getReader();
+  if (!reader) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) { await reader.cancel().catch(() => undefined); throw new HttpError(413, "payload_too_large"); }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes;
+}
+
+async function body(request: Request, maxBytes: number = BODY_BYTES.ordinary): Promise<Record<string, unknown>> {
+  // Too large is 413 and is not turned into "invalid JSON" below.
+  const bytes = await readBodyBytes(request, maxBytes);
   try {
-    const value: unknown = await request.json();
+    const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("body must be an object");
     return value as Record<string, unknown>;
   } catch {
@@ -257,8 +287,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
 
   if (method === "POST" && path === "/auth/register") {
     const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
-    const perMinute = await store.hitRateLimit(`register:minute:${ip}`, Math.floor(now.getTime() / 60_000));
-    const perDay = await store.hitRateLimit(`register:day:${ip}`, Math.floor(now.getTime() / 86_400_000));
+    const perMinute = await store.hitRateLimit(`register:minute:${ip}`, Math.floor(now.getTime() / 60_000), 60_000);
+    const perDay = await store.hitRateLimit(`register:day:${ip}`, Math.floor(now.getTime() / 86_400_000), 86_400_000);
     if (perMinute > REGISTER_PER_MINUTE || perDay > REGISTER_PER_DAY) throw new HttpError(429, "rate_limited");
     const input = await body(request);
     const id = crypto.randomUUID();
@@ -273,7 +303,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
 
   if (method === "POST" && path === "/auth/apple") {
     const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
-    const perMinute = await store.hitRateLimit(`apple:minute:${ip}`, Math.floor(now.getTime() / 60_000));
+    const perMinute = await store.hitRateLimit(`apple:minute:${ip}`, Math.floor(now.getTime() / 60_000), 60_000);
     if (perMinute > REGISTER_PER_MINUTE) throw new HttpError(429, "rate_limited");
     const input = await body(request);
     const token = requireString(input.identityToken, "missing_identity_token", 8000);
@@ -291,7 +321,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   }
 
   if (method === "POST" && path === "/apple/notifications") {
-    const input = await body(request);
+    const input = await body(request, BODY_BYTES.signed);
     const signedPayload = requireString(input.signedPayload, "missing_signed_payload", 200_000);
     let notification: Record<string, unknown>;
     try { notification = await verifySignedPayload(signedPayload, env); }
@@ -389,7 +419,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
 
   if (method === "POST" && path === "/save") {
     if (!(await store.appleLinked(userId))) throw new HttpError(403, "apple_required");
-    const input = await body(request);
+    const input = await body(request, BODY_BYTES.save);
     const data = input.data;
     if (typeof data !== "string" || data.length < 2) throw new HttpError(400, "invalid_save");
     if (data.length > MAX_SAVE_CHARS) throw new HttpError(413, "save_too_large");
@@ -438,7 +468,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     if (targetId === userId) throw new HttpError(400, "cannot_report_self");
     if (!(await store.user(targetId))) throw new HttpError(404, "user_not_found");
     // Reports are read by a person: a few a day is plenty, and it keeps the box from being flooded.
-    const sent = await store.hitRateLimit(`report:${userId}`, Math.floor(now.getTime() / 86_400_000));
+    const sent = await store.hitRateLimit(`report:${userId}`, Math.floor(now.getTime() / 86_400_000), 86_400_000);
     if (sent > 10) throw new HttpError(429, "too_many_reports");
     await store.reportUser(userId, targetId, reason, note || null, crypto.randomUUID());
     return json({ status: "received" }, 201);
@@ -491,7 +521,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
 
   if (method === "POST" && path === "/purchases/verify") {
     await limit(store, "verify", userId, 3_600_000, 60, now);
-    const input = await body(request);
+    const input = await body(request, BODY_BYTES.signed);
     const signedTransaction = requireString(input.signedTransactionInfo ?? input.jws, "missing_signed_transaction", 200_000);
     let transaction: VerifiedTransaction;
     try { transaction = await verifySignedTransaction(signedTransaction, env); }
@@ -704,7 +734,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       const me = await store.user(userId);
       if (!me?.name) throw new HttpError(400, "profile_required");
       // A code has about a billion values; limit the guesses of one player anyway.
-      const attempts = await store.hitRateLimit(`team-join:${userId}`, Math.floor(now.getTime() / 3_600_000));
+      const attempts = await store.hitRateLimit(`team-join:${userId}`, Math.floor(now.getTime() / 3_600_000), 3_600_000);
       if (attempts > 30) throw new HttpError(429, "too_many_attempts");
       const input = await body(request);
       const code = normalizeTeamCode(requireString(input.code, "invalid_team_code", 20));
@@ -810,7 +840,9 @@ const worker = {
   },
   /** Runs every hour (wrangler.toml [triggers]): drops counters and answers that have passed their time. */
   async scheduled(_event: unknown, env: Env, _context: ExecutionContext): Promise<void> {
-    await new D1Store(env.DB).purgeExpired(new Date());
+    const outcome = await new D1Store(env.DB).purgeExpired(new Date());
+    // Seen in the logs: how many counters were removed, and how many are left (a number that keeps growing means the clean-up is behind).
+    console.log(JSON.stringify({ event: "purge", ...outcome }));
   }
 };
 

@@ -99,22 +99,23 @@ test("D1 schema and ledger operations enforce idempotency and wallet constraints
   database.close();
 });
 
-test("D1 rate limit counts within a window and drops every older window of the same kind", async () => {
+test("D1 rate limit counts within a window, and each counter carries the time it expires", async () => {
   const database = new DatabaseSync(":memory:");
   database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
   const store = new D1Store(new SQLiteD1(database));
-  assert.equal(await store.hitRateLimit("register:minute:a", 100), 1);
-  assert.equal(await store.hitRateLimit("register:minute:a", 100), 2);
-  assert.equal(await store.hitRateLimit("register:minute:b", 100), 1);
-  assert.equal(await store.hitRateLimit("register:minute:a", 101), 1);
-  // b's window 100 is over by now (a is already in window 101), so it is gone too: no address is kept past its window.
-  assert.deepEqual(database.prepare("SELECT key, window, count FROM rate_limits ORDER BY key, window").all().map((row) => ({ ...row })), [
-    { key: "register:minute:a", window: 101, count: 1 }
+  assert.equal(await store.hitRateLimit("register:minute:a", 100, 60_000), 1);
+  assert.equal(await store.hitRateLimit("register:minute:a", 100, 60_000), 2);
+  assert.equal(await store.hitRateLimit("register:minute:b", 100, 60_000), 1);
+  assert.equal(await store.hitRateLimit("register:minute:a", 101, 60_000), 1);
+  // A hit does nothing but count: older windows stay until the clean-up, which finds them by their expiry.
+  assert.deepEqual(database.prepare("SELECT key, window, count, expires_at FROM rate_limits ORDER BY key, window").all().map((row) => ({ ...row })), [
+    { key: "register:minute:a", window: 100, count: 2, expires_at: 102 * 60_000 },
+    { key: "register:minute:a", window: 101, count: 1, expires_at: 103 * 60_000 },
+    { key: "register:minute:b", window: 100, count: 1, expires_at: 102 * 60_000 }
   ]);
-  // Another kind keeps its own numbering.
-  assert.equal(await store.hitRateLimit("register:day:a", 5), 1);
-  assert.equal(await store.hitRateLimit("register:minute:c", 102), 1);
-  assert.deepEqual(database.prepare("SELECT key FROM rate_limits ORDER BY key").all().map((row) => row.key), ["register:day:a", "register:minute:c"]);
+  // The day counters expire two days after their day began.
+  await store.hitRateLimit("register:day:a", 5, 86_400_000);
+  assert.equal(database.prepare("SELECT expires_at FROM rate_limits WHERE key = 'register:day:a'").get().expires_at, 7 * 86_400_000);
 });
 
 test("D1 a refund that arrives before its purchase is remembered, so the purchase credits nothing", async () => {
@@ -436,13 +437,16 @@ test("D1 purge drops finished counters of every clock and old stored draw answer
   const store = new D1Store(new SQLiteD1(database));
   const now = new Date("2026-10-10T12:00:00.000Z");
   const minute = Math.floor(now.getTime() / 60_000), hour = Math.floor(now.getTime() / 3_600_000), day = Math.floor(now.getTime() / 86_400_000);
-  const put = (key, window) => database.prepare("INSERT INTO rate_limits (key, window, count) VALUES (?, ?, 1)").run(key, window);
-  put("register:minute:old", minute - 60); put("register:minute:new", minute);
-  put("team-join:old", hour - 10); put("team-join:new", hour);
-  put("report:old", day - 5); put("report:new", day);
-  await store.purgeExpired(now);
+  // Counters written by the current code carry their expiry; older rows have none and go by their window number.
+  const put = (key, window, windowMs) => database.prepare("INSERT INTO rate_limits (key, window, count, expires_at) VALUES (?, ?, 1, ?)").run(key, window, windowMs ? (window + 2) * windowMs : null);
+  put("register:minute:old", minute - 60, 60_000); put("register:minute:new", minute, 60_000);
+  put("team-join:old", hour - 10, 3_600_000); put("team-join:new", hour, 3_600_000);
+  put("report:old", day - 5, 86_400_000); put("report:new", day, 86_400_000);
+  put("legacy:minute:old", minute - 60); put("legacy:minute:new", minute);
+  const outcome = await store.purgeExpired(now);
   const left = database.prepare("SELECT key FROM rate_limits ORDER BY key").all().map((row) => row.key);
-  assert.deepEqual(left, ["register:minute:new", "report:new", "team-join:new"]);
+  assert.deepEqual(left, ["legacy:minute:new", "register:minute:new", "report:new", "team-join:new"]);
+  assert.deepEqual(outcome, { rateLimitsRemoved: 3, rateLimitsRemaining: 4 });
 });
 
 test("D1 a plan period is not written for a transaction that is already refunded", async () => {
@@ -528,4 +532,27 @@ test("D1 a join request is not accepted when anyone already in the team has a bl
   const askedD = await store.requestJoinEventTeam("d", "toki", "ABCDEF", 4);
   await store.blockUser("d", "b");
   assert.equal((await store.answerJoinRequest("m", "toki", askedD.request.id, true, 4, 2)).result, "declined");
+});
+
+test("D1 clean-up removes a large pile of expired counters in slices, keeps current ones, and reports what is left", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  const now = new Date("2026-10-10T12:00:00.000Z");
+  const insert = database.prepare("INSERT INTO rate_limits (key, window, count, expires_at) VALUES (?, ?, 1, ?)");
+  for (let i = 0; i < 1_300; i += 1) insert.run(`register:minute:${i}`, 1, now.getTime() - 1_000 - i);
+  for (let i = 0; i < 5; i += 1) insert.run(`register:minute:live${i}`, 2, now.getTime() + 60_000);
+  const outcome = await store.purgeExpired(now);
+  assert.deepEqual(outcome, { rateLimitsRemoved: 1_300, rateLimitsRemaining: 5 });
+  // The expiry is searched by its index, not by scanning the table.
+  const plan = database.prepare("EXPLAIN QUERY PLAN SELECT rowid FROM rate_limits WHERE expires_at IS NOT NULL AND expires_at < 1 LIMIT 500").all().map((row) => row.detail).join(" | ");
+  assert.match(plan, /USING (COVERING )?INDEX rate_limits_expiry/);
+});
+
+test("D1 many hits on one counter in the same moment all count (no lost update)", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  const counts = await Promise.all(Array.from({ length: 25 }, () => store.hitRateLimit("steps:p", 7, 3_600_000)));
+  assert.deepEqual([...counts].sort((a, b) => a - b), Array.from({ length: 25 }, (_, index) => index + 1));
 });
