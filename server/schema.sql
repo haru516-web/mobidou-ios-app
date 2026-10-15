@@ -297,3 +297,19 @@ CREATE INDEX IF NOT EXISTS event_members_team ON event_members(team_id, joined_a
 CREATE INDEX IF NOT EXISTS purchases_user ON purchases(user_id, granted_at);
 CREATE INDEX IF NOT EXISTS refund_events_user ON refund_events(user_id, created_at);
 CREATE INDEX IF NOT EXISTS friend_requests_from ON friend_requests(from_id, to_id);
+
+-- Devices that may be sent a notification (Expo push tokens).
+CREATE TABLE IF NOT EXISTS push_tokens (
+  token TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  team_notify INTEGER NOT NULL DEFAULT 1,
+  friend_notify INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS push_tokens_user ON push_tokens(user_id, updated_at);
+
+-- Notifications that go out once (a team set out, a goal reached).
+CREATE TABLE IF NOT EXISTS push_sent (
+  key TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL
+);

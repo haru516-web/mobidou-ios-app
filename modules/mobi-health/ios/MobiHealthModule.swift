@@ -3,8 +3,34 @@ import HealthKit
 
 public class MobiHealthModule: Module {
   private let store = HKHealthStore()
+  private var observer: HKObserverQuery?
+  private var pendingCompletion: HKObserverQueryCompletionHandler?
+  private let backgroundKey = "mobi.health.backgroundDelivery"
+
   public func definition() -> ModuleDefinition {
     Name("MobiHealth")
+    Events("onStepsChanged")
+    OnCreate {
+      // When iOS launched the app for new steps, the observer must be set up again at once or the wake-ups stop.
+      if UserDefaults.standard.bool(forKey: self.backgroundKey) { self.startObserver() }
+    }
+    AsyncFunction("enableBackgroundDelivery") { (promise: Promise) in
+      guard HKHealthStore.isHealthDataAvailable(),
+        let steps = HKObjectType.quantityType(forIdentifier: .stepCount) else {
+        promise.resolve(false)
+        return
+      }
+      self.store.enableBackgroundDelivery(for: steps, frequency: .hourly) { success, _ in
+        if success {
+          UserDefaults.standard.set(true, forKey: self.backgroundKey)
+          self.startObserver()
+        }
+        promise.resolve(success)
+      }
+    }
+    Function("finishBackgroundDelivery") {
+      DispatchQueue.main.async { self.finishPending() }
+    }
     AsyncFunction("isAvailable") { () -> Bool in
       return HKHealthStore.isHealthDataAvailable()
     }
@@ -37,5 +63,31 @@ public class MobiHealthModule: Module {
       }
       self.store.execute(query)
     }
+  }
+
+  /** Watches for new steps. iOS wakes the app (about hourly) and calls this, even when the app is not open. */
+  private func startObserver() {
+    DispatchQueue.main.async {
+      guard self.observer == nil, let steps = HKObjectType.quantityType(forIdentifier: .stepCount) else { return }
+      let query = HKObserverQuery(sampleType: steps, predicate: nil) { [weak self] _, completion, error in
+        guard let self = self else { completion(); return }
+        if error != nil { completion(); return }
+        DispatchQueue.main.async {
+          self.finishPending()
+          self.pendingCompletion = completion
+          self.sendEvent("onStepsChanged", [:])
+          // iOS wants an answer within about half a minute: end the wake-up ourselves if JavaScript has not.
+          DispatchQueue.main.asyncAfter(deadline: .now() + 25) { [weak self] in self?.finishPending() }
+        }
+      }
+      self.store.execute(query)
+      self.observer = query
+    }
+  }
+
+  private func finishPending() {
+    let completion = pendingCompletion
+    pendingCompletion = nil
+    completion?()
   }
 }

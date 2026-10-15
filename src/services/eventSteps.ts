@@ -49,6 +49,18 @@ export type EventStepsResult =
   | { ok: true; day: string; cumulative: number }
   | { ok: false; reason: 'offline' | 'day_mismatch' | 'rejected'; openDay?: string };
 
+/** How many days before the open day the server still takes steps for (mirrors EVENT_STEPS_GRACE_DAYS). */
+export const STEPS_GRACE_DAYS = 2;
+
+/** The Tokyo day `days` after (before, when negative) the given one. */
+export const shiftTokyoDay = (day: string, days: number): string => ymd(tokyoDayRange(day).start + days * DAY_MS);
+
+/** The open day and the grace days before it, oldest first. */
+export function catchUpDays(now: Date, graceDays = STEPS_GRACE_DAYS): string[] {
+  const open = openStepsDay(now);
+  return Array.from({ length: graceDays + 1 }, (_, index) => shiftTokyoDay(open, index - graceDays));
+}
+
 /**
  * Read the steps for the open day and send them. `readSteps` gets the day's
  * Tokyo-time range and must return the total for it; the range is cut off at
@@ -60,7 +72,18 @@ export async function submitEventSteps(options: {
   readSteps: (start: number, end: number) => Promise<number>;
   transport: EventStepsTransport;
 }): Promise<EventStepsResult> {
-  const day = openStepsDay(options.now);
+  return submitEventStepsForDay({ ...options, day: openStepsDay(options.now) });
+}
+
+/** The same for one named day (the open day, or one of the grace days before it). */
+export async function submitEventStepsForDay(options: {
+  eventId: string;
+  day: string;
+  now: Date;
+  readSteps: (start: number, end: number) => Promise<number>;
+  transport: EventStepsTransport;
+}): Promise<EventStepsResult> {
+  const day = options.day;
   const range = tokyoDayRange(day);
   const raw = await options.readSteps(range.start, Math.min(range.end, options.now.getTime()));
   if (!Number.isFinite(raw) || raw < 0) return { ok: false, reason: 'rejected' };
@@ -79,3 +102,44 @@ export async function submitEventSteps(options: {
   }
   return { ok: false, reason: 'rejected' };
 }
+
+export type CatchUpOutcome = 'sent' | 'skipped' | 'failed';
+
+/**
+ * Send the steps for the open day and for the grace days before it, oldest first, so a day the app was not opened is not lost.
+ * A day with no steps is not sent. `alreadySent` lists what the server has for earlier days: those are not sent again
+ * (the open day always is, since it is still growing). Returns what to remember as sent, and how it went.
+ */
+export async function submitEventStepsCatchUp(options: {
+  eventId: string;
+  now: Date;
+  alreadySent: Record<string, number>;
+  readSteps: (start: number, end: number) => Promise<number>;
+  transport: EventStepsTransport;
+  graceDays?: number;
+}): Promise<{ outcome: CatchUpOutcome; sent: Record<string, number> }> {
+  const days = catchUpDays(options.now, options.graceDays);
+  const open = days[days.length - 1];
+  const sent: Record<string, number> = {};
+  let anySent = false;
+  let failed = false;
+  for (const day of days) {
+    let total = 0;
+    const result = await submitEventStepsForDay({
+      eventId: options.eventId, day, now: options.now, transport: options.transport,
+      readSteps: async (start, end) => {
+        total = await options.readSteps(start, end);
+        // Nothing to say for an earlier day with no steps, or one the server already has in full.
+        if (day !== open && (total <= 0 || options.alreadySent[day] === Math.min(DAILY_STEPS_MAX, Math.floor(total)))) throw new SkipDay();
+        return total;
+      }
+    }).catch((error: unknown) => { if (error instanceof SkipDay) return null; throw error; });
+    if (result === null) continue;
+    if (result.ok) { anySent = true; sent[result.day] = result.cumulative; }
+    // An older server that does not take earlier days answers with a mismatch: that is not a failure of this send.
+    else if (!(result.reason === 'day_mismatch' && day !== open)) failed = true;
+  }
+  return { outcome: failed ? 'failed' : anySent ? 'sent' : 'skipped', sent };
+}
+
+class SkipDay extends Error {}

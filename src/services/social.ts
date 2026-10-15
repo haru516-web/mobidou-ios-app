@@ -163,7 +163,12 @@ export async function sendFriendRequest(code: string): Promise<SocialWriteResult
   if (!isFriendCode(code)) return { ok: false, reason: 'invalid' };
   if (!SOCIAL_ONLINE) return { ok: false, reason: 'offline' };
   const reply = await authedRequest('/friend-requests', { body: { friendCode: normalizeFriendCode(code) } });
-  if (reply && reply.status === 201) return { ok: true };
+  if (reply && reply.status === 201) {
+    // The answer comes later, so this is the moment to offer to be told about it.
+    const { offerNotifications } = require('./notifications') as typeof import('./notifications');
+    void offerNotifications();
+    return { ok: true };
+  }
   return { ok: false, reason: requestFailure(reply?.status ?? null, reply?.data?.error) };
 }
 

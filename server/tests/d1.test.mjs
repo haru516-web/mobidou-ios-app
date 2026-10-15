@@ -480,3 +480,27 @@ test("D1 sending the same plan period twice credits it once, and a refund after 
   await store.recordPlanPeriod("erin", "plus", start, end, 1, "plan-twice");
   assert.equal((await store.wallet("erin")).paid, 0);
 });
+
+test("D1 push tokens: kept per player (the latest few), moved with the device, chosen by category, and gone with the player", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  for (const id of ["fay", "gus"]) await store.registerUser({ id, friendCode: id.toUpperCase().padEnd(10, "0"), name: id, petId: null, goshuinCount: 0, routeName: null }, "hash-" + id);
+  for (let i = 1; i <= 7; i += 1) await store.savePushToken("fay", "ExponentPushToken[device" + i + "device]", { team: true, friend: i % 2 === 0 });
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM push_tokens WHERE user_id = 'fay'").get().n, 5);
+  assert.equal((await store.pushTokens(["fay"], "team")).length, 5);
+  assert.ok((await store.pushTokens(["fay"], "friend")).length < 5);
+  // The same device signing in as someone else moves the token.
+  await store.savePushToken("gus", "ExponentPushToken[device7device]", { team: true, friend: true });
+  assert.deepEqual(await store.pushTokens(["gus"], "team"), ["ExponentPushToken[device7device]"]);
+  // Someone else cannot remove a token that is not theirs.
+  await store.removePushToken("ExponentPushToken[device7device]", "fay");
+  assert.equal((await store.pushTokens(["gus"], "team")).length, 1);
+  await store.removePushToken("ExponentPushToken[device7device]", "gus");
+  assert.equal((await store.pushTokens(["gus"], "team")).length, 0);
+  assert.deepEqual(await store.pushTokens([], "team"), []);
+  assert.equal(await store.markPushSent("cleared:t1"), true);
+  assert.equal(await store.markPushSent("cleared:t1"), false);
+  await store.deleteUser("fay");
+  assert.equal(database.prepare("SELECT COUNT(*) AS n FROM push_tokens WHERE user_id = 'fay'").get().n, 0);
+});

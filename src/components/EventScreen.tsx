@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { AppState, Share, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import { Image } from './AppImage';
 import type { PilgrimageEvent } from '../data/events';
@@ -15,6 +15,7 @@ import { devEventTeam, eventTeamApi, loadEventTeam, useEventPendingRequest, useE
 import { fetchProfile, saveProfile } from '../services/social';
 import { openModerationMenu } from '../services/moderation';
 import { SERVER_URL } from '../services/server';
+import { offerNotifications } from '../services/notifications';
 import { playSfx } from '../services/audio';
 
 const ME_ID = 'me';
@@ -95,18 +96,21 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
   const me = { id: ME_ID, name: 'あなた', petId: pet.id };
   const min = event.minMembers ?? 2, max = event.maxMembers ?? 4;
 
-  // Ask the server how the team stands when the screen opens, and again every few seconds while people may be joining.
-  const recruiting = team?.status === 'recruiting';
-  // While someone may be asking, or this player is waiting for an answer, look again every few seconds.
-  const watching = recruiting || !!pending || (!!team && team.members.length < max);
+  // Ask the server how the team stands when the screen opens, and when the app comes back to it. Requests and answers
+  // reach the player as notifications, so there is no need to keep asking while the screen stays open.
+  const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     if (!visible) return undefined;
     void loadEventTeam(event);
     void fetchProfile().then(profile => { if (profile) { setNeedName(!profile.name); if (profile.name) setName(profile.name); } });
-    if (!watching) return undefined;
-    const timer = setInterval(() => { void loadEventTeam(event); }, 8000);
-    return () => clearInterval(timer);
-  }, [visible, watching, event]);
+    const subscription = AppState.addEventListener('change', state => { if (state === 'active') void loadEventTeam(event); });
+    return () => subscription.remove();
+  }, [visible, event]);
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try { await loadEventTeam(event); } finally { setRefreshing(false); }
+  };
 
   const run = async (job: () => Promise<boolean>, failed?: () => void) => {
     if (busy) return;
@@ -127,6 +131,8 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
     if (!(await ensureName())) return false;
     const result = await eventTeamApi.create(event, me);
     if (!result.ok) { setNotice(JOIN_MESSAGES[result.reason]); return false; }
+    // Others will ask to join: offer to tell the player when they do.
+    void offerNotifications();
     return true;
   });
   const join = () => void run(async () => {
@@ -134,6 +140,8 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
     if (!(await ensureName())) return false;
     const result = await eventTeamApi.join(event, code, me);
     if (!result.ok) { setNotice(JOIN_MESSAGES[result.reason]); return false; }
+    // The maker answers later: offer to tell the player when they do.
+    void offerNotifications();
     setCode('');
     return true;
   });
@@ -190,6 +198,7 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
       <Text style={S.body}>{pending.creatorName}さんが承認すると、チームに入れます。そのままお待ちください。この画面を閉じても、申請は残ります。</Text>
     </PaperCard>);
     body.push(<View key="cancel" style={S.actions}>
+      <Button title={refreshing ? "確認中…" : "返事を確認する"} secondary disabled={refreshing} onPress={() => void refresh()} />
       <Button title="申請を取り消す" secondary disabled={busy} onPress={cancelRequest} />
       {!!notice && <Text accessibilityLiveRegion="polite" style={S.notice}>{notice}</Text>}
     </View>);
@@ -222,6 +231,7 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
     body.push(<Pressable key="back" plate="secondary" artwork={false} accessibilityRole="button" accessibilityLabel="前の画面にもどる（チームをぬける）" onPress={leave} style={S.back}><Icon name="chevron-back" size={16} color={C.red} /><Text style={S.secondarySmallText}>{team.members.length > 1 ? 'チームをぬけて、もどる' : 'もどる'}</Text></Pressable>);
     body.push(codeCard(team));
     body.push(<Members key="members" team={team} event={event} />);
+    body.push(<View key="refresh" style={S.actions}><Button title={refreshing ? "確認中…" : "申請を確認する"} secondary disabled={refreshing} onPress={() => void refresh()} /></View>);
     const asking = requestCard(team.requests ?? []);
     if (asking) body.push(asking);
     body.push(<View key="start" style={S.actions}>

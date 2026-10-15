@@ -8,6 +8,7 @@ import { Image } from './AppImage';
 import { BRUSH, Button, C, Icon, Section } from '../components';
 import { sourceLabel } from '../services/steps';
 import { SERVER_URL } from '../services/server';
+import { setNotificationsEnabled, useNotificationSetting } from '../services/notifications';
 import type { useJourney } from '../services/useJourney';
 import { WashiArt, WashiPressable } from './Washi';
 import { tourPickerSections, type TourSelection } from '../data/featureTour';
@@ -46,6 +47,7 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
   const { height: windowHeight } = useWindowDimensions();
   const { data } = journey;
   const audio = useAudioSettings();
+  const notificationSetting = useNotificationSetting();
   const [info, setInfo] = useState<InfoKind | null>(null);
   const [tourPicker, setTourPicker] = useState(false);
   const [confirmDiscardBackup, setConfirmDiscardBackup] = useState(false);
@@ -110,6 +112,7 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
             </View>;
           })}
           <View style={{ width: 180, flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={S.label}>ふれあいの振動</Text><WashiSwitch accessibilityLabel="ふれあいの振動" value={data.haptics} onValueChange={journey.toggleHaptics} /></View>
+          <View style={{ width: 180, flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={S.label}>お知らせの通知</Text><WashiSwitch accessibilityLabel="お知らせの通知（チームの申請・フレンドの申請・歩数のお知らせ）" value={notificationSetting === 'on'} onValueChange={value => void setNotificationsEnabled(value)} /></View>
         </ScrollView>
         {/* The trial book is for development builds; a release build only shows it to leave a trial that was already started. */}
         {(__DEV__ || data.demo) && <View key="demo">

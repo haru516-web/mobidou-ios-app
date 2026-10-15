@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
 import { handleWithStore } from "../src/worker.ts";
+import { createExpoNotifier } from "../src/push.ts";
 import { hashSecret, verifySignedTransaction } from "../src/crypto.ts";
 import { GACHA_PET_IDS } from "../src/config/gacha.ts";
 
@@ -64,6 +65,12 @@ class MemoryStore {
   }
   revokedIds = new Set();
   async isRevoked(transactionId) { return this.revokedIds.has(transactionId); }
+  pushRows = new Map();
+  pushSentKeys = new Set();
+  async savePushToken(userId, token, prefs) { this.pushRows.set(token, { userId, ...prefs }); }
+  async removePushToken(token, userId) { if (!userId || this.pushRows.get(token)?.userId === userId) this.pushRows.delete(token); }
+  async pushTokens(userIds, category) { return [...this.pushRows].filter(([, row]) => userIds.includes(row.userId) && row[category]).map(([token]) => token); }
+  async markPushSent(key) { if (this.pushSentKeys.has(key)) return false; this.pushSentKeys.add(key); return true; }
   async recordPurchase(userId, transaction, product) {
     if (this.purchases.has(transaction.transactionId) || this.revokedIds.has(transaction.transactionId)) return false;
     this.purchases.set(transaction.transactionId, userId);
@@ -366,7 +373,13 @@ function call(context, method, path, body, user = null, now, random) {
     method,
     ...(body === undefined ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
     ...(credential ? { headers: { "content-type": "application/json", authorization: `Bearer ${credential}` }, body: body === undefined ? undefined : JSON.stringify(body) } : {})
-  }), env, context.store, now, random);
+  }), env, context.store, now, random, context.notify);
+}
+/** Records what the server would have told people. */
+function recordNotifications(context) {
+  const sent = [];
+  context.notify = async (userIds, category, content, key) => { sent.push({ userIds: [...userIds], category, body: content.body, type: content.data?.type, key }); };
+  return sent;
 }
 
 function der(tag, content) {
@@ -1550,4 +1563,108 @@ test("a join request is not accepted after its sender was blocked, and a blocked
   const shown = hidden.team.members.find((row) => row.id === member.userId);
   assert.deepEqual([shown.name, shown.petId], ["非表示のメンバー", null]);
   assert.equal(hidden.team.members.length, 2);
+});
+
+test("a device token is kept for the signed-in player, checked, and can be taken away", async () => {
+  const context = createContext();
+  const account = await register(context);
+  const token = "ExponentPushToken[abcdefghijklmnop]";
+  assert.equal((await call(context, "POST", "/push/token", { token, team: true, friend: false }, account.userId)).status, 200);
+  assert.deepEqual(context.store.pushRows.get(token), { userId: account.userId, team: true, friend: false });
+  assert.equal((await call(context, "POST", "/push/token", { token: "not-a-token" }, account.userId)).status, 400);
+  assert.equal((await call(context, "POST", "/push/token", { token })).status, 401);
+  assert.equal((await call(context, "POST", "/push/token/remove", { token }, account.userId)).status, 200);
+  assert.equal(context.store.pushRows.has(token), false);
+});
+
+test("friend requests and answers tell the other player", async () => {
+  const context = createContext();
+  const sent = recordNotifications(context);
+  const alice = await namedAccount(context, "Alice");
+  const bob = await namedAccount(context, "Bob");
+  await call(context, "POST", "/friend-requests", { friendCode: bob.friendCode }, alice.userId);
+  assert.deepEqual(sent.map((row) => [row.userIds, row.category]), [[[bob.userId], "friend"]]);
+  const id = context.store.requests.keys().next().value;
+  await call(context, "POST", `/friend-requests/${id}/answer`, { answer: "accepted" }, bob.userId);
+  assert.deepEqual(sent.slice(1).map((row) => [row.userIds, row.category]), [[[alice.userId], "friend"]]);
+});
+
+test("a team request tells the maker, the answer tells the asker, and reaching the goal tells the rest once", async () => {
+  const context = createContext();
+  const sent = recordNotifications(context);
+  context.store.events.set("toki", { ...teamEvent });
+  const maker = await namedAccount(context, "Maker");
+  const member = await namedAccount(context, "Member");
+  const code = (await (await call(context, "POST", "/events/toki/teams", {}, maker.userId, EVENT_WINDOW_NOW)).json()).team.code;
+  await call(context, "POST", "/events/toki/teams/join", { code }, member.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual(sent.map((row) => [row.userIds, row.category, row.type]), [[[maker.userId], "team", "team"]]);
+  const requestId = [...context.store.joinRequests.values()][0].id;
+  await call(context, "POST", `/events/toki/requests/${requestId}/answer`, { accept: true }, maker.userId, EVENT_WINDOW_NOW);
+  assert.deepEqual(sent[1].userIds, [member.userId]);
+  // Two members set the team out; nobody else is left to be told it started.
+  assert.equal(sent.length, 2);
+  const steps = await call(context, "POST", "/events/toki/steps", { cumulative: 1000 }, maker.userId, EVENT_WINDOW_NOW);
+  assert.equal(steps.status, 200);
+  const cleared = sent.filter((row) => row.key?.startsWith("cleared:"));
+  assert.equal(cleared.length, 1);
+  assert.deepEqual(cleared[0].userIds, [member.userId]);
+});
+
+test("steps can be sent for the open day and the two days before it, not for later or older days or days before the team set out", async () => {
+  const context = createContext();
+  const account = await register(context);
+  context.store.events.set("autumn", { id: "autumn", name: "Autumn", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2026-10-31T00:00:00.000Z", mapId: "map-a", minMembers: 1, maxMembers: 4, goalSteps: 100000 });
+  await setOut(context, account, "autumn");
+  const now = new Date("2026-10-05T11:00:00.000Z"); // 20:00 JST 10-05: day 10-05 is open
+  const send = (day, cumulative = 500) => call(context, "POST", "/events/autumn/steps", { cumulative, day }, account.userId, now);
+  for (const day of ["2026-10-05", "2026-10-04", "2026-10-03"]) assert.equal((await send(day)).status, 200, day);
+  for (const day of ["2026-10-02", "2026-10-06"]) {
+    const refused = await send(day);
+    assert.deepEqual([refused.status, (await refused.json()).error], [409, "steps_day_mismatch"], day);
+  }
+  assert.equal((await send("yesterday")).status, 400);
+  // The team set out on 09-30: an earlier day is not the team's, even inside the grace.
+  const early = await call(context, "POST", "/events/autumn/steps", { cumulative: 500, day: "2026-09-29" }, account.userId, new Date("2026-10-01T11:00:00.000Z"));
+  assert.equal(early.status, 409);
+  // A client that sends no day still files under the open day.
+  assert.deepEqual(await (await call(context, "POST", "/events/autumn/steps", { cumulative: 600 }, account.userId, now)).json(), { day: "2026-10-05", cumulative: 600 });
+});
+
+test("the push sender sends once per key, drops tokens the device refused, honours the player's choices and a daily cap", async () => {
+  const store = new MemoryStore();
+  const player = { id: "p1" };
+  const calls = [];
+  const work = [];
+  let reply = (count) => ({ data: Array.from({ length: count }, () => ({ status: "ok" })) });
+  const fetchImpl = async (url, init) => {
+    const messages = JSON.parse(init.body);
+    calls.push({ url, messages });
+    return new Response(JSON.stringify(reply(messages.length)), { status: 200 });
+  };
+  const notify = createExpoNotifier({}, store, (promise) => work.push(promise), { fetchImpl, now: () => new Date("2026-10-05T00:00:00.000Z") });
+  const settle = async () => { await Promise.all(work.splice(0)); };
+  await store.savePushToken(player.id, "ExponentPushToken[tokentokentoken1]", { team: true, friend: false });
+
+  await notify([player.id], "team", { title: "t", body: "b" }, "once");
+  await notify([player.id], "team", { title: "t", body: "b" }, "once");
+  await settle();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "https://exp.host/--/api/v2/push/send");
+  assert.deepEqual(calls[0].messages.map((message) => message.to), ["ExponentPushToken[tokentokentoken1]"]);
+
+  await notify([player.id], "friend", { title: "t", body: "b" });
+  await settle();
+  assert.equal(calls.length, 1, "friend notifications were turned off");
+
+  reply = () => ({ data: [{ status: "error", details: { error: "DeviceNotRegistered" } }] });
+  await notify([player.id], "team", { title: "t", body: "b" });
+  await settle();
+  assert.equal(store.pushRows.size, 0);
+
+  await store.savePushToken(player.id, "ExponentPushToken[tokentokentoken2]", { team: true, friend: true });
+  reply = (count) => ({ data: Array.from({ length: count }, () => ({ status: "ok" })) });
+  const before = calls.length;
+  for (let i = 0; i < 30; i += 1) await notify([player.id], "team", { title: "t", body: String(i) });
+  await settle();
+  assert.ok(calls.length - before <= 20 - 2, "no more than the daily cap is sent");
 });

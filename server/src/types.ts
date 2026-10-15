@@ -36,6 +36,10 @@ export interface Env {
   NG_WORDS?: string;
   EVENT_STEPS_WINDOW_START?: string;
   EVENT_STEPS_DAILY_MAX?: string;
+  /** How many earlier days a player may still send steps for (default 2), so a day without opening the app is not lost. */
+  EVENT_STEPS_GRACE_DAYS?: string;
+  /** Optional Expo access token for push sends (raises the limits; not needed to send). */
+  EXPO_PUSH_ACCESS_TOKEN?: string;
 }
 
 export interface User {
@@ -186,6 +190,14 @@ export interface Store {
   chooseStarter(userId: string, petId: string): Promise<boolean>;
   /** Whether a refund or revocation of this transaction is on record (it may have arrived before the purchase did). */
   isRevoked(transactionId: string): Promise<boolean>;
+  /** Remember a device that may be sent notifications; a token already known moves to this player. A player keeps the latest few. */
+  savePushToken(userId: string, token: string, prefs: { team: boolean; friend: boolean }): Promise<void>;
+  /** Forget a token (the device refused it, or its owner turned notifications off: then `userId` must match). */
+  removePushToken(token: string, userId?: string): Promise<void>;
+  /** The tokens of these players who want this kind of notification. */
+  pushTokens(userIds: readonly string[], category: "team" | "friend"): Promise<string[]>;
+  /** Record that a one-time notification went out. False when it had already been sent. */
+  markPushSent(key: string): Promise<boolean>;
   claimFreePull(userId: string, routeId: string): Promise<boolean>;
   /**
    * Records draws and spends the balance in one step. `previousPaidPulls` is the count the draw was worked out from:

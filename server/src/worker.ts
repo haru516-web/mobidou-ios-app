@@ -1,5 +1,6 @@
 import { GACHA_PET_IDS, validateGachaPetIds } from "./config/gacha.ts";
 import { isFreePullRoute } from "./config/freePullRoutes.ts";
+import { createExpoNotifier, noNotify, type Notify } from "./push.ts";
 import { isNameAllowed } from "./config/ngWords.ts";
 import { appleRevocationConfigured, equalSecretHash, exchangeAppleAuthorizationCode, hashSecret, randomToken, revokeAppleToken, verifyAppleIdentityToken, verifySignedPayload, verifySignedTransaction } from "./crypto.ts";
 import { D1Store } from "./store.ts";
@@ -221,7 +222,12 @@ function gachaPetIds(): readonly string[] {
   return GACHA_PET_IDS;
 }
 
-async function handle(request: Request, env: Env, store: Store, now = new Date(), random: RandomSource = secureRandom): Promise<Response> {
+/** The calendar day (YYYY-MM-DD) `days` after (or before, when negative) the given one. */
+const shiftDay = (day: string, days: number): string => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+
+const PUSH_TOKEN = /^Expo(nent)?PushToken\[[A-Za-z0-9_-]{8,200}\]$/;
+
+async function handle(request: Request, env: Env, store: Store, now = new Date(), random: RandomSource = secureRandom, notify: Notify = noNotify): Promise<Response> {
   const url = new URL(request.url);
   const method = request.method.toUpperCase();
   const path = url.pathname.replace(/\/$/, "") || "/";
@@ -316,6 +322,22 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   }
 
   const userId = await authenticatedUser(request, store);
+
+  // The device that may be sent notifications. The app asks the player first; this only records the answer.
+  if (method === "POST" && path === "/push/token") {
+    await limit(store, "push-token", userId, 3_600_000, 30, now);
+    const input = await body(request);
+    const token = requireString(input.token, "invalid_push_token", 300);
+    if (!PUSH_TOKEN.test(token)) throw new HttpError(400, "invalid_push_token");
+    await store.savePushToken(userId, token, { team: input.team !== false, friend: input.friend !== false });
+    return json({ status: "registered" });
+  }
+  if (method === "POST" && path === "/push/token/remove") {
+    await limit(store, "push-token", userId, 3_600_000, 30, now);
+    const input = await body(request);
+    await store.removePushToken(requireString(input.token, "invalid_push_token", 300), userId);
+    return json({ status: "removed" });
+  }
 
   if (method === "GET" && path === "/profile") {
     const me = await store.user(userId);
@@ -441,6 +463,7 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     if (await store.pendingRequestExists(userId, recipient.id)) throw new HttpError(409, "already_requested");
     if (await store.pendingRequestExists(recipient.id, userId)) throw new HttpError(409, "they_already_asked");
     await store.requestFriend(userId, recipient.id, crypto.randomUUID());
+    await notify([recipient.id], "friend", { title: "もび道", body: "フレンド申請が届いています。", data: { type: "friend" } });
     return json({ status: "pending" }, 201);
   }
 
@@ -448,8 +471,12 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
   if (method === "POST" && answerMatch) {
     const input = await body(request);
     if (input.answer !== "accepted" && input.answer !== "declined") throw new HttpError(400, "invalid_answer");
-    const answered = await store.answerFriendRequest(userId, decodeURIComponent(answerMatch[1]), input.answer);
+    const requestId = decodeURIComponent(answerMatch[1]);
+    const incoming = (await store.friendRequests(userId)) as { id: string; fromId: string }[];
+    const fromId = incoming.find((row) => row.id === requestId)?.fromId;
+    const answered = await store.answerFriendRequest(userId, requestId, input.answer);
     if (!answered) throw new HttpError(404, "friend_request_not_found");
+    if (input.answer === "accepted" && fromId) await notify([fromId], "friend", { title: "もび道", body: "フレンド申請が承認されました。", data: { type: "friend" } });
     return json({ status: input.answer });
   }
 
@@ -616,13 +643,29 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     if (now.getTime() < startsAt || now.getTime() >= endsAt) throw new HttpError(409, "event_not_active");
     // Each Tokyo day's window runs from START that day to START the next day, so exactly one day is open at any moment.
     const start = parseClock(env.EVENT_STEPS_WINDOW_START, "20:00");
-    const { day } = tokyoDateAndMinute(new Date(now.getTime() - start * 60_000));
-    // Clients name the day their cumulative belongs to, so a morning send of "today so far" is rejected instead of filed under yesterday.
-    if (input.day !== undefined && input.day !== day) return json({ error: "steps_day_mismatch", openDay: day }, 409);
+    const { day: openDay } = tokyoDateAndMinute(new Date(now.getTime() - start * 60_000));
+    const grace = Number(env.EVENT_STEPS_GRACE_DAYS ?? "2");
+    if (!Number.isSafeInteger(grace) || grace < 0 || grace > 7) throw new HttpError(500, "invalid_event_step_grace_configuration");
+    // Clients name the day their cumulative belongs to. That is the open day, or one of the last few days before it (a day
+    // the app was not opened is not lost). A later day, or one past the grace, is refused instead of filed under another date.
+    let day = openDay;
+    if (input.day !== undefined) {
+      if (typeof input.day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(input.day)) throw new HttpError(400, "invalid_day");
+      if (input.day > openDay || input.day < shiftDay(openDay, -grace)) return json({ error: "steps_day_mismatch", openDay }, 409);
+      day = input.day;
+    }
     // Steps count for the team the player has set out with; before that (or without a team) there is nothing to add them to.
     const team = await store.eventTeam(userId, eventId);
     if (!team || team.status !== "active") throw new HttpError(409, "no_active_team");
+    // A day before the team set out is not the team's.
+    if (input.day !== undefined && team.startedAt && day < tokyoDateAndMinute(new Date(team.startedAt)).day) return json({ error: "steps_day_mismatch", openDay }, 409);
     const saved = await store.saveEventSteps(userId, eventId, day, cumulative);
+    // The team's total may have reached the goal with these steps: its other members hear it once.
+    const after = await store.eventTeam(userId, eventId);
+    if (after && teamResponse(event, after).team?.status === "cleared") {
+      const others = after.members.map((member) => member.id).filter((id) => id !== userId);
+      if (others.length > 0) await notify(others, "team", { title: "もび道", body: "チームが目標に着きました。報酬を受け取れます。", data: { type: "team", eventId } }, `cleared:${after.id}`);
+    }
     return json({ day, cumulative: saved });
   }
 
@@ -670,6 +713,8 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       const asked = await store.requestJoinEventTeam(userId, eventId, code, event.maxMembers);
       if (asked.result === "not_found") throw new HttpError(404, "not_found");
       if (asked.result !== "ok" && asked.result !== "already_requested") throw new HttpError(409, asked.result);
+      // The one who made the team answers; they hear about a new request (not about one asked again).
+      if (asked.result === "ok" && present[0]) await notify([present[0]], "team", { title: "もび道", body: "チームへの参加の申請が届いています。", data: { type: "team", eventId } });
       return teamView(202);
     }
 
@@ -683,6 +728,16 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
       if (result.result === "full") throw new HttpError(409, "full");
       // Accepted: the two become friends, as joining a team always has done.
       if (result.result === "accepted" && result.requesterId) await store.makeFriends(userId, result.requesterId);
+      if (result.requesterId && (result.result === "accepted" || result.result === "declined")) {
+        await notify([result.requesterId], "team", { title: "もび道", body: "チームへの参加の申請に、返事が届いています。", data: { type: "team", eventId } });
+      }
+      if (result.result === "accepted") {
+        const team = await store.eventTeam(userId, eventId);
+        if (team?.status === "active") {
+          const others = team.members.map((member) => member.id).filter((id) => id !== userId && id !== result.requesterId);
+          if (others.length > 0) await notify(others, "team", { title: "もび道", body: "チームが出発しました。歩いた分が、チームの歩数になります。", data: { type: "team", eventId } }, `started:${team.id}`);
+        }
+      }
       return teamView();
     }
 
@@ -728,8 +783,8 @@ const CORS_HEADERS = {
   "access-control-max-age": "86400"
 };
 
-async function respond(request: Request, env: Env, store: Store, now: Date, random: RandomSource): Promise<Response> {
-  try { return await handle(request, env, store, now, random); }
+async function respond(request: Request, env: Env, store: Store, now: Date, random: RandomSource, notify: Notify): Promise<Response> {
+  try { return await handle(request, env, store, now, random, notify); }
   catch (error) {
     if (error instanceof HttpError) return json({ error: error.code }, error.status);
     console.error("Request failed", error instanceof Error ? error.message : "unknown error");
@@ -737,16 +792,19 @@ async function respond(request: Request, env: Env, store: Store, now: Date, rand
   }
 }
 
-export async function handleWithStore(request: Request, env: Env, store: Store, now = new Date(), random: RandomSource = secureRandom): Promise<Response> {
+export async function handleWithStore(request: Request, env: Env, store: Store, now = new Date(), random: RandomSource = secureRandom, notify: Notify = noNotify): Promise<Response> {
   if (request.method.toUpperCase() === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
-  const response = await respond(request, env, store, now, random);
+  const response = await respond(request, env, store, now, random, notify);
   for (const [name, value] of Object.entries(CORS_HEADERS)) response.headers.set(name, value);
   return response;
 }
 
 const worker = {
-  fetch(request: Request, env: Env, _context: ExecutionContext): Promise<Response> {
-    return handleWithStore(request, env, new D1Store(env.DB));
+  fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
+    const store = new D1Store(env.DB);
+    // Notifications go out after the answer is sent: the request never waits for them.
+    const notify = createExpoNotifier(env, store, (work) => { if (context.waitUntil) context.waitUntil(work); else void work; });
+    return handleWithStore(request, env, store, new Date(), secureRandom, notify);
   },
   /** Runs every hour (wrangler.toml [triggers]): drops counters and answers that have passed their time. */
   async scheduled(_event: unknown, env: Env, _context: ExecutionContext): Promise<void> {

@@ -54,6 +54,8 @@ import './src/services/pendingDraws';
 import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
+import { onNotificationTap, refreshRegistration, syncStepReminders, useNotificationSetting } from './src/services/notifications';
+import { enableBackgroundSteps, onStepsChangedInBackground } from './src/services/steps';
 import { eventProgress, teamSteps } from './src/services/eventTeam';
 import { devEventTeam, eventTeamApi, loadEventTeam, sendEventSteps, useEventAvailable, useEventTeam } from './src/services/eventTeamStore';
 import { teamCodeFromUrl } from './src/services/eventTeam';
@@ -402,19 +404,46 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   useEffect(() => {
     if (!journey.ready || data.demo || !data.onboarded || eventPreviewing) return undefined;
     void loadEventTeam(TOKI_MEGURU);
+    // Requests and answers arrive as notifications; the team is read again when the app opens or comes back.
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') void loadEventTeam(TOKI_MEGURU); });
-    // Someone may ask to join while the app is open: look again now and then.
-    const timer = setInterval(() => { if (AppState.currentState === 'active') void loadEventTeam(TOKI_MEGURU); }, 60_000);
-    return () => { subscription.remove(); clearInterval(timer); };
+    return () => subscription.remove();
   }, [journey.ready, data.demo, data.onboarded, eventPreviewing]);
   useEffect(() => {
     if (!journey.ready || data.demo || !data.onboarded || eventPreviewing || !eventTeamSetOut || data.source === 'none') return undefined;
+    // Steps are read when the app opens or comes back (the phone counts them all the time); the server also takes the
+    // two days before, so a day without opening the app is not lost.
     const send = () => void sendEventSteps(TOKI_MEGURU, data.source);
     send();
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') send(); });
-    const timer = setInterval(send, 10 * 60 * 1000);
-    return () => { subscription.remove(); clearInterval(timer); };
+    // With the Health app as the source, iOS may also wake the app (about hourly) when steps arrive: send them then too.
+    let stopBackground = () => undefined as void;
+    if (data.source === 'healthkit') {
+      void enableBackgroundSteps();
+      stopBackground = onStepsChangedInBackground(async () => {
+        await loadEventTeam(TOKI_MEGURU);
+        await sendEventSteps(TOKI_MEGURU, data.source, { minGapMs: 10 * 60_000 });
+      });
+    }
+    return () => { subscription.remove(); stopBackground(); };
   }, [journey.ready, data.demo, data.onboarded, eventPreviewing, eventTeamSetOut, data.source]);
+  // Notifications: keep this device registered, plan the evening reminder while a team is out, open the right screen on a tap.
+  const notificationSetting = useNotificationSetting();
+  useEffect(() => {
+    if (!journey.ready || data.demo || !data.onboarded) return;
+    void refreshRegistration();
+  }, [journey.ready, data.demo, data.onboarded]);
+  useEffect(() => {
+    if (!journey.ready || data.demo || !data.onboarded) return undefined;
+    const time = (value?: string) => { const parsed = value ? Date.parse(value) : NaN; return Number.isFinite(parsed) ? parsed : undefined; };
+    const plan = () => void syncStepReminders({ teamActive: eventTeam?.status === 'active', eventStartsAt: time(TOKI_MEGURU.startsAt), eventEndsAt: time(TOKI_MEGURU.endsAt) });
+    plan();
+    const subscription = AppState.addEventListener('change', state => { if (state === 'active') plan(); });
+    return () => subscription.remove();
+  }, [journey.ready, data.demo, data.onboarded, eventTeam?.status, notificationSetting]);
+  useEffect(() => {
+    if (!journey.ready || data.demo || !data.onboarded) return undefined;
+    return onNotificationTap(tap => { if (tap.type === 'friend') setSocialSheet('friends'); else setEventSheet('main'); });
+  }, [journey.ready, data.demo, data.onboarded]);
   const eventUnderway = !!eventTeam && eventTeam.status !== 'recruiting';
   const eventState = eventUnderway ? eventProgress(TOKI_MEGURU, teamSteps(eventTeam)) : null;
   const inEventWalk = eventWalk && eventUnderway;

@@ -3,10 +3,32 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 import { Pedometer } from 'expo-sensors';
 import { missedDays, type SyncMark } from './progress';
 
-type HealthModule = { isAvailable(): Promise<boolean>; requestPermission(): Promise<boolean>; readSteps(start: number, end: number): Promise<number> };
+type HealthModule = {
+  isAvailable(): Promise<boolean>;
+  requestPermission(): Promise<boolean>;
+  readSteps(start: number, end: number): Promise<number>;
+  /** Ask iOS to wake the app (about hourly) when new steps arrive. Absent in builds made before this existed. */
+  enableBackgroundDelivery?(): Promise<boolean>;
+  /** Tell iOS the wake-up has been dealt with. */
+  finishBackgroundDelivery?(): void;
+  addListener?(name: 'onStepsChanged', listener: () => void): { remove(): void };
+};
 const health = Platform.OS === 'ios' ? requireOptionalNativeModule<HealthModule>('MobiHealth') : null;
 export type StepSource = 'healthkit' | 'motion' | 'none';
 export const sourceLabel = { healthkit: 'ヘルスケア', motion: 'モーションとフィットネス', none: '未接続' };
+/** Ask iOS to wake the app when steps arrive, so the team's steps can be sent without the app being opened. */
+export async function enableBackgroundSteps(): Promise<boolean> {
+  if (!health?.enableBackgroundDelivery) return false;
+  try { return await health.enableBackgroundDelivery(); } catch { return false; }
+}
+/** Runs `handler` when iOS wakes the app for new steps, then tells iOS it is done. Returns the unsubscribe. */
+export function onStepsChangedInBackground(handler: () => Promise<void>): () => void {
+  if (!health?.addListener) return () => undefined;
+  const subscription = health.addListener('onStepsChanged', () => {
+    void handler().catch(() => undefined).finally(() => { try { health.finishBackgroundDelivery?.(); } catch { /* the wake-up ends by itself */ } });
+  });
+  return () => subscription.remove();
+}
 export async function connectSteps(): Promise<StepSource> {
   if (Platform.OS !== 'ios') throw new Error('実歩数の連携はiPhoneで利用できます。ここでは体験モードをお楽しみください。');
   if (health && await health.isAvailable()) {

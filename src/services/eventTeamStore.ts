@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PilgrimageEvent } from '../data/events';
 import { authedRequest, readServerAccount, SERVER_URL } from './server';
 import { readStepsBetween, type StepSource } from './steps';
-import { rangeSince, submitEventSteps } from './eventSteps';
+import { openStepsDay, rangeSince, shiftTokyoDay, submitEventStepsCatchUp } from './eventSteps';
 import { canJoin, canLeave, eventProgress, isTeamCode, normalizeTeamCode, startBlocker, teamSteps, type EventTeam, type JoinFailure, type TeamRequest, type StartFailure, type TeamMember } from './eventTeam';
 
 /** `team` is null when the player only asked to join: the maker has to accept first. */
@@ -365,6 +365,20 @@ export function loadEventTeam(event: PilgrimageEvent): Promise<'ok' | 'offline'>
 /** Send the steps of the open day for the team that has set out. At most once per `minGapMs`, never at the same time twice. */
 let lastSend = 0;
 let sending = false;
+const SENT_KEY = (eventId: string) => `@mobidou/event-steps-sent/${eventId}`;
+/** The earlier days the server already has in full, so they are not sent again at every launch. */
+async function loadSentDays(eventId: string): Promise<Record<string, number>> {
+  try {
+    const parsed = JSON.parse((await AsyncStorage.getItem(SENT_KEY(eventId))) ?? '{}') as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed as Record<string, unknown>).filter(([day, value]) => /^\d{4}-\d{2}-\d{2}$/.test(day) && typeof value === 'number' && Number.isFinite(value))) as Record<string, number>;
+  } catch { return {}; }
+}
+async function rememberSentDays(eventId: string, before: Record<string, number>, sent: Record<string, number>, now: Date): Promise<void> {
+  const oldest = shiftTokyoDay(openStepsDay(now), -7);
+  const merged = Object.fromEntries(Object.entries({ ...before, ...sent }).filter(([day]) => day >= oldest));
+  try { await AsyncStorage.setItem(SENT_KEY(eventId), JSON.stringify(merged)); } catch { /* it is only a saving of requests */ }
+}
 export async function sendEventSteps(event: PilgrimageEvent, source: StepSource, options: { minGapMs?: number; now?: Date } = {}): Promise<'sent' | 'skipped' | 'failed'> {
   const team = teams.get(event.id);
   if (!SERVER_URL || sending || source === 'none' || !team || team.status !== 'active') return 'skipped';
@@ -372,9 +386,11 @@ export async function sendEventSteps(event: PilgrimageEvent, source: StepSource,
   if (now.getTime() - lastSend < (options.minGapMs ?? 120_000)) return 'skipped';
   sending = true;
   try {
-    const result = await submitEventSteps({
+    const alreadySent = await loadSentDays(event.id);
+    const result = await submitEventStepsCatchUp({
       eventId: event.id,
       now,
+      alreadySent,
       readSteps: async (start, end) => {
         const range = rangeSince(start, end, team.since);
         return range ? readStepsBetween(source, range.start, range.end) : 0;
@@ -386,7 +402,8 @@ export async function sendEventSteps(event: PilgrimageEvent, source: StepSource,
       },
     });
     lastSend = Date.now();
-    if (!result.ok) return 'failed';
+    await rememberSentDays(event.id, alreadySent, result.sent, now);
+    if (result.outcome === 'failed') return 'failed';
     knownEvents.set(event.id, event);
     await eventTeamApi.refresh(event.id);
     return 'sent';

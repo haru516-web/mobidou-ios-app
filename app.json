@@ -13,6 +13,7 @@
       "appleTeamId": "473V9BLJ33",
       "entitlements": {
         "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.background-delivery": true,
         "com.apple.security.application-groups": ["group.jp.mobby.mobidou"]
       },
       "privacyManifests": {
@@ -36,6 +37,7 @@
         }
       ],
       "expo-asset",
+      "expo-notifications",
       "expo-iap",
       "expo-apple-authentication",
       "@bacons/apple-targets",

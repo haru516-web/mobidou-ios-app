@@ -256,6 +256,34 @@ export class D1Store implements Store {
     await this.db.batch(statements);
   }
 
+  async savePushToken(userId: string, token: string, prefs: { team: boolean; friend: boolean }): Promise<void> {
+    await this.db.batch([
+      this.db.prepare(`INSERT INTO push_tokens (token, user_id, team_notify, friend_notify, updated_at) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(token) DO UPDATE SET user_id = excluded.user_id, team_notify = excluded.team_notify, friend_notify = excluded.friend_notify, updated_at = excluded.updated_at`)
+        .bind(token, userId, prefs.team ? 1 : 0, prefs.friend ? 1 : 0, nowIso()),
+      // A player keeps the latest few devices; older ones are dropped.
+      this.db.prepare("DELETE FROM push_tokens WHERE user_id = ? AND token NOT IN (SELECT token FROM push_tokens WHERE user_id = ? ORDER BY updated_at DESC LIMIT 5)").bind(userId, userId)
+    ]);
+  }
+
+  async removePushToken(token: string, userId?: string): Promise<void> {
+    if (userId) await this.db.prepare("DELETE FROM push_tokens WHERE token = ? AND user_id = ?").bind(token, userId).run();
+    else await this.db.prepare("DELETE FROM push_tokens WHERE token = ?").bind(token).run();
+  }
+
+  async pushTokens(userIds: readonly string[], category: "team" | "friend"): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const column = category === "team" ? "team_notify" : "friend_notify";
+    const marks = userIds.map(() => "?").join(", ");
+    const rows = await this.db.prepare(`SELECT token FROM push_tokens WHERE user_id IN (${marks}) AND ${column} = 1`).bind(...userIds).all<{ token: string }>();
+    return (rows.results ?? []).map((row) => row.token);
+  }
+
+  async markPushSent(key: string): Promise<boolean> {
+    const result = await this.db.prepare("INSERT OR IGNORE INTO push_sent (key, created_at) VALUES (?, ?)").bind(key, nowIso()).run();
+    return (result.meta?.changes ?? 0) > 0;
+  }
+
   async isRevoked(transactionId: string): Promise<boolean> {
     return !!(await this.db.prepare("SELECT 1 AS found FROM revoked_transactions WHERE transaction_id = ?").bind(transactionId).first());
   }
@@ -557,7 +585,7 @@ export class D1Store implements Store {
 
   async eventTeamMemberIdsByCode(eventId: string, code: string): Promise<string[]> {
     const rows = await this.db.prepare(`SELECT m.user_id AS id FROM event_teams t JOIN event_members m ON m.team_id = t.id
-      WHERE t.event_id = ? AND t.invite_code = ?`).bind(eventId, code).all<{ id: string }>();
+      WHERE t.event_id = ? AND t.invite_code = ? ORDER BY m.joined_at ASC, m.user_id ASC`).bind(eventId, code).all<{ id: string }>();
     return (rows.results ?? []).map((row) => row.id);
   }
 
@@ -570,7 +598,8 @@ export class D1Store implements Store {
     await this.db.batch([
       this.db.prepare("DELETE FROM rate_limits WHERE (window >= 1000000 AND window < ?) OR (window >= 100000 AND window < 1000000 AND window < ?) OR (window < 100000 AND window < ?)")
         .bind(minute - 10, hour - 3, day - 2),
-      this.db.prepare("DELETE FROM gacha_ops WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString())
+      this.db.prepare("DELETE FROM gacha_ops WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString()),
+      this.db.prepare("DELETE FROM push_sent WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString())
     ]);
   }
 }

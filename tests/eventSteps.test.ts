@@ -81,3 +81,61 @@ test('only the steps after joining count: a morning join adds nothing for yester
   // No joining time known (an older server): nothing is cut.
   assert.deepEqual(rangeSince(today.start, today.end, undefined), { start: today.start, end: today.end });
 });
+
+// ---- the open day and the days before it
+import { catchUpDays, shiftTokyoDay, submitEventStepsCatchUp, STEPS_GRACE_DAYS } from '../src/services/eventSteps.ts';
+import { reminderTimes } from '../src/services/notificationPlan.ts';
+
+test('the days to send are the open day and the grace days before it, oldest first', () => {
+  assert.equal(STEPS_GRACE_DAYS, 2);
+  assert.deepEqual(catchUpDays(jst('2026-10-05T21:00:00')), ['2026-10-03', '2026-10-04', '2026-10-05']);
+  // Before 20:00 the open day is still yesterday.
+  assert.deepEqual(catchUpDays(jst('2026-10-05T09:00:00')), ['2026-10-02', '2026-10-03', '2026-10-04']);
+  assert.equal(shiftTokyoDay('2026-10-01', -1), '2026-09-30');
+  assert.equal(shiftTokyoDay('2026-12-31', 1), '2027-01-01');
+});
+
+test('catching up sends each day with steps once, skips empty and already-sent days, and tolerates an older server', async () => {
+  const sent: EventStepsRequest[] = [];
+  const totals: Record<string, number> = { '2026-10-03': 4000, '2026-10-04': 0, '2026-10-05': 900 };
+  const day = (start: number) => new Date(start + 9 * 3_600_000).toISOString().slice(0, 10);
+  const run = (alreadySent: Record<string, number>, answer: (request: EventStepsRequest) => EventStepsResponse) => submitEventStepsCatchUp({
+    eventId: 'toki', now: jst('2026-10-05T21:00:00'), alreadySent,
+    readSteps: async (start) => totals[day(start)] ?? 0,
+    transport: async request => { sent.push(request); return answer(request); }
+  });
+
+  const first = await run({}, request => ok(200, { day: request.day, cumulative: request.cumulative }));
+  assert.deepEqual(sent.map(request => [request.day, request.cumulative]), [['2026-10-03', 4000], ['2026-10-05', 900]]);
+  assert.equal(first.outcome, 'sent');
+  assert.deepEqual(first.sent, { '2026-10-03': 4000, '2026-10-05': 900 });
+
+  // The earlier day the server already has in full is not sent again; the open day always is.
+  sent.length = 0;
+  const second = await run({ '2026-10-03': 4000 }, request => ok(200, { day: request.day, cumulative: request.cumulative }));
+  assert.deepEqual(sent.map(request => request.day), ['2026-10-05']);
+  assert.equal(second.outcome, 'sent');
+
+  // An older server refuses earlier days with a mismatch: the open day is what counts.
+  sent.length = 0;
+  const older = await run({}, request => request.day === '2026-10-05' ? ok(200, { day: request.day, cumulative: request.cumulative }) : ok(409, { error: 'steps_day_mismatch', openDay: '2026-10-05' }));
+  assert.equal(older.outcome, 'sent');
+  // The open day refused is a failure.
+  const refused = await run({}, () => ok(409, { error: 'steps_day_mismatch', openDay: '2026-10-05' }));
+  assert.equal(refused.outcome, 'failed');
+});
+
+test('the evening reminder: 20:05 Tokyo time, a few days ahead, only while a team is out and the event runs', () => {
+  const at = (iso: string) => new Date(`${iso}+09:00`).getTime();
+  const options = { enabled: true, teamActive: true };
+  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), options), [at('2026-10-05T20:05:00'), at('2026-10-06T20:05:00'), at('2026-10-07T20:05:00')]);
+  // After tonight's time has passed, the next evenings.
+  assert.deepEqual(reminderTimes(jst('2026-10-05T21:00:00'), options), [at('2026-10-06T20:05:00'), at('2026-10-07T20:05:00'), at('2026-10-08T20:05:00')]);
+  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), { ...options, teamActive: false }), []);
+  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), { ...options, enabled: false }), []);
+  // Nothing at or after the end of the event, nor before it starts.
+  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), { ...options, eventEndsAt: at('2026-10-07T00:00:00') }), [at('2026-10-05T20:05:00'), at('2026-10-06T20:05:00')]);
+  assert.deepEqual(reminderTimes(jst('2026-10-05T09:00:00'), { ...options, eventStartsAt: at('2026-10-06T00:00:00') }), [at('2026-10-06T20:05:00'), at('2026-10-07T20:05:00'), at('2026-10-08T20:05:00')]);
+  // Same instants wherever the phone is: it is all in Tokyo time.
+  assert.deepEqual(reminderTimes(new Date('2026-10-05T00:00:00Z'), options), reminderTimes(jst('2026-10-05T09:00:00'), options));
+});
