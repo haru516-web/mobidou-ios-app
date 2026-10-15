@@ -191,3 +191,41 @@ test('the Mobby picker lists the owned ones first, from the left, then the ones 
   // The first pick has no ownership check: the catalog order, no event Mobbies.
   assert.deepEqual(orderForPicker(ordinary, event).map(pet => pet.id), ['a', 'b', 'c', 'd', 'e']);
 });
+
+import { retryUntilOk } from '../src/services/retryUntilOk.ts';
+
+test('retryUntilOk asks again after each delay until it answers ok, and stops when told to', async () => {
+  const scheduled: { callback: () => void; ms: number; id: number }[] = [];
+  const cleared: number[] = [];
+  const timers = { set: (callback: () => void, ms: number) => { const id = scheduled.length; scheduled.push({ callback, ms, id }); return id; }, clear: (handle: unknown) => { cleared.push(handle as number); } };
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  const answers: ('ok' | 'offline')[] = ['offline', 'offline', 'ok'];
+  let calls = 0;
+  const stop = retryUntilOk(async () => answers[calls++] ?? 'ok', [100, 200, 300], timers);
+  await flush();
+  assert.equal(calls, 1);
+  assert.deepEqual(scheduled.map(row => row.ms), [100]);
+  scheduled[0].callback(); await flush();
+  assert.equal(calls, 2);
+  assert.deepEqual(scheduled.map(row => row.ms), [100, 200]);
+  scheduled[1].callback(); await flush();
+  // The third answer is ok: nothing more is scheduled.
+  assert.equal(calls, 3);
+  assert.equal(scheduled.length, 2);
+  stop();
+
+  // It gives up after the last delay, and a stopped run schedules nothing.
+  const more: { callback: () => void; ms: number }[] = [];
+  let tries = 0;
+  const stopAgain = retryUntilOk(async () => { tries += 1; return 'offline'; }, [10], { set: (callback, ms) => { more.push({ callback, ms }); return more.length; }, clear: () => undefined });
+  await flush();
+  more[0].callback(); await flush();
+  assert.equal(tries, 2);
+  assert.equal(more.length, 1);
+  stopAgain();
+  let after = 0;
+  const stopNow = retryUntilOk(async () => { after += 1; return 'offline'; }, [10], { set: (callback, ms) => { more.push({ callback, ms }); return more.length; }, clear: () => undefined });
+  stopNow();
+  await flush();
+  assert.equal(after, 1);
+});

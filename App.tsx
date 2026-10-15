@@ -54,6 +54,7 @@ import './src/services/pendingDraws';
 import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
+import { retryUntilOk } from './src/services/retryUntilOk';
 import { offerNotifications, onNotificationTap, refreshRegistration, syncAbsenceReminders, syncOmikujiReminders, syncStepReminders, useNotificationSetting, useOmikujiReminder } from './src/services/notifications';
 import { enableBackgroundSteps, onStepsChangedInBackground } from './src/services/steps';
 import { eventProgress, teamSteps } from './src/services/eventTeam';
@@ -403,11 +404,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const eventTeamSetOut = eventTeam?.status === 'active' || eventTeam?.status === 'cleared';
   useEffect(() => {
     if (!journey.ready || data.demo || !data.onboarded || eventPreviewing) return undefined;
-    void loadEventTeam(TOKI_MEGURU);
+    // A new player has no server account until the first Mobby is chosen and reported, so the event cannot be known yet:
+    // ask again a few times, soon, until the server answers (this is what brings the event announcement up promptly).
+    const stopRetrying = retryUntilOk(() => loadEventTeam(TOKI_MEGURU), [1200, 3000, 6000, 12000, 20000]);
     // Requests and answers arrive as notifications; the team is read again when the app opens or comes back.
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') void loadEventTeam(TOKI_MEGURU); });
-    return () => subscription.remove();
-  }, [journey.ready, data.demo, data.onboarded, eventPreviewing]);
+    return () => { stopRetrying(); subscription.remove(); };
+  }, [journey.ready, data.demo, data.onboarded, eventPreviewing, hasStarter(data.mobbies)]);
   useEffect(() => {
     if (!journey.ready || data.demo || !data.onboarded || eventPreviewing || !eventTeamSetOut || data.source === 'none') return undefined;
     // Steps are read when the app opens or comes back (the phone counts them all the time); the server also takes the
