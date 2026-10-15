@@ -41,5 +41,27 @@ export function reminderTimes(now: Date, options: ReminderOptions, daysAhead = R
   return times;
 }
 
+/** The morning the daily omikuji reminder goes off: 8:00 on the phone's own clock, as the omikuji day is the phone's calendar day. */
+export const OMIKUJI_HOUR = 8;
+export const OMIKUJI_DAYS_AHEAD = 14;
+
+/**
+ * The instants (epoch ms) of the daily omikuji reminder, soonest first, on the phone's own clock.
+ * Today's is left out once today's omikuji has been drawn.
+ */
+export function omikujiTimes(now: Date, options: { enabled: boolean; drawnToday: boolean }, daysAhead = OMIKUJI_DAYS_AHEAD): number[] {
+  if (!options.enabled) return [];
+  const times: number[] = [];
+  for (let day = 0; day <= daysAhead && times.length < daysAhead; day += 1) {
+    if (day === 0 && options.drawnToday) continue;
+    const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() + day, OMIKUJI_HOUR, 0, 0, 0).getTime();
+    if (at > now.getTime() + 60_000) times.push(at);
+  }
+  return times;
+}
+
+export const OMIKUJI_TITLE = 'もび道';
+export const OMIKUJI_BODY = '今日のおみくじが引けます。';
+
 export const REMINDER_TITLE = 'もび道';
 export const REMINDER_BODY = '今日の歩数を、チームに届けましょう。もび道を開くと、届きます。';

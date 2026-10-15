@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { authedRequest, readServerAccount } from './server';
-import { REMINDER_BODY, REMINDER_TITLE, reminderTimes, type ReminderOptions } from './notificationPlan';
+import { OMIKUJI_BODY, OMIKUJI_TITLE, omikujiTimes, REMINDER_BODY, REMINDER_TITLE, reminderTimes, type ReminderOptions } from './notificationPlan';
 
 /*
  * Notifications.
@@ -21,6 +21,8 @@ import { REMINDER_BODY, REMINDER_TITLE, reminderTimes, type ReminderOptions } fr
 const ENABLED_KEY = '@mobidou/notifications/enabled';
 const TOKEN_KEY = '@mobidou/notifications/token';
 const REMINDER_PREFIX = 'steps-reminder-';
+const OMIKUJI_KEY = '@mobidou/notifications/omikuji';
+const OMIKUJI_PREFIX = 'omikuji-reminder-';
 const TOKEN_REFRESH_MS = 7 * 86_400_000;
 
 /** 'unset' until the player has been asked; then on or off. */
@@ -134,12 +136,13 @@ export async function refreshRegistration(): Promise<void> {
   await registerToken();
 }
 
-async function cancelReminders(): Promise<void> {
+async function cancelByPrefix(prefix: string): Promise<void> {
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-    await Promise.all(scheduled.filter(item => item.identifier.startsWith(REMINDER_PREFIX)).map(item => Notifications.cancelScheduledNotificationAsync(item.identifier)));
+    await Promise.all(scheduled.filter(item => item.identifier.startsWith(prefix)).map(item => Notifications.cancelScheduledNotificationAsync(item.identifier)));
   } catch { /* nothing was scheduled */ }
 }
+const cancelReminders = () => cancelByPrefix(REMINDER_PREFIX);
 
 /** Make the on-device reminders match the situation now: the next few evenings while a team is out, none otherwise. */
 export async function syncStepReminders(options: Omit<ReminderOptions, 'enabled'>, now = new Date()): Promise<void> {
@@ -152,6 +155,59 @@ export async function syncStepReminders(options: Omit<ReminderOptions, 'enabled'
       await Notifications.scheduleNotificationAsync({
         identifier: `${REMINDER_PREFIX}${at}`,
         content: { title: REMINDER_TITLE, body: REMINDER_BODY, data: { type: 'steps' } },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at) },
+      });
+    }
+  } catch { /* a reminder that cannot be set is not worth a message */ }
+}
+
+// ---- the daily omikuji reminder: its own switch, off until the player turns it on, on the phone only
+
+let omikujiOn = false;
+let omikujiLoaded = false;
+const omikujiListeners = new Set<() => void>();
+async function loadOmikuji(): Promise<boolean> {
+  if (!omikujiLoaded) {
+    try { omikujiOn = (await AsyncStorage.getItem(OMIKUJI_KEY)) === 'on'; } catch { omikujiOn = false; }
+    omikujiLoaded = true;
+  }
+  return omikujiOn;
+}
+
+export function useOmikujiReminder(): boolean {
+  const [value, setValue] = useState(omikujiOn);
+  useEffect(() => {
+    let active = true;
+    const update = () => { if (active) setValue(omikujiOn); };
+    omikujiListeners.add(update);
+    void loadOmikuji().then(update);
+    return () => { active = false; omikujiListeners.delete(update); };
+  }, []);
+  return value;
+}
+
+/** The settings switch for the daily omikuji reminder. Turning it on asks for permission when needed. */
+export async function setOmikujiReminder(on: boolean): Promise<boolean> {
+  if (!supported) return false;
+  if (on && !(await permissionGranted(true))) return false;
+  omikujiOn = on;
+  omikujiLoaded = true;
+  try { await AsyncStorage.setItem(OMIKUJI_KEY, on ? 'on' : 'off'); } catch { /* it lasts until the app is closed */ }
+  if (!on) await cancelByPrefix(OMIKUJI_PREFIX);
+  omikujiListeners.forEach(listener => listener());
+  return omikujiOn;
+}
+
+/** Make the morning reminders match the situation now: the next two weeks, without today's once the omikuji is drawn. */
+export async function syncOmikujiReminders(options: { drawnToday: boolean }, now = new Date()): Promise<void> {
+  if (!supported) return;
+  await cancelByPrefix(OMIKUJI_PREFIX);
+  const enabled = (await loadOmikuji()) && await permissionGranted(false);
+  try {
+    for (const at of omikujiTimes(now, { enabled, drawnToday: options.drawnToday })) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: `${OMIKUJI_PREFIX}${at}`,
+        content: { title: OMIKUJI_TITLE, body: OMIKUJI_BODY, data: { type: 'omikuji' } },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at) },
       });
     }

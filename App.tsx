@@ -54,7 +54,7 @@ import './src/services/pendingDraws';
 import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
-import { onNotificationTap, refreshRegistration, syncStepReminders, useNotificationSetting } from './src/services/notifications';
+import { onNotificationTap, refreshRegistration, syncOmikujiReminders, syncStepReminders, useNotificationSetting, useOmikujiReminder } from './src/services/notifications';
 import { enableBackgroundSteps, onStepsChangedInBackground } from './src/services/steps';
 import { eventProgress, teamSteps } from './src/services/eventTeam';
 import { devEventTeam, eventTeamApi, loadEventTeam, sendEventSteps, useEventAvailable, useEventTeam } from './src/services/eventTeamStore';
@@ -442,7 +442,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, [journey.ready, data.demo, data.onboarded, eventTeam?.status, notificationSetting]);
   useEffect(() => {
     if (!journey.ready || data.demo || !data.onboarded) return undefined;
-    return onNotificationTap(tap => { if (tap.type === 'friend') setSocialSheet('friends'); else setEventSheet('main'); });
+    return onNotificationTap(tap => {
+      if (tap.type === 'friend') setSocialSheet('friends');
+      else if (tap.type === 'omikuji') setOmikujiModal(true);
+      else setEventSheet('main');
+    });
   }, [journey.ready, data.demo, data.onboarded]);
   const eventUnderway = !!eventTeam && eventTeam.status !== 'recruiting';
   const eventState = eventUnderway ? eventProgress(TOKI_MEGURU, teamSteps(eventTeam)) : null;
@@ -499,6 +503,15 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const nextRoutePeekBottom = nextRoutePeekMetric.bottom * nextRoutePeekHeight;
   const omikujiDay = localOmikujiDay();
   const omikujiDrawn = onboardingPreview ? tutorialPreviewDrawn : data.omikujiDay === omikujiDay;
+  // The morning omikuji reminder: planned again when the app opens or comes back, without today's once it is drawn.
+  const omikujiReminder = useOmikujiReminder();
+  useEffect(() => {
+    if (!journey.ready || data.demo || !data.onboarded) return undefined;
+    const plan = () => void syncOmikujiReminders({ drawnToday: data.omikujiDay === localOmikujiDay() });
+    plan();
+    const subscription = AppState.addEventListener('change', state => { if (state === 'active') plan(); });
+    return () => subscription.remove();
+  }, [journey.ready, data.demo, data.onboarded, data.omikujiDay, omikujiReminder]);
   const dailyFortune = fortuneForDay(omikujiDay, omikujiDrawn && !onboardingPreview && data.omikujiPetId ? data.omikujiPetId : pet.id);
   const isFirstRunOmikuji = firstRunStage === 'drawOmikuji';
   const firstRunOmikujiComplete = isFirstRunOmikuji && omikujiDrawn && !omikujiAnimating;

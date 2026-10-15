@@ -152,3 +152,19 @@ test('the reminder is planned two weeks ahead, so someone who does not open the 
   const ends = new Date('2026-10-08T00:00:00+09:00').getTime();
   assert.equal(reminderTimes(jst('2026-10-05T09:00:00'), { enabled: true, teamActive: true, eventEndsAt: ends }).length, 3);
 });
+
+import { omikujiTimes } from '../src/services/notificationPlan.ts';
+
+test('the daily omikuji reminder: 8:00 on the phone clock, two weeks ahead, not today once drawn, nothing when off', () => {
+  const morning = new Date(2026, 9, 5, 7, 0);
+  const eight = (day: number) => new Date(2026, 9, day, 8, 0).getTime();
+  const times = omikujiTimes(morning, { enabled: true, drawnToday: false });
+  assert.equal(times.length, 14);
+  assert.equal(times[0], eight(5));
+  assert.equal(times[13], eight(18));
+  // Today's is left out once today's omikuji is drawn.
+  assert.equal(omikujiTimes(morning, { enabled: true, drawnToday: true })[0], eight(6));
+  // After 8:00 the next one is tomorrow's.
+  assert.equal(omikujiTimes(new Date(2026, 9, 5, 9, 0), { enabled: true, drawnToday: false })[0], eight(6));
+  assert.deepEqual(omikujiTimes(morning, { enabled: false, drawnToday: false }), []);
+});
