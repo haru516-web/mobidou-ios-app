@@ -40,6 +40,8 @@ export interface Env {
   EVENT_STEPS_GRACE_DAYS?: string;
   /** Optional Expo access token for push sends (raises the limits; not needed to send). */
   EXPO_PUSH_ACCESS_TOKEN?: string;
+  /** The operator's key for /admin (a wrangler secret, at least 24 characters). Without it the admin page and API do not exist. */
+  ADMIN_TOKEN?: string;
 }
 
 export interface User {
@@ -212,6 +214,8 @@ export interface Store {
   removePushToken(token: string, userId?: string): Promise<void>;
   /** The tokens of these players who want this kind of notification. */
   pushTokens(userIds: readonly string[], category: "team" | "friend"): Promise<string[]>;
+  /** Every device that wants any notification (an announcement goes to these): distinct tokens. */
+  broadcastPushTokens(): Promise<string[]>;
   /** Record that a one-time notification went out. False when it had already been sent. */
   markPushSent(key: string): Promise<boolean>;
   claimFreePull(userId: string, routeId: string): Promise<boolean>;

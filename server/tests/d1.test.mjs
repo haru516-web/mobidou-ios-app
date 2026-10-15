@@ -503,6 +503,10 @@ test("D1 push tokens: kept per player (the latest few), moved with the device, c
   await store.removePushToken("ExponentPushToken[device7device]", "gus");
   assert.equal((await store.pushTokens(["gus"], "team")).length, 0);
   assert.deepEqual(await store.pushTokens([], "team"), []);
+  // An announcement goes to devices that want any notification, each token once.
+  await store.savePushToken("gus", "ExponentPushToken[announceonly]", { team: false, friend: false });
+  assert.equal((await store.broadcastPushTokens()).includes("ExponentPushToken[announceonly]"), false);
+  assert.equal(new Set(await store.broadcastPushTokens()).size, (await store.broadcastPushTokens()).length);
   assert.equal(await store.markPushSent("cleared:t1"), true);
   assert.equal(await store.markPushSent("cleared:t1"), false);
   await store.deleteUser("fay");

@@ -284,6 +284,11 @@ export class D1Store implements Store {
     return (rows.results ?? []).map((row) => row.token);
   }
 
+  async broadcastPushTokens(): Promise<string[]> {
+    const rows = await this.db.prepare("SELECT DISTINCT token FROM push_tokens WHERE team_notify = 1 OR friend_notify = 1").all<{ token: string }>();
+    return (rows.results ?? []).map((row) => row.token);
+  }
+
   async markPushSent(key: string): Promise<boolean> {
     const result = await this.db.prepare("INSERT OR IGNORE INTO push_sent (key, created_at) VALUES (?, ?)").bind(key, nowIso()).run();
     return (result.meta?.changes ?? 0) > 0;

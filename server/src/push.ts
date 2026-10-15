@@ -56,3 +56,43 @@ export function createExpoNotifier(
     })());
   };
 }
+
+/**
+ * An announcement to every device that wants notifications. Unlike `Notify` this waits for the sends and reports them:
+ * the operator is looking at the answer. A token the device no longer accepts is dropped.
+ */
+export async function broadcastPush(
+  env: Pick<Env, "EXPO_PUSH_ACCESS_TOKEN">,
+  store: Store,
+  tokens: readonly string[],
+  content: PushContent,
+  fetchImpl: typeof fetch = fetch
+): Promise<{ targets: number; accepted: number; failed: number }> {
+  let accepted = 0;
+  let failed = 0;
+  for (let from = 0; from < tokens.length; from += BATCH) {
+    const chunk = tokens.slice(from, from + BATCH);
+    try {
+      const response = await fetchImpl(EXPO_PUSH_URL, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          ...(env.EXPO_PUSH_ACCESS_TOKEN ? { authorization: `Bearer ${env.EXPO_PUSH_ACCESS_TOKEN}` } : {})
+        },
+        body: JSON.stringify(chunk.map((to) => ({ to, title: content.title, body: content.body, data: content.data ?? {}, sound: "default", priority: "high" })))
+      });
+      if (!response.ok) { failed += chunk.length; continue; }
+      const tickets = ((await response.json().catch(() => null)) as { data?: Ticket[] } | null)?.data ?? [];
+      for (let i = 0; i < chunk.length; i += 1) {
+        const ticket = tickets[i];
+        if (ticket?.status === "ok") accepted += 1;
+        else {
+          failed += 1;
+          if (ticket?.details?.error === "DeviceNotRegistered") await store.removePushToken(chunk[i]);
+        }
+      }
+    } catch { failed += chunk.length; }
+  }
+  return { targets: tokens.length, accepted, failed };
+}

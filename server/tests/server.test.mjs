@@ -71,6 +71,7 @@ class MemoryStore {
   async savePushToken(userId, token, prefs) { this.pushRows.set(token, { userId, ...prefs }); }
   async removePushToken(token, userId) { if (!userId || this.pushRows.get(token)?.userId === userId) this.pushRows.delete(token); }
   async pushTokens(userIds, category) { return [...this.pushRows].filter(([, row]) => userIds.includes(row.userId) && row[category]).map(([token]) => token); }
+  async broadcastPushTokens() { return [...this.pushRows].filter(([, row]) => row.team || row.friend).map(([token]) => token); }
   async markPushSent(key) { if (this.pushSentKeys.has(key)) return false; this.pushSentKeys.add(key); return true; }
   async recordPurchase(userId, transaction, product) {
     if (this.purchases.has(transaction.transactionId) || this.revokedIds.has(transaction.transactionId)) return false;
@@ -1823,5 +1824,55 @@ ${pkcs8}
     assert.equal(await context.store.appleRefreshToken(account.userId), "own-token");
   } finally {
     globalThis.fetch = realFetch;
+  }
+});
+
+const ADMIN_KEY = "admin-key-for-tests-0123456789";
+const adminCall = (context, method, path, body, key = ADMIN_KEY, withEnv = { ...env, ADMIN_TOKEN: ADMIN_KEY }) =>
+  handleWithStore(new Request(`https://server.test${path}`, {
+    method,
+    headers: { "content-type": "application/json", ...(key ? { authorization: `Bearer ${key}` } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  }), withEnv, context.store);
+
+test("the admin page and API do not exist without an admin key, and refuse a wrong one", async () => {
+  const context = createContext();
+  assert.equal((await adminCall(context, "GET", "/admin", undefined, null, env)).status, 404);
+  assert.equal((await adminCall(context, "POST", "/admin/push/preview", {}, ADMIN_KEY, env)).status, 404);
+  assert.equal((await adminCall(context, "POST", "/admin/push/preview", {}, "wrong-key", { ...env, ADMIN_TOKEN: "short" })).status, 404);
+  assert.equal((await adminCall(context, "GET", "/admin", undefined, null)).status, 200);
+  assert.equal((await adminCall(context, "POST", "/admin/push/preview", {}, "wrong-key")).status, 401);
+  assert.equal((await adminCall(context, "POST", "/admin/push/preview", {}, null)).status, 401);
+  assert.equal((await adminCall(context, "POST", "/admin/push/send", { title: "a", body: "b", key: "abcdefgh1" }, "wrong-key")).status, 401);
+});
+
+test("an announcement goes to every device that wants notifications, once per composition", async () => {
+  const context = createContext();
+  const a = await register(context);
+  const b = await register(context);
+  await call(context, "POST", "/push/token", { token: "ExponentPushToken[announce-aaaaaaaa]", team: true, friend: true }, a.userId);
+  await call(context, "POST", "/push/token", { token: "ExponentPushToken[announce-bbbbbbbb]", team: false, friend: false }, b.userId);
+  assert.deepEqual(await (await adminCall(context, "POST", "/admin/push/preview", {})).json(), { count: 1 });
+  const originalFetch = globalThis.fetch;
+  const sent = [];
+  globalThis.fetch = async (_url, init) => {
+    const messages = JSON.parse(init.body);
+    sent.push(...messages);
+    return new Response(JSON.stringify({ data: messages.map(() => ({ status: "ok" })) }), { status: 200 });
+  };
+  try {
+    const bad = await adminCall(context, "POST", "/admin/push/send", { title: "", body: "x", key: "abcdefgh1" });
+    assert.equal(bad.status, 400);
+    const tooLong = await adminCall(context, "POST", "/admin/push/send", { title: "t", body: "x".repeat(201), key: "abcdefgh1" });
+    assert.equal(tooLong.status, 400);
+    const first = await adminCall(context, "POST", "/admin/push/send", { title: "お知らせ", body: "イベントが始まります", key: "abcdefgh1" });
+    assert.equal(first.status, 200);
+    assert.deepEqual(await first.json(), { ok: true, targets: 1, accepted: 1, failed: 0 });
+    assert.deepEqual(sent.map(message => [message.to, message.title, message.data.type]), [["ExponentPushToken[announce-aaaaaaaa]", "お知らせ", "announcement"]]);
+    // The same key again (a second press) sends nothing.
+    assert.equal((await adminCall(context, "POST", "/admin/push/send", { title: "お知らせ", body: "イベントが始まります", key: "abcdefgh1" })).status, 409);
+    assert.equal(sent.length, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
