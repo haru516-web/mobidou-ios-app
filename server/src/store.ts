@@ -486,7 +486,7 @@ export class D1Store implements Store {
     const creator = await this.db.prepare("SELECT user_id FROM event_members WHERE team_id = ? ORDER BY joined_at ASC, user_id ASC LIMIT 1").bind(request.team_id).first<{ user_id: string }>();
     if (!creator || creator.user_id !== creatorId) return { result: "not_creator" };
     // A block made after the request was sent still counts: the request is dropped, as if it had been declined.
-    if (accept && await this.blockedEither(creatorId, request.user_id)) {
+    if (accept && await this.blockedWithTeam(request.team_id, request.user_id)) {
       await this.db.prepare("DELETE FROM event_join_requests WHERE id = ?").bind(request.id).run();
       return { result: "declined", requesterId: request.user_id };
     }
@@ -497,8 +497,10 @@ export class D1Store implements Store {
     // One statement checks the room and inserts, so two answers cannot take the last place together.
     const added = await this.db.prepare(`INSERT INTO event_members (event_id, team_id, user_id, joined_at)
       SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM event_members WHERE team_id = ?) < ?
-        AND NOT EXISTS (SELECT 1 FROM event_members WHERE event_id = ? AND user_id = ?)`)
-      .bind(eventId, request.team_id, request.user_id, nowIso(), request.team_id, maxMembers, eventId, request.user_id).run();
+        AND NOT EXISTS (SELECT 1 FROM event_members WHERE event_id = ? AND user_id = ?)
+        AND NOT EXISTS (SELECT 1 FROM event_members m JOIN user_blocks b ON (b.blocker_id = m.user_id AND b.blocked_id = ?) OR (b.blocker_id = ? AND b.blocked_id = m.user_id)
+          WHERE m.team_id = ?)`)
+      .bind(eventId, request.team_id, request.user_id, nowIso(), request.team_id, maxMembers, eventId, request.user_id, request.user_id, request.user_id, request.team_id).run();
     if ((added.meta?.changes ?? 0) === 0) {
       await this.db.prepare("DELETE FROM event_join_requests WHERE id = ?").bind(request.id).run();
       return { result: "full" };
@@ -554,6 +556,12 @@ export class D1Store implements Store {
       this.db.prepare("INSERT OR IGNORE INTO friendships (user_id, friend_id, created_at) VALUES (?, ?, ?)").bind(userId, otherId, now),
       this.db.prepare("INSERT OR IGNORE INTO friendships (user_id, friend_id, created_at) VALUES (?, ?, ?)").bind(otherId, userId, now)
     ]);
+  }
+
+  /** Whether anyone in this team has blocked this player, or been blocked by them. */
+  private async blockedWithTeam(teamId: string, userId: string): Promise<boolean> {
+    return !!(await this.db.prepare(`SELECT 1 AS found FROM event_members m JOIN user_blocks b
+      ON (b.blocker_id = m.user_id AND b.blocked_id = ?) OR (b.blocker_id = ? AND b.blocked_id = m.user_id) WHERE m.team_id = ? LIMIT 1`).bind(userId, userId, teamId).first());
   }
 
   async blockedEither(a: string, b: string): Promise<boolean> {

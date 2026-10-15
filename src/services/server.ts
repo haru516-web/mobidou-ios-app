@@ -92,11 +92,12 @@ export function ensureAccount(): Promise<ServerAccount | null> {
 }
 
 /** A signed-in call. If the server no longer knows the account, it is dropped so the next call registers again. */
-export async function authedRequest(path: string, init: { method?: string; body?: unknown } = {}) {
+export async function authedRequest(path: string, init: { method?: string; body?: unknown; /** Keep the account on a 401 (account deletion: the server still has it, it only did not accept this device's key). */ keepAccountOn401?: boolean } = {}) {
   const account = await ensureAccount();
   if (!account) return null;
-  const result = await request(path, { ...init, account });
-  if (result?.status === 401) await exclusive(async () => { const state = await loadState(); if (state.account?.userId === account.userId) await saveState({ ...state, account: null }); });
+  const { keepAccountOn401, ...rest } = init;
+  const result = await request(path, { ...rest, account });
+  if (result?.status === 401 && !keepAccountOn401) await exclusive(async () => { const state = await loadState(); if (state.account?.userId === account.userId) await saveState({ ...state, account: null }); });
   return result;
 }
 

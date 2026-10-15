@@ -15,14 +15,15 @@ export type DeletionResult = 'deleted' | 'offline' | 'failed' | 'apple_needed' |
 
 export async function deleteServerAccount(): Promise<DeletionResult> {
   if (!(await readServerAccount())) return 'deleted';
-  let reply = await authedRequest('/account/delete', { body: { confirm: 'delete' } });
+  // A 401 must not make the device forget the account: it only means the key is not accepted, and the server still has it.
+  let reply = await authedRequest('/account/delete', { body: { confirm: 'delete' }, keepAccountOn401: true });
   // The server holds no Apple token for this Apple-linked account: sign in with Apple again and send the fresh code.
   if (reply?.status === 409 && reply.data?.error === 'apple_reauth_required') {
     // Loaded here, not at the top, because the Apple sign-in code pulls in react-native, which plain-Node tests cannot load.
     const { freshAuthorizationCode } = require('./appleAccount') as typeof import('./appleAccount');
     const authorizationCode = await freshAuthorizationCode();
     if (!authorizationCode) return 'apple_needed';
-    reply = await authedRequest('/account/delete', { body: { confirm: 'delete', authorizationCode } });
+    reply = await authedRequest('/account/delete', { body: { confirm: 'delete', authorizationCode }, keepAccountOn401: true });
   }
   if (!reply) return 'offline';
   // 401 only says this device's key is not accepted (another device signed in with Apple and took the account over,

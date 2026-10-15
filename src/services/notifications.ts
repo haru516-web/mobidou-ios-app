@@ -25,6 +25,8 @@ const OMIKUJI_KEY = '@mobidou/notifications/omikuji';
 const OMIKUJI_PREFIX = 'omikuji-reminder-';
 const ABSENCE_PREFIX = 'absence-reminder-';
 const TOKEN_REFRESH_MS = 7 * 86_400_000;
+/** A token whose removal from the server has not gone through yet: it is tried again until the server has dropped it. */
+const REMOVE_KEY = '@mobidou/notifications/pending-removal';
 
 /** 'unset' until the player has been asked; then on or off. */
 export type NotificationSetting = 'unset' | 'on' | 'off';
@@ -80,15 +82,18 @@ async function permissionGranted(ask: boolean): Promise<boolean> {
 
 /** Tell the server which device to notify (only when the player is signed in to it). */
 async function registerToken(force = false): Promise<boolean> {
-  if (!supported || !(await readServerAccount())) return false;
+  const account = supported ? await readServerAccount() : null;
+  if (!account) return false;
   try {
     const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
     const token = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
-    const known = JSON.parse((await AsyncStorage.getItem(TOKEN_KEY)) ?? 'null') as { token?: string; at?: number } | null;
-    if (!force && known?.token === token && typeof known.at === 'number' && Date.now() - known.at < TOKEN_REFRESH_MS) return true;
+    const known = JSON.parse((await AsyncStorage.getItem(TOKEN_KEY)) ?? 'null') as { token?: string; userId?: string; at?: number } | null;
+    // The cached answer is only good for the account it was made for: another account on this device registers again.
+    if (!force && known?.token === token && known.userId === account.userId && typeof known.at === 'number' && Date.now() - known.at < TOKEN_REFRESH_MS) return true;
     const reply = await authedRequest('/push/token', { body: { token, team: true, friend: true } });
     if (reply?.status !== 200) return false;
-    await AsyncStorage.setItem(TOKEN_KEY, JSON.stringify({ token, at: Date.now() }));
+    await AsyncStorage.setItem(TOKEN_KEY, JSON.stringify({ token, userId: account.userId, at: Date.now() }));
+    await AsyncStorage.removeItem(REMOVE_KEY);
     return true;
   } catch { return false; }
 }
@@ -96,9 +101,21 @@ async function registerToken(force = false): Promise<boolean> {
 async function unregisterToken(): Promise<void> {
   try {
     const known = JSON.parse((await AsyncStorage.getItem(TOKEN_KEY)) ?? 'null') as { token?: string } | null;
-    if (known?.token) await authedRequest('/push/token/remove', { body: { token: known.token } });
+    if (known?.token) await AsyncStorage.setItem(REMOVE_KEY, known.token);
     await AsyncStorage.removeItem(TOKEN_KEY);
-  } catch { /* the server also drops a token the device refuses */ }
+  } catch { /* the removal below is tried again at the next start */ }
+  await retryPendingRemoval();
+}
+
+/** Send a removal that has not been accepted yet; it is forgotten only once the server has answered. */
+async function retryPendingRemoval(): Promise<void> {
+  try {
+    const token = await AsyncStorage.getItem(REMOVE_KEY);
+    if (!token) return;
+    const reply = await authedRequest('/push/token/remove', { body: { token } });
+    // 200: dropped. 401 (another account's token, or the account is gone): there is nothing of this account's to drop.
+    if (reply && (reply.status === 200 || reply.status === 401)) await AsyncStorage.removeItem(REMOVE_KEY);
+  } catch { /* tried again next time */ }
 }
 
 /**
@@ -133,6 +150,8 @@ export async function setNotificationsEnabled(on: boolean): Promise<Notification
 /** At app start: keep the device registered when the player has said yes. */
 export async function refreshRegistration(): Promise<void> {
   if (!supported) return;
+  // Notifications were turned off while the server could not be reached: finish dropping the token first.
+  await retryPendingRemoval();
   if ((await load()) !== 'on') return;
   if (!(await permissionGranted(false))) return;
   await registerToken();
@@ -234,6 +253,16 @@ export async function syncAbsenceReminders(now = new Date()): Promise<void> {
 }
 
 export type NotificationTap = { type: string; eventId?: string };
+
+/** Calls back when a notification arrives while the app is open. Returns the unsubscribe. */
+export function onNotificationArrived(handler: (type: string) => void): () => void {
+  if (!supported) return () => undefined;
+  const subscription = Notifications.addNotificationReceivedListener(notification => {
+    const data = notification.request.content.data as { type?: unknown } | undefined;
+    if (data && typeof data.type === 'string') handler(data.type);
+  });
+  return () => subscription.remove();
+}
 
 /** Calls back when the player taps a notification, including the one that opened the app. Returns the unsubscribe. */
 export function onNotificationTap(handler: (tap: NotificationTap) => void): () => void {

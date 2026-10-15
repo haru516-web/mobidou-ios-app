@@ -251,6 +251,7 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
       <Text style={S.body}>{(event.spots ?? []).map((s, i) => i < progress.reached ? s.miniature : '？').join(' · ')}</Text>
     </PaperCard>);
     body.push(<Members key="members" team={team} event={event} />);
+    body.push(<View key="refresh" style={S.actions}><Button title={refreshing ? "確認中…" : "チームの状況を更新する"} secondary disabled={refreshing} onPress={() => void refresh()} /></View>);
     const asking = team.members.length < max ? requestCard(team.requests ?? []) : null;
     if (asking) body.push(asking);
     if (team.members.length < max) body.push(codeCard(team));

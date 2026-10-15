@@ -504,3 +504,28 @@ test("D1 push tokens: kept per player (the latest few), moved with the device, c
   await store.deleteUser("fay");
   assert.equal(database.prepare("SELECT COUNT(*) AS n FROM push_tokens WHERE user_id = 'fay'").get().n, 0);
 });
+
+test("D1 a join request is not accepted when anyone already in the team has a block with the asker", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  for (const [index, id] of ["m", "b", "c"].entries()) await store.registerUser({ id, friendCode: `BLK${index}${index}${index}${index}${index}${index}${index}`, name: `N-${id}`, petId: null, goshuinCount: 0, routeName: null }, `hash-${id}`);
+  database.exec("INSERT INTO events (id, name, starts_at, ends_at, map_id, min_members, max_members, goal_steps) VALUES ('toki', 'Toki', '2026-09-01T00:00:00.000Z', '2026-10-31T00:00:00.000Z', 'map', 2, 4, 1000)");
+  await store.createEventTeam("m", "toki", "team-m", "ABCDEF");
+  const later = () => new Promise((resolve) => setTimeout(resolve, 5));
+  await later();
+  const askedB = await store.requestJoinEventTeam("b", "toki", "ABCDEF", 4);
+  const askedC = await store.requestJoinEventTeam("c", "toki", "ABCDEF", 4);
+  assert.equal((await store.answerJoinRequest("m", "toki", askedB.request.id, true, 4, 2)).result, "accepted");
+  await later();
+  // B (already in) blocks C after C asked: the maker has no block with C, but the team does.
+  await store.blockUser("b", "c");
+  const answered = await store.answerJoinRequest("m", "toki", askedC.request.id, true, 4, 2);
+  assert.equal(answered.result, "declined");
+  assert.deepEqual((await store.eventTeam("m", "toki")).members.map((member) => member.id).sort(), ["b", "m"]);
+  // The other direction: C blocking a member counts the same.
+  await store.registerUser({ id: "d", friendCode: "BLKDDDDDDD", name: "N-d", petId: null, goshuinCount: 0, routeName: null }, "hash-d");
+  const askedD = await store.requestJoinEventTeam("d", "toki", "ABCDEF", 4);
+  await store.blockUser("d", "b");
+  assert.equal((await store.answerJoinRequest("m", "toki", askedD.request.id, true, 4, 2)).result, "declined");
+});

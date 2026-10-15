@@ -10,8 +10,8 @@ type HealthModule = {
   /** Ask iOS to wake the app (about hourly) when new steps arrive. Absent in builds made before this existed. */
   enableBackgroundDelivery?(): Promise<boolean>;
   /** Tell iOS the wake-up has been dealt with. */
-  finishBackgroundDelivery?(): void;
-  addListener?(name: 'onStepsChanged', listener: () => void): { remove(): void };
+  finishBackgroundDelivery?(id: number): void;
+  addListener?(name: 'onStepsChanged', listener: (event: { id?: number }) => void): { remove(): void };
 };
 const health = Platform.OS === 'ios' ? requireOptionalNativeModule<HealthModule>('MobiHealth') : null;
 export type StepSource = 'healthkit' | 'motion' | 'none';
@@ -24,8 +24,9 @@ export async function enableBackgroundSteps(): Promise<boolean> {
 /** Runs `handler` when iOS wakes the app for new steps, then tells iOS it is done. Returns the unsubscribe. */
 export function onStepsChangedInBackground(handler: () => Promise<void>): () => void {
   if (!health?.addListener) return () => undefined;
-  const subscription = health.addListener('onStepsChanged', () => {
-    void handler().catch(() => undefined).finally(() => { try { health.finishBackgroundDelivery?.(); } catch { /* the wake-up ends by itself */ } });
+  const subscription = health.addListener('onStepsChanged', event => {
+    const id = typeof event?.id === 'number' ? event.id : -1;
+    void handler().catch(() => undefined).finally(() => { try { health.finishBackgroundDelivery?.(id); } catch { /* the wake-up ends by itself */ } });
   });
   return () => subscription.remove();
 }

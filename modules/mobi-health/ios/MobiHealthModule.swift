@@ -5,6 +5,8 @@ public class MobiHealthModule: Module {
   private let store = HKHealthStore()
   private var observer: HKObserverQuery?
   private var pendingCompletion: HKObserverQueryCompletionHandler?
+  /** Numbers the wake-ups, so a late timer or a late answer from JavaScript cannot end a newer one. */
+  private var pendingId = 0
   private let backgroundKey = "mobi.health.backgroundDelivery"
 
   public func definition() -> ModuleDefinition {
@@ -28,8 +30,8 @@ public class MobiHealthModule: Module {
         promise.resolve(success)
       }
     }
-    Function("finishBackgroundDelivery") {
-      DispatchQueue.main.async { self.finishPending() }
+    Function("finishBackgroundDelivery") { (id: Int) in
+      DispatchQueue.main.async { self.finishPending(ifId: id) }
     }
     AsyncFunction("isAvailable") { () -> Bool in
       return HKHealthStore.isHealthDataAvailable()
@@ -73,11 +75,14 @@ public class MobiHealthModule: Module {
         guard let self = self else { completion(); return }
         if error != nil { completion(); return }
         DispatchQueue.main.async {
+          // An earlier wake-up that is still open is closed first: iOS is told once per wake-up.
           self.finishPending()
+          self.pendingId += 1
+          let id = self.pendingId
           self.pendingCompletion = completion
-          self.sendEvent("onStepsChanged", [:])
-          // iOS wants an answer within about half a minute: end the wake-up ourselves if JavaScript has not.
-          DispatchQueue.main.asyncAfter(deadline: .now() + 25) { [weak self] in self?.finishPending() }
+          self.sendEvent("onStepsChanged", ["id": id])
+          // iOS wants an answer within about half a minute: end this wake-up ourselves if JavaScript has not.
+          DispatchQueue.main.asyncAfter(deadline: .now() + 25) { [weak self] in self?.finishPending(ifId: id) }
         }
       }
       self.store.execute(query)
@@ -85,7 +90,9 @@ public class MobiHealthModule: Module {
     }
   }
 
-  private func finishPending() {
+  /** Completes the open wake-up: always, or only when it is the one with this number. */
+  private func finishPending(ifId id: Int? = nil) {
+    if let id = id, id != pendingId { return }
     let completion = pendingCompletion
     pendingCompletion = nil
     completion?()

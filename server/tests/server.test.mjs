@@ -286,7 +286,7 @@ class MemoryStore {
     const team = this.teams.get(row.teamId);
     if (!team || team.members[0] !== creatorId) return { result: "not_creator" };
     this.joinRequests.delete(requestId);
-    if (accept && (this.blocks.has(`${creatorId}:${row.userId}`) || this.blocks.has(`${row.userId}:${creatorId}`))) return { result: "declined", requesterId: row.userId };
+    if (accept && team.members.some((id) => this.blocks.has(`${id}:${row.userId}`) || this.blocks.has(`${row.userId}:${id}`))) return { result: "declined", requesterId: row.userId };
     if (!accept) return { result: "declined", requesterId: row.userId };
     if (team.members.length >= maxMembers || this.teamOf(row.userId, eventId)) return { result: "full" };
     team.members.push(row.userId);
@@ -1667,4 +1667,18 @@ test("the push sender sends once per key, drops tokens the device refused, honou
   for (let i = 0; i < 30; i += 1) await notify([player.id], "team", { title: "t", body: String(i) });
   await settle();
   assert.ok(calls.length - before <= 20 - 2, "no more than the daily cap is sent");
+});
+
+test("steps are taken only for days that exist and are open: 02-30 is never one of them", async () => {
+  const context = createContext();
+  const account = await register(context);
+  context.store.events.set("spring", { id: "spring", name: "Spring", startsAt: "2026-09-01T00:00:00.000Z", endsAt: "2027-04-30T00:00:00.000Z", mapId: "map-a", minMembers: 1, maxMembers: 4, goalSteps: 100000 });
+  await setOut(context, account, "spring");
+  const now = new Date("2027-03-01T12:00:00.000Z"); // 21:00 JST 03-01: the open day is 03-01
+  const send = (day) => call(context, "POST", "/events/spring/steps", { cumulative: 100, day }, account.userId, now);
+  for (const day of ["2027-03-01", "2027-02-28", "2027-02-27"]) assert.equal((await send(day)).status, 200, day);
+  for (const day of ["2027-02-29", "2027-02-30", "2027-02-31", "2027-02-26", "2027-03-02"]) {
+    const refused = await send(day);
+    assert.deepEqual([refused.status, (await refused.json()).error], [409, "steps_day_mismatch"], day);
+  }
 });

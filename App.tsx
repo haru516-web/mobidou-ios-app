@@ -56,7 +56,7 @@ import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
 import { retryUntilOk } from './src/services/retryUntilOk';
 import { ArrivalSummary, type ArrivalSummaryItem } from './src/components/ArrivalSummary';
-import { offerNotifications, onNotificationTap, refreshRegistration, syncAbsenceReminders, syncOmikujiReminders, syncStepReminders, useNotificationSetting, useOmikujiReminder } from './src/services/notifications';
+import { offerNotifications, onNotificationArrived, onNotificationTap, refreshRegistration, syncAbsenceReminders, syncOmikujiReminders, syncStepReminders, useNotificationSetting, useOmikujiReminder } from './src/services/notifications';
 import { enableBackgroundSteps, onStepsChangedInBackground } from './src/services/steps';
 import { eventProgress, teamSteps } from './src/services/eventTeam';
 import { devEventTeam, eventTeamApi, loadEventTeam, sendEventSteps, useEventAvailable, useEventTeam } from './src/services/eventTeamStore';
@@ -169,6 +169,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [tab, setTab] = useState<Tab>('home');
   const [homePopup, setHomePopup] = useState<HomePopup>(null);
   /** What the arrival ceremonies skipped all at once gave: shown on one page, then the home screen. */
+  /** The screen a tapped notification asks for; opened once no other screen is up. */
+  const [pendingTap, setPendingTap] = useState<string | null>(null);
   const [arrivalSummary, setArrivalSummary] = useState<{ items: ArrivalSummaryItem[]; routeName?: string; firstGoshuinEver: boolean } | null>(null);
   const [omikujiModal, setOmikujiModal] = useState(false);
   const [omikujiCardFocused, setOmikujiCardFocused] = useState(false);
@@ -448,11 +450,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, [journey.ready, data.demo, data.onboarded, eventTeam?.status, notificationSetting]);
   useEffect(() => {
     if (!journey.ready || data.demo || !data.onboarded) return undefined;
-    return onNotificationTap(tap => {
-      if (tap.type === 'friend') setSocialSheet('friends');
-      else if (tap.type === 'omikuji') setOmikujiModal(true);
-      else setEventSheet('main');
-    });
+    // The screen to open waits until nothing else is on screen (see the effect that applies it).
+    const stopTap = onNotificationTap(tap => { setPendingTap(tap.type); if (tap.type === 'team' || tap.type === 'steps') void loadEventTeam(TOKI_MEGURU); });
+    const stopArrival = onNotificationArrived(type => { if (type === 'team') void loadEventTeam(TOKI_MEGURU); });
+    return () => { stopTap(); stopArrival(); };
   }, [journey.ready, data.demo, data.onboarded]);
   const eventUnderway = !!eventTeam && eventTeam.status !== 'recruiting';
   const eventState = eventUnderway ? eventProgress(TOKI_MEGURU, teamSteps(eventTeam)) : null;
@@ -972,7 +973,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || !!eventAwardSpot || !!dueRoute || !!arrivalSummary || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || autoPopupBlocked || !weeklyDue(data.weekSeen, data.dayLog)) return undefined;
     const timer = setTimeout(() => setWeeklyOpen(true), 1200);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, autoPopupBlocked]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, autoPopupBlocked]);
   // Friends see the main Mobby, so a change of Mobby is passed on right away.
   useEffect(() => {
     if (journey.ready && !data.demo && data.onboarded) void syncProfilePet(data.pet);
@@ -1009,7 +1010,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       setEventAnnounceOpen(true);
     }, 0);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden, eventAvailable, mobbyMenuOpen, tour, tourRequest]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden, eventAvailable, mobbyMenuOpen, tour, tourRequest]);
+  // A tapped notification opens its screen once nothing else is up (no second modal over one that is showing).
+  useEffect(() => {
+    if (!pendingTap) return;
+    const busy = !journey.ready || data.demo || !data.onboarded || firstRunStage !== null || !openingHomeReady || openingVisible || onboardingPreview
+      || !!settings || !!detail || !!homePopup || omikujiModal || gachaOpen || !!socialSheet || !!eventSheet || eventPopupOpen
+      || !!arrivalSummary || awardVisible || eventAwardVisible || routeAdvanceVisible || weeklyOpen || accountEntryVisible || !!tour || !!tourRequest;
+    if (busy) return;
+    if (pendingTap === 'friend') setSocialSheet('friends');
+    else if (pendingTap === 'omikuji') setOmikujiModal(true);
+    else setEventSheet('main');
+    setPendingTap(null);
+  }, [pendingTap, journey.ready, data.demo, data.onboarded, firstRunStage, openingHomeReady, openingVisible, onboardingPreview, settings, detail, homePopup, omikujiModal, gachaOpen, socialSheet, eventSheet, eventPopupOpen, arrivalSummary, awardVisible, eventAwardVisible, routeAdvanceVisible, weeklyOpen, accountEntryVisible, tour, tourRequest]);
   const profileGuideChecked = useRef(false);
   useEffect(() => {
     if (!SOCIAL_ONLINE || profileGuideChecked.current) return undefined;
@@ -1028,7 +1041,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       })();
     }, 2500);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen, autoPopupBlocked]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen, autoPopupBlocked]);
   useAppAudioCues({ firstRunStage, openingVisible, mobbyMenuOpen, homeEditing: homePopup === 'custom', milestoneToast, error: journey.error ?? null, weeklyOpen, pet: data.pet });
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {

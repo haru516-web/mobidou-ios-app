@@ -651,7 +651,9 @@ async function handle(request: Request, env: Env, store: Store, now = new Date()
     let day = openDay;
     if (input.day !== undefined) {
       if (typeof input.day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(input.day)) throw new HttpError(400, "invalid_day");
-      if (input.day > openDay || input.day < shiftDay(openDay, -grace)) return json({ error: "steps_day_mismatch", openDay }, 409);
+      // Only the days that are open, built here: a date that does not exist (02-30) is never one of them.
+      const open = Array.from({ length: grace + 1 }, (_, index) => shiftDay(openDay, index - grace));
+      if (!open.includes(input.day)) return json({ error: "steps_day_mismatch", openDay }, 409);
       day = input.day;
     }
     // Steps count for the team the player has set out with; before that (or without a team) there is nothing to add them to.
