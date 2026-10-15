@@ -86,11 +86,12 @@
 
 | 状態 | 項目 | 内容 |
 |---|---|---|
-| [ ] | **migration 0009 の本番適用** | **Workerより先に**。成功を確認する |
-| [ ] | **migration 0010 の本番適用** | **Workerより先に**。0009の後 |
+| [x] | **migration 0009 の本番適用** | 2026-10-15 適用・確認済み |
+| [x] | **migration 0010 の本番適用** | 2026-10-15 適用・確認済み |
+| [x] | **migration 0011 の本番適用** | 2026-10-15 適用済み（再実行で duplicate column を確認）。索引は IF NOT EXISTS で作成 |
 | [ ] | `wrangler.toml` から `Sandbox` を外す | 審査・TestFlight が終わってから。外さないと無料のSandbox購入が木札になる |
 | [ ] | TestFlightギフトの設定を外す | `GIFTS_JSON` の期限は 10/18 |
-| [ ] | Worker のデプロイ | migration の後 |
+| [x] | Worker のデプロイ | 2026-10-15 実施（migration の後） |
 | [ ] | Cloudflare の使用量アラート設定 | 通知のみ（停止はしない） |
 | [ ] | 本番の購入・返金・通知（App Store Server Notifications）の通し確認 | 実Appleの署名・OID・3枚構成の確認を兼ねる |
 | [ ] | 2端末でApple連携→旧端末から削除 | 401の扱い（今回の修正）の確認 |
