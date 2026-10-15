@@ -180,7 +180,7 @@ class MemoryStore {
     return "linked";
   }
   blocks = new Set();
-  async purgeExpired() { return { rateLimitsRemoved: 0, rateLimitsRemaining: 0 }; }
+  async purgeExpired() { return { rateLimitsRemoved: 0, rateLimitsRemaining: 0, expiredLeft: 0, oldestExpiredAgeMs: 0, reachedLimit: false }; }
   reports = [];
   async blockedEither(a, b) { return this.blocks.has(`${a}:${b}`) || this.blocks.has(`${b}:${a}`); }
   async blockUser(blockerId, blockedId) {

@@ -147,6 +147,19 @@ export interface CloudSave {
   updatedAt: string;
 }
 
+/** What an hourly clean-up did: a growing `expiredLeft` (or the limit reached) means it is behind. */
+export type PurgeOutcome = {
+  rateLimitsRemoved: number;
+  /** Counters that have not expired yet. */
+  rateLimitsRemaining: number;
+  /** Counters that were already past their time but are still there after this run. */
+  expiredLeft: number;
+  /** How long ago (ms) the oldest of those expired; 0 when none. */
+  oldestExpiredAgeMs: number;
+  /** The run used all its slices: there may be more to remove. */
+  reachedLimit: boolean;
+};
+
 export interface Store {
   /** Remove the account and everything that belongs to it (profile, friends, wallet, pulls, purchases, saves, Apple link). */
   deleteUser(userId: string): Promise<void>;
@@ -207,7 +220,7 @@ export interface Store {
    */
   commitDraws(userId: string, draws: Draw[], kind: "free" | "paid", paidPulls: number, options?: { opId?: string; result?: string; previousPaidPulls?: number }): Promise<void>;
   /** Removes counters and stored answers that can no longer matter, so an address or an operation is not kept past its window. */
-  purgeExpired(now: Date): Promise<{ rateLimitsRemoved: number; rateLimitsRemaining: number }>;
+  purgeExpired(now: Date): Promise<PurgeOutcome>;
   /** Whether either of the two has blocked the other. */
   blockedEither(a: string, b: string): Promise<boolean>;
   /** Blocks a player: also ends their friendship and any pending requests between the two. */

@@ -446,7 +446,7 @@ test("D1 purge drops finished counters of every clock and old stored draw answer
   const outcome = await store.purgeExpired(now);
   const left = database.prepare("SELECT key FROM rate_limits ORDER BY key").all().map((row) => row.key);
   assert.deepEqual(left, ["legacy:minute:new", "register:minute:new", "report:new", "team-join:new"]);
-  assert.deepEqual(outcome, { rateLimitsRemoved: 3, rateLimitsRemaining: 4 });
+  assert.deepEqual(outcome, { rateLimitsRemoved: 4, rateLimitsRemaining: 4, expiredLeft: 0, oldestExpiredAgeMs: 0, reachedLimit: false });
 });
 
 test("D1 a plan period is not written for a transaction that is already refunded", async () => {
@@ -543,7 +543,7 @@ test("D1 clean-up removes a large pile of expired counters in slices, keeps curr
   for (let i = 0; i < 1_300; i += 1) insert.run(`register:minute:${i}`, 1, now.getTime() - 1_000 - i);
   for (let i = 0; i < 5; i += 1) insert.run(`register:minute:live${i}`, 2, now.getTime() + 60_000);
   const outcome = await store.purgeExpired(now);
-  assert.deepEqual(outcome, { rateLimitsRemoved: 1_300, rateLimitsRemaining: 5 });
+  assert.deepEqual(outcome, { rateLimitsRemoved: 1_300, rateLimitsRemaining: 5, expiredLeft: 0, oldestExpiredAgeMs: 0, reachedLimit: false });
   // The expiry is searched by its index, not by scanning the table.
   const plan = database.prepare("EXPLAIN QUERY PLAN SELECT rowid FROM rate_limits WHERE expires_at IS NOT NULL AND expires_at < 1 LIMIT 500").all().map((row) => row.detail).join(" | ");
   assert.match(plan, /USING (COVERING )?INDEX rate_limits_expiry/);
@@ -555,4 +555,22 @@ test("D1 many hits on one counter in the same moment all count (no lost update)"
   const store = new D1Store(new SQLiteD1(database));
   const counts = await Promise.all(Array.from({ length: 25 }, () => store.hitRateLimit("steps:p", 7, 3_600_000)));
   assert.deepEqual([...counts].sort((a, b) => a - b), Array.from({ length: 25 }, (_, index) => index + 1));
+});
+
+test("D1 clean-up that reaches its slice limit says it is behind, and the next run catches up", async () => {
+  const database = new DatabaseSync(":memory:");
+  database.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  const store = new D1Store(new SQLiteD1(database));
+  const now = new Date("2026-10-10T12:00:00.000Z");
+  const insert = database.prepare("INSERT INTO rate_limits (key, window, count, expires_at) VALUES (?, 1, 1, ?)");
+  database.exec("BEGIN");
+  for (let i = 0; i < 10_600; i += 1) insert.run(`register:minute:${i}`, now.getTime() - 60_000 - i);
+  database.exec("COMMIT");
+  const first = await store.purgeExpired(now);
+  assert.equal(first.rateLimitsRemoved, 10_000);
+  assert.equal(first.reachedLimit, true);
+  assert.equal(first.expiredLeft, 600);
+  assert.ok(first.oldestExpiredAgeMs >= 60_000);
+  const second = await store.purgeExpired(now);
+  assert.deepEqual([second.rateLimitsRemoved, second.expiredLeft, second.reachedLimit, second.oldestExpiredAgeMs], [600, 0, false, 0]);
 });

@@ -23,5 +23,5 @@ test('only route clears the server has not heard about are claimed', () => {
 
 test('a damaged saved state falls back to an empty one', () => {
   assert.deepEqual(normalizeServerState('x'), emptyServerState());
-  assert.deepEqual(normalizeServerState({ account: { userId: 1 }, claimedRoutes: ['a', 'a', 3] }), { account: null, starterDone: false, claimedRoutes: ['a'] });
+  assert.deepEqual(normalizeServerState({ account: { userId: 1 }, claimedRoutes: ['a', 'a', 3] }), { account: null, lost: null, starterDone: false, claimedRoutes: ['a'] });
 });

@@ -18,16 +18,24 @@ const STATE_KEY = '@mobidou/server/v1';
 const TIMEOUT_MS = 8000;
 
 export type ServerAccount = { userId: string; secret: string };
-export type ServerState = { account: ServerAccount | null; starterDone: boolean; claimedRoutes: string[] };
+export type ServerState = {
+  account: ServerAccount | null;
+  /** An account the server stopped accepting. Kept so that deleting the account still reaches it (it is not forgotten by another call's 401). */
+  lost: ServerAccount | null;
+  starterDone: boolean;
+  claimedRoutes: string[];
+};
 export type ServerOp = { type: 'starter'; petId: string } | { type: 'claim'; routeId: string };
 
-export const emptyServerState = (): ServerState => ({ account: null, starterDone: false, claimedRoutes: [] });
+export const emptyServerState = (): ServerState => ({ account: null, lost: null, starterDone: false, claimedRoutes: [] });
 
 export function normalizeServerState(value: unknown): ServerState {
   const source = value && typeof value === 'object' ? value as Partial<ServerState> : {};
   const account = source.account && typeof source.account.userId === 'string' && typeof source.account.secret === 'string' ? { userId: source.account.userId, secret: source.account.secret } : null;
+  const lost = source.lost && typeof source.lost.userId === 'string' && typeof source.lost.secret === 'string' ? { userId: source.lost.userId, secret: source.lost.secret } : null;
   return {
     account,
+    lost,
     starterDone: source.starterDone === true,
     claimedRoutes: Array.isArray(source.claimedRoutes) ? [...new Set(source.claimedRoutes.filter((id): id is string => typeof id === 'string'))] : [],
   };
@@ -63,10 +71,22 @@ export async function request(path: string, init: { method?: string; body?: unkn
   }
 }
 
+/** Where the state is kept. A test replaces it (the device's storage is not there in plain Node). */
+let storage: { getItem(key: string): Promise<string | null>; setItem(key: string, value: string): Promise<void> } = AsyncStorage;
+export function useServerStorageForTests(replacement: typeof storage): void { storage = replacement; }
+
 async function loadState() {
-  try { return normalizeServerState(JSON.parse(await AsyncStorage.getItem(STATE_KEY) ?? 'null')); } catch { return emptyServerState(); }
+  try { return normalizeServerState(JSON.parse(await storage.getItem(STATE_KEY) ?? 'null')); } catch { return emptyServerState(); }
 }
-const saveState = (state: ServerState) => AsyncStorage.setItem(STATE_KEY, JSON.stringify(state)).catch(() => undefined);
+const saveState = (state: ServerState) => storage.setItem(STATE_KEY, JSON.stringify(state)).catch(() => undefined);
+
+/** Told when the account on this device changes (registered, taken over, dropped): the push registration follows it. */
+const accountListeners = new Set<() => void>();
+export function subscribeAccount(listener: () => void): () => void {
+  accountListeners.add(listener);
+  return () => { accountListeners.delete(listener); };
+}
+const accountChanged = () => { accountListeners.forEach(listener => { try { listener(); } catch { /* a listener must not break the call */ } }); };
 
 /** Everything that reads and rewrites the saved state goes through here, one at a time. */
 let chain: Promise<unknown> = Promise.resolve();
@@ -87,6 +107,7 @@ export function ensureAccount(): Promise<ServerAccount | null> {
     if (registered?.status !== 201 || !data || typeof data.userId !== 'string' || typeof data.secret !== 'string') return null;
     const account = { userId: data.userId, secret: data.secret };
     await saveState({ ...state, account });
+    accountChanged();
     return account;
   });
 }
@@ -97,7 +118,11 @@ export async function authedRequest(path: string, init: { method?: string; body?
   if (!account) return null;
   const { keepAccountOn401, ...rest } = init;
   const result = await request(path, { ...rest, account });
-  if (result?.status === 401 && !keepAccountOn401) await exclusive(async () => { const state = await loadState(); if (state.account?.userId === account.userId) await saveState({ ...state, account: null }); });
+  if (result?.status === 401 && !keepAccountOn401) await exclusive(async () => {
+    const state = await loadState();
+    // The account is dropped so the next call registers again, but it is remembered as lost until it has been dealt with.
+    if (state.account?.userId === account.userId) { await saveState({ ...state, account: null, lost: state.lost ?? account }); accountChanged(); }
+  });
   return result;
 }
 
@@ -111,7 +136,15 @@ export async function readServerAccount(): Promise<ServerAccount | null> {
  * reported again on the next sync, which the server treats as already done.
  */
 export function adoptServerAccount(account: ServerAccount): Promise<void> {
-  return exclusive(async () => { await saveState({ ...emptyServerState(), account }); });
+  return exclusive(async () => { await saveState({ ...emptyServerState(), account }); accountChanged(); });
+}
+
+/** An account the server stopped accepting and that has not been deleted yet. */
+export async function readLostAccount(): Promise<ServerAccount | null> {
+  return exclusive(async () => (await loadState()).lost);
+}
+export function clearLostAccount(): Promise<void> {
+  return exclusive(async () => { const state = await loadState(); if (state.lost) await saveState({ ...state, lost: null }); });
 }
 
 let running: Promise<void> | null = null;
@@ -129,6 +162,7 @@ async function runOnce(mobbies: MobbyCollection) {
     if (registered?.status !== 201 || !data || typeof data.userId !== 'string' || typeof data.secret !== 'string') return;
     state = { ...state, account: { userId: data.userId, secret: data.secret } };
     await saveState(state);
+    accountChanged();
   }
 
   for (const op of ops) {
@@ -137,7 +171,7 @@ async function runOnce(mobbies: MobbyCollection) {
       : await request('/free-pulls/claim', { body: { routeId: op.routeId }, account: state.account });
     if (!result) return;
     // The server no longer knows this account (for example a reset database): register again next time.
-    if (result.status === 401) { await saveState({ ...state, account: null }); return; }
+    if (result.status === 401) { await saveState({ ...state, account: null, lost: state.lost ?? state.account }); accountChanged(); return; }
     // Accepted, already known (409), or refused as invalid (400): none of these will change on a retry.
     const settled = result.status === 200 || result.status === 201 || result.status === 409 || result.status === 400;
     if (!settled) return;

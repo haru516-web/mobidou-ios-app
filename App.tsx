@@ -55,6 +55,7 @@ import { EVENT_SHRINES } from './src/data/eventShrines';
 import { EVENT_BOOK_COVER } from './src/data/eventImages';
 import { TOKI_MEGURU } from './src/data/events';
 import { retryUntilOk } from './src/services/retryUntilOk';
+import { subscribeAccount } from './src/services/server';
 import { ArrivalSummary, type ArrivalSummaryItem } from './src/components/ArrivalSummary';
 import { offerNotifications, onNotificationArrived, onNotificationTap, refreshRegistration, syncAbsenceReminders, syncOmikujiReminders, syncStepReminders, useNotificationSetting, useOmikujiReminder } from './src/services/notifications';
 import { enableBackgroundSteps, onStepsChangedInBackground } from './src/services/steps';
@@ -439,6 +440,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   useEffect(() => {
     if (!journey.ready || data.demo || !data.onboarded) return;
     void refreshRegistration();
+    // The account on the device can change (registered, restored with Apple, dropped): the device is registered again for the new one.
+    return subscribeAccount(() => { void refreshRegistration(); });
   }, [journey.ready, data.demo, data.onboarded]);
   useEffect(() => {
     if (!journey.ready || data.demo || !data.onboarded) return undefined;
@@ -1015,14 +1018,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   useEffect(() => {
     if (!pendingTap) return;
     const busy = !journey.ready || data.demo || !data.onboarded || firstRunStage !== null || !openingHomeReady || openingVisible || onboardingPreview
-      || !!settings || !!detail || !!homePopup || omikujiModal || gachaOpen || !!socialSheet || !!eventSheet || eventPopupOpen
+      || !!settings || !!detail || !!homePopup || omikujiModal || gachaOpen || eventGachaOpen || eventSettling || !!socialSheet || !!eventSheet || eventPopupOpen
       || !!arrivalSummary || awardVisible || eventAwardVisible || routeAdvanceVisible || weeklyOpen || accountEntryVisible || !!tour || !!tourRequest;
     if (busy) return;
     if (pendingTap === 'friend') setSocialSheet('friends');
     else if (pendingTap === 'omikuji') setOmikujiModal(true);
     else setEventSheet('main');
     setPendingTap(null);
-  }, [pendingTap, journey.ready, data.demo, data.onboarded, firstRunStage, openingHomeReady, openingVisible, onboardingPreview, settings, detail, homePopup, omikujiModal, gachaOpen, socialSheet, eventSheet, eventPopupOpen, arrivalSummary, awardVisible, eventAwardVisible, routeAdvanceVisible, weeklyOpen, accountEntryVisible, tour, tourRequest]);
+  }, [pendingTap, journey.ready, data.demo, data.onboarded, firstRunStage, openingHomeReady, openingVisible, onboardingPreview, settings, detail, homePopup, omikujiModal, gachaOpen, eventGachaOpen, eventSettling, socialSheet, eventSheet, eventPopupOpen, arrivalSummary, awardVisible, eventAwardVisible, routeAdvanceVisible, weeklyOpen, accountEntryVisible, tour, tourRequest]);
   const profileGuideChecked = useRef(false);
   useEffect(() => {
     if (!SOCIAL_ONLINE || profileGuideChecked.current) return undefined;

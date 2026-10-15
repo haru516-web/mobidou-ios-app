@@ -1,4 +1,4 @@
-import type { AgeGroup, AppleLinkResult, CloudSave, D1Database, Draw, EventJoinResult, EventRecord, EventStartResult, EventTeamView, Gift, JoinRequestAnswerResult, JoinRequestRequestResult, JoinRequestView, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
+import type { PurgeOutcome, AgeGroup, AppleLinkResult, CloudSave, D1Database, Draw, EventJoinResult, EventRecord, EventStartResult, EventTeamView, Gift, JoinRequestAnswerResult, JoinRequestRequestResult, JoinRequestView, ProductDefinition, Store, User, VerifiedTransaction } from "./types.ts";
 import { randomToken } from "./crypto.ts";
 
 const nowIso = (): string => new Date().toISOString();
@@ -597,27 +597,41 @@ export class D1Store implements Store {
     return (rows.results ?? []).map((row) => row.id);
   }
 
-  async purgeExpired(now: Date): Promise<{ rateLimitsRemoved: number; rateLimitsRemaining: number }> {
+  async purgeExpired(now: Date): Promise<PurgeOutcome> {
     // Counters that have expired go by the indexed expiry, a slice at a time (a run never takes long, whatever has piled up).
     let removed = 0;
+    let reachedLimit = false;
     for (let batch = 0; batch < PURGE_BATCHES; batch += 1) {
       const result = await this.db.prepare("DELETE FROM rate_limits WHERE rowid IN (SELECT rowid FROM rate_limits WHERE expires_at IS NOT NULL AND expires_at < ? LIMIT ?)")
         .bind(now.getTime(), PURGE_BATCH_ROWS).run();
       const count = result.meta?.changes ?? 0;
       removed += count;
       if (count < PURGE_BATCH_ROWS) break;
+      if (batch === PURGE_BATCHES - 1) reachedLimit = true;
     }
     // Rows from before the expiry column have none: they go by the number of their window (minutes ~29 million, hours ~490 thousand, days ~20 thousand).
     const minute = Math.floor(now.getTime() / 60_000);
     const hour = Math.floor(now.getTime() / 3_600_000);
     const day = Math.floor(now.getTime() / 86_400_000);
+    const legacy = await this.db.prepare("DELETE FROM rate_limits WHERE expires_at IS NULL AND ((window >= 1000000 AND window < ?) OR (window >= 100000 AND window < 1000000 AND window < ?) OR (window < 100000 AND window < ?))")
+      .bind(minute - 10, hour - 3, day - 2).run();
+    removed += legacy.meta?.changes ?? 0;
     await this.db.batch([
       this.db.prepare("DELETE FROM rate_limits WHERE expires_at IS NULL AND ((window >= 1000000 AND window < ?) OR (window >= 100000 AND window < 1000000 AND window < ?) OR (window < 100000 AND window < ?))")
         .bind(minute - 10, hour - 3, day - 2),
       this.db.prepare("DELETE FROM gacha_ops WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString()),
       this.db.prepare("DELETE FROM push_sent WHERE created_at < ?").bind(new Date(now.getTime() - 30 * 86_400_000).toISOString())
     ]);
-    const remaining = await this.db.prepare("SELECT COUNT(*) AS n FROM rate_limits").first<{ n: number }>();
-    return { rateLimitsRemoved: removed, rateLimitsRemaining: remaining?.n ?? 0 };
+    const expired = await this.db.prepare("SELECT COUNT(*) AS n, MIN(expires_at) AS oldest FROM rate_limits WHERE expires_at IS NOT NULL AND expires_at < ?")
+      .bind(now.getTime()).first<{ n: number; oldest: number | null }>();
+    const total = await this.db.prepare("SELECT COUNT(*) AS n FROM rate_limits").first<{ n: number }>();
+    const expiredLeft = expired?.n ?? 0;
+    return {
+      rateLimitsRemoved: removed,
+      rateLimitsRemaining: (total?.n ?? 0) - expiredLeft,
+      expiredLeft,
+      oldestExpiredAgeMs: expiredLeft > 0 && expired?.oldest != null ? Math.max(0, now.getTime() - expired.oldest) : 0,
+      reachedLimit
+    };
   }
 }

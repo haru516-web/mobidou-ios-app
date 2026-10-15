@@ -842,7 +842,9 @@ const worker = {
   async scheduled(_event: unknown, env: Env, _context: ExecutionContext): Promise<void> {
     const outcome = await new D1Store(env.DB).purgeExpired(new Date());
     // Seen in the logs: how many counters were removed, and how many are left (a number that keeps growing means the clean-up is behind).
-    console.log(JSON.stringify({ event: "purge", ...outcome }));
+    // A warning when it is behind: expired counters are left, or the run used all its slices.
+    const behind = outcome.expiredLeft > 0 || outcome.reachedLimit;
+    (behind ? console.warn : console.log)(JSON.stringify({ event: "purge", behind, ...outcome }));
   }
 };
 

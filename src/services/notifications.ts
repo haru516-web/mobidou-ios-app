@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
-import { authedRequest, readServerAccount } from './server';
+import { readServerAccount, request } from './server';
 import { ABSENCE_BODY, ABSENCE_TITLE, absenceTimes, OMIKUJI_BODY, OMIKUJI_TITLE, omikujiTimes, REMINDER_BODY, REMINDER_TITLE, reminderTimes, type ReminderOptions } from './notificationPlan';
 
 /*
@@ -80,8 +80,24 @@ async function permissionGranted(ask: boolean): Promise<boolean> {
   } catch { return false; }
 }
 
+/** Registration and removal are done one at a time, so a late answer never undoes a newer decision. */
+let queue: Promise<unknown> = Promise.resolve();
+function serial<T>(job: () => Promise<T>): Promise<T> {
+  const next = queue.then(job, job);
+  queue = next.catch(() => undefined);
+  return next;
+}
+
+type PendingRemoval = { token: string; userId: string; generation: number };
+async function readPendingRemoval(): Promise<PendingRemoval | null> {
+  try {
+    const parsed = JSON.parse((await AsyncStorage.getItem(REMOVE_KEY)) ?? 'null') as Partial<PendingRemoval> | null;
+    return parsed && typeof parsed.token === 'string' && typeof parsed.userId === 'string' ? { token: parsed.token, userId: parsed.userId, generation: Number(parsed.generation) || 0 } : null;
+  } catch { return null; }
+}
+
 /** Tell the server which device to notify (only when the player is signed in to it). */
-async function registerToken(force = false): Promise<boolean> {
+async function registerTokenNow(force: boolean): Promise<boolean> {
   const account = supported ? await readServerAccount() : null;
   if (!account) return false;
   try {
@@ -90,33 +106,45 @@ async function registerToken(force = false): Promise<boolean> {
     const known = JSON.parse((await AsyncStorage.getItem(TOKEN_KEY)) ?? 'null') as { token?: string; userId?: string; at?: number } | null;
     // The cached answer is only good for the account it was made for: another account on this device registers again.
     if (!force && known?.token === token && known.userId === account.userId && typeof known.at === 'number' && Date.now() - known.at < TOKEN_REFRESH_MS) return true;
-    const reply = await authedRequest('/push/token', { body: { token, team: true, friend: true } });
+    // Sent with the account that was read above (never "whichever is current by now").
+    const reply = await request('/push/token', { body: { token, team: true, friend: true }, account });
     if (reply?.status !== 200) return false;
     await AsyncStorage.setItem(TOKEN_KEY, JSON.stringify({ token, userId: account.userId, at: Date.now() }));
-    await AsyncStorage.removeItem(REMOVE_KEY);
+    // The token now belongs to this account: a removal that was waiting for the same token is moot.
+    const waiting = await readPendingRemoval();
+    if (waiting?.token === token) await AsyncStorage.removeItem(REMOVE_KEY);
     return true;
   } catch { return false; }
 }
+const registerToken = (force = false) => serial(() => registerTokenNow(force));
 
-async function unregisterToken(): Promise<void> {
+/** Send a removal that has not been accepted yet. It is forgotten only when the server says it dropped it, for the account it belongs to. */
+async function retryPendingRemovalNow(): Promise<void> {
   try {
-    const known = JSON.parse((await AsyncStorage.getItem(TOKEN_KEY)) ?? 'null') as { token?: string } | null;
-    if (known?.token) await AsyncStorage.setItem(REMOVE_KEY, known.token);
-    await AsyncStorage.removeItem(TOKEN_KEY);
-  } catch { /* the removal below is tried again at the next start */ }
-  await retryPendingRemoval();
-}
-
-/** Send a removal that has not been accepted yet; it is forgotten only once the server has answered. */
-async function retryPendingRemoval(): Promise<void> {
-  try {
-    const token = await AsyncStorage.getItem(REMOVE_KEY);
-    if (!token) return;
-    const reply = await authedRequest('/push/token/remove', { body: { token } });
-    // 200: dropped. 401 (another account's token, or the account is gone): there is nothing of this account's to drop.
-    if (reply && (reply.status === 200 || reply.status === 401)) await AsyncStorage.removeItem(REMOVE_KEY);
+    const waiting = await readPendingRemoval();
+    if (!waiting) return;
+    const account = await readServerAccount();
+    // Another account is on the device: the removal waits for its own account (or for the token to be taken over).
+    if (!account || account.userId !== waiting.userId) return;
+    const reply = await request('/push/token/remove', { body: { token: waiting.token }, account });
+    if (reply?.status !== 200) return;
+    const now = await readPendingRemoval();
+    if (now && now.token === waiting.token && now.userId === waiting.userId && now.generation === waiting.generation) await AsyncStorage.removeItem(REMOVE_KEY);
   } catch { /* tried again next time */ }
 }
+
+async function unregisterTokenNow(): Promise<void> {
+  try {
+    const known = JSON.parse((await AsyncStorage.getItem(TOKEN_KEY)) ?? 'null') as { token?: string; userId?: string } | null;
+    const account = await readServerAccount();
+    const userId = known?.userId ?? account?.userId;
+    if (known?.token && userId) await AsyncStorage.setItem(REMOVE_KEY, JSON.stringify({ token: known.token, userId, generation: Date.now() } satisfies PendingRemoval));
+    await AsyncStorage.removeItem(TOKEN_KEY);
+  } catch { /* the removal is tried again at the next start */ }
+  await retryPendingRemovalNow();
+}
+const unregisterToken = () => serial(unregisterTokenNow);
+const retryPendingRemoval = () => serial(retryPendingRemovalNow);
 
 /**
  * Called when the player does something whose answer comes later (makes or asks to join a team, asks a friend).
