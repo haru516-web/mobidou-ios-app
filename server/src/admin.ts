@@ -71,7 +71,7 @@ h1{font-size:20px}label{display:block;margin:16px 0 4px;font-weight:600}
 input,textarea{width:100%;box-sizing:border-box;padding:10px;font-size:16px;border:1px solid #b9ad98;border-radius:6px;background:#fff}
 textarea{min-height:110px}button{margin-top:16px;padding:12px 18px;font-size:16px;border:0;border-radius:6px;background:#8c3b2e;color:#fff}
 button.secondary{background:#6d6455}button:disabled{opacity:.5}
-.box{margin-top:16px;padding:12px;border-radius:6px;background:#fff;border:1px solid #b9ad98;white-space:pre-wrap}
+.box{margin-top:16px;padding:12px;border-radius:6px;background:#fff;border:1px solid #b9ad98}#summary,#result{white-space:pre-wrap}
 .small{font-size:13px;color:#6d6455}.error{color:#a3231a}
 </style></head><body>
 <h1>もび道 運営:お知らせ通知</h1>
