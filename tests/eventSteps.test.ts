@@ -178,3 +178,16 @@ test('the away reminders: day 5 and day 12 after the app was last open, at 18:00
   // Month ends carry over.
   assert.deepEqual(absenceTimes(new Date(2026, 9, 30, 9, 0), { enabled: true }), [new Date(2026, 10, 4, 18, 0).getTime(), new Date(2026, 10, 11, 18, 0).getTime()]);
 });
+
+import { orderForPicker } from '../src/services/mobbyPicker.ts';
+
+test('the Mobby picker lists the owned ones first, from the left, then the ones not met yet; event ones only when owned', () => {
+  const ordinary = ['a', 'b', 'c', 'd', 'e'].map(id => ({ id }));
+  const event = ['x', 'y'].map(id => ({ id }));
+  const owns = (ids: string[]) => (id: string) => ids.includes(id);
+  assert.deepEqual(orderForPicker(ordinary, event, owns(['d', 'b', 'y'])).map(pet => pet.id), ['b', 'd', 'y', 'a', 'c', 'e']);
+  // Nothing owned yet: all of them, locked, in the catalog's order.
+  assert.deepEqual(orderForPicker(ordinary, event, owns([])).map(pet => pet.id), ['a', 'b', 'c', 'd', 'e']);
+  // The first pick has no ownership check: the catalog order, no event Mobbies.
+  assert.deepEqual(orderForPicker(ordinary, event).map(pet => pet.id), ['a', 'b', 'c', 'd', 'e']);
+});
