@@ -41,9 +41,11 @@ type Props = {
   /** Whether the gacha tab is on the bar; its part of the tour is offered only then. */
   gacha: boolean;
   onStartTour: (selection: TourSelection) => void;
+  /** Whether this device is linked to an Apple ID (null: not known yet). */
+  appleLinked?: boolean | null;
 };
 
-export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss, onClose, onOpenAccount, onToggleDemo, gacha, onStartTour }: Props) {
+export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss, onClose, onOpenAccount, onToggleDemo, gacha, onStartTour, appleLinked = null }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const { data } = journey;
   const audio = useAudioSettings();
@@ -82,8 +84,8 @@ export function SettingsModal({ visible, accountOpen, journey, onShow, onDismiss
           <Section title="アカウント" />
           <View style={S.card}>
             <WashiArt />
-            <Meta icon="person-circle-outline" text="未ログイン · この端末に保存" />
-            <Text style={M.settingHelp}>ログインやクラウド同期は未設定です。アカウント画面からログイン状況を確認し、別の端末へ記録を引き継げます。</Text>
+            <Meta icon="person-circle-outline" text={appleLinked ? "Apple IDと連携済み · この端末にも保存" : "未ログイン · この端末に保存"} />
+            <Text style={M.settingHelp}>{appleLinked ? "Apple IDとつながっています。機種変更のときは、新しい端末で同じApple IDでサインインすると引き継げます。" : "ログインやクラウド同期は未設定です。アカウント画面からログイン状況を確認し、別の端末へ記録を引き継げます。"}</Text>
             <Button title="アカウント管理" icon="person-circle-outline" onPress={onOpenAccount} />
           </View>
         </View>

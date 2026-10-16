@@ -1303,7 +1303,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} gacha={hasStarter(data.mobbies)} onStartTour={selection => { setSettings(false); setTourRequest(selection); }} />
+    <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} gacha={hasStarter(data.mobbies)} onStartTour={selection => { setSettings(false); setTourRequest(selection); }} appleLinked={appleLinked} />
 
 
 
