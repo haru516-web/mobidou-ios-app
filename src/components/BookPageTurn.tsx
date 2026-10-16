@@ -1,7 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { playPageTurn } from '../services/audio';
 import { captureView } from '../services/captureView';
-import { Animated, Easing, Image as RNImage, PanResponder, Platform, StyleSheet, Text, View, type PanResponderGestureState, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, PanResponder, Platform, StyleSheet, View, type PanResponderGestureState, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from '../components';
 import { NativeBookPageTurn, isNativePageCurlAvailable, type NativeBookPage } from './NativeBookPageTurn';
 
@@ -20,9 +20,14 @@ type BookPageTurnProps = {
   onBusyChange?: (busy: boolean) => void;
   onOpenDetail?: (index: number) => void;
   nativePages?: NativeBookPage[];
+  /** Pictures of the spreads from BookSpreadSnapshots (null: none yet). Leave undefined to use the app's own page turn only. */
+  snapshots?: string[] | null;
+  /** Reports the real size of the open book, so the pictures are taken at that size. */
+  onViewportSize?: (size: { width: number; height: number }) => void;
   style?: StyleProp<ViewStyle>;
 };
 
+const DEFAULT_BOOK_HEIGHT = 340;
 const STRIP_COUNT = 20;
 const STRIP_STAGGER = 0.018;
 const TURN_THRESHOLD = 0.34;
@@ -241,105 +246,161 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
 
 /**
  * The iOS page-curl view draws its own plain paper and a different layout from the spread the app draws everywhere else
- * (the illustrated paper, the stamp on the left, the text on the right). Until it is made to draw the same spread, the app's own
- * page turn is used on every platform so the book looks the same.
+ * (the illustrated paper, the stamp on the left, the text on the right). So the curl turns pictures of the app's own spreads.
  */
 const USE_NATIVE_PAGE_CURL = true;
-/** Development builds only: shows the first photographed spread at the top right, to tell an empty picture from one the native view cannot read. */
-const SHOW_CURL_DEBUG = __DEV__;
+const useSnapshotCurl = () => USE_NATIVE_PAGE_CURL && Platform.OS === 'ios' && isNativePageCurlAvailable;
+
+const SNAPSHOT_FIRST_DELAY = 900;
+/** Waits before each try of one spread: a try that comes out empty (the pictures inside were not loaded yet) is repeated, one spread at a time. */
+const SNAPSHOT_RETRY_DELAYS = [0, 600, 1200, 2000, 3000];
+
+/** Pictures are valid for one route and one set of acquired goshuin: change either and they are retaken. */
+export function bookSnapshotKey(contentKey: string | undefined, pages: NativeBookPage[] | undefined, itemCount: number) {
+  return `${contentKey ?? ''}|${itemCount}|${(pages ?? []).map(page => `${page.name}:${page.acquired}`).join(',')}`;
+}
+
+type SnapshotSize = { width: number; height: number };
+
+type BookSpreadSnapshotsProps = {
+  itemCount: number;
+  contentKey?: string;
+  nativePages?: NativeBookPage[];
+  renderSpread: (index: number) => ReactNode;
+  /** The spread the book opens on: it and its neighbours are photographed first. */
+  currentIndex: number;
+  /** The size the open book really has (reported by the page turn). Until it is known, the host measures its own width. */
+  size: SnapshotSize | null;
+  onSnapshots: (key: string, uris: string[]) => void;
+};
 
 /**
- * The iOS page curl turning the app's own book: every spread is drawn once by the app (off screen), saved as a picture, and the
- * curl turns halves of those pictures. The pictures are taken nearest the open page first (the page itself, then the next, then the
- * previous, then outward), and the curl takes over as soon as the open page and its two neighbours exist; the rest follow while it is
- * already usable. Until then, or if taking them fails, the app's own page turn is shown.
+ * Photographs every spread of the book once, nearest the open page first, and reports the pictures ('' for one not taken yet).
+ * It lives under the book cover, so the open page and its neighbours are ready before the cover is opened; a try that fails is
+ * repeated for that spread only and never stops the others. Nothing here is visible: it is drawn at 2% opacity under the cover.
  */
-const SnapshotCurlBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function SnapshotCurlBookPageTurn(props, ref) {
-  const { itemCount, renderSpread, contentKey, style } = props;
-  const [size, setSize] = useState({ width: 0, height: 0 });
-  // One entry per spread, '' for a spread that is not photographed yet. Only set once the open page and its neighbours exist.
-  const [uris, setUris] = useState<string[] | null>(null);
+export function BookSpreadSnapshots({ itemCount, contentKey, nativePages, renderSpread, currentIndex, size, onSnapshots }: BookSpreadSnapshotsProps) {
+  const [measured, setMeasured] = useState<SnapshotSize>({ width: 0, height: 0 });
   const shots = useRef<(View | null)[]>([]);
-  const taken = useRef<string[]>([]);
-  const turning = useRef(false);
-  const unsent = useRef(false);
-  const currentRef = useRef(props.selectedIndex);
-  currentRef.current = props.selectedIndex;
-  const signature = `${contentKey ?? ''}|${itemCount}|${(props.nativePages ?? []).map(page => `${page.name}:${page.acquired}`).join(',')}|${Math.round(size.width)}x${Math.round(size.height)}`;
+  const currentRef = useRef(currentIndex);
+  currentRef.current = currentIndex;
   const renderSpreadRef = useRef(renderSpread);
   renderSpreadRef.current = renderSpread;
+  const onSnapshotsRef = useRef(onSnapshots);
+  onSnapshotsRef.current = onSnapshots;
+  const enabled = useSnapshotCurl();
+  const width = size?.width ?? measured.width;
+  const height = size?.height ?? (measured.height || DEFAULT_BOOK_HEIGHT);
+  const key = bookSnapshotKey(contentKey, nativePages, itemCount);
+  const signature = `${key}|${Math.round(width)}x${Math.round(height)}`;
+
+  useEffect(() => {
+    if (!enabled || width <= 0 || height <= 0 || itemCount < 2) return undefined;
+    let cancelled = false;
+    const taken: string[] = new Array(itemCount).fill('');
+    const gaveUp = new Set<number>();
+    const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+    (async () => {
+      await wait(SNAPSHOT_FIRST_DELAY);
+      while (!cancelled) {
+        const current = currentRef.current;
+        let next = -1;
+        let best = Infinity;
+        for (let index = 0; index < itemCount; index += 1) {
+          if (taken[index] || gaveUp.has(index)) continue;
+          // Nearest the open page first, and the page ahead before the one behind.
+          const distance = Math.abs(index - current) + (index < current ? 0.5 : 0);
+          if (distance < best) { best = distance; next = index; }
+        }
+        if (next < 0) break;
+        let uri = '';
+        let lastError: unknown = null;
+        for (const delay of SNAPSHOT_RETRY_DELAYS) {
+          if (delay > 0) await wait(delay);
+          if (cancelled) return;
+          try {
+            const target = shots.current[next];
+            if (!target) throw new Error('spread view missing');
+            uri = await captureView(target);
+            break;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        if (cancelled) return;
+        if (uri) {
+          taken[next] = uri;
+          onSnapshotsRef.current(key, taken.slice());
+        } else {
+          gaveUp.add(next);
+          console.warn(`[page curl] spread ${next} could not be photographed: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [signature, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!enabled || itemCount < 2) return null;
+  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden
+    onLayout={event => { const { width: w, height: h } = event.nativeEvent.layout; setMeasured(previous => Math.abs(previous.width - w) < 1 && Math.abs(previous.height - h) < 1 ? previous : { width: w, height: h }); }}
+    style={[S.snapshotHost, size ? { height: size.height } : null]}>
+    {width > 0 && <View style={[S.offscreen, { left: 0, width }]}>
+      {Array.from({ length: itemCount }, (_, index) => <View key={index} ref={node => { shots.current[index] = node; }} collapsable={false} style={{ position: 'absolute', left: 0, top: 0, width, height }}>{renderSpreadRef.current(index)}</View>)}
+    </View>}
+  </View>;
+}
+
+/**
+ * The iOS page curl turning the app's own book with the pictures taken by BookSpreadSnapshots. The curl takes over as soon as the
+ * open page and its two neighbours have pictures (usually already when the cover is opened); the rest follow while it is in use.
+ * Until then, or when the pictures cannot be taken, the app's own page turn is shown.
+ */
+const SnapshotCurlBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function SnapshotCurlBookPageTurn(props, ref) {
+  const { itemCount, snapshots, onViewportSize, style } = props;
+  const [uris, setUris] = useState<string[] | null>(null);
+  const turning = useRef(false);
+  const unsent = useRef(false);
+  const latest = useRef(snapshots);
+  latest.current = snapshots;
+  const currentRef = useRef(props.selectedIndex);
+  currentRef.current = props.selectedIndex;
 
   // Hand the pictures to the curl once the open page and both neighbours exist; never while a page is turning.
   const publish = useCallback(() => {
+    const taken = latest.current;
+    if (!taken || taken.length !== itemCount) return;
     const current = Math.max(0, Math.min(currentRef.current, itemCount - 1));
     const needed = [current, current + 1, current - 1].filter(index => index >= 0 && index < itemCount);
-    if (!needed.every(index => !!taken.current[index])) return;
+    if (!needed.every(index => !!taken[index])) return;
     if (turning.current) { unsent.current = true; return; }
     unsent.current = false;
-    setUris(taken.current.slice());
+    setUris(taken.slice());
   }, [itemCount]);
+  useEffect(() => { publish(); }, [publish, snapshots, props.selectedIndex]);
+
   const handleBusyChange = useCallback((busy: boolean) => {
     turning.current = busy;
     if (!busy && unsent.current) publish();
     props.onBusyChange?.(busy);
   }, [publish, props.onBusyChange]);
 
-  useEffect(() => {
-    if (size.width <= 0 || size.height <= 0 || itemCount < 2) return undefined;
-    let cancelled = false;
-    taken.current = new Array(itemCount).fill('');
-    turning.current = false;
-    unsent.current = false;
-    // Let the pictures inside the spreads load before they are photographed.
-    const timer = setTimeout(async () => {
-      try {
-        for (;;) {
-          const current = currentRef.current;
-          let next = -1;
-          let best = Infinity;
-          for (let index = 0; index < itemCount; index += 1) {
-            if (taken.current[index]) continue;
-            // Nearest the open page first, and the page ahead before the one behind.
-            const distance = Math.abs(index - current) + (index < current ? 0.5 : 0);
-            if (distance < best) { best = distance; next = index; }
-          }
-          if (next < 0) break;
-          const target = shots.current[next];
-          if (!target) throw new Error('spread view missing');
-          const uri = await captureView(target);
-          if (cancelled) return;
-          taken.current[next] = uri;
-          publish();
-        }
-      } catch {
-        if (!cancelled) setUris(null);
-      }
-    }, 900);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [signature]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return <View style={style} onLayout={event => { const { width, height } = event.nativeEvent.layout; setSize(previous => Math.abs(previous.width - width) < 1 && Math.abs(previous.height - height) < 1 ? previous : { width, height }); }}>
-    {size.width > 0 && <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={[S.offscreen, { left: 0, width: size.width }]}>
-      {Array.from({ length: itemCount }, (_, index) => <View key={index} ref={node => { shots.current[index] = node; }} collapsable={false} style={{ position: 'absolute', left: 0, top: 0, width: size.width, height: size.height }}>{renderSpreadRef.current(index)}</View>)}
-    </View>}
+  return <View style={style} onLayout={event => { const { width, height } = event.nativeEvent.layout; onViewportSize?.({ width, height }); }}>
     {uris && uris.length === itemCount
       ? <NativeBookPageTurn forwardedRef={ref} spreadUris={uris} selectedIndex={props.selectedIndex} onCommit={props.onCommit} onBusyChange={handleBusyChange} onOpenDetail={props.onOpenDetail} style={S.fill} />
       : <SimulatedBookPageTurn {...props} ref={ref} style={S.fill} />}
-    {SHOW_CURL_DEBUG && uris && !!uris[0] && <View pointerEvents="none" style={{ position: 'absolute', right: 4, top: 4, width: 150, backgroundColor: '#000C', padding: 3 }}>
-      <RNImage source={{ uri: uris[0] }} style={{ width: 144, height: 144 * (size.height / Math.max(1, size.width)), backgroundColor: '#8886' }} resizeMode="contain" />
-      <Text style={{ color: '#fff', fontSize: 8 }}>{`spread0 ${uris.length}p ${uris[0].slice(0, 7)}…${uris[0].slice(-14)}`}</Text>
-    </View>}
   </View>;
 });
 
 export const BookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function BookPageTurn(props, ref) {
-  if (USE_NATIVE_PAGE_CURL && Platform.OS === 'ios' && isNativePageCurlAvailable) return <SnapshotCurlBookPageTurn {...props} ref={ref} />;
+  if (useSnapshotCurl() && props.snapshots !== undefined) return <SnapshotCurlBookPageTurn {...props} ref={ref} />;
   return <SimulatedBookPageTurn {...props} ref={ref} />;
 });
 
 const S = StyleSheet.create({
   fill: { alignSelf: 'stretch', minHeight: 340 },
   offscreen: { position: 'absolute', top: 0 },
+  // As wide as the open book (its frame is 12pt wider than the page column on each side); sits under the cover.
+  snapshotHost: { position: 'absolute', left: -12, right: -12, top: 0, height: DEFAULT_BOOK_HEIGHT, opacity: 0.02 },
   viewport: { position: 'relative', overflow: 'hidden' },
   overlay: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', zIndex: 4 },
   targetUnderlay: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },

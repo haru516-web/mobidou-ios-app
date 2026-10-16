@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, AppState, Linking, Easing, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SerialModal as Modal } from './src/components/SerialModal';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,7 +34,7 @@ import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from './src/data/pilgrimagePeekImages';
 import { COLLECTION_SHRINES, CollectionGallery, type CollectionPage, type CollectionZoom } from './src/components/CollectionGallery';
-import { BookPageTurn, type BookPageTurnHandle } from './src/components/BookPageTurn';
+import { BookPageTurn, BookSpreadSnapshots, bookSnapshotKey, type BookPageTurnHandle } from './src/components/BookPageTurn';
 import { HomeBottomNavigation, HomeCustomizationPopup, HomeGoshuinPickPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
 import { BookIndexPopup, GoshuinBookCover } from './src/components/GoshuinBook';
 import { CroppedArt } from './src/components/CroppedArt';
@@ -368,6 +368,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     return true;
   };
   const [bookOpen, setBookOpen] = useState(false);
+  // Pictures of the book's spreads for the iOS page curl, taken under the closed cover so the first page is ready when it opens.
+  const [bookSnaps, setBookSnaps] = useState<{ key: string; uris: string[] } | null>(null);
+  const [bookViewportSize, setBookViewportSize] = useState<{ width: number; height: number } | null>(null);
+  const handleBookViewportSize = useCallback((size: { width: number; height: number }) => {
+    setBookViewportSize(previous => previous && Math.abs(previous.width - size.width) < 1 && Math.abs(previous.height - size.height) < 1 ? previous : size);
+  }, []);
+  const handleBookSnapshots = useCallback((key: string, uris: string[]) => setBookSnaps({ key, uris }), []);
   const [bookIndexOpen, setBookIndexOpen] = useState(false);
   const [petSelectionReaction, setPetSelectionReaction] = useState(0);
   const [mobbyMenuOpen, setMobbyMenuOpen] = useState(false);
@@ -1139,10 +1146,13 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           <Text style={S.pageEyebrow}>{inEventBook ? 'イベント' : '巡礼中'}</Text>
           <FitLine text={inEventBook ? TOKI_MEGURU.name : activeRoute?.name ?? '巡礼を選びましょう'} style={S.pageLead} base={18} min={12} />
         </View>
+        {(inEventBook || activeRoute) && (inEventBook ? EVENT_SHRINES.length : activeShrines.length) > 1 && <View pointerEvents="none" style={{ height: 0 }}>
+          <BookSpreadSnapshots key={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} itemCount={inEventBook ? EVENT_SHRINES.length : activeShrines.length} contentKey={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} nativePages={inEventBook ? nativeEventBookPages : nativeBookPages} renderSpread={renderBookSpread} currentIndex={inEventBook ? eventFeatured % EVENT_SHRINES.length : selectedIndex} size={bookViewportSize} onSnapshots={handleBookSnapshots} />
+        </View>}
         {(inEventBook || activeRoute) && !bookOpen && <GoshuinBookCover route={activeRoute} event={inEventBook ? { name: TOKI_MEGURU.name, image: EVENT_BOOK_COVER } : undefined} onOpen={() => setBookOpen(true)} />}
         {bookOpen && <><View style={[S.bookWrap, { marginTop: 14 }]}>
           <View pointerEvents="none" style={[S.bookCoverEdge, inEventBook ? { backgroundColor: '#2F4A6B' } : activeRoute ? { backgroundColor: activeRoute.color } : null]}><Image accessible={false} source={inEventBook ? EVENT_FEEL.bookCloth : BOOK_CLOTH} contentFit="cover" style={S.bookCloth} /></View>
-          <BookPageTurn key={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={inEventBook ? eventFeatured % EVENT_SHRINES.length : selectedIndex} itemCount={inEventBook ? EVENT_SHRINES.length : activeShrines.length} contentKey={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={inEventBook ? setEventFeatured : setFeatured} onBusyChange={setTurning} onOpenDetail={index => inEventBook ? (index < eventReached ? setDetail(EVENT_SHRINES[index]) : undefined) : openDetail(activeShrines[index])} nativePages={inEventBook ? nativeEventBookPages : nativeBookPages} style={S.bookViewport} />
+          <BookPageTurn key={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={inEventBook ? eventFeatured % EVENT_SHRINES.length : selectedIndex} itemCount={inEventBook ? EVENT_SHRINES.length : activeShrines.length} contentKey={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={inEventBook ? setEventFeatured : setFeatured} onBusyChange={setTurning} onOpenDetail={index => inEventBook ? (index < eventReached ? setDetail(EVENT_SHRINES[index]) : undefined) : openDetail(activeShrines[index])} nativePages={inEventBook ? nativeEventBookPages : nativeBookPages} snapshots={bookSnaps && bookSnaps.key === bookSnapshotKey(inEventBook ? 'event-book' : activeRoute?.id ?? 'book', inEventBook ? nativeEventBookPages : nativeBookPages, inEventBook ? EVENT_SHRINES.length : activeShrines.length) ? bookSnaps.uris : null} onViewportSize={handleBookViewportSize} style={S.bookViewport} />
         </View>
         <View style={S.pager}><Pressable plate="round" accessibilityRole="button" accessibilityLabel="前の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><PillText textStyle={S.pageCounterText}>{String((inEventBook ? eventFeatured % EVENT_SHRINES.length : selectedIndex) + 1).padStart(2, '0')} / {String((inEventBook ? EVENT_SHRINES : activeShrines).length).padStart(2, '0')}</PillText><Pressable plate="round" accessibilityRole="button" accessibilityLabel="次の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
         </>}
