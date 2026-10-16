@@ -82,6 +82,7 @@ import { fortuneForDay, localOmikujiDay } from './src/data/omikuji';
 import { milestoneCount, milestoneLine, milestoneMessage } from './src/services/milestones';
 import { AccountCenter, type AccountPage } from './src/components/AccountCenter';
 import { Close, M } from './src/components/ModalParts';
+import { CollectionSpace } from './src/components/CollectionSpace';
 import { SettingsModal } from './src/components/SettingsModal';
 import { useAppAudioCues } from './src/services/appAudioCues';
 import { playSfx } from './src/services/audio';
@@ -217,6 +218,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     });
   };
   const [settings, setSettings] = useState(false);
+  const [spaceOpen, setSpaceOpen] = useState(false);
   const [tourRequest, setTourRequest] = useState<TourSelection | null>(null);
   const [tour, setTour] = useState<TourSelection | null>(null);
   const [accountPage, setAccountPage] = useState<AccountPage | null>(null);
@@ -1101,7 +1103,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       {tab === 'home'
         ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
         : tab === 'walk' ? <View />
-        : tab === 'collection' ? <View />
+        : tab === 'collection' ? <Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="所持品の一覧を3Dで見る" onPress={() => setSpaceOpen(true)} style={S.glassButton}><Icon name="list" size={21} color={C.ink} /></Pressable>
         : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
         {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} premiumTickets={data.mobbies.paidTickets} miniaturePasses={journey.special.passes.keychainDrop} plusActive={data.keychainPlan === 'plus'} onAddTickets={openGachaShop} onAddPasses={openGachaShop} />}
@@ -1303,6 +1305,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
+    <CollectionSpace visible={spaceOpen} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} special={inEventCollection ? eventSpecial : journey.special} onClose={() => setSpaceOpen(false)} />
     <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} gacha={hasStarter(data.mobbies)} onStartTour={selection => { setSettings(false); setTourRequest(selection); }} appleLinked={appleLinked} />
 
 
