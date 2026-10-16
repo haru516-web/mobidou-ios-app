@@ -1,0 +1,67 @@
+{
+  "originalGeneratedSize": [
+    1942,
+    809
+  ],
+  "masterSize": [
+    6144,
+    2560
+  ],
+  "workflow": "single generated panorama, bicubic upscale, periodic edge blend, dark edge fade, four equal crops, WebP quality 82",
+  "tiles": [
+    {
+      "file": "assets/collection/space/space-bg-1.webp",
+      "format": "WebP",
+      "width": 1536,
+      "height": 2560,
+      "alpha": false,
+      "bytes": 140474
+    },
+    {
+      "file": "assets/collection/space/space-bg-2.webp",
+      "format": "WebP",
+      "width": 1536,
+      "height": 2560,
+      "alpha": false,
+      "bytes": 100926
+    },
+    {
+      "file": "assets/collection/space/space-bg-3.webp",
+      "format": "WebP",
+      "width": 1536,
+      "height": 2560,
+      "alpha": false,
+      "bytes": 90702
+    },
+    {
+      "file": "assets/collection/space/space-bg-4.webp",
+      "format": "WebP",
+      "width": 1536,
+      "height": 2560,
+      "alpha": false,
+      "bytes": 112192
+    }
+  ],
+  "seams": [
+    {
+      "seam": "1->2",
+      "meanChannelDelta": 2.205,
+      "maxChannelDelta": 25
+    },
+    {
+      "seam": "2->3",
+      "meanChannelDelta": 2.05,
+      "maxChannelDelta": 24
+    },
+    {
+      "seam": "3->4",
+      "meanChannelDelta": 1.756,
+      "maxChannelDelta": 43
+    },
+    {
+      "seam": "4->1",
+      "meanChannelDelta": 2.523,
+      "maxChannelDelta": 29
+    }
+  ]
+}
