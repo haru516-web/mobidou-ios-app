@@ -10,7 +10,7 @@ import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500
 import { ShipporiMincho_700Bold } from '@expo-google-fonts/shippori-mincho/700Bold';
 import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku/400Regular';
 import { BRUSH, Button, C, Clouds, Companion, Icon, SERIF, Stamp, Torii } from './src/components';
-import { getPetCharacter, isPetId, type PetId } from './src/petCatalog';
+import { getPetCharacter, isPetId, PET_CHARACTERS, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView, localDay } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
@@ -481,6 +481,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, [eventTicketsNow, data.eventGacha.granted, journey.ready]);
   // The collection can be looked at before the team has set out (everything is still locked).
   const inEventCollection = eventCollection;
+  const spaceMobbies = useMemo(() => (inEventCollection ? EVENT_PET_CHARACTERS : PET_CHARACTERS).filter(pet => ownsMobby(data.mobbies, pet.id)).map(pet => ({ id: pet.id, name: pet.name, image: pet.image })), [inEventCollection, data.mobbies]);
   const [eventListOpen, setEventListOpen] = useState(false);
   // Tells the player an event is running, once per launch, when the home screen has settled.
   const [eventAnnounceOpen, setEventAnnounceOpen] = useState(false);
@@ -1305,7 +1306,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <CollectionSpace visible={spaceOpen} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} special={inEventCollection ? eventSpecial : journey.special} onClose={() => setSpaceOpen(false)} />
+    <CollectionSpace visible={spaceOpen} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} special={inEventCollection ? eventSpecial : journey.special} mobbies={spaceMobbies} onClose={() => setSpaceOpen(false)} />
     <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} gacha={hasStarter(data.mobbies)} onStartTour={selection => { setSettings(false); setTourRequest(selection); }} appleLinked={appleLinked} />
 
 

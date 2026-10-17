@@ -12,7 +12,7 @@ import { EVENT_KEYCHAIN_IMAGES } from '../data/eventImages';
 import { SPACE_BACKDROP_TILES } from './collectionSpaceBackdrop';
 import type { SpecialCollection } from '../services/specialRewards';
 
-type SpaceItem = { key: string; source: any; kind: 'stamp' | 'keychain'; name: string };
+type SpaceItem = { key: string; source: any; kind: 'stamp' | 'keychain' | 'mobby'; name: string };
 type Look = {
   yaw: number; pitch: number; zoom: number; dragging: boolean;
   /** Turning speed (rad/s) left over after a flick, which dies down on its own. */
@@ -32,32 +32,53 @@ type Shared = {
 
 const PITCH_LIMIT = 0.6;
 const ITEM_DIAMETER = 3.4;
-/** Nearest the things come at full zoom: they crowd together and overlap. */
-const RADIUS_CLOSE = 2.8;
-/** Where a picked thing floats to, right in front of the viewer. */
-const RADIUS_PICKED = 2.7;
+/** Zooming only changes the lens, never the distances, so the spacing between things looks the same at every zoom. */
+const FOV_BASE = 70;
+const ZOOM_OUT = 0.6;
+const ZOOM_IN = 3;
+/** Magnification (1 = the opening view) for a zoom value from 0 (widest) to 1 (closest). */
+const magnification = (zoom: number) => ZOOM_OUT * Math.pow(ZOOM_IN / ZOOM_OUT, zoom);
+const fovFor = (mag: number) => (2 * Math.atan(Math.tan((FOV_BASE * Math.PI) / 360) / mag) * 180) / Math.PI;
+/** Where the ring sits when the view opens: a little closer than the layout distance, so the things nearly touch. */
+const RADIUS_START = 10.2;
+/** The distance the layout spaces the things for, so that they sit side by side without overlapping. */
+const RADIUS_LAYOUT = 13;
+/** Where a picked thing floats to, right in front of the viewer; far enough for it to fit the screen whole. */
+const RADIUS_PICKED = 4.6;
 const BACKDROP_RADIUS = 40;
 /** The backdrop covers this much of the sky, up and down, and is split into tiles around the full circle. */
 const BACKDROP_BAND = (150 * Math.PI) / 180;
-const START_ZOOM = 0.35;
-
-/** Directions spread evenly around the viewer (Fibonacci lattice), within a band so nothing sits straight overhead. */
-function spreadDirections(count: number): [number, number, number][] {
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  return Array.from({ length: count }, (_, i) => {
-    const y = count === 1 ? 0 : 0.87 * (1 - (i / (count - 1)) * 2);
-    const r = Math.sqrt(Math.max(0, 1 - y * y));
-    const angle = i * golden;
-    return [Math.cos(angle) * r, y, Math.sin(angle) * r];
-  });
-}
-
-/** Distance at which the things all fit around the viewer without touching. Zoomed out they sit this far; zoomed in they close up to RADIUS_CLOSE. */
-function relaxedRadius(count: number) {
-  return Math.max(4.2, ITEM_DIAMETER * Math.sqrt(count) * 0.27);
-}
+const START_ZOOM = Math.log(1 / ZOOM_OUT) / Math.log(ZOOM_IN / ZOOM_OUT);
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
+
+/**
+ * Directions for the things: rows around the viewer, filled outward from straight ahead, so the first screenful
+ * the viewer sees on opening is already full of things and the rest wait to the sides and behind.
+ */
+function spreadDirections(count: number): [number, number, number][] {
+  const step = (ITEM_DIAMETER * 0.62 * 1.2) / RADIUS_LAYOUT;
+  const rowStep = (ITEM_DIAMETER * 1.15) / RADIUS_LAYOUT;
+  const slots: { yaw: number; pitch: number; d: number }[] = [];
+  for (let maxRow = 2; slots.length < count && maxRow < 40; maxRow++) {
+    slots.length = 0;
+    for (let k = -maxRow; k <= maxRow; k++) {
+      const pitch = k * rowStep;
+      if (Math.abs(pitch) > 1.4) continue;
+      const perRow = Math.max(1, Math.floor((Math.PI * 2 * Math.cos(pitch)) / step));
+      const offset = Math.abs(k) % 2 ? 0.5 : 0;
+      for (let j = 0; j < perRow; j++) {
+        const yaw = wrapAngle(((j + offset) * Math.PI * 2) / perRow);
+        slots.push({ yaw, pitch, d: Math.hypot(yaw, pitch * 1.4) });
+      }
+    }
+  }
+  slots.sort((a, b) => a.d - b.d);
+  return Array.from({ length: count }, (_, i) => {
+    const { yaw, pitch } = slots[i] ?? { yaw: i * 2.4, pitch: 0 };
+    return [-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)] as [number, number, number];
+  });
+}
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 function Floating({ item, direction, texture, index, shared }: { item: SpaceItem; direction: [number, number, number]; texture: any; index: number; shared: React.MutableRefObject<Shared> }) {
@@ -67,8 +88,8 @@ function Floating({ item, direction, texture, index, shared }: { item: SpaceItem
   const pop = useRef(0);
   const fade = useRef(0);
   const image = texture.image as { width?: number; height?: number } | undefined;
-  const ratio = image?.width && image?.height ? image.width / image.height : item.kind === 'stamp' ? 0.67 : 0.6;
-  const height = item.kind === 'stamp' ? ITEM_DIAMETER * 0.85 : ITEM_DIAMETER;
+  const ratio = image?.width && image?.height ? image.width / image.height : item.kind === 'stamp' ? 0.67 : item.kind === 'mobby' ? 1 : 0.6;
+  const height = item.kind === 'stamp' ? ITEM_DIAMETER * 0.85 : item.kind === 'mobby' ? ITEM_DIAMETER * 0.8 : ITEM_DIAMETER;
   useFrame(({ camera, clock }, delta) => {
     const node = group.current;
     if (!node) return;
@@ -136,16 +157,17 @@ function World({ items, directions, look, shared }: { items: SpaceItem[]; direct
   const uris = items.map(item => (typeof item.source === 'object' && item.source?.uri ? item.source.uri as string : Asset.fromModule(item.source).uri));
   const textures = useLoader(TextureLoader, uris);
   textures.forEach(texture => { texture.colorSpace = SRGBColorSpace; });
-  const relaxed = relaxedRadius(items.length);
   const eased = useRef(look.current.zoom);
   useFrame(({ camera }, delta) => {
     const v = look.current;
     const s = shared.current;
     s.camera = camera;
     s.intro += delta;
-    // Zooming brings the ring in to the viewer (the things crowd and overlap) or sends it out until nothing touches.
-    eased.current += (v.zoom - eased.current) * Math.min(1, delta * 8);
-    s.radius = relaxed * 1.1 + (RADIUS_CLOSE - relaxed * 1.1) * eased.current;
+    // Zooming narrows or widens the lens; a picked thing is shown at the opening view so it always fits the screen whole.
+    eased.current += ((s.selected ? START_ZOOM : v.zoom) - eased.current) * Math.min(1, delta * 8);
+    s.radius = RADIUS_START;
+    const fov = fovFor(magnification(eased.current));
+    if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
     if (v.dragging) { /* the finger drives the view */ } else if (v.target) {
       const k = Math.min(1, delta * 5);
       v.yaw += wrapAngle(v.target.yaw - v.yaw) * k;
@@ -170,10 +192,10 @@ function World({ items, directions, look, shared }: { items: SpaceItem[]; direct
 }
 
 /** Everything the player owns, floating around them in a small 3D world. Drag to look around, flick to keep turning, pinch to zoom, tap a thing to pick it up. */
-export function CollectionSpace({ visible, shrines, rewardIds, special, onClose }: { visible: boolean; shrines: readonly Shrine[]; rewardIds: readonly string[]; special: SpecialCollection; onClose: () => void }) {
+export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies = [], onClose }: { visible: boolean; shrines: readonly Shrine[]; rewardIds: readonly string[]; special: SpecialCollection; mobbies?: readonly { id: string; name: string; image: any }[]; onClose: () => void }) {
   const items = useMemo<SpaceItem[]>(() => {
     const owned = new Set(rewardIds);
-    const list: SpaceItem[] = [];
+    const list: SpaceItem[] = mobbies.map(pet => ({ key: `m-${pet.id}`, source: pet.image, kind: 'mobby' as const, name: pet.name }));
     shrines.forEach(shrine => {
       const stamp = STAMP_IMAGES[shrine.id];
       if (owned.has(shrine.id) && !!stamp) list.push({ key: `s-${shrine.id}`, source: stamp, kind: 'stamp', name: shrine.name });
@@ -181,18 +203,18 @@ export function CollectionSpace({ visible, shrines, rewardIds, special, onClose 
       if ((special.keychains[shrine.id] ?? 0) > 0 && !!keychain) list.push({ key: `k-${shrine.id}`, source: keychain, kind: 'keychain', name: shrine.name });
     });
     return list;
-  }, [shrines, rewardIds, special]);
+  }, [shrines, rewardIds, special, mobbies]);
   const directions = useMemo(() => spreadDirections(items.length), [items.length]);
   const [selected, setSelected] = useState<SpaceItem | null>(null);
   const look = useRef<Look>({ yaw: 0, pitch: 0, zoom: START_ZOOM, dragging: false, vyaw: 0, vpitch: 0, target: null });
-  const shared = useRef<Shared>({ radius: relaxedRadius(items.length), intro: 0, selected: null, camera: null, placed: {} });
+  const shared = useRef<Shared>({ radius: RADIUS_START, intro: 0, selected: null, camera: null, placed: {} });
   const gesture = useRef({ x: 0, y: 0, startX: 0, startY: 0, time: 0, moved: 0, pinch: 0, zoom: START_ZOOM });
   const size = useRef({ width: 1, height: 1 });
   // Every time the view opens it starts afresh: facing front, nothing picked, the things flying in.
   useEffect(() => {
     if (!visible) return;
     look.current = { yaw: 0, pitch: 0, zoom: START_ZOOM, dragging: false, vyaw: 0, vpitch: 0, target: null };
-    shared.current = { radius: relaxedRadius(items.length), intro: 0, selected: null, camera: null, placed: {} };
+    shared.current = { radius: RADIUS_START, intro: 0, selected: null, camera: null, placed: {} };
     setSelected(null);
   }, [visible, items.length]);
 
@@ -297,18 +319,18 @@ export function CollectionSpace({ visible, shrines, rewardIds, special, onClose 
   return <Modal visible={visible} animationType="fade" onRequestClose={onClose} supportedOrientations={['portrait']}>
     <View style={S.root}>
       <View style={S.canvasWrap} onLayout={onLayout} {...responder.panHandlers}>
-        {items.length > 0 && <Canvas camera={{ fov: 70, near: 0.1, far: 90, position: [0, 0, 0] }} dpr={[1, 1.6]} style={{ flex: 1, backgroundColor: '#1B1426', touchAction: 'none' } as object}>
+        <Canvas camera={{ fov: FOV_BASE, near: 0.1, far: 90, position: [0, 0, 0] }} dpr={[1, 1.6]} style={{ flex: 1, backgroundColor: '#1B1426', touchAction: 'none' } as object}>
           <Suspense fallback={null}>
             <World items={items} directions={directions} look={look} shared={shared} />
           </Suspense>
-        </Canvas>}
+        </Canvas>
       </View>
       <View pointerEvents="none" style={S.titleBox}>
         <Text style={S.title}>所持品の一覧</Text>
         <Text style={S.hint}>{items.length ? `${items.length}点 ・ ドラッグで見渡す ・ つまんで広げて寄る ・ タップで手に取る` : 'まだ集めたものがありません'}</Text>
       </View>
       {!!selected && <View pointerEvents="none" style={S.nameBox}>
-        <Text style={S.nameKind}>{selected.kind === 'stamp' ? '御朱印' : 'キーホルダー'}</Text>
+        <Text style={S.nameKind}>{selected.kind === 'stamp' ? '御朱印' : selected.kind === 'mobby' ? 'モビー' : 'キーホルダー'}</Text>
         <Text style={S.name}>{selected.name}</Text>
       </View>}
       <Pressable accessibilityRole="button" accessibilityLabel="一覧を閉じる" onPress={onClose} style={S.close}><Icon name="close" size={21} color="#FBF6EC" /></Pressable>
