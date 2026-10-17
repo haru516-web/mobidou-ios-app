@@ -1,11 +1,14 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Asset } from 'expo-asset';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BackSide, RepeatWrapping, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { SerialModal as Modal } from './SerialModal';
 import { Canvas, useFrame, useLoader } from './r3f';
-import { Icon } from '../components';
+import { BRUSH, C, Icon } from '../components';
+import { Image } from './AppImage';
+import { playSfx } from '../services/audio';
 import { STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { EVENT_KEYCHAIN_IMAGES } from '../data/eventImages';
@@ -29,6 +32,20 @@ type Shared = {
   camera: any;
   placed: Record<string, Placed>;
 };
+
+const GUIDE_HIDDEN_KEY = 'mobidou.collectionWorldGuideHidden';
+const GUIDE_STEPS: readonly { title: string; body: string }[] = [
+  { title: 'ドラッグで見渡す', body: '指でなぞると、まわりをぐるりと見回せます。はなすと、すこしだけ流れて止まります。' },
+  { title: 'つまんで寄る・引く', body: '2本の指で広げると大きく、つまむと小さく見えます。' },
+  { title: 'タップで手に取る', body: 'ふれたものが目の前に来て、名前が出ます。もう一度ふれるか、何もないところをふれると戻ります。' },
+];
+
+// The hanging scroll the app's other popups use (see ScrollPopup); the picture keeps transparent margins, so only its middle is shown.
+const SCROLL_ART = require('../../assets/ui-washi/goshuin/index-popup.webp');
+const UNDERLINE_BRUSH = require('../../assets/ui-washi/common/underline-brush.webp');
+const SCROLL_LEFT = 0.165;
+const SCROLL_WIDTH = 0.669;
+const SCROLL_ASPECT = (0.669 * 1024) / (0.973 * 1400);
 
 const PITCH_LIMIT = 0.6;
 const ITEM_DIAMETER = 3.4;
@@ -227,6 +244,25 @@ export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies 
   const shared = useRef<Shared>({ radius: RADIUS_START, intro: 0, selected: null, camera: null, placed: {} });
   const gesture = useRef({ x: 0, y: 0, startX: 0, startY: 0, time: 0, moved: 0, pinch: 0, zoom: START_ZOOM });
   const size = useRef({ width: 1, height: 1 });
+  // A short how-to opens first, unless the player asked not to see it again.
+  const [guideOpen, setGuideOpen] = useState(false);
+  const screen = useWindowDimensions();
+  const scroll = useMemo(() => {
+    const width = Math.min(screen.width - 24, (screen.height - 96) * SCROLL_ASPECT, 380);
+    const artWidth = width / SCROLL_WIDTH;
+    return { width, height: width / SCROLL_ASPECT, artWidth, artHeight: (artWidth * 1400) / 1024 };
+  }, [screen.width, screen.height]);
+  useEffect(() => { if (guideOpen) playSfx('sfx_scroll_open'); }, [guideOpen]);
+  useEffect(() => {
+    if (!visible) { setGuideOpen(false); return; }
+    let alive = true;
+    AsyncStorage.getItem(GUIDE_HIDDEN_KEY).then(value => { if (alive) setGuideOpen(value !== '1'); }, () => { if (alive) setGuideOpen(true); });
+    return () => { alive = false; };
+  }, [visible]);
+  const hideGuideForever = () => {
+    setGuideOpen(false);
+    AsyncStorage.setItem(GUIDE_HIDDEN_KEY, '1').catch(() => undefined);
+  };
   // Every time the view opens it starts afresh: facing front, nothing picked, the things flying in.
   useEffect(() => {
     if (!visible) return;
@@ -343,12 +379,34 @@ export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies 
         </Canvas>
       </View>
       <View pointerEvents="none" style={S.titleBox}>
-        <Text style={S.title}>所持品の一覧</Text>
-        <Text style={S.hint}>{items.length ? `${items.length}点 ・ ドラッグで見渡す ・ つまんで広げて寄る ・ タップで手に取る` : 'まだ集めたものがありません'}</Text>
+        <Text style={S.title}>コレクションワールド</Text>
       </View>
       {!!selected && <View pointerEvents="none" style={S.nameBox}>
         <Text style={S.nameKind}>{selected.kind === 'stamp' ? '御朱印' : selected.kind === 'mobby' ? 'モビー' : 'キーホルダー'}</Text>
         <Text style={S.name}>{selected.name}</Text>
+      </View>}
+      {guideOpen && <View style={S.guideLayer}>
+        <View accessibilityViewIsModal accessibilityLabel="コレクションワールドの歩き方" style={{ width: scroll.width, height: scroll.height, overflow: 'hidden' }}>
+          <Image accessible={false} source={SCROLL_ART} contentFit="fill" pointerEvents="none" style={{ position: 'absolute', left: -SCROLL_LEFT * scroll.artWidth, top: 0, width: scroll.artWidth, height: scroll.artHeight }} />
+          <View style={[S.guideContent, { left: scroll.width * .12, right: scroll.width * .12, top: scroll.height * .165, height: scroll.height * .745 }]}>
+            <Text accessibilityRole="header" style={S.guideTitle}>コレクションワールド</Text>
+            <Text style={S.guideSubtitle}>歩き方</Text>
+            <View style={S.guideSteps}>
+              {GUIDE_STEPS.map((step, index) => <View key={step.title} style={S.guideRow}>
+                <Text style={S.guideNumber}>{index + 1}</Text>
+                <View style={S.guideText}>
+                  <Text style={S.guideStep}>{step.title}</Text>
+                  <Text style={S.guideBody}>{step.body}</Text>
+                </View>
+              </View>)}
+            </View>
+            <Pressable accessibilityRole="button" onPress={() => { playSfx('sfx_close'); setGuideOpen(false); }} style={S.guideStart}>
+              <Text style={S.guideStartText}>はじめる</Text>
+              <Image accessible={false} source={UNDERLINE_BRUSH} contentFit="fill" style={S.guideLine} />
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={hideGuideForever} style={S.guideHide}><Text style={S.guideHideText}>今後表示しない</Text></Pressable>
+          </View>
+        </View>
       </View>}
       <Pressable accessibilityRole="button" accessibilityLabel="一覧を閉じる" onPress={onClose} style={S.close}><Icon name="close" size={21} color="#FBF6EC" /></Pressable>
     </View>
@@ -361,7 +419,21 @@ const S = StyleSheet.create({
   canvasWrap: { flex: 1, touchAction: 'none', userSelect: 'none' } as object,
   titleBox: { position: 'absolute', left: 20, top: 56, right: 80 },
   title: { color: '#FBF6EC', fontSize: 20, fontFamily: 'Shippori', letterSpacing: 2 },
-  hint: { color: '#FBF6ECB3', fontSize: 12, marginTop: 4 },
+  guideLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#241B14B3' },
+  guideContent: { position: 'absolute', alignItems: 'stretch' },
+  guideTitle: { fontFamily: BRUSH, fontSize: 22, color: C.ink, textAlign: 'center', letterSpacing: 3 },
+  guideSubtitle: { fontFamily: BRUSH, fontSize: 13, color: C.muted, textAlign: 'center', marginTop: 2, marginBottom: 10 },
+  guideSteps: { flex: 1, justifyContent: 'center' },
+  guideRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+  guideNumber: { width: 26, height: 26, borderRadius: 13, overflow: 'hidden', textAlign: 'center', lineHeight: 26, color: C.paper, backgroundColor: C.red, fontFamily: BRUSH, fontSize: 14, marginRight: 10, marginTop: 1 },
+  guideText: { flex: 1 },
+  guideStep: { fontFamily: BRUSH, fontSize: 16, color: C.ink, letterSpacing: 1 },
+  guideBody: { color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
+  guideStart: { alignSelf: 'center', alignItems: 'center', minHeight: 44, minWidth: 120, justifyContent: 'center' },
+  guideStartText: { fontFamily: BRUSH, fontSize: 18, color: C.red, letterSpacing: 4 },
+  guideLine: { width: 96, height: 8, marginTop: -1 },
+  guideHide: { alignSelf: 'center', minHeight: 36, justifyContent: 'center', paddingHorizontal: 12 },
+  guideHideText: { color: C.muted, fontSize: 12, textDecorationLine: 'underline' },
   nameBox: { position: 'absolute', left: 24, right: 24, bottom: 48, alignItems: 'center', paddingVertical: 12, borderRadius: 14, backgroundColor: '#1B1426CC', borderWidth: StyleSheet.hairlineWidth, borderColor: '#F6E3B455' },
   nameKind: { color: '#F6E3B4', fontSize: 11, letterSpacing: 3 },
   name: { color: '#FBF6EC', fontSize: 20, fontFamily: 'Shippori', letterSpacing: 2, marginTop: 2 },
