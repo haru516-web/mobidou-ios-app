@@ -136,7 +136,6 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
   const root = useRef<View>(null);
   const art = roomArtGeometry(viewportWidth, windowHeight);
   const railY = art.railY - roomTopInWindow;
-  const roomLabelTop = Math.max(0, railY - roomLabelHeight - 36);
   const goshuinBottom = roomHeight - (art.shelfY - roomTopInWindow);
   const rewarded = useMemo(() => new Set(rewardIds), [rewardIds]);
 
@@ -212,7 +211,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
                 const stampWidth = Math.min(slotWidth * .92, fit * .95);
                 const hookHeightEstimate = Math.min(65, keychainSize * .5) * (1145 / 1374);
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight, left: shiftX }]}>
-                  <View style={[S.roomLabel, { top: roomLabelTop, height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
+                  <View style={[S.roomLabel, { top: Math.max(0, railY - hookHeightEstimate * .572 - roomLabelHeight + 13), height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
                   <KeychainArtwork shrine={shrine} locked={keychainCount === 0} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
                   <DisplayedStamp shrine={shrine} owned={stampOwned} width={stampWidth} bottom={goshuinBottom} onPress={() => onSelectGoshuin(shrine)} />
                 </View>;

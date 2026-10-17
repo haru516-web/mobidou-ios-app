@@ -33,6 +33,7 @@ import { PillText, WashiArt, WashiPressable as Pressable } from './src/component
 import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from './src/data/pilgrimagePeekImages';
+import { roomArtGeometry } from './src/components/collectionRoomArt';
 import { COLLECTION_SHRINES, CollectionGallery, type CollectionPage, type CollectionZoom } from './src/components/CollectionGallery';
 import { BookPageTurn, BookSpreadSnapshots, bookSnapshotKey, type BookPageTurnHandle } from './src/components/BookPageTurn';
 import { HomeBottomNavigation, HomeCustomizationPopup, HomeGoshuinPickPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
@@ -505,6 +506,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
   const [scrollViewportHeight, setScrollViewportHeight] = useState(0);
   const [homeScrollLayout, setHomeScrollLayout] = useState<HomeLayout | null>(null);
+  const contentRef = useRef<View>(null);
+  const [contentTopInWindow, setContentTopInWindow] = useState(0);
   const [homeCardGroupLayout, setHomeCardGroupLayout] = useState<HomeLayout | null>(null);
   const [homeStepsSlotLayout, setHomeStepsSlotLayout] = useState<HomeLayout | null>(null);
   const [homeCompanionLayout, setHomeCompanionLayout] = useState<HomeLayout | null>(null);
@@ -1111,10 +1114,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         {data.demo && <Pressable plate="pill" artwork={false} accessibilityRole="button" accessibilityLabel="体験モード中。タップで体験を終えて実記録にもどる" onPress={() => journey.enter(false)} style={S.demoBadge}><View style={S.dot} /><Text style={S.demoBadgeText}>体験中</Text><Icon name="close" size={13} color="#8A6950" /></Pressable>}
         <TourAnchor id="header-settings"><Pressable plate="round" artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable></TourAnchor>
       </View>
+      {tab === 'collection' && eventAvailable && <View pointerEvents="box-none" style={S.collectionModes}>
+        <PopButton id="eventNormal" label="通常" icon="home" plaqueOnly selected={!inEventCollection} faded={inEventCollection} onPress={() => { setCollectionPage('room'); setEventCollection(false); }} />
+        <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => setEventListOpen(true)} />
+      </View>}
     </View>
     {!!milestoneToast && <Pressable artwork={false} accessibilityRole="alert" accessibilityLabel={milestoneToast.replace('\n', '。')} onPress={() => setMilestoneToast(null)} style={S.milestoneToast}><Text style={S.milestoneTitle}>{milestoneToast.split('\n')[0]}</Text><Text style={S.milestoneLine}>{milestoneToast.split('\n')[1]}</Text></Pressable>}
     {!!journey.error && <View style={M.error}><Text style={M.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
-    <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={[S.content, tab === 'home' && S.homeContent]}>
+    <View ref={contentRef} onLayout={({ nativeEvent }) => { contentRef.current?.measureInWindow((_x, y) => setContentTopInWindow(previous => Math.abs(previous - y) < 1 ? previous : y)); const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={[S.content, tab === 'home' && S.homeContent]}>
       {tab === 'home' && <>
         {firstRunStage === 'homeOmikuji'
           ? <View style={S.homeTutorialIntro}><Text style={S.chapter}>つぎは、おみくじを引こう。</Text></View>
@@ -1211,11 +1218,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
 
       {tab === 'collection' && <>
-        {eventAvailable && <View style={S.collectionModes}>
-          <PopButton id="eventNormal" label="通常" icon="home" plaqueOnly selected={!inEventCollection} faded={inEventCollection} onPress={() => { setCollectionPage('room'); setEventCollection(false); }} />
-          <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => setEventListOpen(true)} />
-        </View>}
-        <TourAnchor id="collection-tabs" style={S.jumpRow}>
+        {/* The three buttons sit midway between the 通常/イベント plaques in the header and the place names hung just above the hooks. */}
+        <TourAnchor id="collection-tabs" style={[S.jumpRow, { top: Math.round(((eventAvailable ? contentTopInWindow - 19 : contentTopInWindow - 32) + roomArtGeometry(Math.min(480, Math.max(1, windowWidth)), windowHeight).railY - 32) / 2 - 40 - contentTopInWindow) }]}>
           {[COLLECTION_PAGES[1]!, COLLECTION_PAGES[0]!, COLLECTION_PAGES[2]!].map((entry, index) => {
             const button = <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />;
             // The exhibition room is the page itself and the other two open over it: it sits in the middle, on a dark wooden board of its own.
@@ -1437,7 +1441,7 @@ const S = StyleSheet.create({
   walkActionButton: { width: '100%', marginTop: 0 },
   sectionBlock: { marginTop: 18 },
   sectionHeading: { fontFamily: BRUSH, fontSize: 21, letterSpacing: 1, color: C.ink, marginBottom: 4, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
-  jumpRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: -4, marginBottom: 8 },
+  jumpRow: { position: 'absolute', left: 24, right: 24, zIndex: 5, flexDirection: 'row', justifyContent: 'space-around' },
   collectionMainCell: { flex: 1 },
   collectionMainBoard: { position: 'absolute', left: -2, right: -2, top: -6, bottom: -6, borderRadius: 14, overflow: 'hidden', borderWidth: 2, borderColor: '#C9A46A', shadowColor: '#2A1408', shadowOffset: { width: 0, height: 3 }, shadowOpacity: .35, shadowRadius: 5 },
   indexLead: { fontFamily: BRUSH, fontSize: 17, color: C.ink, marginBottom: 4 },
@@ -1472,7 +1476,7 @@ const S = StyleSheet.create({
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 110, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF9EFE6' }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 },
   nextPilgrimageAction: { position: 'relative', alignSelf: 'stretch', alignItems: 'center', paddingTop: 56, marginTop: 58 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
   tourPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  collectionModes: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 0, marginBottom: 12 },
+  collectionModes: { position: 'absolute', left: 0, right: 0, top: 0, height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   homeEventButton: { position: 'absolute', left: 10, zIndex: 25 },
   bookEventSlot: { marginRight: 'auto' },
   walkMinimal: { flex: 1, alignItems: 'center', paddingTop: 2, paddingBottom: 6 },
