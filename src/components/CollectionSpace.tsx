@@ -41,8 +41,6 @@ const magnification = (zoom: number) => ZOOM_OUT * Math.pow(ZOOM_IN / ZOOM_OUT, 
 const fovFor = (mag: number) => (2 * Math.atan(Math.tan((FOV_BASE * Math.PI) / 360) / mag) * 180) / Math.PI;
 /** Where the ring sits when the view opens: a little closer than the layout distance, so the things nearly touch. */
 const RADIUS_START = 10.2;
-/** The distance the layout spaces the things for, so that they sit side by side without overlapping. */
-const RADIUS_LAYOUT = 13;
 /** Where a picked thing floats to, right in front of the viewer; far enough for it to fit the screen whole. */
 const RADIUS_PICKED = 4.6;
 const BACKDROP_RADIUS = 40;
@@ -53,12 +51,23 @@ const START_ZOOM = Math.log(1 / ZOOM_OUT) / Math.log(ZOOM_IN / ZOOM_OUT);
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
 
 /**
- * Directions for the things: rows around the viewer, filled outward from straight ahead, so the first screenful
- * the viewer sees on opening is already full of things and the rest wait to the sides and behind.
+ * Directions for the things: seats in rows around the viewer, taken from straight ahead outward so the first screenful
+ * is full with no gaps, but handed out in a scattered order (and nudged a little off the grid) so nothing looks sorted. The scatter
+ * is seeded by what the player owns, so it is the same every time the view opens.
  */
-function spreadDirections(count: number): [number, number, number][] {
-  const step = (ITEM_DIAMETER * 0.62 * 1.2) / RADIUS_LAYOUT;
-  const rowStep = (ITEM_DIAMETER * 1.15) / RADIUS_LAYOUT;
+function spreadDirections(keys: readonly string[]): [number, number, number][] {
+  const count = keys.length;
+  let seed = 2166136261;
+  for (const ch of keys.join('|')) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619);
+  const random = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  // Packed edge to edge, with no room between them (neighbours may even brush against each other).
+  const step = (ITEM_DIAMETER * 0.7) / RADIUS_START;
+  const rowStep = (ITEM_DIAMETER * 0.9) / RADIUS_START;
   const slots: { yaw: number; pitch: number; d: number }[] = [];
   for (let maxRow = 2; slots.length < count && maxRow < 40; maxRow++) {
     slots.length = 0;
@@ -74,8 +83,16 @@ function spreadDirections(count: number): [number, number, number][] {
     }
   }
   slots.sort((a, b) => a.d - b.d);
+  // The nearest seats are all taken, and shuffled among the things.
+  const pool = slots.slice(0, count);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j]!, pool[i]!];
+  }
   return Array.from({ length: count }, (_, i) => {
-    const { yaw, pitch } = slots[i] ?? { yaw: i * 2.4, pitch: 0 };
+    const seat = pool[i] ?? { yaw: i * 2.4, pitch: 0 };
+    const yaw = seat.yaw + (random() - 0.5) * step * 0.15;
+    const pitch = seat.pitch + (random() - 0.5) * rowStep * 0.15;
     return [-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)] as [number, number, number];
   });
 }
@@ -204,7 +221,7 @@ export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies 
     });
     return list;
   }, [shrines, rewardIds, special, mobbies]);
-  const directions = useMemo(() => spreadDirections(items.length), [items.length]);
+  const directions = useMemo(() => spreadDirections(items.map(item => item.key)), [items]);
   const [selected, setSelected] = useState<SpaceItem | null>(null);
   const look = useRef<Look>({ yaw: 0, pitch: 0, zoom: START_ZOOM, dragging: false, vyaw: 0, vpitch: 0, target: null });
   const shared = useRef<Shared>({ radius: RADIUS_START, intro: 0, selected: null, camera: null, placed: {} });
