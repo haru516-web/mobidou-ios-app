@@ -10,6 +10,8 @@ import { EVENT_KEYCHAIN_IMAGES } from '../data/eventImages';
 import { WashiArt, WashiPressable } from './Washi';
 import { CollectionRoom } from './CollectionRoom';
 import { ScrollPopup } from './ScrollPopup';
+import { LetterBoxButton, LettersPopup } from './LetterBox';
+import { useLetters } from '../services/letters';
 import type { SpecialCollection } from '../services/specialRewards';
 import { PagedShrineGrid } from './GoshuinBook';
 import { attachSnapScroll } from './webSnapScroll';
@@ -137,6 +139,23 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
   const art = roomArtGeometry(viewportWidth, windowHeight);
   const railY = art.railY - roomTopInWindow;
   const goshuinBottom = roomHeight - (art.shelfY - roomTopInWindow);
+  // As large as the cell allows, and small enough that the hanging keychain (1.37x its width tall) and the standing goshuin (1.5x) never meet between the rail and the shelf.
+  const fit = Math.max(40, (art.shelfY - art.railY - 24) / (1.37 + 1.5 * .95));
+  // The pillars take the sides of each tile: the cells share the wall between them.
+  const perPage = zoom === 'close' ? 1 : 3;
+  const wallLeft = art.left + ROOM_WALL_LEFT * art.width;
+  const wallWidth = (ROOM_WALL_RIGHT - ROOM_WALL_LEFT) * art.width;
+  const slotWidth = wallWidth / perPage;
+  const keychainSize = Math.min(slotWidth * 1.4, fit, 260); // the artwork fills only about two thirds of its box
+  const stampWidth = Math.min(slotWidth * .92, fit * .95);
+  const hookHeightEstimate = Math.min(65, keychainSize * .5) * (1145 / 1374);
+  // The letter sits in the gap between the bottom of the hanging keychains and the top of the standing goshuin (a goshuin is 1.5x its width tall).
+  const keychainBottom = railY - hookHeightEstimate * .405 + keychainSize * (255 / 186);
+  const goshuinTop = roomHeight - goshuinBottom - stampWidth * 1.5;
+  const letterWidth = Math.max(56, Math.min(104, (goshuinTop - keychainBottom) * 1.25, viewportWidth * .26));
+  const letterTop = (keychainBottom + goshuinTop) / 2 - letterWidth * (340 / 512) / 2;
+  const letters = useLetters();
+  const [lettersOpen, setLettersOpen] = useState(false);
   const rewarded = useMemo(() => new Set(rewardIds), [rewardIds]);
 
   const selectZoom = (next: CollectionZoom) => {
@@ -198,18 +217,8 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
               {showcase.map((shrine, index) => {
                 const keychainCount = special.keychains[shrine.id] ?? 0;
                 const stampOwned = rewarded.has(shrine.id);
-                // As large as the cell allows, and small enough that the hanging keychain (1.37x its width tall) and the standing goshuin (1.5x) never meet between the rail and the shelf.
-                const fit = Math.max(40, (art.shelfY - art.railY - 24) / (1.37 + 1.5 * .95));
-                // The pillars take the sides of each tile: the cells share the wall between them.
-                const perPage = zoom === 'close' ? 1 : 3;
                 const slot = index % perPage;
-                const wallLeft = art.left + ROOM_WALL_LEFT * art.width;
-                const wallWidth = (ROOM_WALL_RIGHT - ROOM_WALL_LEFT) * art.width;
-                const slotWidth = wallWidth / perPage;
                 const shiftX = wallLeft + (slot + .5) * slotWidth - (slot + .5) * pageWidth;
-                const keychainSize = Math.min(slotWidth * 1.4, fit, 260); // the artwork fills only about two thirds of its box
-                const stampWidth = Math.min(slotWidth * .92, fit * .95);
-                const hookHeightEstimate = Math.min(65, keychainSize * .5) * (1145 / 1374);
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight, left: shiftX }]}>
                   <View style={[S.roomLabel, { top: Math.max(0, railY - hookHeightEstimate * .572 - roomLabelHeight + 13), height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
                   <KeychainArtwork shrine={shrine} locked={keychainCount === 0} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
@@ -220,6 +229,10 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
           </View>
         </Animated.ScrollView>
       </View>}
+      {!eventName && <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: letterTop, alignItems: 'center', zIndex: 3 }}>
+        <LetterBoxButton count={letters.length} width={letterWidth} onPress={() => setLettersOpen(true)} />
+      </View>}
+      <LettersPopup visible={lettersOpen} letters={letters} onClose={() => setLettersOpen(false)} />
       <ScrollPopup event={!!eventName} visible={page === 'goshuin'} title="御朱印" onClose={onClosePage}>
         {paper => <PagedShrineGrid bare kind="goshuin" title="" shrines={showcase} ownedIds={[...rewarded]} onSelect={onSelectGoshuin} height={paper.height} />}
       </ScrollPopup>
