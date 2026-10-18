@@ -1,12 +1,22 @@
 /** permanent routes are always playable; event routes only inside their window. */
 export type PilgrimageKind = 'permanent' | 'event';
-export type Pilgrimage = { /** A short first walk for new players: its first point is not raised to the usual minimum, and it is never offered as the "next" route. */ tutorial?: boolean; kind?: PilgrimageKind; startsAt?: string; endsAt?: string; id: string; name: string; type: string; subtitle: string; description: string; ids: string[]; targets: number[]; completion: string; title: string; gift: string; color: string; chapters: string[] };
-export const MIN_FIRST_POINT_STEPS = 5000;
+export type Pilgrimage = { /** A short first walk for new players: its legs are not raised to the usual minimum, and it is never offered as the "next" route. */ tutorial?: boolean; kind?: PilgrimageKind; startsAt?: string; endsAt?: string; id: string; name: string; type: string; subtitle: string; description: string; ids: string[]; targets: number[]; completion: string; title: string; gift: string; color: string; chapters: string[] };
+/** Every leg (start to first point, then point to next point) is at least this many steps, except on tutorial routes. */
+export const MIN_SEGMENT_STEPS = 8000;
 
-const raiseFirstPointToMinimum = (route: Pilgrimage): Pilgrimage => {
+/** Expand the cyclic target pattern to one cumulative target per point, then stretch any leg shorter than the minimum. */
+const raiseSegmentsToMinimum = (route: Pilgrimage): Pilgrimage => {
   if (route.tutorial) return route;
-  const offset = Math.max(0, MIN_FIRST_POINT_STEPS - (route.targets[0] ?? MIN_FIRST_POINT_STEPS));
-  return { ...route, targets: route.targets.map(target => target + offset) };
+  const cycleTotal = route.targets.at(-1) ?? 0;
+  let total = 0;
+  let previous = 0;
+  const targets = route.ids.map((_, index) => {
+    const cumulative = Math.floor(index / route.targets.length) * cycleTotal + (route.targets[index % route.targets.length] ?? cycleTotal);
+    total += Math.max(MIN_SEGMENT_STEPS, cumulative - previous);
+    previous = cumulative;
+    return total;
+  });
+  return { ...route, targets };
 };
 
 const PILGRIMAGE_DEFINITIONS: Pilgrimage[] = [
@@ -25,7 +35,7 @@ const PILGRIMAGE_DEFINITIONS: Pilgrimage[] = [
   { id: 'storyRiver', name: '川辺の星綴り', type: '物語の聖地巡礼', subtitle: '川面に映る星を、章ごとに。', description: '星映しの瀬にひらいた物語を、星音の滝、灯舟の桟橋、空栞の丘へ運ぶ。葦原の夏影を越え、河口の星綴り台で自分の歩みを最後の一文にする旅。', ids: ['kawakagami', 'hoshinooto', 'funeakari', 'sorashiori', 'natsukage', 'tsuzuri'], targets: [1000, 2200, 4200], completion: '星綴り台で自分の章を書き終える', title: '物語を歩き継いだ相棒', gift: '川辺の星綴り巡礼証', color: '#6C819C', chapters: ['星映しの瀬で物語をひらく', '星音の滝で呼び声を探す', '灯舟の桟橋で次の章を選ぶ', '空栞の丘で空を記憶する', '夏影回廊で過ぎた季節を抱く', '星綴り台で最後の一文を結ぶ'] },
 ];
 
-export const PILGRIMAGES: Pilgrimage[] = PILGRIMAGE_DEFINITIONS.map(raiseFirstPointToMinimum);
+export const PILGRIMAGES: Pilgrimage[] = PILGRIMAGE_DEFINITIONS.map(raiseSegmentsToMinimum);
 
 // 旧版で選択されていた「門前宿場巡り」を非表示にしつつ、端末に残った
 // 進行データは読み出せるように保管する。新規の旅としては再選択できない。
@@ -34,7 +44,7 @@ const ARCHIVED_PILGRIMAGE_DEFINITIONS: Pilgrimage[] = [
   { id: 'festivalSnow', name: '雪灯りの門前宿', type: '門前宿場巡り', subtitle: '雪の夜、宿場の灯りをつなぐ。', description: '雪守門前から小宵茶屋、鈴白の辻、鐘月楼を通り、雪花の門へ。宿場の人の声と湯気を受け取り、河岸の見送り灯まで歩く冬の門前巡り。', ids: ['yukimori', 'koyoi', 'suzushiro', 'kanetsuki', 'yukibana', 'okuribi'], targets: [1000, 2600, 4800], completion: '見送り灯に旅の続きを預ける', title: '雪灯りをつないだ旅人', gift: '雪灯り宿場の記念証', color: '#718AA1', chapters: ['雪守門前で迎えの音を聴く', '小宵茶屋で湯気を分け合う', '鈴白の辻で鈴を道しるべにする', '鐘月楼で一日の節目を打つ', '雪花の門で一期一会を見送る', '見送り灯でまた来る約束をする'] },
 ];
 
-export const ARCHIVED_PILGRIMAGES: Pilgrimage[] = ARCHIVED_PILGRIMAGE_DEFINITIONS.map(raiseFirstPointToMinimum);
+export const ARCHIVED_PILGRIMAGES: Pilgrimage[] = ARCHIVED_PILGRIMAGE_DEFINITIONS.map(raiseSegmentsToMinimum);
 
 /** Event routes ship from the server catalogue later; none exist yet. */
 export const EVENT_PILGRIMAGES: Pilgrimage[] = [];
