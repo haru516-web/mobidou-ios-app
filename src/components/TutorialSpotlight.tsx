@@ -8,7 +8,9 @@ export type TutorialRect = { x: number; y: number; width: number; height: number
 
 export function TutorialTarget({ children, onRectChange, active: activeProp = true, style }: { children: React.ReactNode; onRectChange: (rect: TutorialRect | null) => void; active?: boolean; style?: StyleProp<ViewStyle> }) {
   const ref = useRef<View>(null);
-  const active = activeProp && !useContext(PagedMeasureContext);
+  // The hook is called every time: calling it only when the target is active changes the order of hooks between renders.
+  const inPagedMeasure = useContext(PagedMeasureContext);
+  const active = activeProp && !inPagedMeasure;
   const activeRef = useRef(active);
   activeRef.current = active;
   const measure = useCallback(() => {
