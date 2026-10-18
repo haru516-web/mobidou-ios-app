@@ -4,7 +4,7 @@ import { SerialModal as Modal } from './SerialModal';
 import { Image } from './AppImage';
 import { BRUSH, Icon } from '../components';
 import { WashiPressable } from './Washi';
-import { removeLetter, type Letter } from '../services/letters';
+import type { Letter } from '../services/letters';
 
 const LETTER_CLOSED = require('../../assets/ui-round3/collection/collection-letter-closed-v1.webp');
 const LETTER_PAPER = require('../../assets/ui-round3/collection/collection-letter-paper-v1.webp');
@@ -39,9 +39,7 @@ export function LetterBoxButton({ count, width, onPress }: { count: number; widt
 export function LettersPopup({ visible, letters, onClose }: { visible: boolean; letters: readonly Letter[]; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
   const [index, setIndex] = useState(0);
-  const [confirming, setConfirming] = useState(false);
-  useEffect(() => { if (visible) { setIndex(0); setConfirming(false); } }, [visible]);
-  useEffect(() => { setConfirming(false); }, [index]);
+  useEffect(() => { if (visible) setIndex(0); }, [visible]);
   useEffect(() => { if (index > 0 && index >= letters.length) setIndex(Math.max(0, letters.length - 1)); }, [index, letters.length]);
 
   const paperWidth = Math.min(380, width - 32, (height - 150) * PAPER_RATIO);
@@ -53,7 +51,7 @@ export function LettersPopup({ visible, letters, onClose }: { visible: boolean; 
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={S.backdrop}>
         <View style={{ width: paperWidth, height: paperHeight }}>
-          <Image accessible={false} source={LETTER_PAPER} contentFit="fill" style={StyleSheet.absoluteFill} />
+          <Image accessible={false} source={LETTER_PAPER} contentFit="fill" style={[StyleSheet.absoluteFill, { transform: [{ scaleX: -1 }] }]} />
           {letter
             ? <View style={[S.body, { paddingHorizontal: pad, paddingTop: pad * 1.1, paddingBottom: pad * 0.9 }]}>
               <Text style={[S.date, { fontSize: Math.max(13, paperWidth * 0.042) }]}>{letterDate(letter.createdAt)}</Text>
@@ -62,10 +60,6 @@ export function LettersPopup({ visible, letters, onClose }: { visible: boolean; 
               <Text style={[S.question, { fontSize: Math.max(12, paperWidth * 0.036) }]}>{letter.question}</Text>
               <View style={S.answerBox}><Text style={[S.answer, { fontSize: Math.max(16, paperWidth * 0.05), lineHeight: Math.max(26, paperWidth * 0.082) }]}>{letter.answer}</Text></View>
               <View style={S.footer}>
-                <Pressable accessibilityRole="button" accessibilityLabel={confirming ? 'この手紙を破り捨てる。もう一度押すと消えます' : 'この手紙を破り捨てる'} onPress={() => { if (confirming) { void removeLetter(letter.id); setConfirming(false); } else setConfirming(true); }} style={S.discard}>
-                  <Icon name="trash-outline" size={14} color={confirming ? RED : '#8A6950'} />
-                  <Text style={[S.discardText, confirming && { color: RED }]}>{confirming ? 'もう一度押すと消えます' : '破り捨てる'}</Text>
-                </Pressable>
                 <View style={S.pager}>
                   <Pressable accessibilityRole="button" accessibilityLabel="新しい手紙" disabled={index === 0} onPress={() => setIndex(index - 1)} hitSlop={8} style={[S.turn, index === 0 && S.turnOff]}><Icon name="chevron-back" size={18} color={INK} /></Pressable>
                   <Text style={S.pageText}>{index + 1} / {letters.length}</Text>
@@ -77,8 +71,8 @@ export function LettersPopup({ visible, letters, onClose }: { visible: boolean; 
               <Text style={S.emptyTitle}>まだ手紙はありません</Text>
               <Text style={S.emptyText}>この地点に着いたときの答えが、自分宛ての手紙として残ります。</Text>
             </View>}
+          <WashiPressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={onClose} style={S.close}><Icon name="close" size={20} color="#7f302d" /></WashiPressable>
         </View>
-        <WashiPressable artwork={false} accessibilityRole="button" onPress={onClose} style={S.closeButton}><Text style={S.closeText}>とじる</Text></WashiPressable>
       </View>
     </Modal>
   );
@@ -98,13 +92,10 @@ const S = StyleSheet.create({
   question: { color: '#7A604D', marginTop: 12, lineHeight: 20 },
   answerBox: { flex: 1, marginTop: 14, overflow: 'hidden' },
   answer: { fontFamily: BRUSH, color: INK },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
-  discard: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6 },
-  discardText: { fontSize: 11, color: '#8A6950' },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   pager: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   turn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   turnOff: { opacity: 0.25 },
   pageText: { fontSize: 12, color: '#7A604D', minWidth: 40, textAlign: 'center' },
-  closeButton: { paddingHorizontal: 32, paddingVertical: 10, borderRadius: 999, backgroundColor: '#F6EBD3', borderWidth: 1.5, borderColor: '#8A6950' },
-  closeText: { fontFamily: BRUSH, fontSize: 16, color: INK },
+  close: { position: 'absolute', top: 10, right: 10, zIndex: 4, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });

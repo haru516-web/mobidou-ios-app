@@ -53,7 +53,7 @@ export const loadLetters = (): Promise<void> => {
 
 export const addLetter = async (draft: Omit<Letter, 'id' | 'createdAt'> & { createdAt?: string }): Promise<Letter | null> => {
   const answer = draft.answer.trim().slice(0, MAX_ANSWER_LENGTH);
-  if (!answer) return null;
+  if (!isValidAnswer(answer)) return null;
   await loadLetters();
   const createdAt = draft.createdAt ?? new Date().toISOString();
   const letter: Letter = { ...draft, answer, createdAt, id: `${createdAt}-${draft.shrineId}` };
@@ -63,17 +63,27 @@ export const addLetter = async (draft: Omit<Letter, 'id' | 'createdAt'> & { crea
   return letter;
 };
 
-export const removeLetter = async (id: string): Promise<void> => {
-  await loadLetters();
-  const next = letters.filter(letter => letter.id !== id);
-  publish(next);
-  await persist(next);
-};
-
 export const LETTER_MAX_LENGTH = MAX_ANSWER_LENGTH;
+
+/** An answer of a single character, whatever the script, is not an answer. */
+export const isValidAnswer = (text: string): boolean => [...text.trim()].length >= 2;
 
 /** The letters on this device, newest first. */
 export function useLetters(): readonly Letter[] {
   useEffect(() => { void loadLetters(); }, []);
   return useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => letters, () => letters);
 }
+
+const PENDING_KEY = '@mobidou/letters/pending-question/v1';
+
+/** The question being answered right now, so closing the app on that screen brings the player back to the same question. */
+export type PendingQuestion = { shrineId: string; question: string };
+
+export const savePendingQuestion = (pending: PendingQuestion): Promise<void> => AsyncStorage.setItem(PENDING_KEY, JSON.stringify(pending)).catch(() => undefined);
+export const clearPendingQuestion = (): Promise<void> => AsyncStorage.removeItem(PENDING_KEY).catch(() => undefined);
+export const loadPendingQuestion = async (): Promise<PendingQuestion | null> => {
+  try {
+    const value = JSON.parse((await AsyncStorage.getItem(PENDING_KEY)) ?? 'null') as PendingQuestion | null;
+    return value && typeof value.shrineId === 'string' && typeof value.question === 'string' ? value : null;
+  } catch { return null; }
+};
