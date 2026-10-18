@@ -9,10 +9,8 @@ import { Canvas, useFrame, useLoader } from './r3f';
 import { BRUSH, C, Icon } from '../components';
 import { Image } from './AppImage';
 import { playSfx } from '../services/audio';
-import { STAMP_IMAGES, type Shrine } from '../data/shrines';
-import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
-import { EVENT_KEYCHAIN_IMAGES } from '../data/eventImages';
-import { SPACE_BACKDROP_TILES } from './collectionSpaceBackdrop';
+import type { Shrine } from '../data/shrines';
+import { SPACE3D_BACKDROP, SPACE3D_KEYCHAINS, SPACE3D_MOBBIES, SPACE3D_STAMPS } from '../data/space3dImages';
 import type { SpecialCollection } from '../services/specialRewards';
 
 type SpaceItem = { key: string; source: any; kind: 'stamp' | 'keychain' | 'mobby'; name: string };
@@ -170,7 +168,7 @@ function Dust() {
  * the first one straight ahead when the view opens. Absent until the art is added.
  */
 function Backdrop() {
-  const uris = SPACE_BACKDROP_TILES.map(tile => (typeof tile === 'object' && tile?.uri ? tile.uri as string : Asset.fromModule(tile).uri));
+  const uris = SPACE3D_BACKDROP.map(tile => Asset.fromModule(tile).uri);
   const textures = useLoader(TextureLoader, uris);
   const count = textures.length;
   const span = (Math.PI * 2) / count;
@@ -188,7 +186,7 @@ function Backdrop() {
 }
 
 function World({ items, directions, look, shared }: { items: SpaceItem[]; directions: [number, number, number][]; look: React.MutableRefObject<Look>; shared: React.MutableRefObject<Shared> }) {
-  const uris = items.map(item => (typeof item.source === 'object' && item.source?.uri ? item.source.uri as string : Asset.fromModule(item.source).uri));
+  const uris = items.map(item => Asset.fromModule(item.source).uri);
   const textures = useLoader(TextureLoader, uris);
   textures.forEach(texture => { texture.colorSpace = SRGBColorSpace; });
   const eased = useRef(look.current.zoom);
@@ -220,7 +218,7 @@ function World({ items, directions, look, shared }: { items: SpaceItem[]; direct
   });
   return <>
     <Dust />
-    {SPACE_BACKDROP_TILES.length > 0 && <Backdrop />}
+    {SPACE3D_BACKDROP.length > 0 && <Backdrop />}
     {items.map((item, index) => <Floating key={item.key} item={item} index={index} direction={directions[index]!} texture={textures[index]!} shared={shared} />)}
   </>;
 }
@@ -229,13 +227,16 @@ function World({ items, directions, look, shared }: { items: SpaceItem[]; direct
 export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies = [], onClose }: { visible: boolean; shrines: readonly Shrine[]; rewardIds: readonly string[]; special: SpecialCollection; mobbies?: readonly { id: string; name: string; image: any }[]; onClose: () => void }) {
   const items = useMemo<SpaceItem[]>(() => {
     const owned = new Set(rewardIds);
-    const list: SpaceItem[] = mobbies.map(pet => ({ key: `m-${pet.id}`, source: pet.image, kind: 'mobby' as const, name: pet.name }));
+    // A picture the 3D view does not have is left out: its WebP original would crash the view on a device.
+    const list: SpaceItem[] = mobbies.filter(pet => !!SPACE3D_MOBBIES[pet.id]).map(pet => ({ key: `m-${pet.id}`, source: SPACE3D_MOBBIES[pet.id], kind: 'mobby' as const, name: pet.name }));
     shrines.forEach(shrine => {
-      const stamp = STAMP_IMAGES[shrine.id];
+      const stamp = SPACE3D_STAMPS[shrine.id];
       if (owned.has(shrine.id) && !!stamp) list.push({ key: `s-${shrine.id}`, source: stamp, kind: 'stamp', name: shrine.name });
-      const keychain = (COLLECTION_KEYCHAINS as Record<string, unknown>)[shrine.id] ?? EVENT_KEYCHAIN_IMAGES[shrine.id];
+      const keychain = SPACE3D_KEYCHAINS[shrine.id];
       if ((special.keychains[shrine.id] ?? 0) > 0 && !!keychain) list.push({ key: `k-${shrine.id}`, source: keychain, kind: 'keychain', name: shrine.name });
     });
+    // Development only, for the store pictures: show the characters alone.
+    if (__DEV__ && process.env.EXPO_PUBLIC_SHOT_MOBBIES_ONLY === '1') return list.filter(item => item.kind === 'mobby');
     return list;
   }, [shrines, rewardIds, special, mobbies]);
   const directions = useMemo(() => spreadDirections(items.map(item => item.key)), [items]);
