@@ -4,17 +4,18 @@
 //   2. Run:                   PLAYWRIGHT_MODULE_PATH=<path to playwright> node scripts/appstore-screenshots.cjs
 //
 // The saved game is a hand-made "a few days into a pilgrimage" record (see `store` below), so the pictures show a lived-in
-// app: four goshuin collected, several Mobbies owned. The unlock-all switch is off, so nothing is faked beyond the record.
+// app: four goshuin collected, several Mobbies owned. Start the server with EXPO_PUBLIC_DEV_UNLOCK_ALL=1 to show everything owned.
+// OUT_DIR and VIEWPORT (e.g. 393x852 for 1179 x 2556 at 3x) override the output folder and the size.
 const playwrightPath = process.env.PLAYWRIGHT_MODULE_PATH || 'playwright';
 const { chromium } = require(playwrightPath);
 const fs = require('fs');
 const path = require('path');
 
 const URL = process.env.APP_URL || 'http://localhost:8096';
-const OUT = path.resolve(__dirname, '..', 'docs', 'app-store-screenshots', 'iphone-6.9');
+const OUT = process.env.OUT_DIR ? path.resolve(process.env.OUT_DIR) : path.resolve(__dirname, '..', 'docs', 'app-store-screenshots', 'iphone-6.9');
 const KEY = '@mobidou/journey/v1';
 const DAY = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
-const VIEWPORT = { width: 440, height: 956 };
+const VIEWPORT = process.env.VIEWPORT ? { width: Number(process.env.VIEWPORT.split('x')[0]), height: Number(process.env.VIEWPORT.split('x')[1]) } : { width: 440, height: 956 };
 
 const reward = (id, steps, threshold) => ({ id, date: DAY, steps, threshold });
 const progress = () => ({
@@ -62,7 +63,7 @@ const shots = [
   { name: '04-map', action: async p => { await p.getByRole('tab', { name: /おでかけ/ }).click(); await p.getByRole('button', { name: '絵図', exact: true }).click(); await p.waitForTimeout(1500); } },
   { name: '05-collection', action: async p => { await p.getByRole('tab', { name: /コレクション/ }).click(); await p.waitForTimeout(1500); } },
   { name: '06-gacha-curtain', action: async p => { await p.getByRole('tab', { name: /ガチャ/ }).click(); await p.waitForTimeout(1800); } },
-  { name: '07-gacha-cart', action: async p => { await p.getByRole('tab', { name: /ガチャ/ }).click(); await p.waitForTimeout(1500); await p.getByRole('button', { name: 'ひもを引く' }).click(); await p.waitForTimeout(2350); }, noSettle: true },
+  { name: '07-gacha-cart', action: async p => { await p.getByRole('tab', { name: /ガチャ/ }).click(); await p.waitForTimeout(1500); await p.getByRole('button', { name: '1回引く' }).click(); await p.waitForTimeout(2350); }, noSettle: true },
   // The shop is the only picture that shows the purchase buttons, so its dev-only controls stay: it is what App Review checks for the in-app purchases.
   { name: '09-gacha-shop', action: async p => { await p.getByRole('tab', { name: /ガチャ/ }).click(); await p.waitForTimeout(1500); await p.getByRole('tab', { name: '購入', exact: true }).click(); await p.waitForTimeout(1200); }, keepDev: true },
   { name: '08-omikuji', fixture: store({ omikujiDay: null, omikujiPetId: null }), action: async p => { await p.getByRole('button', { name: '今日のおみくじを引く' }).click(); await p.waitForTimeout(9000); } },
@@ -81,6 +82,9 @@ const shots = [
       try {
         await page.goto(URL, { waitUntil: 'load', timeout: 120000 });
         await enter(page);
+        // Announcements (such as the event notice) cover the home screen at start: close them before taking the picture.
+        await page.getByText('イベント開催中').first().waitFor({ state: 'visible', timeout: 12000 }).catch(() => {});
+        for (let i = 0; i < 4; i++) { const close = page.getByText(/^(とじる|閉じる)$/).first(); if (!(await close.isVisible({ timeout: 2500 }).catch(() => false))) break; await close.click().catch(() => {}); await page.waitForTimeout(600); }
         await page.waitForTimeout(1500);
         if (shot.action) await shot.action(page);
         if (shot.ready) await shot.ready(page).waitFor({ state: 'visible', timeout: 30000 });
