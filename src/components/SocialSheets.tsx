@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable as RNPressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Pressable as RNPressable, Share, StyleSheet, Text, View } from 'react-native';
 import { SerialModal as Modal } from './SerialModal';
 import { WashiInput } from './WashiInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -191,6 +191,7 @@ export function FriendsSheet({ visible, demo, pet, initialCode, onChangePet, onC
     setNotice(result.ok ? '申請を送りました' : failureMessages[result.reason] ?? offlineMessage);
   };
   const register = async () => {
+    Keyboard.dismiss();
     const result = await saveProfile(name, pet.id);
     playSfx(result.ok ? 'sfx_success' : 'sfx_error');
     if (result.ok) setSavedName(name.trim());
@@ -217,7 +218,7 @@ export function FriendsSheet({ visible, demo, pet, initialCode, onChangePet, onC
     <View style={[S.card, S.addRow]}>
       <WashiArt />
       <PetAvatar petId={pet.id} size={44} />
-      <WashiInput value={name} onChangeText={setName} maxLength={12} placeholder="なまえ（12文字まで）" placeholderTextColor="#B7A58F" autoCorrect={false} accessibilityLabel="プロフィールの名前" style={S.codeInput} />
+      <WashiInput value={name} onChangeText={setName} maxLength={12} returnKeyType="done" blurOnSubmit onSubmitEditing={() => { if (name.trim() && name.trim() !== savedName) void register(); else Keyboard.dismiss(); }} placeholder="なまえ（12文字まで）" placeholderTextColor="#B7A58F" autoCorrect={false} accessibilityLabel="プロフィールの名前" style={S.codeInput} />
       <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={!name.trim() || name.trim() === savedName} onPress={() => void register()} style={[S.primarySmall, (!name.trim() || name.trim() === savedName) && S.disabled]}><Text style={S.primarySmallText}>{savedName ? '変更' : '登録'}</Text></Pressable>
     </View>
     <View style={S.profileFooter}>
