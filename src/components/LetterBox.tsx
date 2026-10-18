@@ -75,7 +75,7 @@ export function LettersPopup({ visible, letters, onClose }: { visible: boolean; 
             </View>
             : <View style={[S.body, S.emptyBody, { padding: pad }]}>
               <Text style={S.emptyTitle}>まだ手紙はありません</Text>
-              <Text style={S.emptyText}>各地点に着いたときの答えが、ここに自分宛ての手紙として残ります。</Text>
+              <Text style={S.emptyText}>この地点に着いたときの答えが、自分宛ての手紙として残ります。</Text>
             </View>}
         </View>
         <WashiPressable accessibilityRole="button" onPress={onClose} style={S.closeButton}><Text style={S.closeText}>とじる</Text></WashiPressable>
