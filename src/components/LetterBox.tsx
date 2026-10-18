@@ -78,7 +78,7 @@ export function LettersPopup({ visible, letters, onClose }: { visible: boolean; 
               <Text style={S.emptyText}>この地点に着いたときの答えが、自分宛ての手紙として残ります。</Text>
             </View>}
         </View>
-        <WashiPressable accessibilityRole="button" onPress={onClose} style={S.closeButton}><Text style={S.closeText}>とじる</Text></WashiPressable>
+        <WashiPressable artwork={false} accessibilityRole="button" onPress={onClose} style={S.closeButton}><Text style={S.closeText}>とじる</Text></WashiPressable>
       </View>
     </Modal>
   );
@@ -105,6 +105,6 @@ const S = StyleSheet.create({
   turn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   turnOff: { opacity: 0.25 },
   pageText: { fontSize: 12, color: '#7A604D', minWidth: 40, textAlign: 'center' },
-  closeButton: { paddingHorizontal: 28, paddingVertical: 10 },
+  closeButton: { paddingHorizontal: 32, paddingVertical: 10, borderRadius: 999, backgroundColor: '#F6EBD3', borderWidth: 1.5, borderColor: '#8A6950' },
   closeText: { fontFamily: BRUSH, fontSize: 16, color: INK },
 });
