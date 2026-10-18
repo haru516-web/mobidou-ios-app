@@ -87,3 +87,23 @@ export const loadPendingQuestion = async (): Promise<PendingQuestion | null> => 
     return value && typeof value.shrineId === 'string' && typeof value.question === 'string' ? value : null;
   } catch { return null; }
 };
+
+const QUEUE_KEY = '@mobidou/letters/question-queue/v1';
+
+/** A question still to be answered after several places were skipped at once. */
+export type QueuedQuestion = { shrineId: string; shrineName: string; question: string; quote?: string };
+
+const isQueued = (value: unknown): value is QueuedQuestion => {
+  const entry = value as QueuedQuestion | null;
+  return !!entry && typeof entry.shrineId === 'string' && typeof entry.shrineName === 'string' && typeof entry.question === 'string';
+};
+
+/** The questions waiting, in the order they are asked; closing the app in the middle brings the player back to the first one left. */
+export const saveQuestionQueue = (queue: readonly QueuedQuestion[]): Promise<void> =>
+  (queue.length ? AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue)) : AsyncStorage.removeItem(QUEUE_KEY)).catch(() => undefined);
+export const loadQuestionQueue = async (): Promise<QueuedQuestion[]> => {
+  try {
+    const value = JSON.parse((await AsyncStorage.getItem(QUEUE_KEY)) ?? '[]') as unknown;
+    return Array.isArray(value) ? value.filter(isQueued) : [];
+  } catch { return []; }
+};

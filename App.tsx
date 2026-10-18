@@ -31,6 +31,9 @@ import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilg
 import { pilgrimageShrines, RouteMap } from './src/components/PilgrimageScreen';
 import { PillText, WashiArt, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
+import { LetterQuestionFlow } from './src/components/LetterQuestionFlow';
+import { pickLetterQuestion } from './src/data/letterQuestions';
+import { loadQuestionQueue, saveQuestionQueue, useLetters, type QueuedQuestion } from './src/services/letters';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from './src/data/pilgrimagePeekImages';
 import { roomArtGeometry } from './src/components/collectionRoomArt';
@@ -175,6 +178,15 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   /** The screen a tapped notification asks for; opened once no other screen is up. */
   const [pendingTap, setPendingTap] = useState<string | null>(null);
   const [arrivalSummary, setArrivalSummary] = useState<{ items: ArrivalSummaryItem[]; routeName?: string; firstGoshuinEver: boolean } | null>(null);
+  // Skipping several places at once still asks each place's question, one after another; the summary comes after the last answer.
+  const [letterQueue, setLetterQueue] = useState<QueuedQuestion[] | null>(null);
+  const summaryAfterLetters = useRef<{ items: ArrivalSummaryItem[]; routeName?: string; firstGoshuinEver: boolean } | null>(null);
+  const savedLetters = useLetters();
+  useEffect(() => {
+    // Questions left over when the app was closed in the middle come back first.
+    if (!journey.ready) return;
+    void loadQuestionQueue().then(queue => { if (queue.length) setLetterQueue(queue); });
+  }, [journey.ready]);
   const [omikujiModal, setOmikujiModal] = useState(false);
   const [omikujiCardFocused, setOmikujiCardFocused] = useState(false);
   const [omikujiAnimating, setOmikujiAnimating] = useState(false);
@@ -618,11 +630,21 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       const routeEnds = !!activeRoute && ids.includes(activeRoute.ids[activeRoute.ids.length - 1]);
       noteAward(routeEnds);
       setFeatured(progress.lapBase !== undefined ? Math.max(0, activeShrines.findIndex(shrine => shrine.id === lastId)) : Math.max(0, collected.length - 1));
-      setArrivalSummary({
+      const summary = {
         items: results.map(row => ({ shrineId: row.shrineId, name: SHRINES.find(shrine => shrine.id === row.shrineId)?.name ?? row.shrineId, outcome: row.outcome })),
         routeName: activeRoute?.name,
         firstGoshuinEver: !data.demo && collectionRewardIds.length <= ids.length && progress.lapBase === undefined,
+      };
+      // One question for every skipped place, none the same, asked in the order the places were reached.
+      const taken = savedLetters.map(letter => letter.question);
+      const queue: QueuedQuestion[] = ids.map(id => {
+        const question = pickLetterQuestion(taken);
+        taken.push(question);
+        return { shrineId: id, shrineName: SHRINES.find(shrine => shrine.id === id)?.name ?? id, question, quote: SHRINE_SAYINGS[id] };
       });
+      summaryAfterLetters.current = summary;
+      void saveQuestionQueue(queue);
+      setLetterQueue(queue);
     };
     const tickets = journey.special.passes.keychainDrop;
     const message = `残りの${ids.length}か所の演出を省略して、御朱印とミニチュアの結果だけを見ます。`;
@@ -1420,6 +1442,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
     <Modal visible={eventAwardVisible} animationType="fade" onRequestClose={() => {}}>{eventAwardVisible && eventAwardSpot && eventState && <PilgrimageAward key={`event-${eventAwardSpot.id}`} shrine={{ id: eventAwardSpot.id, name: eventAwardSpot.name, theme: `${eventAwardSpot.chapter} · ${eventAwardSpot.miniature}` }} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={false} haptics={data.haptics} stopIndex={eventTeam?.seen ?? 0} special={journey.special} event={{ name: TOKI_MEGURU.name, goshuinImage: EVENT_GOSHUIN_IMAGES[eventAwardSpot.id], keychainImage: EVENT_KEYCHAIN_IMAGES[eventAwardSpot.id], reached: (eventTeam?.seen ?? 0) + 1, total: TOKI_MEGURU.spots?.length ?? 0, complete: (eventTeam?.seen ?? 0) + 1 >= (TOKI_MEGURU.spots?.length ?? 0), reward: TOKI_MEGURU.reward }} onArrive={() => {}} onRedeemKeychainTicket={() => {}} onClose={() => eventTeamApi.acknowledgeSpot(TOKI_MEGURU.id)} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} remaining={progress.pending.length} onSkipAll={skipAllArrivals} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); setFeatured(index); move('home'); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
+    <Modal visible={!!letterQueue?.length} animationType="fade" onRequestClose={() => {}}>{!!letterQueue?.length && <LetterQuestionFlow items={letterQueue} onDone={() => {
+      setLetterQueue(null);
+      const summary = summaryAfterLetters.current;
+      summaryAfterLetters.current = null;
+      if (summary) setArrivalSummary(summary);
+    }} />}</Modal>
     <Modal visible={!!arrivalSummary} animationType="fade" onRequestClose={() => {}}>{arrivalSummary && <ArrivalSummary items={arrivalSummary.items} routeName={arrivalSummary.routeName} onClose={() => { const first = arrivalSummary.firstGoshuinEver; setArrivalSummary(null); move('home'); if (first) setHomePopup('goshuinPick'); }} />}</Modal>
   </SafeAreaView></View>;
 }
