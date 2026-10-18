@@ -185,6 +185,7 @@ export function FriendsSheet({ visible, demo, pet, initialCode, onChangePet, onC
     profile_required: 'フレンド申請の前に、プロフィールの名前を登録してください。',
   };
   const submit = async () => {
+    Keyboard.dismiss();
     const result = await sendFriendRequest(input);
     playSfx(result.ok ? 'sfx_send' : 'sfx_error');
     if (result.ok) setInput('');
@@ -241,7 +242,7 @@ ${friendInviteLink(SERVER_URL, code)}` }).catch(() => undefined)} style={S.iconB
     <View key="add"><SectionTitle title="フレンドを追加" />
     <View style={[S.card, S.addRow]}>
       <WashiArt />
-      <WashiInput value={input} onChangeText={value => setInput(value.toUpperCase())} placeholder="XXXXX-XXXXX" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="フレンドコード" style={S.codeInput} />
+      <WashiInput value={input} onChangeText={value => setInput(value.toUpperCase())} returnKeyType="send" blurOnSubmit onSubmitEditing={() => { if (input.trim()) void submit(); else Keyboard.dismiss(); }} placeholder="XXXXX-XXXXX" placeholderTextColor="#B7A58F" autoCapitalize="characters" autoCorrect={false} accessibilityLabel="フレンドコード" style={S.codeInput} />
       <Pressable plate="primary" artwork={false} accessibilityRole="button" disabled={!input.trim()} onPress={() => void submit()} style={[S.primarySmall, !input.trim() && S.disabled]}><Text style={S.primarySmallText}>申請</Text></Pressable>
     </View></View>
 

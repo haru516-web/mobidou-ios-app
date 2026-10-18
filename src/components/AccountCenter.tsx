@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { WashiInput } from './WashiInput';
 import { BRUSH, Button, C, Icon, SERIF, Section } from '../components';
 import { getPilgrimage } from '../data/pilgrimages';
@@ -202,6 +202,7 @@ export function AccountCenter({
 
   if (page === 'delete') {
     const deleteNow = async () => {
+      Keyboard.dismiss();
       const mine = visit.current;
       setDeleteBusy(true);
       setDeleteMessage('');
@@ -251,7 +252,7 @@ export function AccountCenter({
         {deleteStep === 3 && <>
           <Text style={S.statusTitle}>最後の確認です</Text>
           <Text style={S.body}>削除するには、下の欄に「{DELETE_CONFIRMATION_WORD}」と入力してください。入力すると、削除のボタンが押せます。</Text>
-          <WashiInput value={deleteWord} onChangeText={setDeleteWord} placeholder={DELETE_CONFIRMATION_WORD} autoCorrect={false} accessibilityLabel="確認のため、削除と入力" style={S.deleteInput} />
+          <WashiInput value={deleteWord} onChangeText={setDeleteWord} returnKeyType="done" blurOnSubmit onSubmitEditing={Keyboard.dismiss} placeholder={DELETE_CONFIRMATION_WORD} autoCorrect={false} accessibilityLabel="確認のため、削除と入力" style={S.deleteInput} />
         </>}
       </View>
       {!!deleteMessage && <Text accessibilityLiveRegion="polite" style={S.body}>{deleteMessage}</Text>}
