@@ -47,6 +47,8 @@ const SCROLL_ASPECT = (0.669 * 1024) / (0.973 * 1400);
 
 const PITCH_LIMIT = 0.6;
 const ITEM_DIAMETER = 3.4;
+/** The most copies of one Mobby that float in the world, so a lucky streak does not crowd it. */
+const MAX_SAME_MOBBY = 5;
 /** Zooming only changes the lens, never the distances, so the spacing between things looks the same at every zoom. */
 const FOV_BASE = 70;
 const ZOOM_OUT = 0.6;
@@ -224,11 +226,12 @@ function World({ items, directions, look, shared }: { items: SpaceItem[]; direct
 }
 
 /** Everything the player owns, floating around them in a small 3D world. Drag to look around, flick to keep turning, pinch to zoom, tap a thing to pick it up. */
-export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies = [], onClose }: { visible: boolean; shrines: readonly Shrine[]; rewardIds: readonly string[]; special: SpecialCollection; mobbies?: readonly { id: string; name: string; image: any }[]; onClose: () => void }) {
+export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies = [], onClose }: { visible: boolean; shrines: readonly Shrine[]; rewardIds: readonly string[]; special: SpecialCollection; mobbies?: readonly { id: string; name: string; image: any; count?: number }[]; onClose: () => void }) {
   const items = useMemo<SpaceItem[]>(() => {
     const owned = new Set(rewardIds);
     // A picture the 3D view does not have is left out: its WebP original would crash the view on a device.
-    const list: SpaceItem[] = mobbies.filter(pet => !!SPACE3D_MOBBIES[pet.id]).map(pet => ({ key: `m-${pet.id}`, source: SPACE3D_MOBBIES[pet.id], kind: 'mobby' as const, name: pet.name }));
+    // A Mobby met again floats once more for each time, up to MAX_SAME_MOBBY.
+    const list: SpaceItem[] = mobbies.filter(pet => !!SPACE3D_MOBBIES[pet.id]).flatMap(pet => Array.from({ length: Math.max(1, Math.min(MAX_SAME_MOBBY, pet.count ?? 1)) }, (_, copy) => ({ key: copy === 0 ? `m-${pet.id}` : `m-${pet.id}-${copy + 1}`, source: SPACE3D_MOBBIES[pet.id], kind: 'mobby' as const, name: pet.name })));
     shrines.forEach(shrine => {
       const stamp = SPACE3D_STAMPS[shrine.id];
       if (owned.has(shrine.id) && !!stamp) list.push({ key: `s-${shrine.id}`, source: stamp, kind: 'stamp', name: shrine.name });

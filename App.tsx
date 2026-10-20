@@ -499,7 +499,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, [eventTicketsNow, data.eventGacha.granted, journey.ready]);
   // The collection can be looked at before the team has set out (everything is still locked).
   const inEventCollection = eventCollection;
-  const spaceMobbies = useMemo(() => (inEventCollection ? EVENT_PET_CHARACTERS : PET_CHARACTERS).filter(pet => ownsMobby(data.mobbies, pet.id)).map(pet => ({ id: pet.id, name: pet.name, image: pet.image })), [inEventCollection, data.mobbies]);
+  const spaceMobbies = useMemo(() => (inEventCollection ? EVENT_PET_CHARACTERS : PET_CHARACTERS).filter(pet => ownsMobby(data.mobbies, pet.id)).map(pet => ({ id: pet.id, name: pet.name, image: pet.image, count: data.mobbies.owned[pet.id] ?? 1 })), [inEventCollection, data.mobbies]);
   const [eventListOpen, setEventListOpen] = useState(false);
   // Tells the player an event is running, once per launch, when the home screen has settled.
   const [eventAnnounceOpen, setEventAnnounceOpen] = useState(false);
