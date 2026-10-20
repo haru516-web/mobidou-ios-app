@@ -88,6 +88,7 @@ import { AccountCenter, type AccountPage } from './src/components/AccountCenter'
 import { Close, M } from './src/components/ModalParts';
 import { CollectionSpace } from './src/components/CollectionSpace';
 import { SettingsModal } from './src/components/SettingsModal';
+import { MobbyCopiesBeside } from './src/components/MobbyCopiesBeside';
 import { useAppAudioCues } from './src/services/appAudioCues';
 import { playSfx } from './src/services/audio';
 import { OpeningExperience } from './src/components/OpeningExperience';
@@ -1166,6 +1167,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               <TutorialTarget active={firstRunStage === 'homeCompanion'} onRectChange={setTutorialRect}>
                 <View onLayout={({ nativeEvent }) => { const { height } = nativeEvent.layout; setHomeCompanionNaturalHeight(previous => previous === height ? previous : height); }} style={homeCompanionScale === 1 || !homeCompanionNaturalHeight ? undefined : { marginBottom: -homeCompanionNaturalHeight * (1 - homeCompanionScale), transform: [{ scale: homeCompanionScale }], transformOrigin: 'top' }}>
                   <Companion pet={pet} haptics={data.haptics} onBond={handleTutorialCompanionBond} reactionTrigger={petSelectionReaction} reactionContext={reactionContext} onStageLayout={layout => setHomeStageLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout)} />
+                  <MobbyCopiesBeside pet={pet} extra={Math.max(0, (data.mobbies.owned[pet.id] ?? 1) - 1)} />
                 </View>
               </TutorialTarget>
             </TourAnchor>

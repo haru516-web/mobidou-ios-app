@@ -40,7 +40,8 @@ export function devUnlockAll<T extends Unlockable>(saved: T): T {
   const { SHRINES } = require('../data/shrines') as typeof import('../data/shrines');
   const day = localOmikujiDay();
   const owned = { ...saved.mobbies.owned };
-  for (const pet of ALL_PET_CHARACTERS) owned[pet.id] = Math.max(1, owned[pet.id] ?? 0);
+  // Every Mobby is owned more than once (1 to 4 extra), to check how duplicates look.
+  ALL_PET_CHARACTERS.forEach((pet, index) => { owned[pet.id] = Math.max(2 + (index % 4), owned[pet.id] ?? 0); });
   const mobbies = { ...saved.mobbies, owned, freePulls: Math.max(SUPPLY, saved.mobbies.freePulls) };
 
   const special = (collection: SpecialCollection): SpecialCollection => ({
