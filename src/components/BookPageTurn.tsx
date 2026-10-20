@@ -18,6 +18,8 @@ type BookPageTurnProps = {
   renderSpread: (index: number) => ReactNode;
   onCommit: (index: number) => void;
   onBusyChange?: (busy: boolean) => void;
+  /** Turning back from the first page calls this (to close the book) instead of wrapping to the last page. */
+  onLeaveBook?: () => void;
   onOpenDetail?: (index: number) => void;
   nativePages?: NativeBookPage[];
   /** Pictures of the spreads from BookSpreadSnapshots (null: none yet). Leave undefined to use the app's own page turn only. */
@@ -94,7 +96,8 @@ function TurnStrip({ index, direction, progress, pageStart, stripWidth, viewport
   </View>;
 }
 
-const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function SimulatedBookPageTurn({ selectedIndex, itemCount, contentKey, renderSpread, onCommit, onBusyChange, style }, ref) {
+const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(function SimulatedBookPageTurn({ selectedIndex, itemCount, contentKey, renderSpread, onCommit, onBusyChange, onLeaveBook, style }, ref) {
+  const closeGestureRef = useRef(false);
   const reducedMotion = useReducedMotion();
   const [viewportWidth, setViewportWidth] = useState(0);
   const [activeDirection, setActiveDirection] = useState<BookPageTurnDirection | null>(null);
@@ -172,6 +175,7 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
 
   const turn = useCallback((direction: BookPageTurnDirection) => {
     if (animatingRef.current || gestureRef.current || viewportWidth <= 0 || itemCount < 2) return;
+    if (onLeaveBook && (direction === -1 ? currentIndexRef.current === 0 : currentIndexRef.current === itemCount - 1)) { onLeaveBook(); return; }
     animatingRef.current = true;
     activeDirectionRef.current = direction;
     setActiveDirection(direction);
@@ -179,7 +183,7 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
     progress.setValue(0);
     onBusyChange?.(true);
     animateTo(1, true);
-  }, [animateTo, itemCount, onBusyChange, progress, viewportWidth]);
+  }, [animateTo, itemCount, onLeaveBook, onBusyChange, progress, viewportWidth]);
 
   useImperativeHandle(ref, () => ({ turn }), [turn]);
 
@@ -188,14 +192,17 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
     gestureRef.current = false;
     const direction = activeDirectionRef.current;
     if (!direction) {
+      const close = closeGestureRef.current;
+      closeGestureRef.current = false;
       clearTurn();
+      if (close) onLeaveBook?.();
       onBusyChange?.(false);
       return;
     }
     animatingRef.current = true;
     const shouldCommit = progressValueRef.current >= TURN_THRESHOLD || (Math.abs(gesture.vx) >= VELOCITY_THRESHOLD && Math.sign(gesture.vx) === -direction);
     animateTo(shouldCommit ? 1 : 0, shouldCommit);
-  }, [animateTo, clearTurn, onBusyChange]);
+  }, [animateTo, clearTurn, onLeaveBook, onBusyChange]);
 
   const panResponder = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_, gesture) => !animatingRef.current && !gestureRef.current && itemCount > 1 && Math.abs(gesture.dx) > Math.abs(gesture.dy) + 7 && Math.abs(gesture.dx) > 6,
@@ -210,6 +217,8 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
     onPanResponderMove: (_, gesture) => {
       if (!gestureRef.current || animatingRef.current || viewportWidth <= 0) return;
       const direction: BookPageTurnDirection = gesture.dx < 0 ? 1 : -1;
+      if (onLeaveBook && (direction === -1 ? currentIndexRef.current === 0 : currentIndexRef.current === itemCount - 1)) { closeGestureRef.current = Math.abs(gesture.dx) > viewportWidth * 0.2 || Math.abs(gesture.vx) > VELOCITY_THRESHOLD; return; }
+      closeGestureRef.current = false;
       if (activeDirectionRef.current !== direction) {
         activeDirectionRef.current = direction;
         setActiveDirection(direction);
@@ -221,7 +230,7 @@ const SimulatedBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProps>(
     onPanResponderRelease: (_, gesture) => finishGesture(gesture),
     onPanResponderTerminate: (_, gesture) => finishGesture(gesture),
     onPanResponderTerminationRequest: () => false,
-  }), [finishGesture, itemCount, onBusyChange, progress, viewportWidth]);
+  }), [finishGesture, itemCount, onLeaveBook, onBusyChange, progress, viewportWidth]);
 
   const targetIndex = activeDirection === null ? 0 : wrapIndex(selectedIndex + activeDirection, itemCount);
   const pageWidth = Math.max(1, viewportWidth / 2);
@@ -386,7 +395,7 @@ const SnapshotCurlBookPageTurn = forwardRef<BookPageTurnHandle, BookPageTurnProp
 
   return <View style={style} onLayout={event => { const { width, height } = event.nativeEvent.layout; onViewportSize?.({ width, height }); }}>
     {uris && uris.length === itemCount
-      ? <NativeBookPageTurn forwardedRef={ref} spreadUris={uris} selectedIndex={props.selectedIndex} onCommit={props.onCommit} onBusyChange={handleBusyChange} onOpenDetail={props.onOpenDetail} style={S.fill} />
+      ? <NativeBookPageTurn forwardedRef={ref} spreadUris={uris} selectedIndex={props.selectedIndex} onCommit={index => { if (props.onLeaveBook && itemCount > 1 && ((props.selectedIndex === 0 && index === itemCount - 1) || (props.selectedIndex === itemCount - 1 && index === 0))) props.onLeaveBook(); else props.onCommit(index); }} onBusyChange={handleBusyChange} onOpenDetail={props.onOpenDetail} style={S.fill} />
       : <SimulatedBookPageTurn {...props} ref={ref} style={S.fill} />}
   </View>;
 });

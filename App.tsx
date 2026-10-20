@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, AppState, Linking, Easing, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Animated, AppState, Linking, Easing, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SerialModal as Modal } from './src/components/SerialModal';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from './src/components/AppImage';
@@ -392,6 +392,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, []);
   const handleBookSnapshots = useCallback((key: string, uris: string[]) => setBookSnaps({ key, uris }), []);
   const [bookIndexOpen, setBookIndexOpen] = useState(false);
+  // The goshuin book opens the current route by default; a past route can be picked.
+  const [pastRouteId, setPastRouteId] = useState<string | null>(null);
+  const [pastIndex, setPastIndex] = useState(0);
+  const [bookPickerOpen, setBookPickerOpen] = useState(false);
   const [petSelectionReaction, setPetSelectionReaction] = useState(0);
   const [mobbyMenuOpen, setMobbyMenuOpen] = useState(false);
   const [socialSheet, setSocialSheet] = useState<SocialSheet>(null);
@@ -574,7 +578,6 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const activeShrines = pilgrimageShrines(activeRoute);
   // Stable page data for the native page-curl view; rebuilding it on every
   // render re-serialized every page and pushed it across the bridge again.
-  const nativeBookPages = useMemo(() => activeShrines.map(shrine => ({ name: shrine.name, reading: shrine.reading, theme: shrine.theme, place: shrine.place, imageSource: STAMP_IMAGES[shrine.id], acquired: progress.rewards.some(reward => reward.id === shrine.id) })), [activeRoute?.id, progress.rewards]);
   // The goshuin book shows either the route's or the event's pages; everything on the screen reads these.
   const nativeEventBookPages = useMemo(() => EVENT_SHRINES.map((shrine, index) => ({ name: shrine.name, reading: shrine.reading, theme: shrine.theme, place: shrine.place, imageSource: STAMP_IMAGES[shrine.id], acquired: index < eventReached })), [eventReached]);
   const routePrefix = data.demo ? 'trial:' : 'real:';
@@ -583,6 +586,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     return record ? [[route.id, record]] : [];
   }));
   const collectionProgresses = PILGRIMAGES.map(route => activeRoute?.id === route.id ? progress : data.routes?.[`${routePrefix}${route.id}`]).filter((record): record is typeof progress => !!record);
+  const pastRoute = !inEventBook && pastRouteId && pastRouteId !== activeRoute?.id && routeRecords[pastRouteId] ? getPilgrimage(pastRouteId) : undefined;
+  const bookRoute = pastRoute ?? activeRoute;
+  const bookShrines = pastRoute ? pilgrimageShrines(pastRoute) : activeShrines;
+  const bookRewards = pastRoute ? routeRecords[pastRoute.id].rewards : progress.rewards;
+  const pickableRoutes = PILGRIMAGES.filter(route => !!routeRecords[route.id]);
+  const nativeBookPages = useMemo(() => bookShrines.map(shrine => ({ name: shrine.name, reading: shrine.reading, theme: shrine.theme, place: shrine.place, imageSource: STAMP_IMAGES[shrine.id], acquired: bookRewards.some(reward => reward.id === shrine.id) })), [bookRoute?.id, bookRewards]);
   const collectionRewards = collectionProgresses.flatMap(record => record.rewards);
   const collectionRewardIds = collectionRewards.map(reward => reward.id);
   // A goshuin that has not been received yet never opens its detail, wherever it is tapped.
@@ -606,6 +615,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const latestIndex = Math.max(0, collected.length - 1);
   const latest = collected[latestIndex] ?? activeShrines[0] ?? SHRINES[0];
   const selectedIndex = activeShrines.length ? featured % activeShrines.length : 0;
+  const bookIndex = pastRoute ? Math.min(pastIndex, Math.max(0, bookShrines.length - 1)) : selectedIndex;
+  const commitBookIndex = pastRoute ? setPastIndex : setFeatured;
   const [turning, setTurning] = useState(false);
   const bookPageTurnRef = useRef<BookPageTurnHandle>(null);
   const pendingIndex = progress.pending[0] ? (activeRoute?.ids.indexOf(progress.pending[0]) ?? -1) : -1;
@@ -747,8 +758,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     }
   };
   const renderBookSpread = (index: number) => {
-    const book = (inEventBook ? EVENT_SHRINES : activeShrines)[index] ?? SHRINES[0];
-    const reward = inEventBook ? (index < eventReached ? { id: book.id } : undefined) : progress.rewards.find(entry => entry.id === book.id);
+    const book = (inEventBook ? EVENT_SHRINES : bookShrines)[index] ?? SHRINES[0];
+    const reward = inEventBook ? (index < eventReached ? { id: book.id } : undefined) : bookRewards.find(entry => entry.id === book.id);
     return <View style={S.openBook}>
       <BookPageArt side="left" event={inEventBook} />
       <BookPageArt side="right" event={inEventBook} />
@@ -844,7 +855,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Long-pressing a home card edits the cards, like widgets on the Home Screen.
   const editHomeCards = () => { if (firstRunStage === null) openHomePopup('custom'); };
   // Opening a shrine's page in the book from anywhere (detail, list, guide).
-  const openBookPage = (index: number) => { (inEventBook ? setEventFeatured : setFeatured)(index); setBookIndexOpen(false); setBookOpen(true); move('book'); };
+  const openBookPage = (index: number) => { (inEventBook ? setEventFeatured : commitBookIndex)(index); setBookIndexOpen(false); setBookOpen(true); move('book'); };
   const detailBookIndex = detail ? activeShrines.findIndex(shrine => shrine.id === detail.id) : -1;
   // Home cards are shortcuts: each one opens the real screen directly instead
   // of a second, smaller copy of it.
@@ -1169,7 +1180,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
 
       {tab === 'book' && <>
-        <View style={[S.pageTop, S.bookTop]}>
+        <View pointerEvents="box-none" style={[S.pageTop, S.bookTop]}>
           <View style={S.bookEventSlot}>{inEventBook
             ? <PopButton id="eventNormal" label="通常" icon="home" size={54} phase={.5} onPress={() => { setBookOpen(false); setEventBook(false); }} />
             : eventAvailable ? <PopButton id="eventBook" label="イベント" icon="book" size={54} phase={.5} onPress={() => { setBookOpen(false); enterEvent(setEventBook); }} /> : <View style={{ width: 54, height: 54 }} />}</View>
@@ -1177,19 +1188,20 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
             <PopButton id="bookIndex" label="目次" icon="list" size={54} phase={0} onPress={() => setBookIndexOpen(true)} />
           </TourAnchor>
         </View>
-        <View style={S.bookTitlePlate}><WashiArt />
-          <Text style={S.pageEyebrow}>{inEventBook ? 'イベント' : '巡礼中'}</Text>
-          <FitLine text={inEventBook ? TOKI_MEGURU.name : activeRoute?.name ?? '巡礼を選びましょう'} style={S.pageLead} base={18} min={12} />
-        </View>
-        {(inEventBook || activeRoute) && (inEventBook ? EVENT_SHRINES.length : activeShrines.length) > 1 && <View pointerEvents="none" style={{ height: 0 }}>
-          <BookSpreadSnapshots key={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} itemCount={inEventBook ? EVENT_SHRINES.length : activeShrines.length} contentKey={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} nativePages={inEventBook ? nativeEventBookPages : nativeBookPages} renderSpread={renderBookSpread} currentIndex={inEventBook ? eventFeatured % EVENT_SHRINES.length : selectedIndex} size={bookViewportSize} onSnapshots={handleBookSnapshots} />
+        <Pressable accessibilityRole="button" accessibilityLabel="開く御朱印帳を選ぶ" artwork={false} disabled={inEventBook} onPress={() => setBookPickerOpen(true)} style={S.bookTitlePlate}><WashiArt />
+          <Text style={S.pageEyebrow}>{inEventBook ? 'イベント' : pastRoute ? '過去の巡礼' : '巡礼中'}</Text>
+          <FitLine text={inEventBook ? TOKI_MEGURU.name : bookRoute?.name ?? '巡礼を選びましょう'} style={S.pageLead} base={18} min={12} />
+          {!inEventBook && pickableRoutes.length > 1 && <View pointerEvents="none" style={{ alignItems: 'center', marginTop: -2 }}><Icon name="chevron-down" size={16} color="#8d3f39" /></View>}
+        </Pressable>
+        {(inEventBook || bookRoute) && (inEventBook ? EVENT_SHRINES.length : bookShrines.length) > 1 && <View pointerEvents="none" style={{ height: 0 }}>
+          <BookSpreadSnapshots key={inEventBook ? 'event-book' : bookRoute?.id ?? 'book'} itemCount={inEventBook ? EVENT_SHRINES.length : bookShrines.length} contentKey={inEventBook ? 'event-book' : bookRoute?.id ?? 'book'} nativePages={inEventBook ? nativeEventBookPages : nativeBookPages} renderSpread={renderBookSpread} currentIndex={inEventBook ? eventFeatured % EVENT_SHRINES.length : bookIndex} size={bookViewportSize} onSnapshots={handleBookSnapshots} />
         </View>}
-        {(inEventBook || activeRoute) && !bookOpen && <GoshuinBookCover route={activeRoute} event={inEventBook ? { name: TOKI_MEGURU.name, image: EVENT_BOOK_COVER } : undefined} onOpen={() => setBookOpen(true)} />}
+        {(inEventBook || bookRoute) && !bookOpen && <GoshuinBookCover route={bookRoute} event={inEventBook ? { name: TOKI_MEGURU.name, image: EVENT_BOOK_COVER } : undefined} onOpen={() => setBookOpen(true)} />}
         {bookOpen && <><View style={[S.bookWrap, { marginTop: 14 }]}>
-          <View pointerEvents="none" style={[S.bookCoverEdge, inEventBook ? { backgroundColor: '#2F4A6B' } : activeRoute ? { backgroundColor: activeRoute.color } : null]}><Image accessible={false} source={inEventBook ? EVENT_FEEL.bookCloth : BOOK_CLOTH} contentFit="cover" style={S.bookCloth} /></View>
-          <BookPageTurn key={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={inEventBook ? eventFeatured % EVENT_SHRINES.length : selectedIndex} itemCount={inEventBook ? EVENT_SHRINES.length : activeShrines.length} contentKey={inEventBook ? 'event-book' : activeRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={inEventBook ? setEventFeatured : setFeatured} onBusyChange={setTurning} onOpenDetail={index => inEventBook ? (index < eventReached ? setDetail(EVENT_SHRINES[index]) : undefined) : openDetail(activeShrines[index])} nativePages={inEventBook ? nativeEventBookPages : nativeBookPages} snapshots={bookSnaps && bookSnaps.key === bookSnapshotKey(inEventBook ? 'event-book' : activeRoute?.id ?? 'book', inEventBook ? nativeEventBookPages : nativeBookPages, inEventBook ? EVENT_SHRINES.length : activeShrines.length) ? bookSnaps.uris : null} onViewportSize={handleBookViewportSize} style={S.bookViewport} />
+          <View pointerEvents="none" style={[S.bookCoverEdge, inEventBook ? { backgroundColor: '#2F4A6B' } : bookRoute ? { backgroundColor: bookRoute.color } : null]}><Image accessible={false} source={inEventBook ? EVENT_FEEL.bookCloth : BOOK_CLOTH} contentFit="cover" style={S.bookCloth} /></View>
+          <BookPageTurn key={inEventBook ? 'event-book' : bookRoute?.id ?? 'book'} ref={bookPageTurnRef} selectedIndex={inEventBook ? eventFeatured % EVENT_SHRINES.length : bookIndex} itemCount={inEventBook ? EVENT_SHRINES.length : bookShrines.length} contentKey={inEventBook ? 'event-book' : bookRoute?.id ?? 'book'} renderSpread={renderBookSpread} onCommit={inEventBook ? setEventFeatured : commitBookIndex} onBusyChange={setTurning} onLeaveBook={() => setBookOpen(false)} onOpenDetail={index => inEventBook ? (index < eventReached ? setDetail(EVENT_SHRINES[index]) : undefined) : openDetail(bookShrines[index])} nativePages={inEventBook ? nativeEventBookPages : nativeBookPages} snapshots={bookSnaps && bookSnaps.key === bookSnapshotKey(inEventBook ? 'event-book' : bookRoute?.id ?? 'book', inEventBook ? nativeEventBookPages : nativeBookPages, inEventBook ? EVENT_SHRINES.length : bookShrines.length) ? bookSnaps.uris : null} onViewportSize={handleBookViewportSize} style={S.bookViewport} />
         </View>
-        <View style={S.pager}><Pressable plate="round" accessibilityRole="button" accessibilityLabel="前の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><PillText textStyle={S.pageCounterText}>{String((inEventBook ? eventFeatured % EVENT_SHRINES.length : selectedIndex) + 1).padStart(2, '0')} / {String((inEventBook ? EVENT_SHRINES : activeShrines).length).padStart(2, '0')}</PillText><Pressable plate="round" accessibilityRole="button" accessibilityLabel="次の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
+        <View style={S.pager}><Pressable plate="round" accessibilityRole="button" accessibilityLabel="前の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(-1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-back" size={18} /></Pressable><PillText textStyle={S.pageCounterText}>{String((inEventBook ? eventFeatured % EVENT_SHRINES.length : bookIndex) + 1).padStart(2, '0')} / {String((inEventBook ? EVENT_SHRINES : bookShrines).length).padStart(2, '0')}</PillText><Pressable plate="round" accessibilityRole="button" accessibilityLabel="次の御朱印ページ" accessibilityState={{ disabled: turning }} disabled={turning} onPress={() => bookPageTurnRef.current?.turn(1)} style={[S.pagerButton, turning && { opacity: .45 }]}><Icon name="chevron-forward" size={18} /></Pressable></View>
         </>}
       </>}
 
@@ -1276,7 +1288,21 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     <CharacterIntroPopup visible={characterIntroOpen} onNext={continueGuideToGacha} />
     <EventListPopup visible={eventListOpen} onClose={() => setEventListOpen(false)} event={TOKI_MEGURU} statusLabel={eventStatusLabel} onViewCollection={() => { setEventListOpen(false); setCollectionPage('room'); setEventCollection(true); }} />
     <FriendsSheet visible={socialSheet === 'friends'} demo={data.demo} pet={pet} initialCode={inviteCode} onChangePet={() => { setSocialSheet(null); setInviteCode(''); openHomePopup('moby'); }} onClose={() => { setSocialSheet(null); setInviteCode(''); }} />
-    <BookIndexPopup event={inEventBook} visible={bookIndexOpen} title="目次" subtitle={inEventBook ? TOKI_MEGURU.name : activeRoute?.name} shrines={inEventBook ? EVENT_SHRINES : activeShrines} ownedIds={inEventBook ? EVENT_SHRINES.slice(0, eventReached).map(shrine => shrine.id) : collected.map(shrine => shrine.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
+    <Modal visible={bookPickerOpen} transparent animationType="fade" onRequestClose={() => setBookPickerOpen(false)}>
+      <Pressable accessibilityLabel="閉じる" onPress={() => setBookPickerOpen(false)} style={{ flex: 1, backgroundColor: '#000a', justifyContent: 'center', padding: 24 }}>
+        <View style={{ backgroundColor: '#fff8e8', borderRadius: 18, padding: 16, maxHeight: '80%' }}>
+          <Text style={{ textAlign: 'center', fontSize: 16, marginBottom: 10, color: '#362b22' }}>御朱印帳を選ぶ</Text>
+          <ScrollView>{pickableRoutes.map(route => {
+            const current = route.id === bookRoute?.id;
+            return <Pressable key={route.id} accessibilityRole="button" onPress={() => { setPastRouteId(route.id === activeRoute?.id ? null : route.id); setPastIndex(0); setBookOpen(false); setBookPickerOpen(false); }} style={{ paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, marginBottom: 6, backgroundColor: current ? '#e9d8b4' : '#f6ecd3', flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: '#362b22', fontSize: 14 }}>{route.name}</Text>
+              <Text style={{ color: '#8d3f39', fontSize: 12 }}>{route.id === activeRoute?.id ? '巡礼中' : routeRecords[route.id].completedAt ? '結願' : '途中'}</Text>
+            </Pressable>;
+          })}</ScrollView>
+        </View>
+      </Pressable>
+    </Modal>
+    <BookIndexPopup event={inEventBook} visible={bookIndexOpen} title="目次" subtitle={inEventBook ? TOKI_MEGURU.name : bookRoute?.name} shrines={inEventBook ? EVENT_SHRINES : bookShrines} ownedIds={inEventBook ? EVENT_SHRINES.slice(0, eventReached).map(shrine => shrine.id) : bookRewards.map(reward => reward.id)} onSelect={(_shrine, index) => openBookPage(index)} onClose={() => setBookIndexOpen(false)} />
     {firstRunStage === 'homeCompanion' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="1 / 7" title="ホームのモビーとふれあおう" detail="ほっぺを引っぱると伸びるよ。タップで二礼二拍手一礼。" />}
     {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="2 / 7" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
     {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="3 / 7" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
