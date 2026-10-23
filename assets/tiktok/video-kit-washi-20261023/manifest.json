@@ -1,0 +1,29 @@
+[
+  {
+    "file": "generated/01-journey.png",
+    "width": 940,
+    "height": 1672,
+    "format": "PNG",
+    "mode": "RGB",
+    "alpha": false,
+    "bytes": 2665372
+  },
+  {
+    "file": "generated/02-character-stage.png",
+    "width": 941,
+    "height": 1672,
+    "format": "PNG",
+    "mode": "RGB",
+    "alpha": false,
+    "bytes": 2411728
+  },
+  {
+    "file": "generated/03-goshuin-stage.png",
+    "width": 941,
+    "height": 1672,
+    "format": "PNG",
+    "mode": "RGB",
+    "alpha": false,
+    "bytes": 2580924
+  }
+]
