@@ -15,7 +15,7 @@ import { useLetters } from '../services/letters';
 import type { SpecialCollection } from '../services/specialRewards';
 import { PagedShrineGrid } from './GoshuinBook';
 import { attachSnapScroll } from './webSnapScroll';
-import { ROOM_WALL_LEFT, ROOM_WALL_RIGHT, roomArtGeometry } from './collectionRoomArt';
+import { ROOM_WALL_LEFT, ROOM_WALL_RIGHT, type CollectionRoomGeometry } from './collectionRoomArt';
 
 const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.webp');
 const WALL_HOOK = require('../../assets/ui-round3/collection/collection-wall-hook-v2.webp');
@@ -105,12 +105,12 @@ const SHOW_CABINET = false;
 export type CollectionPage = 'room' | 'goshuin' | 'miniatures';
 
 /** The collection room and its paged goshuin / miniature lists. */
-export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, rewardDates = {}, special, zoom, onZoomChange, page, onSelectGoshuin, onClosePage, eventName }: { /** Set when the gallery shows an event's things instead of the routes'. */ eventName?: string; scrollX: Animated.Value; shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void; onClosePage: () => void }) {
-  const { width, height: windowHeight } = useWindowDimensions();
+export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, rewardDates = {}, special, zoom, onZoomChange, page, onSelectGoshuin, onClosePage, eventName, art, roomTop }: { /** Set when the gallery shows an event's things instead of the routes'. */ eventName?: string; art: CollectionRoomGeometry; roomTop: number; scrollX: Animated.Value; shrines: readonly Shrine[]; rewardIds: readonly string[]; rewardDates?: Record<string, string>; special: SpecialCollection; zoom: CollectionZoom; onZoomChange: (zoom: CollectionZoom) => void; page: CollectionPage; onSelectGoshuin: (shrine: Shrine) => void; onClosePage: () => void }) {
+  const { width } = useWindowDimensions();
   const viewportWidth = Math.min(480, Math.max(1, width));
   // Nothing scrolls vertically: the page fills the space under the pop buttons.
   const [areaHeight, setAreaHeight] = useState(0);
-  const roomHeight = areaHeight > 0 ? Math.max(260, areaHeight) : 470;
+  const roomHeight = Math.max(1, areaHeight);
   const [swayImpulse, setSwayImpulse] = useState(0);
   const [detail, setDetail] = useState<Shrine | null>(null);
   const [pinching, setPinching] = useState(false);
@@ -134,12 +134,9 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
   const displayCellHeight = roomHeight;
   const roomLabelFontSize = Math.max(8, Math.min(11, (pageWidth - 24) / 8));
   const roomLabelHeight = roomLabelFontSize + 3;
-  // The picture fills the window, so the rail and the shelf are placed by their window position minus where this room starts.
-  const [roomTopInWindow, setRoomTopInWindow] = useState(0);
-  const root = useRef<View>(null);
-  const art = roomArtGeometry(viewportWidth, windowHeight);
-  const railY = art.railY - roomTopInWindow;
-  const goshuinBottom = roomHeight - (art.shelfY - roomTopInWindow);
+  // Share the background's app-relative coordinates; do not mix them with measureInWindow.
+  const railY = art.railY - roomTop;
+  const goshuinBottom = roomHeight - (art.shelfY - roomTop);
   // As large as the cell allows, and small enough that the hanging keychain (1.37x its width tall) and the standing goshuin (1.5x) never meet between the rail and the shelf.
   const fit = Math.max(40, (art.shelfY - art.railY - 24) / (1.37 + 1.5 * .95));
   // The pillars take the sides of each tile: the cells share the wall between them.
@@ -193,7 +190,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
   };
 
   return (
-    <View ref={root} style={{ flex: 1 }} onLayout={({ nativeEvent }) => { setAreaHeight(previous => Math.abs(previous - nativeEvent.layout.height) < 1 ? previous : nativeEvent.layout.height); root.current?.measureInWindow((_x, y) => setRoomTopInWindow(previous => Math.abs(previous - y) < 1 ? previous : y)); }}>
+    <View testID="collection-room" style={{ flex: 1, minHeight: 0 }} onLayout={({ nativeEvent }) => { setAreaHeight(previous => Math.abs(previous - nativeEvent.layout.height) < 1 ? previous : nativeEvent.layout.height); }}>
       {<View onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={[S.roomStage, { width: viewportWidth, height: roomHeight, marginHorizontal: -24 }]}>
         <Animated.ScrollView
           ref={displayScroll}
