@@ -18,6 +18,7 @@ import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 import { SHRINE_SAYINGS } from '../data/shrineSayings';
 import { VerticalSaying } from './VerticalSaying';
+import { PrayerControls } from './PrayerControls';
 
 /** Set when the ceremony is for an event spot: the event's own goshuin and miniature, and no keychain roll (every spot gives its miniature). */
 export type EventAwardInfo = { name: string; goshuinImage: ImageSourcePropType; keychainImage: ImageSourcePropType; reached: number; total: number; complete: boolean; reward?: string };
@@ -57,10 +58,8 @@ function Sprite({ source, metric, frame, size, onLoad }: { source: ImageSourcePr
 }
 
 export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route, stopIndex, special, goshuinOwned = false, event, onArrive, onRedeemKeychainTicket, onClose, remaining = 1, onSkipAll }: { event?: EventAwardInfo; shrine: { id: string; name: string; theme: string }; pet: PetCharacter; walkSource?: ImageSourcePropType; demo: boolean; haptics: boolean; route?: Pilgrimage; stopIndex: number; special: SpecialCollection; goshuinOwned?: boolean; onArrive: (shrineId: string) => void; onRedeemKeychainTicket: (shrineId: string) => void; onClose: () => void; /** How many ceremonies are waiting, this one included. */ remaining?: number; /** Skips every waiting ceremony at once and goes to the summary. */ onSkipAll?: () => void }) {
-  // This is the core acquisition ceremony, so keep the authored sequence
-  // visible even when the browser has prefers-reduced-motion enabled. Users
-  // who want to leave early can use the explicit skip control below.
-  const reduced = false;
+  // Each user action advances the authored ceremony frames. The explicit
+  // skip control remains available for users who want the reward directly.
   // A goshuin the player already holds gets a short visit: skip the walk and go straight to the reveal.
   const [frame, setFrame] = useState(goshuinOwned ? TOTAL_FRAMES : 0);
   const [width, setWidth] = useState(380);
@@ -87,8 +86,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const prayer = PRAYER_ATLASES[pet.id];
   // The clear reward belongs to the first finish only; a later lap is just a visit.
   const complete = event ? event.complete && !goshuinOwned : !!route && stopIndex === route.ids.length - 1 && !goshuinOwned;
-  // Keep the authored ceremony playback unchanged. Reduce Motion is scoped
-  // to the post-prayer reveal layer below so it never changes a prayer frame.
+  // Reduce Motion is scoped to the post-prayer reward reveal.
   const revealReducedMotion = useReducedMotion();
   // Walk sheets are generated incrementally for the roster.  The ceremony
   // must still play for a character whose sheet is not available yet, using
@@ -96,15 +94,6 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   // keeps the authored two-rei-two-claps-one-bow motion.
   const allReady = ['stage', 'gate', 'rei', 'hakushu', ...(walkSource ? ['walk'] : [])].every(id => loaded[id]);
   const markLoaded = (id: string) => setLoaded(previous => previous[id] ? previous : { ...previous, [id]: true });
-  useEffect(() => {
-    if (reduced) { setFrame(TOTAL_FRAMES); return; }
-    if (!allReady) return;
-    const timer = setInterval(() => setFrame(value => {
-      if (value >= TOTAL_FRAMES) { clearInterval(timer); return value; }
-      return value + 1;
-    }), 95);
-    return () => clearInterval(timer);
-  }, [reduced, allReady]);
   useEffect(() => {
     if (phase.key !== 'reveal') return;
     reveal.setValue(0);
@@ -234,6 +223,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     {/* Like the ink painting of the goshuin, this slow opening is the point of the page, so it ignores the reduced-motion setting. */}
     {showAward && page === 'saying' && !!saying && <VerticalSaying text={saying} />}
   </View></FitToHeight>
+  {!showAward && <View style={{ padding: 12 }}><PrayerControls ready={allReady} onFrame={setFrame} /></View>}
   {/* Outside the scaled area, so it keeps its size and stays tappable however tall the content is. */}
   {/* Always present, so the room left for the scaled content does not change when the button appears. */}
   <View style={S.closeBar}>{showAward && !event && !!onSkipAll && remaining > 1 && page !== 'saying' && <Button title={`残りの${remaining - 1}か所を、まとめて省略`} secondary onPress={onSkipAll} style={{ width: '100%', maxWidth: 350, marginBottom: 8 }} />}{showAward && <Button title={page === 'saying' || (page === 'miniature' && !saying) ? 'ホームへ' : page === 'miniature' || revealDone ? '次へ' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={page === 'saying' || (page === 'miniature' && !saying) ? onClose : page === 'miniature' ? () => setPage('saying') : () => setPage('miniature')} style={{ width: '100%', maxWidth: 350 }} />}</View>
