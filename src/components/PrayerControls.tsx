@@ -73,7 +73,7 @@ export function PrayerControls({ ready, onFrame }: { ready: boolean; onFrame: (f
             <Circle cx={38} cy={38} r={33} stroke="#685C49" strokeWidth={4} fill="#392F25" />
             <Circle cx={38} cy={38} r={33} stroke="#F0CA86" strokeWidth={4} fill="none"
               strokeDasharray={`${2 * Math.PI * 33}`} strokeDashoffset={2 * Math.PI * 33 * (1 - (label === '拍手' && index === 7 ? 1 : label === step[0] ? progress : 0))}
-              rotation={-90} origin="38,38" />
+              transform="rotate(-90 38 38)" />
           </Svg>
           <Text style={{ color: '#FFF5E2', fontSize: 18 }}>{label}</Text>
         </Pressable>;

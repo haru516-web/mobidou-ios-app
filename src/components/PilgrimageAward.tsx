@@ -219,7 +219,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
         </View>}
       </View>
     </View>
-    {!showAward && <><View style={S.phaseTrack}>{PHASES.map(p => <View key={p.key} style={[S.phaseDot, { backgroundColor: phase.key === p.key ? '#D4B387' : '#685C49' }]} />)}</View><Button title="演出を省略して御朱印をみる" secondary onPress={() => setFrame(TOTAL_FRAMES)} style={S.skip} />{!event && !!onSkipAll && remaining > 1 && <Button title={`残りの${remaining}か所を、まとめて省略`} secondary onPress={onSkipAll} style={S.skip} />}</>}
+    {!showAward && <View style={S.phaseTrack}>{PHASES.map(p => <View key={p.key} style={[S.phaseDot, { backgroundColor: phase.key === p.key ? '#D4B387' : '#685C49' }]} />)}</View>}
     {showAward && page === 'goshuin' && <>
       <View style={S.rewardScene}>
         <AwardFx />
@@ -262,10 +262,14 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
       <Text style={S.questionWarn}>書いた答えは、あとから変えられません。{'\n'}手紙として残り、いつでも見返せます。</Text>
     </View>}
   </View></FitToHeight>
-  {!showAward && <View style={{ padding: 12 }}><PrayerControls ready={allReady} onFrame={setFrame} /></View>}
+  {!showAward && <View style={{ padding: 12, alignItems: 'center', gap: 12 }}>
+    <PrayerControls ready={allReady} onFrame={setFrame} />
+    <Button title="演出を省略して御朱印をみる" secondary onPress={() => setFrame(TOTAL_FRAMES)} style={S.skip} />
+    {!event && !!onSkipAll && remaining > 1 && <Button title={`残りの${remaining}か所を、まとめて省略`} secondary onPress={onSkipAll} style={S.skip} />}
+  </View>}
   {/* Outside the scaled area, so it keeps its size and stays tappable however tall the content is. */}
   {/* Always present, so the room left for the scaled content does not change when the button appears. */}
-  <View style={S.closeBar}>{showAward && !event && !!onSkipAll && remaining > 1 && page !== 'saying' && page !== 'question' && <Button title={`残りの${remaining - 1}か所を、まとめて省略`} secondary onPress={onSkipAll} style={{ width: '100%', maxWidth: 350, marginBottom: 8 }} />}{showAward && (() => {
+  <View style={[S.closeBar, !showAward && { display: 'none' }]}>{showAward && !event && !!onSkipAll && remaining > 1 && page !== 'saying' && page !== 'question' && <Button title={`残りの${remaining - 1}か所を、まとめて省略`} secondary onPress={onSkipAll} style={{ width: '100%', maxWidth: 350, marginBottom: 8 }} />}{showAward && (() => {
     const next = page === 'miniature' || page === 'saying' ? pageAfter(page) : null;
     const title = page === 'question' ? '手紙に残してホームへ' : page === 'goshuin' ? (revealDone ? '次へ' : 'ご縁を結んでいます…') : next ? '次へ' : 'ホームへ';
     const press = page === 'question' ? () => { void finish(); } : page === 'goshuin' ? () => setPage('miniature') : next ? () => setPage(next) : onClose;
