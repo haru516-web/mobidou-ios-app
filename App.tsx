@@ -519,8 +519,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
   const [scrollViewportHeight, setScrollViewportHeight] = useState(0);
   const [homeScrollLayout, setHomeScrollLayout] = useState<HomeLayout | null>(null);
-  const contentRef = useRef<View>(null);
-  const [contentTopInWindow, setContentTopInWindow] = useState(0);
+  const [collectionBounds, setCollectionBounds] = useState({ top: 64, bottom: 400 });
+  const collectionArt = roomArtGeometry(Math.min(480, Math.max(1, windowWidth)), windowHeight, collectionBounds);
   const [homeCardGroupLayout, setHomeCardGroupLayout] = useState<HomeLayout | null>(null);
   const [homeStepsSlotLayout, setHomeStepsSlotLayout] = useState<HomeLayout | null>(null);
   const [homeCompanionLayout, setHomeCompanionLayout] = useState<HomeLayout | null>(null);
@@ -1117,7 +1117,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
 
   if (!journey.ready || !fontsReady) return <View style={S.loading}><Text style={S.logo}>もび道</Text><ActivityIndicator color={C.red} /><Text style={S.muted}>ご縁の支度をしています</Text></View>;
   return <View style={S.desktop}><SafeAreaView style={S.app} edges={['top', 'left', 'right']}>
-    {tab === 'collection' ? <CollectionBackdrop scrollX={collectionScrollX} viewportWidth={Math.min(480, Math.max(1, windowWidth))} windowHeight={Math.max(1, windowHeight)} tileCount={collectionZoom === 'close' ? collectionShownCount + 1 : Math.ceil(collectionShownCount / 3) + 1} event={inEventCollection} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
+    {tab === 'collection' ? <CollectionBackdrop art={collectionArt} scrollX={collectionScrollX} viewportWidth={Math.min(480, Math.max(1, windowWidth))} windowHeight={Math.max(1, windowHeight)} tileCount={collectionZoom === 'close' ? collectionShownCount + 1 : Math.ceil(collectionShownCount / 3) + 1} event={inEventCollection} /> : tab === 'home' ? <HomeAnchoredBackground floorY={homeFloorY} viewportHeight={Math.max(1, windowHeight)} /> : <>
       <Animated.View pointerEvents="none" style={S.backgroundScrollLayer}>
         <Animated.View pointerEvents="none" style={[S.backgroundScrollTrack, tab === 'book' && S.bookBackgroundTrack, { transform: [{ translateY: tab === 'book' ? 0 : scrollY.interpolate({ inputRange: [0, 520], outputRange: [0, -260], extrapolate: 'clamp' }) }] }]}>
           <Image source={tab === 'book' ? (inEventBook ? EVENT_FEEL.bookBackground : GOSHUIN_BOOK_BACKGROUND) : tab === 'walk' ? (inEventWalk ? EVENT_FEEL.outingBackground : OUTING_BACKGROUND) : currentBackground.image} contentFit="cover" style={[S.backgroundArt, (tab === 'book' || tab === 'walk') && S.bookBackgroundArt]} />
@@ -1146,7 +1146,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </View>
     {!!milestoneToast && <Pressable artwork={false} accessibilityRole="alert" accessibilityLabel={milestoneToast.replace('\n', '。')} onPress={() => setMilestoneToast(null)} style={S.milestoneToast}><Text style={S.milestoneTitle}>{milestoneToast.split('\n')[0]}</Text><Text style={S.milestoneLine}>{milestoneToast.split('\n')[1]}</Text></Pressable>}
     {!!journey.error && <View style={M.error}><Text style={M.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
-    <View ref={contentRef} onLayout={({ nativeEvent }) => { contentRef.current?.measureInWindow((_x, y) => setContentTopInWindow(previous => Math.abs(previous - y) < 1 ? previous : y)); const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={[S.content, tab === 'home' && S.homeContent]}>
+    <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; const bottom = layout.y + Math.max(0, layout.height - 12); setCollectionBounds(previous => previous.top === layout.y && previous.bottom === bottom ? previous : { top: layout.y, bottom }); setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={[S.content, tab === 'home' && S.homeContent]}>
       {tab === 'home' && <>
         {firstRunStage === 'homeOmikuji'
           ? <View style={S.homeTutorialIntro}><Text style={S.chapter}>つぎは、おみくじを引こう。</Text></View>
@@ -1243,8 +1243,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
 
       {tab === 'collection' && <>
-        {/* The three buttons sit midway between the 通常/イベント plaques in the header and the place names hung just above the hooks. */}
-        <TourAnchor id="collection-tabs" style={[S.jumpRow, { top: Math.round(((eventAvailable ? contentTopInWindow - 19 : contentTopInWindow - 32) + roomArtGeometry(Math.min(480, Math.max(1, windowWidth)), windowHeight).railY - 32) / 2 - 40 - contentTopInWindow) }]}>
+        {/* Keep all three buttons below the header and above the hanging place names. */}
+        <TourAnchor id="collection-tabs" style={[S.jumpRow, { top: Math.max(0, Math.round((collectionArt.railY - collectionBounds.top - 112) / 2)) }]}>
           {[COLLECTION_PAGES[1]!, COLLECTION_PAGES[0]!, COLLECTION_PAGES[2]!].map((entry, index) => {
             const button = <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />;
             // The exhibition room is the page itself and the other two open over it: it sits in the middle, on a dark wooden board of its own.
@@ -1253,7 +1253,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               : button;
           })}
         </TourAnchor>
-        <CollectionGallery scrollX={collectionScrollX} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} rewardDates={inEventCollection ? eventRewardDates : collectionRewardDates} special={inEventCollection ? eventSpecial : journey.special} eventName={inEventCollection ? TOKI_MEGURU.name : undefined} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={selectCollectionGoshuin} onClosePage={() => setCollectionPage('room')} />
+        <CollectionGallery art={collectionArt} roomTop={collectionBounds.top} scrollX={collectionScrollX} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} rewardDates={inEventCollection ? eventRewardDates : collectionRewardDates} special={inEventCollection ? eventSpecial : journey.special} eventName={inEventCollection ? TOKI_MEGURU.name : undefined} zoom={collectionZoom} onZoomChange={setCollectionZoom} page={collectionPage} onSelectGoshuin={selectCollectionGoshuin} onClosePage={() => setCollectionPage('room')} />
       </>}
     </View>
     {homePopup === 'custom' && <HomeCustomizationPopup order={data.homeWidgetOrder} items={data.homeWidgetItems} shrines={COLLECTION_SHRINES} ownedGoshuinIds={collectionRewardIds} ownedMiniatureIds={ownedMiniatureIds} latest={latest} background={currentBackground.image} onSave={journey.saveHomeWidgetOrder} onSaveItems={journey.saveHomeWidgetItems} onDragTarget={setHomeDropTarget} onClose={() => { setHomeDropTarget(null); setHomePopup(null); }} />}
