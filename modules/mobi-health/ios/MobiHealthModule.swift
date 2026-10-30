@@ -60,7 +60,8 @@ public class MobiHealthModule: Module {
       let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [inRange, NSCompoundPredicate(notPredicateWithSubpredicate: typedIn)])
       let query = HKStatisticsQuery(quantityType: steps, quantitySamplePredicate: predicate,
         options: .cumulativeSum) { _, statistics, error in
-        if let error = error { promise.reject("READ", error.localizedDescription) }
+        // "No data" just means no steps in the range yet: that is 0, not a failure.
+        if let error = error, (error as? HKError)?.code != .errorNoData { promise.reject("READ", error.localizedDescription) }
         else { promise.resolve(statistics?.sumQuantity()?.doubleValue(for: .count()) ?? 0) }
       }
       self.store.execute(query)

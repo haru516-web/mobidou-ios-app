@@ -75,19 +75,19 @@ test('local date uses local calendar components; demo updates are immutable', ()
 test('a selected pilgrimage starts from the departure step count without retroactive rewards', () => {
   const started = startRoute('mountain', 4321, day);
   assert.equal(updateSteps(started, 4321, day).rewards.length, 0);
-  const first = updateSteps(started, 9321, day);
+  const first = updateSteps(started, 12321, day);
   assert.deepEqual(first.rewards.map(reward => reward.id), ['hibikiishi']);
 });
 test('a route can unlock every point on the same day without a daily cap', () => {
   let route = startRoute('sanctuary', 0, day);
-  route = updateSteps(route, 16000, day);
+  route = updateSteps(route, 40000, day);
   assert.deepEqual(route.rewards.map(reward => reward.id), ['rain', 'forest', 'takekaze', 'morika', 'morikage']);
   assert.equal(route.completedAt, '2026-09-09');
   assert.deepEqual(normalizeProgress(JSON.parse(JSON.stringify(route)), day), route);
 });
 test('seven-visit vow route can also complete without a daily cap', () => {
   let route = startRoute('vow', 0, day);
-  route = updateSteps(route, 35000, day);
+  route = updateSteps(route, 56000, day);
   assert.deepEqual(route.rewards.map(reward => reward.id), PILGRIMAGES.find(item => item.id === 'vow')!.ids);
   assert.equal(route.completedAt, '2026-09-09');
 });
@@ -102,7 +102,7 @@ test('all pilgrimage points are unique across routes', () => {
   assert.equal(SHRINE_IDS.length, 75);
   assert.equal(new Set(SHRINE_IDS).size, SHRINE_IDS.length);
   assert.ok(ids.every(id => (SHRINE_IDS as readonly string[]).includes(id)));
-  assert.ok(PILGRIMAGES.filter(route => !route.tutorial).every(route => route.targets[0] === 5000));
+  assert.ok(PILGRIMAGES.filter(route => !route.tutorial).every(route => route.targets.every((target, index) => target - (route.targets[index - 1] ?? 0) >= 8000)));
   const first = PILGRIMAGES.find(route => route.tutorial)!;
   assert.deepEqual([first.ids, first.targets], [['hatsumobi'], [1000]]);
 });
@@ -229,8 +229,8 @@ test('catch-up credits closed days once, without recounting what the mark day al
   assert.equal(updateSteps(today, 1000, at(12, 9)).routeSteps, today.routeSteps);
 });
 test('catch-up queues rewards reached on closed days with that day as the reward date', () => {
-  const synced = routeDay(4000, 9);
-  const caught = creditMissedDays(rollDay(synced, at(11, 8)), { day: '2026-09-09', steps: 4000 }, [{ day: '2026-09-09', steps: 4500 }, { day: '2026-09-10', steps: 500 }]);
+  const synced = routeDay(7000, 9);
+  const caught = creditMissedDays(rollDay(synced, at(11, 8)), { day: '2026-09-09', steps: 7000 }, [{ day: '2026-09-09', steps: 7500 }, { day: '2026-09-10', steps: 1500 }]);
   assert.equal(caught.rewards.length, 1);
   assert.equal(caught.rewards[0].date, '2026-09-10');
   assert.equal(caught.pending.length, 1);

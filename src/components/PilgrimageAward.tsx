@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image as RNImage, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { Animated, Easing, Image as RNImage, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View, type ImageSourcePropType } from 'react-native';
 import { Image } from './AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -19,6 +19,8 @@ import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 import { SHRINE_SAYINGS } from '../data/shrineSayings';
 import { VerticalSaying } from './VerticalSaying';
 import { PrayerControls } from './PrayerControls';
+import { pickLetterQuestion } from '../data/letterQuestions';
+import { addLetter, useLetters, LETTER_MAX_LENGTH, isValidAnswer, savePendingQuestion, clearPendingQuestion, loadPendingQuestion } from '../services/letters';
 
 /** Set when the ceremony is for an event spot: the event's own goshuin and miniature, and no keychain roll (every spot gives its miniature). */
 export type EventAwardInfo = { name: string; goshuinImage: ImageSourcePropType; keychainImage: ImageSourcePropType; reached: number; total: number; complete: boolean; reward?: string };
@@ -66,9 +68,37 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const [loaded, setLoaded] = useState<Record<string, boolean>>({});
   const [revealDone, setRevealDone] = useState(false);
   // The goshuin is shown first; the miniature draw has its own page after the next button.
-  const [page, setPage] = useState<'goshuin' | 'miniature' | 'saying'>('goshuin');
+  const [page, setPage] = useState<'goshuin' | 'miniature' | 'saying' | 'question'>('goshuin');
   // The shrine's saying, written alone after the miniature. Event spots have none.
   const saying = event ? undefined : SHRINE_SAYINGS[shrine.id];
+  // After the saying, one question is asked and the answer is kept as a letter. Event spots skip it.
+  const hasQuestion = !event;
+  const savedLetters = useLetters();
+  const [question, setQuestion] = useState(() => pickLetterQuestion(savedLetters.map(letter => letter.question)));
+  // Closing the app on the question screen must bring the player back to it, so the question is kept until it is answered.
+  const [resumeChecked, setResumeChecked] = useState(event || !hasQuestion);
+  useEffect(() => {
+    if (resumeChecked) return;
+    let alive = true;
+    void loadPendingQuestion().then(pending => {
+      if (!alive) return;
+      if (pending && pending.shrineId === shrine.id) { setQuestion(pending.question); setFrame(TOTAL_FRAMES); setPage('question'); }
+      setResumeChecked(true);
+    });
+    return () => { alive = false; };
+  }, [resumeChecked, shrine.id]);
+  useEffect(() => { if (page === 'question') void savePendingQuestion({ shrineId: shrine.id, question }); }, [page, shrine.id, question]);
+  const [answer, setAnswer] = useState('');
+  const [saving, setSaving] = useState(false);
+  const pageAfter = (current: 'miniature' | 'saying'): 'saying' | 'question' | null => current === 'miniature' && saying ? 'saying' : hasQuestion ? 'question' : null;
+  const finish = async () => {
+    if (saving) return;
+    setSaving(true);
+    if (!isValidAnswer(answer)) { setSaving(false); return; }
+    await addLetter({ shrineId: shrine.id, shrineName: shrine.name, question, quote: saying, answer });
+    await clearPendingQuestion();
+    onClose();
+  };
   const miniature = useRef(new Animated.Value(0)).current;
   const reveal = useRef(new Animated.Value(0)).current;
   const paint = useRef(new Animated.Value(0)).current;
@@ -170,9 +200,11 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     { id: 'rei', source: prayer?.rei, frame: prayerFrame % 8, visible: !walking && action === 'rei' },
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];
-  return <SafeAreaView style={S.page}><FitToHeight key={showAward ? 'award-' + page : 'walk'} style={S.fit}><View style={S.content}>
-    {page !== 'saying' && <Text style={S.eyebrow}>{event ? event.name : demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>}
-    {page !== 'saying' && <Text accessibilityRole="header" style={S.title}>{showAward && page === 'miniature' ? (arrival ? gotKeychain ? (arrival.outcome === 'owned' ? 'もう持っているミニチュア' : 'ミニチュアを授かりました') : 'ミニチュアはドロップしませんでした' : 'ミニチュアの抽選') : showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>}
+  if (!resumeChecked) return <SafeAreaView style={S.page} />;
+  // The keyboard lifts the whole page, so what is being typed and the button stay above it; the scaled content shrinks to the room left.
+  return <SafeAreaView style={S.page}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}><FitToHeight key={showAward ? 'award-' + page : 'walk'} style={S.fit}><View style={S.content}>
+    {page !== 'saying' && page !== 'question' && <Text style={S.eyebrow}>{event ? event.name : demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>}
+    {page !== 'saying' && page !== 'question' && <Text accessibilityRole="header" style={S.title}>{showAward && page === 'miniature' ? (arrival ? gotKeychain ? (arrival.outcome === 'owned' ? 'もう持っているミニチュア' : 'ミニチュアを授かりました') : 'ミニチュアはドロップしませんでした' : 'ミニチュアの抽選') : showAward ? complete ? '巡礼、結願。' : goshuinOwned ? '再びのご参拝です' : '新しい御朱印を授かりました' : allReady ? phase.label : '参道の支度をしています'}</Text>}
     <View style={[S.stage, { height: width * 2 / 3 }, showAward && S.stageHidden]} onLayout={event => setWidth(event.nativeEvent.layout.width)} accessibilityLabel={pet.name + 'が' + phase.label}>
       <Image source={event ? EVENT_FEEL.ceremonyStage : STAGE} contentFit="fill" style={StyleSheet.absoluteFillObject} onLoad={() => markLoaded('stage')} />
       <View style={{ position: 'absolute', left: 0, top: 0, width: 600, height: 400, transformOrigin: 'top left', transform: [{ scale: k }] }}>
@@ -222,14 +254,32 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     </Animated.View>}
     {/* Like the ink painting of the goshuin, this slow opening is the point of the page, so it ignores the reduced-motion setting. */}
     {showAward && page === 'saying' && !!saying && <VerticalSaying text={saying} />}
+    {showAward && page === 'question' && <View style={S.questionScene}>
+      <Text style={S.questionPlace}>{shrine.name}にて</Text>
+      <Text accessibilityRole="header" style={S.questionText}>{question}</Text>
+      <TextInput accessibilityLabel="答えを書く" value={answer} onChangeText={text => setAnswer(text.slice(0, LETTER_MAX_LENGTH))} multiline maxLength={LETTER_MAX_LENGTH} placeholder="ここに書く" placeholderTextColor="#9A8A72" style={S.answerInput} />
+      <Text style={S.questionCount}>{answer.trim().length === 1 ? '2文字以上で書いてください　' : ''}{answer.length} / {LETTER_MAX_LENGTH}</Text>
+      <Text style={S.questionWarn}>書いた答えは、あとから変えられません。{'\n'}手紙として残り、いつでも見返せます。</Text>
+    </View>}
   </View></FitToHeight>
   {!showAward && <View style={{ padding: 12 }}><PrayerControls ready={allReady} onFrame={setFrame} /></View>}
   {/* Outside the scaled area, so it keeps its size and stays tappable however tall the content is. */}
   {/* Always present, so the room left for the scaled content does not change when the button appears. */}
-  <View style={S.closeBar}>{showAward && !event && !!onSkipAll && remaining > 1 && page !== 'saying' && <Button title={`残りの${remaining - 1}か所を、まとめて省略`} secondary onPress={onSkipAll} style={{ width: '100%', maxWidth: 350, marginBottom: 8 }} />}{showAward && <Button title={page === 'saying' || (page === 'miniature' && !saying) ? 'ホームへ' : page === 'miniature' || revealDone ? '次へ' : 'ご縁を結んでいます…'} disabled={!revealDone || !arrival} onPress={page === 'saying' || (page === 'miniature' && !saying) ? onClose : page === 'miniature' ? () => setPage('saying') : () => setPage('miniature')} style={{ width: '100%', maxWidth: 350 }} />}</View>
+  <View style={S.closeBar}>{showAward && !event && !!onSkipAll && remaining > 1 && page !== 'saying' && page !== 'question' && <Button title={`残りの${remaining - 1}か所を、まとめて省略`} secondary onPress={onSkipAll} style={{ width: '100%', maxWidth: 350, marginBottom: 8 }} />}{showAward && (() => {
+    const next = page === 'miniature' || page === 'saying' ? pageAfter(page) : null;
+    const title = page === 'question' ? '手紙に残してホームへ' : page === 'goshuin' ? (revealDone ? '次へ' : 'ご縁を結んでいます…') : next ? '次へ' : 'ホームへ';
+    const press = page === 'question' ? () => { void finish(); } : page === 'goshuin' ? () => setPage('miniature') : next ? () => setPage(next) : onClose;
+    return <Button title={title} disabled={page === 'question' ? !isValidAnswer(answer) || saving : !revealDone || !arrival} onPress={press} style={{ width: '100%', maxWidth: 350 }} />;
+  })()}</View></KeyboardAvoidingView>
   </SafeAreaView>;
 }
 const S = StyleSheet.create({
+  questionScene: { width: '100%', maxWidth: 350, alignItems: 'center', gap: 10 },
+  questionPlace: { fontFamily: BRUSH, fontSize: 16, color: '#D4B387' },
+  questionText: { fontFamily: BRUSH, fontSize: 24, lineHeight: 34, color: '#FFF5E2', textAlign: 'center' },
+  answerInput: { width: '100%', minHeight: 120, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#D4B387', backgroundColor: '#FFF8E7', color: '#4A2F22', fontSize: 16, lineHeight: 24, textAlignVertical: 'top' },
+  questionCount: { alignSelf: 'flex-end', fontSize: 12, color: '#BFAE92' },
+  questionWarn: { fontSize: 13, lineHeight: 20, color: '#F2C9A0', textAlign: 'center' },
   journeyRecord: { width: '100%', maxWidth: 350, alignItems: 'center', gap: 5 },
   recordTitle: { fontFamily: BRUSH, fontSize: 19, color: '#FFF5E2', textAlign: 'center' },
   recordText: { fontFamily: SERIF, fontSize: 13, lineHeight: 20, color: '#E6D8C5', textAlign: 'center' },

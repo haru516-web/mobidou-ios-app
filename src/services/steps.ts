@@ -45,7 +45,14 @@ export async function connectSteps(): Promise<StepSource> {
 /** Steps between two instants (epoch milliseconds), from whichever source is connected. */
 export async function readStepsBetween(source: StepSource, start: number, end: number): Promise<number> {
   let steps: number;
-  if (source === 'healthkit' && health) steps = await health.readSteps(start, end);
+  if (source === 'healthkit' && health) {
+    // HealthKit reports "no data" as an error when the range has no samples; that is 0 steps (also covers builds made before the native fix).
+    try { steps = await health.readSteps(start, end); }
+    catch (e) {
+      if (e instanceof Error && /no data available/i.test(e.message)) steps = 0;
+      else throw e;
+    }
+  }
   else if (source === 'motion' && Platform.OS === 'ios') steps = (await Pedometer.getStepCountAsync(new Date(start), new Date(end))).steps;
   else throw new Error('歩数の連携が必要です。設定から接続してください。');
   if (!Number.isFinite(steps) || steps < 0) throw new Error('歩数を読み取れませんでした。少し待ってから更新してください。');

@@ -10,7 +10,7 @@ import { ShipporiMincho_500Medium } from '@expo-google-fonts/shippori-mincho/500
 import { ShipporiMincho_700Bold } from '@expo-google-fonts/shippori-mincho/700Bold';
 import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku/400Regular';
 import { BRUSH, Button, C, Clouds, Companion, Icon, SERIF, Stamp, Torii } from './src/components';
-import { getPetCharacter, isPetId, type PetId } from './src/petCatalog';
+import { getPetCharacter, isPetId, PET_CHARACTERS, type PetId } from './src/petCatalog';
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView, localDay } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
@@ -31,8 +31,12 @@ import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilg
 import { pilgrimageShrines, RouteMap } from './src/components/PilgrimageScreen';
 import { PillText, WashiArt, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
+import { LetterQuestionFlow } from './src/components/LetterQuestionFlow';
+import { pickLetterQuestion } from './src/data/letterQuestions';
+import { loadQuestionQueue, saveQuestionQueue, useLetters, type QueuedQuestion } from './src/services/letters';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from './src/data/pilgrimagePeekImages';
+import { roomArtGeometry } from './src/components/collectionRoomArt';
 import { COLLECTION_SHRINES, CollectionGallery, type CollectionPage, type CollectionZoom } from './src/components/CollectionGallery';
 import { BookPageTurn, BookSpreadSnapshots, bookSnapshotKey, type BookPageTurnHandle } from './src/components/BookPageTurn';
 import { HomeBottomNavigation, HomeCustomizationPopup, HomeGoshuinPickPopup, MobyPickerPopup, type PrimaryTab } from './src/components/HomeNavigation';
@@ -174,6 +178,16 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   /** The screen a tapped notification asks for; opened once no other screen is up. */
   const [pendingTap, setPendingTap] = useState<string | null>(null);
   const [arrivalSummary, setArrivalSummary] = useState<{ items: ArrivalSummaryItem[]; routeName?: string; firstGoshuinEver: boolean } | null>(null);
+  // Skipping several places at once still asks each place's question, one after another; the summary comes after the last answer.
+  const [letterQueue, setLetterQueue] = useState<QueuedQuestion[] | null>(null);
+  const summaryAfterLetters = useRef<{ items: ArrivalSummaryItem[]; routeName?: string; firstGoshuinEver: boolean } | null>(null);
+  const savedLetters = useLetters();
+  const lettersOpen = !!letterQueue?.length;
+  useEffect(() => {
+    // Questions left over when the app was closed in the middle come back first.
+    if (!journey.ready) return;
+    void loadQuestionQueue().then(queue => { if (queue.length) setLetterQueue(queue); });
+  }, [journey.ready]);
   const [omikujiModal, setOmikujiModal] = useState(false);
   const [omikujiCardFocused, setOmikujiCardFocused] = useState(false);
   const [omikujiAnimating, setOmikujiAnimating] = useState(false);
@@ -481,6 +495,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   }, [eventTicketsNow, data.eventGacha.granted, journey.ready]);
   // The collection can be looked at before the team has set out (everything is still locked).
   const inEventCollection = eventCollection;
+  const spaceMobbies = useMemo(() => (inEventCollection ? EVENT_PET_CHARACTERS : PET_CHARACTERS).filter(pet => ownsMobby(data.mobbies, pet.id)).map(pet => ({ id: pet.id, name: pet.name, image: pet.image })), [inEventCollection, data.mobbies]);
   const [eventListOpen, setEventListOpen] = useState(false);
   // Tells the player an event is running, once per launch, when the home screen has settled.
   const [eventAnnounceOpen, setEventAnnounceOpen] = useState(false);
@@ -504,6 +519,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [collectionZoom, setCollectionZoom] = useState<CollectionZoom>('standard');
   const [scrollViewportHeight, setScrollViewportHeight] = useState(0);
   const [homeScrollLayout, setHomeScrollLayout] = useState<HomeLayout | null>(null);
+  const contentRef = useRef<View>(null);
+  const [contentTopInWindow, setContentTopInWindow] = useState(0);
   const [homeCardGroupLayout, setHomeCardGroupLayout] = useState<HomeLayout | null>(null);
   const [homeStepsSlotLayout, setHomeStepsSlotLayout] = useState<HomeLayout | null>(null);
   const [homeCompanionLayout, setHomeCompanionLayout] = useState<HomeLayout | null>(null);
@@ -599,10 +616,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // The event popups (announcement, new Mobbies, list) and the social sheets are full-screen modals too: a ceremony waits until they are closed,
   // so two never stand on each other (that left the app frozen at launch).
   const eventPopupOpen = eventAnnounceOpen || eventMobbiesOpen || eventListOpen;
-  const awardVisibleBase = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !eventSettling && !eventPopupOpen && !gachaOpen && !socialSheet && !arrivalSummary;
+  const awardVisibleBase = !!pending && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !eventSettling && !eventPopupOpen && !gachaOpen && !socialSheet && !arrivalSummary && !lettersOpen;
+  // The questions of skipped places wait for the same quiet as a ceremony, and nothing else opens while they are up.
+  const lettersVisible = lettersOpen && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !eventSettling && !eventPopupOpen && !gachaOpen && !socialSheet;
   // The team reaching an event spot plays the same arrival ceremony as a pilgrimage stop, once the ordinary one and the event screen are out of the way.
   const eventAwardSpot = eventState && eventTeam && eventTeam.seen < eventState.reached ? TOKI_MEGURU.spots?.[eventTeam.seen] ?? null : null;
-  const eventAwardVisible = !!eventAwardSpot && !awardVisibleBase && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !eventSettling && !gachaOpen && !eventPopupOpen && !socialSheet && !arrivalSummary;
+  const eventAwardVisible = !!eventAwardSpot && !awardVisibleBase && data.onboarded && firstRunStage === null && openingHomeReady && !settings && !detail && !overlayBusy && !openingVisible && !homePopup && !omikujiModal && eventSheet === null && !eventSettling && !gachaOpen && !eventPopupOpen && !socialSheet && !arrivalSummary && !lettersOpen;
   const awardVisible = awardVisibleBase;
   // Skip every waiting ceremony at once: each shrine still rolls its miniature, then one page shows the goshuin and the miniatures received.
   const skipAllArrivals = () => {
@@ -614,11 +633,21 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       const routeEnds = !!activeRoute && ids.includes(activeRoute.ids[activeRoute.ids.length - 1]);
       noteAward(routeEnds);
       setFeatured(progress.lapBase !== undefined ? Math.max(0, activeShrines.findIndex(shrine => shrine.id === lastId)) : Math.max(0, collected.length - 1));
-      setArrivalSummary({
+      const summary = {
         items: results.map(row => ({ shrineId: row.shrineId, name: SHRINES.find(shrine => shrine.id === row.shrineId)?.name ?? row.shrineId, outcome: row.outcome })),
         routeName: activeRoute?.name,
         firstGoshuinEver: !data.demo && collectionRewardIds.length <= ids.length && progress.lapBase === undefined,
+      };
+      // One question for every skipped place, none the same, asked in the order the places were reached.
+      const taken = savedLetters.map(letter => letter.question);
+      const queue: QueuedQuestion[] = ids.map(id => {
+        const question = pickLetterQuestion(taken);
+        taken.push(question);
+        return { shrineId: id, shrineName: SHRINES.find(shrine => shrine.id === id)?.name ?? id, question, quote: SHRINE_SAYINGS[id] };
       });
+      summaryAfterLetters.current = summary;
+      void saveQuestionQueue(queue);
+      setLetterQueue(queue);
     };
     const tickets = journey.special.passes.keychainDrop;
     const message = `残りの${ids.length}か所の演出を省略して、御朱印とミニチュアの結果だけを見ます。`;
@@ -782,7 +811,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     ? getNextPilgrimageId(activeRoute.id, Object.entries(routeRecords).filter(([, record]) => !!record.completedAt).map(([routeId]) => routeId))
     : undefined;
   const dueRoute = dueRouteId && !routeRecords[dueRouteId]?.completedAt ? getPilgrimage(dueRouteId) : undefined;
-  const routeAdvanceVisible = !!dueRoute && !pending && data.onboarded && firstRunStage === null && openingHomeReady && !openingVisible && !settings && !detail && !homePopup && !omikujiModal && !gachaOpen && !overlayBusy && eventSheet === null && !eventSettling && !eventPopupOpen && !socialSheet && !arrivalSummary;
+  const routeAdvanceVisible = !!dueRoute && !pending && data.onboarded && firstRunStage === null && openingHomeReady && !openingVisible && !settings && !detail && !homePopup && !omikujiModal && !gachaOpen && !overlayBusy && eventSheet === null && !eventSettling && !eventPopupOpen && !socialSheet && !arrivalSummary && !lettersOpen;
   const selectPilgrimageRoute = (routeId: string) => {
     const beginningFirstRun = firstRunStage === 'route';
     if (beginningFirstRun) setFirstRunStage('homeCompanion');
@@ -982,10 +1011,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const weeklySummary = useMemo(() => summarizeWeek(data.dayLog, progress.rewards, previousWeekStart()), [weeklyOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const weeklyPlaces = useMemo(() => weeklySummary.rewardIds.map(id => activeShrines[activeRoute?.ids.indexOf(id) ?? -1]?.name).filter((name): name is string => !!name), [weeklySummary]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || !!eventAwardSpot || !!dueRoute || !!arrivalSummary || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || autoPopupBlocked || !weeklyDue(data.weekSeen, data.dayLog)) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || !!eventAwardSpot || !!dueRoute || !!arrivalSummary || lettersOpen || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || autoPopupBlocked || !weeklyDue(data.weekSeen, data.dayLog)) return undefined;
     const timer = setTimeout(() => setWeeklyOpen(true), 1200);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, autoPopupBlocked]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.weekSeen, data.dayLog, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, lettersOpen, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, autoPopupBlocked]);
   // Friends see the main Mobby, so a change of Mobby is passed on right away.
   useEffect(() => {
     if (journey.ready && !data.demo && data.onboarded) void syncProfilePet(data.pet);
@@ -1016,29 +1045,29 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Once the tutorial is over and the home screen is quiet, offer to register the profile (name + main Mobby) once.
   useEffect(() => {
     if (eventAnnounceChecked.current || TOKI_MEGURU.status !== 'open' || eventAnnounceHidden !== false || !eventAvailable) return undefined;
-    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || !hasStarter(data.mobbies) || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || !!eventAwardSpot || !!dueRoute || !!arrivalSummary || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || !!eventSheet || eventListOpen || mobbyMenuOpen || !!tour || !!tourRequest) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || !hasStarter(data.mobbies) || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || !!eventAwardSpot || !!dueRoute || !!arrivalSummary || lettersOpen || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || !!eventSheet || eventListOpen || mobbyMenuOpen || !!tour || !!tourRequest) return undefined;
     const timer = setTimeout(() => {
       eventAnnounceChecked.current = true;
       setEventAnnounceOpen(true);
     }, 0);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden, eventAvailable, mobbyMenuOpen, tour, tourRequest]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, data.mobbies, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, lettersOpen, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventSheet, eventListOpen, eventAnnounceHidden, eventAvailable, mobbyMenuOpen, tour, tourRequest]);
   // A tapped notification opens its screen once nothing else is up (no second modal over one that is showing).
   useEffect(() => {
     if (!pendingTap) return;
     const busy = !journey.ready || data.demo || !data.onboarded || firstRunStage !== null || !openingHomeReady || openingVisible || onboardingPreview
       || !!settings || !!detail || !!homePopup || omikujiModal || gachaOpen || eventGachaOpen || eventSettling || bookIndexOpen || !!socialSheet || !!eventSheet || eventPopupOpen
-      || !!arrivalSummary || awardVisible || eventAwardVisible || routeAdvanceVisible || weeklyOpen || accountEntryVisible || !!tour || !!tourRequest;
+      || !!arrivalSummary || lettersOpen || awardVisible || eventAwardVisible || routeAdvanceVisible || weeklyOpen || accountEntryVisible || !!tour || !!tourRequest;
     if (busy) return;
     if (pendingTap === 'friend') setSocialSheet('friends');
     else if (pendingTap === 'omikuji') setOmikujiModal(true);
     else setEventSheet('main');
     setPendingTap(null);
-  }, [pendingTap, journey.ready, data.demo, data.onboarded, firstRunStage, openingHomeReady, openingVisible, onboardingPreview, settings, detail, homePopup, omikujiModal, gachaOpen, eventGachaOpen, eventSettling, bookIndexOpen, socialSheet, eventSheet, eventPopupOpen, arrivalSummary, awardVisible, eventAwardVisible, routeAdvanceVisible, weeklyOpen, accountEntryVisible, tour, tourRequest]);
+  }, [pendingTap, journey.ready, data.demo, data.onboarded, firstRunStage, openingHomeReady, openingVisible, onboardingPreview, settings, detail, homePopup, omikujiModal, gachaOpen, eventGachaOpen, eventSettling, bookIndexOpen, socialSheet, eventSheet, eventPopupOpen, arrivalSummary, lettersOpen, awardVisible, eventAwardVisible, routeAdvanceVisible, weeklyOpen, accountEntryVisible, tour, tourRequest]);
   const profileGuideChecked = useRef(false);
   useEffect(() => {
     if (!SOCIAL_ONLINE || profileGuideChecked.current) return undefined;
-    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || !!eventAwardSpot || !!dueRoute || !!arrivalSummary || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || eventAnnounceOpen || autoPopupBlocked) return undefined;
+    if (weeklyOpen || onboardingPreview || !journey.ready || !data.onboarded || data.demo || firstRunStage !== null || tab !== 'home' || !openingHomeReady || openingVisible || omikujiModal || !!pending || !!eventAwardSpot || !!dueRoute || !!arrivalSummary || lettersOpen || settings || detail || homePopup || accountEntryVisible || gachaOpen || !!socialSheet || eventAnnounceOpen || autoPopupBlocked) return undefined;
     const timer = setTimeout(() => {
       profileGuideChecked.current = true;
       void (async () => {
@@ -1053,7 +1082,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       })();
     }, 2500);
     return () => clearTimeout(timer);
-  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen, autoPopupBlocked]);
+  }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, lettersOpen, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen, autoPopupBlocked]);
   useAppAudioCues({ firstRunStage, openingVisible, mobbyMenuOpen, homeEditing: homePopup === 'custom', milestoneToast, error: journey.error ?? null, weeklyOpen, pet: data.pet });
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
@@ -1110,10 +1139,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         {data.demo && <Pressable plate="pill" artwork={false} accessibilityRole="button" accessibilityLabel="体験モード中。タップで体験を終えて実記録にもどる" onPress={() => journey.enter(false)} style={S.demoBadge}><View style={S.dot} /><Text style={S.demoBadgeText}>体験中</Text><Icon name="close" size={13} color="#8A6950" /></Pressable>}
         <TourAnchor id="header-settings"><Pressable plate="round" artwork={false} disabled={firstRunStage !== null} accessibilityRole="button" accessibilityLabel="設定を開く" onPress={() => setSettings(true)} style={S.glassButton}><Icon name="settings-outline" size={21} color={C.ink} /></Pressable></TourAnchor>
       </View>
+      {tab === 'collection' && eventAvailable && <View pointerEvents="box-none" style={S.collectionModes}>
+        <PopButton id="eventNormal" label="通常" icon="home" plaqueOnly selected={!inEventCollection} faded={inEventCollection} onPress={() => { setCollectionPage('room'); setEventCollection(false); }} />
+        <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => setEventListOpen(true)} />
+      </View>}
     </View>
     {!!milestoneToast && <Pressable artwork={false} accessibilityRole="alert" accessibilityLabel={milestoneToast.replace('\n', '。')} onPress={() => setMilestoneToast(null)} style={S.milestoneToast}><Text style={S.milestoneTitle}>{milestoneToast.split('\n')[0]}</Text><Text style={S.milestoneLine}>{milestoneToast.split('\n')[1]}</Text></Pressable>}
     {!!journey.error && <View style={M.error}><Text style={M.errorText}>{journey.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="お知らせを閉じる" onPress={journey.dismissError} style={{ padding: 8 }}><Icon name="close" size={18} color={C.red} /></Pressable></View>}
-    <View onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={[S.content, tab === 'home' && S.homeContent]}>
+    <View ref={contentRef} onLayout={({ nativeEvent }) => { contentRef.current?.measureInWindow((_x, y) => setContentTopInWindow(previous => Math.abs(previous - y) < 1 ? previous : y)); const { layout } = nativeEvent; setScrollViewportHeight(previous => previous === layout.height ? previous : layout.height); setHomeScrollLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }} style={[S.content, tab === 'home' && S.homeContent]}>
       {tab === 'home' && <>
         {firstRunStage === 'homeOmikuji'
           ? <View style={S.homeTutorialIntro}><Text style={S.chapter}>つぎは、おみくじを引こう。</Text></View>
@@ -1210,11 +1243,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </>}
 
       {tab === 'collection' && <>
-        {eventAvailable && <View style={S.collectionModes}>
-          <PopButton id="eventNormal" label="通常" icon="home" plaqueOnly selected={!inEventCollection} faded={inEventCollection} onPress={() => { setCollectionPage('room'); setEventCollection(false); }} />
-          <PopButton id="eventCollection" label="イベント" icon="flag" plaqueOnly selected={inEventCollection} faded={!inEventCollection} onPress={() => setEventListOpen(true)} />
-        </View>}
-        <TourAnchor id="collection-tabs" style={S.jumpRow}>
+        {/* The three buttons sit midway between the 通常/イベント plaques in the header and the place names hung just above the hooks. */}
+        <TourAnchor id="collection-tabs" style={[S.jumpRow, { top: Math.round(((eventAvailable ? contentTopInWindow - 19 : contentTopInWindow - 32) + roomArtGeometry(Math.min(480, Math.max(1, windowWidth)), windowHeight).railY - 32) / 2 - 40 - contentTopInWindow) }]}>
           {[COLLECTION_PAGES[1]!, COLLECTION_PAGES[0]!, COLLECTION_PAGES[2]!].map((entry, index) => {
             const button = <PopButton key={entry.id} id={entry.id === 'room' ? 'collectionRoom' : entry.id === 'goshuin' ? 'collectionGoshuin' : entry.id === 'miniatures' ? 'collectionMiniature' : 'collectionPasses'} label={entry.label} icon={entry.icon} size={48} phase={index / 4} selected={collectionPage === entry.id} onPress={() => setCollectionPage(entry.id)} style={{ flex: 1 }} />;
             // The exhibition room is the page itself and the other two open over it: it sits in the middle, on a dark wooden board of its own.
@@ -1305,7 +1335,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <CollectionSpace visible={spaceOpen} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} special={inEventCollection ? eventSpecial : journey.special} onClose={() => setSpaceOpen(false)} />
+    <CollectionSpace visible={spaceOpen} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} special={inEventCollection ? eventSpecial : journey.special} mobbies={spaceMobbies} onClose={() => setSpaceOpen(false)} />
     <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} gacha={hasStarter(data.mobbies)} onStartTour={selection => { setSettings(false); setTourRequest(selection); }} appleLinked={appleLinked} />
 
 
@@ -1415,6 +1445,12 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     </Modal>
     <Modal visible={eventAwardVisible} animationType="fade" onRequestClose={() => {}}>{eventAwardVisible && eventAwardSpot && eventState && <PilgrimageAward key={`event-${eventAwardSpot.id}`} shrine={{ id: eventAwardSpot.id, name: eventAwardSpot.name, theme: `${eventAwardSpot.chapter} · ${eventAwardSpot.miniature}` }} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={false} haptics={data.haptics} stopIndex={eventTeam?.seen ?? 0} special={journey.special} event={{ name: TOKI_MEGURU.name, goshuinImage: EVENT_GOSHUIN_IMAGES[eventAwardSpot.id], keychainImage: EVENT_KEYCHAIN_IMAGES[eventAwardSpot.id], reached: (eventTeam?.seen ?? 0) + 1, total: TOKI_MEGURU.spots?.length ?? 0, complete: (eventTeam?.seen ?? 0) + 1 >= (TOKI_MEGURU.spots?.length ?? 0), reward: TOKI_MEGURU.reward }} onArrive={() => {}} onRedeemKeychainTicket={() => {}} onClose={() => eventTeamApi.acknowledgeSpot(TOKI_MEGURU.id)} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} remaining={progress.pending.length} onSkipAll={skipAllArrivals} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); setFeatured(index); move('home'); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
+    <Modal visible={lettersVisible} animationType="fade" onRequestClose={() => {}}>{!!letterQueue?.length && <LetterQuestionFlow items={letterQueue} onDone={() => {
+      setLetterQueue(null);
+      const summary = summaryAfterLetters.current;
+      summaryAfterLetters.current = null;
+      if (summary) setArrivalSummary(summary);
+    }} />}</Modal>
     <Modal visible={!!arrivalSummary} animationType="fade" onRequestClose={() => {}}>{arrivalSummary && <ArrivalSummary items={arrivalSummary.items} routeName={arrivalSummary.routeName} onClose={() => { const first = arrivalSummary.firstGoshuinEver; setArrivalSummary(null); move('home'); if (first) setHomePopup('goshuinPick'); }} />}</Modal>
   </SafeAreaView></View>;
 }
@@ -1436,7 +1472,7 @@ const S = StyleSheet.create({
   walkActionButton: { width: '100%', marginTop: 0 },
   sectionBlock: { marginTop: 18 },
   sectionHeading: { fontFamily: BRUSH, fontSize: 21, letterSpacing: 1, color: C.ink, marginBottom: 4, textShadowColor: '#FFF9EFE6', textShadowRadius: 8 },
-  jumpRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: -4, marginBottom: 8 },
+  jumpRow: { position: 'absolute', left: 24, right: 24, zIndex: 5, flexDirection: 'row', justifyContent: 'space-around' },
   collectionMainCell: { flex: 1 },
   collectionMainBoard: { position: 'absolute', left: -2, right: -2, top: -6, bottom: -6, borderRadius: 14, overflow: 'hidden', borderWidth: 2, borderColor: '#C9A46A', shadowColor: '#2A1408', shadowOffset: { width: 0, height: 3 }, shadowOpacity: .35, shadowRadius: 5 },
   indexLead: { fontFamily: BRUSH, fontSize: 17, color: C.ink, marginBottom: 4 },
@@ -1471,7 +1507,7 @@ const S = StyleSheet.create({
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, marginVertical: 14 }, pagerButton: { width: 42, height: 38, borderRadius: 19, backgroundColor: '#EFE6D8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D9C9B5' }, pageCounter: { alignItems: 'center', minWidth: 110, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF9EFE6' }, pageCounterText: { fontFamily: SERIF, fontSize: 15, color: C.ink, letterSpacing: 2 },
   nextPilgrimageAction: { position: 'relative', alignSelf: 'stretch', alignItems: 'center', paddingTop: 56, marginTop: 58 }, nextPilgrimagePeek: { position: 'absolute', left: '50%', marginLeft: -95, width: 190, zIndex: 5 }, nextPilgrimagePeekImage: { position: 'absolute', bottom: 0 },
   tourPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  collectionModes: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 0, marginBottom: 12 },
+  collectionModes: { position: 'absolute', left: 0, right: 0, top: 0, height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   homeEventButton: { position: 'absolute', left: 10, zIndex: 25 },
   bookEventSlot: { marginRight: 'auto' },
   walkMinimal: { flex: 1, alignItems: 'center', paddingTop: 2, paddingBottom: 6 },

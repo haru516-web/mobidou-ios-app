@@ -6,10 +6,12 @@ import { BRUSH, Icon } from '../components';
 import { SHRINES, STAMP_IMAGES, type Shrine } from '../data/shrines';
 import { PILGRIMAGES } from '../data/pilgrimages';
 import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
-import { EVENT_KEYCHAIN_IMAGES } from '../data/eventImages';
-import { WashiArt, WashiPressable } from './Washi';
+import { EVENT_FEEL, EVENT_KEYCHAIN_IMAGES } from '../data/eventImages';
+import { WashiPressable } from './Washi';
 import { CollectionRoom } from './CollectionRoom';
 import { ScrollPopup } from './ScrollPopup';
+import { LetterBoxButton, LettersPopup } from './LetterBox';
+import { useLetters } from '../services/letters';
 import type { SpecialCollection } from '../services/specialRewards';
 import { PagedShrineGrid } from './GoshuinBook';
 import { attachSnapScroll } from './webSnapScroll';
@@ -17,6 +19,7 @@ import { ROOM_WALL_LEFT, ROOM_WALL_RIGHT, roomArtGeometry } from './collectionRo
 
 const KEYCHAIN = require('../../assets/collection/keychain-asagiri-shrine-transparent-v2.webp');
 const WALL_HOOK = require('../../assets/ui-round3/collection/collection-wall-hook-v2.webp');
+const GOSHUIN_DETAIL_BACKGROUND = require('../../assets/ui-round3/backgrounds/goshuin-detail-washi-v1.webp');
 const SERIF = 'Shippori';
 /** Colour of the dark shape shown for what the player does not own yet. */
 const SILHOUETTE = '#3A2A22';
@@ -136,8 +139,24 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
   const root = useRef<View>(null);
   const art = roomArtGeometry(viewportWidth, windowHeight);
   const railY = art.railY - roomTopInWindow;
-  const roomLabelTop = Math.max(0, railY - roomLabelHeight - 36);
   const goshuinBottom = roomHeight - (art.shelfY - roomTopInWindow);
+  // As large as the cell allows, and small enough that the hanging keychain (1.37x its width tall) and the standing goshuin (1.5x) never meet between the rail and the shelf.
+  const fit = Math.max(40, (art.shelfY - art.railY - 24) / (1.37 + 1.5 * .95));
+  // The pillars take the sides of each tile: the cells share the wall between them.
+  const perPage = zoom === 'close' ? 1 : 3;
+  const wallLeft = art.left + ROOM_WALL_LEFT * art.width;
+  const wallWidth = (ROOM_WALL_RIGHT - ROOM_WALL_LEFT) * art.width;
+  const slotWidth = wallWidth / perPage;
+  const keychainSize = Math.min(slotWidth * 1.4, fit, 260); // the artwork fills only about two thirds of its box
+  const stampWidth = Math.min(slotWidth * .92, fit * .95);
+  const hookHeightEstimate = Math.min(65, keychainSize * .5) * (1145 / 1374);
+  // The letter sits in the gap between the bottom of the hanging keychains and the top of the standing goshuin (a goshuin is 1.5x its width tall).
+  const keychainBottom = railY - hookHeightEstimate * .405 + keychainSize * (255 / 186);
+  const goshuinTop = roomHeight - goshuinBottom - stampWidth * 1.5;
+  const letterWidth = Math.max(44, Math.min(104, (goshuinTop - keychainBottom) * 1.25, slotWidth * .7));
+  const letterTop = (keychainBottom + goshuinTop) / 2 - letterWidth * (340 / 512) / 2;
+  const letters = useLetters();
+  const [lettersShrine, setLettersShrine] = useState<Shrine | null>(null);
   const rewarded = useMemo(() => new Set(rewardIds), [rewardIds]);
 
   const selectZoom = (next: CollectionZoom) => {
@@ -199,21 +218,14 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
               {showcase.map((shrine, index) => {
                 const keychainCount = special.keychains[shrine.id] ?? 0;
                 const stampOwned = rewarded.has(shrine.id);
-                // As large as the cell allows, and small enough that the hanging keychain (1.37x its width tall) and the standing goshuin (1.5x) never meet between the rail and the shelf.
-                const fit = Math.max(40, (art.shelfY - art.railY - 24) / (1.37 + 1.5 * .95));
-                // The pillars take the sides of each tile: the cells share the wall between them.
-                const perPage = zoom === 'close' ? 1 : 3;
                 const slot = index % perPage;
-                const wallLeft = art.left + ROOM_WALL_LEFT * art.width;
-                const wallWidth = (ROOM_WALL_RIGHT - ROOM_WALL_LEFT) * art.width;
-                const slotWidth = wallWidth / perPage;
                 const shiftX = wallLeft + (slot + .5) * slotWidth - (slot + .5) * pageWidth;
-                const keychainSize = Math.min(slotWidth * 1.4, fit, 260); // the artwork fills only about two thirds of its box
-                const stampWidth = Math.min(slotWidth * .92, fit * .95);
-                const hookHeightEstimate = Math.min(65, keychainSize * .5) * (1145 / 1374);
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight, left: shiftX }]}>
-                  <View style={[S.roomLabel, { top: roomLabelTop, height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
+                  <View style={[S.roomLabel, { top: Math.max(0, railY - hookHeightEstimate * .572 - roomLabelHeight + 13), height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
                   <KeychainArtwork shrine={shrine} locked={keychainCount === 0} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
+                  {!eventName && <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: letterTop, alignItems: 'center', zIndex: 3 }}>
+                    <LetterBoxButton count={letters.filter(letter => letter.shrineId === shrine.id).length} width={letterWidth} onPress={() => setLettersShrine(shrine)} />
+                  </View>}
                   <DisplayedStamp shrine={shrine} owned={stampOwned} width={stampWidth} bottom={goshuinBottom} onPress={() => onSelectGoshuin(shrine)} />
                 </View>;
               })}
@@ -221,6 +233,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
           </View>
         </Animated.ScrollView>
       </View>}
+      <LettersPopup visible={!!lettersShrine} letters={lettersShrine ? letters.filter(letter => letter.shrineId === lettersShrine.id) : []} onClose={() => setLettersShrine(null)} />
       <ScrollPopup event={!!eventName} visible={page === 'goshuin'} title="御朱印" onClose={onClosePage}>
         {paper => <PagedShrineGrid bare kind="goshuin" title="" shrines={showcase} ownedIds={[...rewarded]} onSelect={onSelectGoshuin} height={paper.height} />}
       </ScrollPopup>
@@ -230,7 +243,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
       <Modal visible={!!detail} transparent animationType="fade" onRequestClose={() => setDetail(null)}>
         <View style={S.backdrop}>
           <View style={S.detailCard}>
-            <WashiArt />
+            <Image source={eventName ? EVENT_FEEL.detailBackground : GOSHUIN_DETAIL_BACKGROUND} contentFit="cover" style={StyleSheet.absoluteFillObject} accessible={false} pointerEvents="none" />
             <WashiPressable plate="round" accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => setDetail(null)} style={S.close}><Icon name="close" size={20} color="#7f302d" /></WashiPressable>
             {detail && <>
               <KeychainArtwork shrine={detail} locked={(special.keychains[detail.id] ?? 0) === 0} impulse={0} large />
@@ -258,6 +271,6 @@ const S = StyleSheet.create({
   roomLabel: { position: 'absolute', left: 4, right: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', zIndex: 2 }, roomNumber: { color: '#A63A2C', letterSpacing: 0.75, flexShrink: 0 }, roomName: { color: '#5A3426', fontFamily: BRUSH, flexShrink: 1, minWidth: 0 },
   keychainWrap: { position: 'absolute', alignSelf: 'center', width: 186, height: 255, zIndex: 1 }, detailKeychainWrap: { width: 260, height: 390, marginTop: 6 }, keychainButton: { flex: 1 }, keychain: { width: '100%', height: '100%', zIndex: 1 }, keychainSilhouette: { width: '100%', height: '100%', zIndex: 1, opacity: .5 }, stampSilhouette: { width: '100%', height: '100%', opacity: .5 }, keychainLocked: { opacity: .28 }, hookContactClip: { position: 'absolute', overflow: 'hidden', zIndex: 0 }, shrineCharm: { position: 'absolute', width: 46, height: 46, borderRadius: 23, left: 70, bottom: 49, borderWidth: 2, backgroundColor: '#fff9ed', overflow: 'hidden', padding: 4 }, shrineCharmLarge: { width: 62, height: 62, borderRadius: 31, left: 99, bottom: 73 }, shrineCharmImage: { width: '100%', height: '100%' }, lock: { position: 'absolute', right: 7, bottom: 28, width: 30, height: 30, borderRadius: 15, backgroundColor: '#6f5540cc', alignItems: 'center', justifyContent: 'center' }, quantity: { position: 'absolute', right: 5, bottom: 27, borderRadius: 12, backgroundColor: '#fff7e8e8', borderWidth: 1, borderColor: '#b38b58', paddingHorizontal: 7, paddingVertical: 4 }, quantityText: { color: '#70462f', fontFamily: SERIF, fontSize: 11 },
   stampStand: { position: 'absolute', bottom: 14, alignSelf: 'center', width: 96, height: 120, overflow: 'hidden' }, stamp: { width: '100%', height: '100%' }, sparkleGlow: { position: 'absolute', inset: -8, borderRadius: 18, backgroundColor: '#ffd87578', shadowColor: '#ffd15a', shadowOpacity: .8, shadowRadius: 14 }, sparkleSweep: { position: 'absolute', top: -12, bottom: -12, width: 23, backgroundColor: '#FFFDF2B8' }, sparkleBadge: { position: 'absolute', right: 0, top: 0, flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 12, backgroundColor: '#fff0bce8', borderWidth: 1, borderColor: '#d0a343', paddingHorizontal: 5, paddingVertical: 3 }, sparkleText: { color: '#7a531e', fontSize: 11, fontWeight: '700' },
-  backdrop: { flex: 1, backgroundColor: '#241b15b8', justifyContent: 'center', padding: 20 }, detailCard: { minHeight: 650, maxHeight: '92%', alignItems: 'center', padding: 24 }, close: { position: 'absolute', top: 14, right: 14, zIndex: 4, width: 42, height: 42, borderRadius: 21, backgroundColor: '#fffaf0e8', alignItems: 'center', justifyContent: 'center' },
+  backdrop: { flex: 1, backgroundColor: '#241b15b8', justifyContent: 'center', padding: 20 }, detailCard: { minHeight: 650, maxHeight: '92%', alignItems: 'center', padding: 24, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', backgroundColor: '#FFF8E7' }, close: { position: 'absolute', top: 14, right: 14, zIndex: 4, width: 42, height: 42, borderRadius: 21, backgroundColor: '#fffaf0e8', alignItems: 'center', justifyContent: 'center' },
   detailReading: { color: '#897866', fontSize: 12, letterSpacing: 2 }, detailName: { color: '#362b22', fontFamily: BRUSH, fontSize: 25, marginTop: 5 }, detailRoute: { color: '#6f6252', fontSize: 12, marginTop: 4 }, detailTheme: { color: '#8d3f39', fontFamily: BRUSH, fontSize: 14, marginTop: 10, textAlign: 'center' }, detailOwned: { color: '#685d4e', fontSize: 12, marginTop: 12, backgroundColor: '#fff8e4b8', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }, detailDate: { color: '#756958', fontSize: 12, marginTop: 8 }, returnButton: { marginTop: 20, minHeight: 46, paddingHorizontal: 30, borderRadius: 23, backgroundColor: '#9b443c', alignItems: 'center', justifyContent: 'center' }, returnText: { color: '#fffaf0', fontFamily: BRUSH, fontSize: 14, letterSpacing: 1 },
 });
