@@ -1,0 +1,53 @@
+{
+  "evs_cap": 12,
+  "type": 0,
+  "tags": [
+    "tree",
+    "forest",
+    "summer",
+    "rock",
+    "hill"
+  ],
+  "date_published": 1604012400,
+  "name": "Forest Slope",
+  "old_id": 503,
+  "categories": [
+    "outdoor",
+    "nature",
+    "morning-afternoon",
+    "low contrast",
+    "natural light"
+  ],
+  "date_taken": 1596954600,
+  "coords": [
+    50.851697,
+    14.039143
+  ],
+  "authors": {
+    "Andreas Mischok": "All"
+  },
+  "files_hash": "853e764efb5f26b9222f7355a0a9c640863a1174",
+  "max_resolution": [
+    19630,
+    9815
+  ],
+  "sponsors": [
+    "3237733",
+    "32966849"
+  ],
+  "description": "Free, unclipped 19K HDRI with soft morning summer light: low-contrast, dappled sunlight through tall pines over mossy rocks and a shaded forest slope.",
+  "category_id": "43dbb783-1b2e-521d-a21f-487248097504",
+  "category": "Forest & Woodland/Forest/Coniferous Forest",
+  "attributes": {
+    "time_of_day": "morning",
+    "weather": "clear",
+    "light_type": "natural",
+    "contrast": "low",
+    "season": "summer",
+    "environment": "outdoor",
+    "sky_view": "obstructed"
+  },
+  "img_version": "913d8ad9",
+  "download_count": 94788,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/forest_slope.png?width=256&height=256&format=webp&v=913d8ad9"
+}

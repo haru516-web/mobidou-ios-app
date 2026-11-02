@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-01",
+  "files": [
+    {
+      "name": "shrine-world-realistic.blend",
+      "bytes": 53165965,
+      "sha256": "521d14c896d91579fd59d7377dc34298afb85998e6135ba42d61495bd11798da"
+    },
+    {
+      "name": "shrine-world-realistic.glb",
+      "bytes": 24678332,
+      "sha256": "9603bb6e0fec2148b4964e856b407cc10b5d3d104a21b4946eee2c1e50130553"
+    },
+    {
+      "name": "shrine-world-realistic-preview.png",
+      "bytes": 1651841,
+      "sha256": "e7d39ce31dd528b974da96884978cd3f1489d3525922119bd075a991d0dc637e"
+    },
+    {
+      "name": "shrine-world-realistic-prayer-preview.png",
+      "bytes": 1739251,
+      "sha256": "5e8e83d4ced3fd426a336da6e238044bd549e1ce649ed814bee168b93a72f6a8"
+    }
+  ],
+  "preview": {
+    "width": 720,
+    "height": 1280,
+    "bitDepth": 8,
+    "colorType": 6
+  },
+  "glb": {
+    "nodes": 1,
+    "uniqueMeshes": 1,
+    "materials": 12,
+    "embeddedImages": 21,
+    "uniqueMeshTriangles": 308144,
+    "cameras": 0,
+    "hands": false
+  },
+  "validation": "Structural checks and offline render only; no app or device validation."
+}

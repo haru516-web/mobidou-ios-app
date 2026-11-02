@@ -19,6 +19,7 @@ import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 import { SHRINE_SAYINGS } from '../data/shrineSayings';
 import { VerticalSaying } from './VerticalSaying';
 import { PrayerControls } from './PrayerControls';
+import { FirstPersonPrayer } from './FirstPersonPrayer';
 import { pickLetterQuestion } from '../data/letterQuestions';
 import { addLetter, useLetters, LETTER_MAX_LENGTH, isValidAnswer, savePendingQuestion, clearPendingQuestion, loadPendingQuestion } from '../services/letters';
 
@@ -105,14 +106,6 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const revealHapticSent = useRef(false);
   const phase = useMemo(() => locate(frame), [frame]);
   useSceneBgm('bgm_walk_award', true, 40);
-  useEffect(() => {
-    if (phase.key === 'bowIn' || phase.key === 'bowOut') playSfx('sfx_bow');
-    if (phase.key === 'pray') duckBgm(4800);
-  }, [phase.key]);
-  useEffect(() => {
-    if (['approach', 'enter', 'return', 'leave'].includes(phase.key) && phase.local % 4 === 0) playSfx('sfx_award_footsteps');
-    if (phase.key === 'pray' && (phase.local === 19 || phase.local === 27)) playSfx('sfx_clap');
-  }, [phase.key, phase.local]);
   const prayer = PRAYER_ATLASES[pet.id];
   // The clear reward belongs to the first finish only; a later lap is just a visit.
   const complete = event ? event.complete && !goshuinOwned : !!route && stopIndex === route.ids.length - 1 && !goshuinOwned;
@@ -201,6 +194,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];
   if (!resumeChecked) return <SafeAreaView style={S.page} />;
+  if (frame < TOTAL_FRAMES) return <FirstPersonPrayer name={shrine.name} haptics={haptics} onComplete={() => setFrame(TOTAL_FRAMES)} />;
   // The keyboard lifts the whole page, so what is being typed and the button stay above it; the scaled content shrinks to the room left.
   return <SafeAreaView style={S.page}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}><FitToHeight key={showAward ? 'award-' + page : 'walk'} style={S.fit}><View style={S.content}>
     {page !== 'saying' && page !== 'question' && <Text style={S.eyebrow}>{event ? event.name : demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>}
@@ -296,4 +290,4 @@ const S = StyleSheet.create({
   miniatureScene: { width: '100%', maxWidth: 350, alignItems: 'center', gap: 10, paddingVertical: 8 }, miniatureImage: { width: 240, height: 240 },
   specialCard: { width: '100%', maxWidth: 350, paddingVertical: 12, paddingHorizontal: 18, overflow: 'hidden' }, specialEyebrow: { color: '#9a6851', fontFamily: SERIF, fontSize: 11, letterSpacing: 1.4, textAlign: 'center' }, specialTitle: { color: C.ink, fontFamily: BRUSH, fontSize: 15, letterSpacing: 1, marginTop: 4, marginBottom: 7, textAlign: 'center' }, specialRows: { gap: 7 }, specialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, specialLabel: { color: '#5f503e', fontFamily: SERIF, fontSize: 13, flex: 1 }, specialStatus: { color: '#8a7e6e', fontFamily: SERIF, fontSize: 13 }, specialWon: { color: '#a24c3e', fontFamily: SERIF }, specialWaiting: { color: '#806f5b', fontFamily: SERIF, fontSize: 12, lineHeight: 17, textAlign: 'center', paddingVertical: 5 }, specialInstruction: { color: '#6f5f4b', fontFamily: SERIF, fontSize: 12, lineHeight: 19, marginTop: 7, textAlign: 'center' }, passOwned: { color: '#776957', fontFamily: SERIF, fontSize: 11, lineHeight: 15, marginTop: 11, textAlign: 'center' }, exchangeActions: { gap: 7, marginTop: 10 }, specialButton: { minHeight: 42 }, noPass: { color: '#806f5b', fontSize: 11, lineHeight: 16, marginTop: 10, textAlign: 'center' }, purchaseActions: { gap: 6, marginTop: 8 }, purchaseButton: { minHeight: 40 }, fakePurchase: { color: '#998a76', fontSize: 11, textAlign: 'center', marginTop: 7 },
 });
-import { duckBgm, playJingle, playSfx, useSceneBgm } from '../services/audio';
+import { playJingle, playSfx, useSceneBgm } from '../services/audio';

@@ -1,0 +1,81 @@
+{
+  "tonemapped": {
+    "size": 15259265,
+    "md5": "e6fb0022bb9f216edc7b2dfb58f19f15",
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/forest_slope.jpg"
+  },
+  "hdri": {
+    "19k": {
+      "hdr": {
+        "size": 620976868,
+        "md5": "4b3c82114eb8110c95143de4a88f7d8e",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/16k%2B/forest_slope_19k.hdr"
+      },
+      "exr": {
+        "size": 623930622,
+        "md5": "6e2c947d81e2ebb022d64e631436e44c",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/16k%2B/forest_slope_19k.exr"
+      }
+    },
+    "8k": {
+      "hdr": {
+        "size": 115433421,
+        "md5": "cd13e905e8a4f3b65eb44589b45e9903",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/8k/forest_slope_8k.hdr"
+      },
+      "exr": {
+        "size": 119182477,
+        "md5": "fab6fdbb39ce747e1718c0bf12a63d80",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/8k/forest_slope_8k.exr"
+      }
+    },
+    "16k": {
+      "hdr": {
+        "size": 438731168,
+        "md5": "73582d184d5034508cb9f96aa65ea6a0",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/16k%2B/forest_slope_16k.hdr"
+      },
+      "exr": {
+        "size": 444021892,
+        "md5": "d4271ccb1f3b41d6ca2859d1ff69bb01",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/16k%2B/forest_slope_16k.exr"
+      }
+    },
+    "4k": {
+      "hdr": {
+        "size": 29764886,
+        "md5": "9418559aa2355e62621503115240efd4",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/forest_slope_4k.hdr"
+      },
+      "exr": {
+        "size": 30882783,
+        "md5": "0a9d1978e498c7420d5e1dabfb86d24c",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/4k/forest_slope_4k.exr"
+      }
+    },
+    "2k": {
+      "hdr": {
+        "size": 7562873,
+        "md5": "fa517358699ed72ba8bfc602f192ab5d",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/forest_slope_2k.hdr"
+      },
+      "exr": {
+        "size": 7860772,
+        "md5": "fd464f487a77fa474918cef4fbebcff5",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/2k/forest_slope_2k.exr"
+      }
+    },
+    "1k": {
+      "hdr": {
+        "size": 1911073,
+        "md5": "d7676fa11b7a6c4cc3333ac6505e08d2",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/forest_slope_1k.hdr"
+      },
+      "exr": {
+        "size": 1993076,
+        "md5": "bc9cabb4fcbdf336d0551ee19f7dbc45",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/forest_slope_1k.exr"
+      }
+    }
+  }
+}

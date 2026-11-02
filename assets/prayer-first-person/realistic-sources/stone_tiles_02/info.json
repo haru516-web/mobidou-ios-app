@@ -1,0 +1,52 @@
+{
+  "date_published": 1679788800,
+  "name": "Stone Tiles 02",
+  "categories": [
+    "floor",
+    "rock",
+    "outdoor",
+    "wall"
+  ],
+  "type": 1,
+  "staging": null,
+  "dimensions": [
+    2000,
+    2000
+  ],
+  "info": null,
+  "authors": {
+    "Charlotte Baglioni": "All"
+  },
+  "max_resolution": [
+    8192,
+    8192
+  ],
+  "tags": [
+    "uneven",
+    "rock",
+    "stones",
+    "stone",
+    "floor",
+    "tiles",
+    "rocks",
+    "slates"
+  ],
+  "sponsors": [
+    "4714267"
+  ],
+  "files_hash": "746cd3c7d37b94201ed0cb4e9a407e0c7b013caf",
+  "description": "Free 8K stone tile texture featuring uneven slate slabs, rough chiseled surfaces, defined grout joints and subtle weathering, with natural color variation.",
+  "category_id": "0dc6c67b-4dfa-5355-ad12-9918fc376459",
+  "category": "Stone/Slabs & Tiles/Slate",
+  "attributes": {
+    "surface_use": "floor",
+    "condition": [
+      "weathered"
+    ],
+    "origin": "man_made",
+    "setting": "outdoor"
+  },
+  "img_version": "fbbcd60a",
+  "download_count": 134180,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/stone_tiles_02.png?width=256&height=256&format=webp&v=fbbcd60a"
+}

@@ -36,7 +36,7 @@
           "motionPermission": "歩数に合わせて、もびの世界の御朱印を集めるために使用します。"
         }
       ],
-      "expo-asset",
+      ["expo-asset", { "assets": ["./assets/prayer-first-person/shrine-world-realistic.glb"] }],
       "expo-notifications",
       "expo-iap",
       "expo-apple-authentication",
