@@ -82,7 +82,7 @@ export function FirstPersonPrayer({ onComplete, haptics }: { onComplete: () => v
       setLook({ yaw: lookOrigin.current.yaw - g.dx * .012, pitch: Math.max(-1.25, Math.min(1.25, lookOrigin.current.pitch - g.dy * .008)) });
     },
     onPanResponderRelease: (_, g) => {
-      if (Math.hypot(g.dx, g.dy) < 8) { focusView(controls.current.returning ? Math.PI : 0); setFov(82); }
+      if (Math.hypot(g.dx, g.dy) < 8) { focusView(0); setFov(82); }
       else lookOrigin.current = lookCurrent.current;
       setLooking(false);
     },
@@ -122,9 +122,8 @@ export function FirstPersonPrayer({ onComplete, haptics }: { onComplete: () => v
   const advance = () => {
     stop(); moveStrength.current = 0; setStick({ x: 0, y: 0 });
     releaseAt.current = null; setLettingGo(false); time.current = 0; setElapsed(0); lastSound.current = -1;
-    if (index === 7 || index === 11) focusView(Math.PI);
-    else if (index === 9) focusView(0);
-    setIndex(i => { const next = i + 1; return next === 8 ? 9 : next === 10 ? 11 : next === 12 ? 13 : next; });
+    if (BEATS[index + 1]?.kind === 'turn') focusView(0);
+    setIndex(i => i + 1);
   };
   useEffect(() => {
     let alive = true;
@@ -135,6 +134,8 @@ export function FirstPersonPrayer({ onComplete, haptics }: { onComplete: () => v
     return () => { alive = false; motion.remove(); app.remove(); active.current = false; };
   }, []);
   useEffect(() => { if (!beat) finishRef.current(); }, [beat]);
+  // Turning around is part of the ritual: it plays on its own, slowly, instead of snapping.
+  useEffect(() => { if (beat?.kind === 'turn' && ready && !active.current) { active.current = true; setRunning(true); } }, [beat, ready]);
   useEffect(() => {
     if (!running || !beat) return;
     let previous = Date.now();
@@ -193,7 +194,7 @@ export function FirstPersonPrayer({ onComplete, haptics }: { onComplete: () => v
       <View accessible accessibilityRole="adjustable" accessibilityLabel="移動。丸を上に動かして歩く" style={[S.moveControl, (!ready || beat.kind !== 'walk') && { opacity: .3 }]} {...movement.panHandlers}>
         <View pointerEvents="none" style={[S.stick, { transform: [{ translateX: stick.x }, { translateY: stick.y }] }]} />
       </View>
-      {beat.kind !== 'walk' && <Pressable disabled={!ready || (running && beat.kind !== 'wish')} accessibilityRole="button" accessibilityLabel={beat.kind === 'wish' ? '二拍手目。1秒以上長押しで祈り、離して終える' : beat.label} onPressIn={() => { gesture.current = index; if (beat.kind === 'wish') start(); }} onPressOut={release} onPress={() => { if (gesture.current === index && beat.kind !== 'wish') start(); }} style={[S.ritual, !ready && { opacity: .3 }]}>
+      {beat.kind !== 'walk' && beat.kind !== 'turn' && <Pressable disabled={!ready || (running && beat.kind !== 'wish')} accessibilityRole="button" accessibilityLabel={beat.kind === 'wish' ? '二拍手目。1秒以上長押しで祈り、離して終える' : beat.label} onPressIn={() => { gesture.current = index; if (beat.kind === 'wish') start(); }} onPressOut={release} onPress={() => { if (gesture.current === index && beat.kind !== 'wish') start(); }} style={[S.ritual, !ready && { opacity: .3 }]}>
         {beat.kind === 'bow' ? <Svg width={38} height={38} viewBox="0 0 38 38"><Circle cx={27} cy={11} r={4} fill="none" stroke="#FFF6DF" strokeWidth={2} /><Path d="M9 31 L14 21 L18 14 L23 17 L29 22 M14 21 L21 25 L23 32" fill="none" stroke="#FFF6DF" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" /></Svg> : <Image source={CLAP[2]} resizeMode="contain" style={{ width: 56, height: 56 }} />}
         <View style={[S.progress, { width: `${p * 100}%` }]} />
       </Pressable>}

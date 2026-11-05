@@ -143,7 +143,11 @@ function ShrineScene({ index, progress, elapsed, walking, reducedMotion, onReady
     else if (index === 13) z = 6 + (15.6 - 6) * p;
     if (isWalk) z = prayerWalkZ(index, progress);
 
+    // Facing: toward the shrine on the way in; turning around is a slow, eased beat.
     let yaw = 0;
+    if (index === 8 || index === 12) yaw = Math.PI * ease(progress);
+    else if (index === 9 || index === 13) yaw = Math.PI;
+    else if (index === 10) yaw = Math.PI * (1 - ease(progress));
 
     const isBow = index === 1 || index === 3 || index === 4 || index === 7 || index === 11;
     const bowAmount = isBow ? Math.min(ease(progress / .36), ease((1 - progress) / .4)) : 0;
