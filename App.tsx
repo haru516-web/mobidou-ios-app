@@ -31,6 +31,7 @@ import { PILGRIMAGES, getNextPilgrimageId, getPilgrimage } from './src/data/pilg
 import { pilgrimageShrines, RouteMap } from './src/components/PilgrimageScreen';
 import { PillText, WashiArt, WashiPressable as Pressable } from './src/components/Washi';
 import { PilgrimageAward } from './src/components/PilgrimageAward';
+import { FreePrayer } from './src/components/FreePrayer';
 import { LetterQuestionFlow } from './src/components/LetterQuestionFlow';
 import { pickLetterQuestion } from './src/data/letterQuestions';
 import { loadQuestionQueue, saveQuestionQueue, useLetters, type QueuedQuestion } from './src/services/letters';
@@ -252,6 +253,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [openingVisible, setOpeningVisible] = useState(true);
   const [openingHomeReady, setOpeningHomeReady] = useState(false);
   const [gachaOpen, setGachaOpen] = useState(false);
+  const [freePrayerOpen, setFreePrayerOpen] = useState(false);
   const [gachaOnShop, setGachaOnShop] = useState(false);
   const appStore = useMemo(createAppStore, []);
   // Bought 木札 and any refund debt, as the server says.
@@ -1159,6 +1161,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
               </TutorialTarget>
             </TourAnchor>
           </>}
+        {firstRunStage === null && hasStarter(data.mobbies) && <View pointerEvents="box-none" style={[S.homeFreePrayerButton, { top: (homeCompanionLayout?.y ?? 80) + (homeCompanionLayout?.height ?? 220) * .38 }]}><PopButton id="freePrayer" label="参拝" icon="flower" size={58} phase={.1} onPress={() => setFreePrayerOpen(true)} /></View>}
         {firstRunStage === null && hasStarter(data.mobbies) && eventAvailable && <View pointerEvents="box-none" style={[S.homeEventButton, { top: (homeCompanionLayout?.y ?? 80) + (homeCompanionLayout?.height ?? 220) * .38 }]}><PopButton id="eventHome" label="イベント" icon="flag" size={58} phase={.3} onPress={() => setEventSheet('main')} /></View>}
         <View style={S.homeCardGroup} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeCardGroupLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>
           {firstRunStage !== 'homeOmikuji' && <TourAnchor id="home-steps" style={S.homeStepsSlot} onLayout={({ nativeEvent }) => { const { layout } = nativeEvent; setHomeStepsSlotLayout(previous => previous && previous.y === layout.y && previous.height === layout.height ? previous : layout); }}>{renderHomeStepsCard()}</TourAnchor>}
@@ -1444,6 +1447,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </View></View></View>}
     </Modal>
     <Modal visible={eventAwardVisible} animationType="fade" onRequestClose={() => {}}>{eventAwardVisible && eventAwardSpot && eventState && <PilgrimageAward key={`event-${eventAwardSpot.id}`} shrine={{ id: eventAwardSpot.id, name: eventAwardSpot.name, theme: `${eventAwardSpot.chapter} · ${eventAwardSpot.miniature}` }} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={false} haptics={data.haptics} stopIndex={eventTeam?.seen ?? 0} special={journey.special} event={{ name: TOKI_MEGURU.name, goshuinImage: EVENT_GOSHUIN_IMAGES[eventAwardSpot.id], keychainImage: EVENT_KEYCHAIN_IMAGES[eventAwardSpot.id], reached: (eventTeam?.seen ?? 0) + 1, total: TOKI_MEGURU.spots?.length ?? 0, complete: (eventTeam?.seen ?? 0) + 1 >= (TOKI_MEGURU.spots?.length ?? 0), reward: TOKI_MEGURU.reward }} onArrive={() => {}} onRedeemKeychainTicket={() => {}} onClose={() => eventTeamApi.acknowledgeSpot(TOKI_MEGURU.id)} />}</Modal>
+    <Modal visible={freePrayerOpen} animationType="fade" onRequestClose={() => setFreePrayerOpen(false)}>{freePrayerOpen && <FreePrayer haptics={data.haptics} onClose={() => setFreePrayerOpen(false)} />}</Modal>
     <Modal visible={awardVisible} animationType="fade" onRequestClose={() => {}}>{awardVisible && pending && <PilgrimageAward key={`${data.demo}-${progress.routeId}-${progress.pending[0]}`} shrine={pending} pet={pet} walkSource={PILGRIMAGE_WALK_ATLASES[pet.id]} demo={data.demo} haptics={data.haptics} route={activeRoute} stopIndex={pendingIndex} special={journey.special} goshuinOwned={pendingGoshuinOwned} onArrive={journey.rollKeychain} onRedeemKeychainTicket={journey.redeemKeychainTicket} remaining={progress.pending.length} onSkipAll={skipAllArrivals} onClose={() => { noteAward(pendingIndex >= 0 && pendingIndex === (activeRoute?.ids.length ?? 0) - 1); const index = progress.lapBase !== undefined ? Math.max(0, pendingIndex) : Math.max(0, collected.length - progress.pending.length); const firstGoshuinEver = !data.demo && collectionRewardIds.length <= 1 && progress.lapBase === undefined; journey.acknowledge(); setFeatured(index); move('home'); if (firstGoshuinEver) setHomePopup('goshuinPick'); }} />}</Modal>
     <Modal visible={lettersVisible} animationType="fade" onRequestClose={() => {}}>{!!letterQueue?.length && <LetterQuestionFlow items={letterQueue} onDone={() => {
       setLetterQueue(null);
@@ -1509,6 +1513,7 @@ const S = StyleSheet.create({
   tourPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   collectionModes: { position: 'absolute', left: 0, right: 0, top: 0, height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   homeEventButton: { position: 'absolute', left: 10, zIndex: 25 },
+  homeFreePrayerButton: { position: 'absolute', right: 10, zIndex: 25 },
   bookEventSlot: { marginRight: 'auto' },
   walkMinimal: { flex: 1, alignItems: 'center', paddingTop: 2, paddingBottom: 6 },
   detailContent: { padding: 25, paddingTop: 70, paddingBottom: 45 }, detailReading: { textAlign: 'center', color: C.muted, fontSize: 12, letterSpacing: 2 }, detailName: { textAlign: 'center', fontFamily: BRUSH, fontSize: 31, color: C.ink, marginTop: 8 }, detailTheme: { fontFamily: BRUSH, fontSize: 19, color: C.red, textAlign: 'center' }, detailSaying: { fontFamily: BRUSH, fontSize: 16, color: C.red, textAlign: 'center', marginTop: 12 }, detailDescription: { fontFamily: SERIF, fontSize: 14, lineHeight: 26, color: '#6D6354', textAlign: 'center', marginTop: 8 },   detailModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#241D17A8' }, detailPopupLayout: { ...StyleSheet.absoluteFillObject, zIndex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 }, detailPopupCard: { position: 'relative', width: '90%', maxWidth: 500, height: '88%', maxHeight: 820, borderRadius: 18, borderWidth: 1, borderColor: '#E3D6C1', overflow: 'hidden', backgroundColor: C.paper, shadowColor: '#201810', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .3, shadowRadius: 22, elevation: 16 }, detailPopupScroll: { flex: 1 }, detailPopupContent: { paddingHorizontal: 22, paddingTop: 52, paddingBottom: 18 }, detailPopupEdit: { position: 'absolute', top: 12, left: 12, zIndex: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' },

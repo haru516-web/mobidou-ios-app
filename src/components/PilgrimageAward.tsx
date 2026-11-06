@@ -194,7 +194,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     { id: 'hakushu', source: prayer?.hakushu, frame: prayerFrame % 8, visible: !walking && action === 'hakushu' },
   ];
   if (!resumeChecked) return <SafeAreaView style={S.page} />;
-  if (frame < TOTAL_FRAMES) return <FirstPersonPrayer name={shrine.name} haptics={haptics} onComplete={() => setFrame(TOTAL_FRAMES)} />;
+  if (frame < TOTAL_FRAMES) return <FirstPersonPrayer name={shrine.name} shrineId={shrine.id} haptics={haptics} onComplete={() => setFrame(TOTAL_FRAMES)} />;
   // The keyboard lifts the whole page, so what is being typed and the button stay above it; the scaled content shrinks to the room left.
   return <SafeAreaView style={S.page}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}><FitToHeight key={showAward ? 'award-' + page : 'walk'} style={S.fit}><View style={S.content}>
     {page !== 'saying' && page !== 'question' && <Text style={S.eyebrow}>{event ? event.name : demo ? '体験の巡礼' : route?.name ?? '今日の巡礼'}</Text>}

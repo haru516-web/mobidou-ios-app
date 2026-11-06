@@ -1,3 +1,4 @@
+import { prayerWorldFor } from '../data/prayerWorlds';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, AppState, Image, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +12,7 @@ import { Prayer3DWorld } from './Prayer3DWorld';
 import { prayerWalkRate } from '../data/prayerNavigation';
 
 const ASSETS = [...ARM, ...CLAP];
-function FrameBlend({ frames, frame, style }: { frames: number[]; frame: number; style: import('react-native').StyleProp<import('react-native').ViewStyle> }) {
+export function FrameBlend({ frames, frame, style }: { frames: number[]; frame: number; style: import('react-native').StyleProp<import('react-native').ViewStyle> }) {
   const at = Math.max(0, Math.min(frames.length - 1, frame));
   const low = Math.floor(at), high = Math.min(frames.length - 1, low + 1), fraction = at - low;
   return <View style={style}>
@@ -35,12 +36,10 @@ const BEATS: Beat[] = [
   { label: '鳥居へ歩いて戻る', kind: 'walk', ms: 5800, scene: 3, zoom: 1.08 },
   { label: 'お社を振り返る', kind: 'turn', ms: 2800, scene: 3, zoom: 1.32 },
   { label: 'お社へ最後の一礼', kind: 'bow', ms: 2000, scene: 0, zoom: 1.08 },
-  { label: '帰り道へ向き直る', kind: 'turn', ms: 2800, scene: 0, zoom: 1.08 },
-  { label: '参道を歩いて帰る', kind: 'walk', ms: 3480, scene: 3, zoom: 1.32 },
 ];
 
 /** All time is accumulated only while active; a wish ends on release, never on a deadline. */
-export function FirstPersonPrayer({ onComplete, haptics }: { onComplete: () => void; haptics: boolean; name: string }) {
+export function FirstPersonPrayer({ onComplete, haptics, shrineId }: { onComplete: () => void; haptics: boolean; name: string; shrineId?: string }) {
   const [index, setIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
@@ -178,7 +177,7 @@ export function FirstPersonPrayer({ onComplete, haptics }: { onComplete: () => v
   const bodyWidth = Math.min(size.width * 1.18, size.height * .8);
   return <View style={S.root} {...zoomGesture.panHandlers} onLayout={e => setSize(e.nativeEvent.layout)}>
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Prayer3DWorld index={index} progress={p} elapsed={elapsed} walking={beat.kind === 'walk' && running} look={look} fov={fov} reducedMotion={reduced} onReady={onWorldReady} onError={onWorldError} />
+      <Prayer3DWorld variant={prayerWorldFor(shrineId)} index={index} progress={p} elapsed={elapsed} walking={beat.kind === 'walk' && running} look={look} fov={fov} reducedMotion={reduced} onReady={onWorldReady} onError={onWorldError} />
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}><Defs><LinearGradient id="prayerShade" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#102018" stopOpacity=".16" /><Stop offset=".22" stopColor="#102018" stopOpacity="0" /><Stop offset=".65" stopColor="#102018" stopOpacity="0" /><Stop offset="1" stopColor="#102018" stopOpacity=".3" /></LinearGradient></Defs><Rect width="100%" height="100%" fill="url(#prayerShade)" /></Svg>
       {beat.kind === 'walk' && running && [0, 1].map(side => {
         const arm = armPose(elapsed, side);

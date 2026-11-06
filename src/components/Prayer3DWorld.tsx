@@ -10,26 +10,84 @@ import { TextureLoader } from 'three';
 import { ease } from '../data/prayerFirstPersonMotion';
 import { PrayerTrees } from './PrayerTrees';
 import { PrayerTorii } from './PrayerTorii';
+import { KannonWorld } from './KannonScene';
 import { prayerWalkZ, smoothViewAngle } from '../data/prayerNavigation';
 
 const WORLD = require('../../assets/prayer-first-person/shrine-world-realistic.glb');
 const SKY = require('../../assets/prayer-first-person/shrine-sky.jpg');
 const WORLD_URI = Asset.fromModule(WORLD).uri;
+const KANNON_URI = Asset.fromModule(require('../../assets/prayer-first-person/kannon-temple-world.glb')).uri;
 const SKY_URI = Asset.fromModule(SKY).uri;
 const FOREST_URI = Asset.fromModule(require('../../assets/prayer-first-person/shrine-forest-panorama-v1.png')).uri;
 
+/** Camera pose of the free-roam prayer, written by the game loop and read every frame (no React re-render per step). */
+export type FreePose = { x: number; z: number; yaw: number; pitch: number; lift: number; bow: number; bob: number };
+
 export type PrayerWorldProps = {
+  /** Free-roam: the camera follows this pose instead of the scripted prayer path. */
+  free?: React.MutableRefObject<FreePose>;
   index: number;
   progress: number;
   elapsed: number;
   walking: boolean;
   look?: { yaw: number; pitch: number };
   fov?: number;
+  variant?: 'forest' | 'kannon';
   reducedMotion: boolean;
   onReady: () => void;
   onError: () => void;
   style?: StyleProp<ViewStyle>;
 };
+
+/** Walks, bows and turns the camera along the prayer path; shared by every prayer world. */
+function PrayerCameraRig({ index, progress, elapsed, walking, reducedMotion, look, fov = 82, free }: Pick<PrayerWorldProps, 'index' | 'progress' | 'elapsed' | 'walking' | 'reducedMotion' | 'look' | 'fov' | 'free'>) {
+  const { camera } = useThree();
+  useFrame((_, delta) => {
+    if (free) {
+      const f = free.current;
+      if ('fov' in camera && camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
+      camera.position.set(f.x - Math.sin(f.yaw) * f.bow * .16, .72 + f.lift + f.bob - f.bow * .13, f.z - Math.cos(f.yaw) * f.bow * .16);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.set(Math.max(-1.35, Math.min(1.25, f.pitch - f.bow * .78)), f.yaw, 0);
+      return;
+    }
+    if ('fov' in camera && camera.fov !== fov) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+    const isWalk = index === 0 || index === 2 || index === 9 || index === 13;
+    const p = isWalk ? progress : ease(progress);
+    let z = -2.5;
+    if (index === 0) z = 15.6 + (6 - 15.6) * p;
+    else if (index === 1) z = 6;
+    else if (index === 2) z = 6 + (-2.5 - 6) * p;
+    else if (index >= 9 && index <= 10) z = -2.5 + (6 + 2.5) * (index === 9 ? progress : 1);
+    else if (index >= 11 && index <= 12) z = 6;
+    else if (index === 13) z = 6 + (15.6 - 6) * p;
+    if (isWalk) z = prayerWalkZ(index, progress);
+
+    // Facing: toward the shrine on the way in; turning around is a slow, eased beat.
+    let yaw = 0;
+    if (index === 8 || index === 12) yaw = Math.PI * ease(progress);
+    else if (index === 9 || index === 13) yaw = Math.PI;
+    else if (index === 10) yaw = Math.PI * (1 - ease(progress));
+
+    const isBow = index === 1 || index === 3 || index === 4 || index === 7 || index === 11;
+    const bowAmount = isBow ? Math.min(ease(progress / .36), ease((1 - progress) / .4)) : 0;
+    const bow = bowAmount * (reducedMotion ? .25 : .78);
+    const bob = walking && !reducedMotion ? Math.sin((elapsed / 1160) * Math.PI * 2) * 0.035 : 0;
+    const lean = bowAmount * (reducedMotion ? .035 : .16);
+    const direction = yaw + (look?.yaw ?? 0);
+    camera.position.set(-Math.sin(direction) * lean, 0.72 + bob * 0.5 - bowAmount * (reducedMotion ? .025 : .13), z - Math.cos(direction) * lean);
+    camera.rotation.order = 'YXZ';
+    const pitch = Math.max(-1.35, Math.min(1.25, -0.035 - bow + (look?.pitch ?? 0) * (1 - bowAmount * .65)));
+    const viewYaw = reducedMotion ? direction : smoothViewAngle(camera.rotation.y, direction, delta);
+    const viewPitch = reducedMotion ? pitch : smoothViewAngle(camera.rotation.x, pitch, delta);
+    camera.rotation.set(viewPitch, viewYaw, 0);
+  });
+
+  return null;
+}
 
 function ShrineScene({ index, progress, elapsed, walking, reducedMotion, onReady, look, fov = 82 }: Omit<PrayerWorldProps, 'onError' | 'style'>) {
   const gltf = useLoader(GLTFLoader, WORLD_URI);
@@ -107,7 +165,7 @@ function ShrineScene({ index, progress, elapsed, walking, reducedMotion, onReady
     });
     return () => { model.traverse((object: any) => { if (object.isMesh) (Array.isArray(object.material) ? object.material : [object.material]).forEach((m: any) => m.dispose()); }); };
   }, [model]);
-  const { camera, scene, gl } = useThree();
+  const { scene, gl } = useThree();
 
   useEffect(() => {
     sky.mapping = EquirectangularReflectionMapping;
@@ -127,43 +185,8 @@ function ShrineScene({ index, progress, elapsed, walking, reducedMotion, onReady
     onReady();
   }, [gltf, sky, forest, scene, gl, onReady]);
 
-  useFrame((_, delta) => {
-    if ('fov' in camera && camera.fov !== fov) {
-      camera.fov = fov;
-      camera.updateProjectionMatrix();
-    }
-    const isWalk = index === 0 || index === 2 || index === 9 || index === 13;
-    const p = isWalk ? progress : ease(progress);
-    let z = -2.5;
-    if (index === 0) z = 15.6 + (6 - 15.6) * p;
-    else if (index === 1) z = 6;
-    else if (index === 2) z = 6 + (-2.5 - 6) * p;
-    else if (index >= 9 && index <= 10) z = -2.5 + (6 + 2.5) * (index === 9 ? progress : 1);
-    else if (index >= 11 && index <= 12) z = 6;
-    else if (index === 13) z = 6 + (15.6 - 6) * p;
-    if (isWalk) z = prayerWalkZ(index, progress);
-
-    // Facing: toward the shrine on the way in; turning around is a slow, eased beat.
-    let yaw = 0;
-    if (index === 8 || index === 12) yaw = Math.PI * ease(progress);
-    else if (index === 9 || index === 13) yaw = Math.PI;
-    else if (index === 10) yaw = Math.PI * (1 - ease(progress));
-
-    const isBow = index === 1 || index === 3 || index === 4 || index === 7 || index === 11;
-    const bowAmount = isBow ? Math.min(ease(progress / .36), ease((1 - progress) / .4)) : 0;
-    const bow = bowAmount * (reducedMotion ? .25 : .78);
-    const bob = walking && !reducedMotion ? Math.sin((elapsed / 1160) * Math.PI * 2) * 0.035 : 0;
-    const lean = bowAmount * (reducedMotion ? .035 : .16);
-    const direction = yaw + (look?.yaw ?? 0);
-    camera.position.set(-Math.sin(direction) * lean, 0.72 + bob * 0.5 - bowAmount * (reducedMotion ? .025 : .13), z - Math.cos(direction) * lean);
-    camera.rotation.order = 'YXZ';
-    const pitch = Math.max(-1.35, Math.min(1.25, -0.035 - bow + (look?.pitch ?? 0) * (1 - bowAmount * .65)));
-    const viewYaw = reducedMotion ? direction : smoothViewAngle(camera.rotation.y, direction, delta);
-    const viewPitch = reducedMotion ? pitch : smoothViewAngle(camera.rotation.x, pitch, delta);
-    camera.rotation.set(viewPitch, viewYaw, 0);
-  });
-
   return <>
+    <PrayerCameraRig index={index} progress={progress} elapsed={elapsed} walking={walking} look={look} fov={fov} reducedMotion={reducedMotion} />
     <ambientLight intensity={1.1} />
     <hemisphereLight color="#edf3df" groundColor="#82775b" intensity={1.6} />
     <directionalLight position={[-5, 9, 5]} color="#ffe3be" intensity={2.1} />
@@ -204,7 +227,7 @@ class WorldLoadBoundary extends React.Component<{
 }
 
 export function Prayer3DWorld(props: PrayerWorldProps) {
-  const { style, onError, ...sceneProps } = props;
+  const { style, onError, variant, ...sceneProps } = props;
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
     <Canvas
       camera={{ position: [0, 0.72, 15.6], fov: 82, near: 0.05, far: 120 }}
@@ -214,7 +237,7 @@ export function Prayer3DWorld(props: PrayerWorldProps) {
       fallback={<View style={S.fallback} />}
     >
       <Suspense fallback={null}>
-        <WorldLoadBoundary onError={onError}><ShrineScene {...sceneProps} /></WorldLoadBoundary>
+        <WorldLoadBoundary onError={onError}>{variant === 'kannon' ? <><PrayerCameraRig {...sceneProps} /><KannonWorld uri={KANNON_URI} onReady={sceneProps.onReady} reducedMotion={sceneProps.reducedMotion} /></> : <ShrineScene {...sceneProps} />}</WorldLoadBoundary>
       </Suspense>
     </Canvas>
   </View>;
