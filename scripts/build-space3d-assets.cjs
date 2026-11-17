@@ -50,7 +50,8 @@ const backdropFiles = [...read('src/components/collectionSpaceBackdrop.ts').matc
 const hasAlpha = file => /yuva|rgba|bgra|argb|abgr|gbra|ya8|ya16/.test(execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=pix_fmt', '-of', 'default=nw=1:nk=1', file]).toString());
 function convert(source, name, width, alpha) {
   const target = path.join(OUT_DIR, name + (alpha ? '.png' : '.jpg'));
-  const stale = !fs.existsSync(target) || fs.statSync(target).mtimeMs < fs.statSync(source).mtimeMs;
+  // A fresh checkout gives every file the same time of day, so file times only tell us anything when we are about to rewrite; --check just needs the copy to exist.
+  const stale = !fs.existsSync(target) || (!check && fs.statSync(target).mtimeMs < fs.statSync(source).mtimeMs);
   if (stale) {
     if (check) throw new Error(`out of date: ${path.relative(ROOT, target)}`);
     execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', source, '-vf', `scale=${width}:-2`, ...(alpha ? [] : ['-q:v', '4']), target]);
@@ -83,7 +84,7 @@ lines.push('];', '');
 
 const text = lines.join('\n');
 if (check) {
-  if (!fs.existsSync(INDEX) || fs.readFileSync(INDEX, 'utf8') !== text) throw new Error(`out of date: ${path.relative(ROOT, INDEX)}`);
+  if (!fs.existsSync(INDEX) || fs.readFileSync(INDEX, 'utf8').replace(/\r\n/g, '\n') !== text) throw new Error(`out of date: ${path.relative(ROOT, INDEX)}`);
   console.log('space3d assets are up to date');
 } else {
   fs.writeFileSync(INDEX, text);

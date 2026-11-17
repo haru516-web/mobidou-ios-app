@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image as RNImage, PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Image as RNImage, PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { duckBgm, playJingle, playSfx, useSceneBgm } from '../services/audio';
@@ -57,12 +57,18 @@ function GachaDetail({ onClose, freePulls, premiumPulls, pool, how }: { onClose:
 /** Three chevrons that keep moving in one direction, to show which way to pull. */
 function MotionArrow({ direction, size = 44 }: { direction: 'up' | 'down'; size?: number }) {
   const t = useRef(new Animated.Value(0)).current;
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => { void AccessibilityInfo.isReduceMotionEnabled().then(setReduced).catch(() => {}); const s = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced); return () => s.remove(); }, []);
   useEffect(() => {
+    if (reduced) return;
     const loop = Animated.loop(Animated.timing(t, { toValue: 1, duration: 1100, easing: Easing.linear, useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
-  }, [t]);
+  }, [t, reduced]);
   const sign = direction === 'down' ? 1 : -1;
+  if (reduced) return <View pointerEvents="none" accessible={false} style={{ alignItems: 'center', height: size * 2.2, justifyContent: 'center' }}>
+    <RNImage accessible={false} source={GACHA_STAGE_ART.guideArrow} resizeMode="contain" style={{ width: size * 2, height: size * 2, transform: [{ rotate: direction === 'down' ? '0deg' : '180deg' }] }} />
+  </View>;
   return <View pointerEvents="none" accessible={false} style={{ alignItems: 'center', height: size * 2.2, justifyContent: 'center' }}>
     {[0, 1, 2].map(index => {
       const phase = Animated.modulo(Animated.add(t, index / 3), 1);
