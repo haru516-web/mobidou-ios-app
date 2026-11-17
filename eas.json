@@ -5,13 +5,16 @@
       "distribution": "internal",
       "env": {
         "APP_VARIANT": "development"
-      }
+      },
+      "node": "24.11.0"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "24.11.0"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "node": "24.11.0"
     }
   },
   "cli": {
