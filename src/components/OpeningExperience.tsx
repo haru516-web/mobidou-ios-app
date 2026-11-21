@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playSfx, useSceneBgm, unlockAudio } from '../services/audio';
-import { Animated, Easing, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
+import { Animated, Dimensions, Easing, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from './AppImage';
 import { CroppedArt } from './CroppedArt';
@@ -48,7 +48,8 @@ function OpeningScene({ scene, width, frameIndex, progress }: { scene: (typeof O
 /** `quick` is for people who have used the app before: the title plays by itself and finishes in about a second. */
 export function OpeningExperience({ onEnter, error, quick = false }: { onEnter: () => void; error?: string | null; quick?: boolean }) {
   useSceneBgm('bgm_opening', true, 50);
-  const [width, setWidth] = useState(0);
+  // Start from the window width so a tap works even before (or without) a layout event.
+  const [width, setWidth] = useState(() => Math.round(Dimensions.get('window').width) || 0);
   const [, setIndex] = useState(0);
   const indexRef = useRef(0);
   const frameProgress = useRef(new Animated.Value(0)).current;
@@ -99,7 +100,8 @@ export function OpeningExperience({ onEnter, error, quick = false }: { onEnter: 
     autoAnimationRef.current = animation;
     animation.start(({ finished }) => {
       autoAnimationRef.current = null;
-      if (!finished) return;
+      // Interrupted: still finish rather than leave the opening stuck with taps ignored.
+      if (!finished) { autoRunningRef.current = false; }
       indexRef.current = finalIndex;
       setIndex(finalIndex);
       complete();

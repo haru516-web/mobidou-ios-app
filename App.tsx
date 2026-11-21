@@ -540,6 +540,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const omikujiDay = localOmikujiDay();
   // A failed storage read makes saving a no-op; the guide's own draw is also kept in memory so it can always finish.
   const [guideDrawn, setGuideDrawn] = useState(false);
+  const [mobbyGuidePos, setMobbyGuidePos] = useState<{ x: number; y: number; size: number } | null>(null);
+  const handleMobbyPosition = useCallback((point: { x: number; y: number }, size: number) => setMobbyGuidePos(previous => previous && previous.x === point.x && previous.y === point.y && previous.size === size ? previous : { x: point.x, y: point.y, size }), []);
   const omikujiDrawn = onboardingPreview ? tutorialPreviewDrawn : data.omikujiDay === omikujiDay || (firstRunStage === 'drawOmikuji' && guideDrawn);
   // The morning omikuji reminder: planned again when the app opens or comes back, without today's once it is drawn.
   const omikujiReminder = useOmikujiReminder();
@@ -1282,9 +1284,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {/* Keep the floating Mobby mounted through the fortune-card step so closing its menu cannot cancel an active drag. */}
     {(firstRunStage === null || firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag' || firstRunStage === 'homeOmikuji') && !homePopup && <>
       {(firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag') && <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <TutorialTarget key={firstRunStage} active onRectChange={setTutorialRect} style={{ position: 'absolute', right: 8, top: mobbySpot.offset, width: 88, height: 88 }}><View style={StyleSheet.absoluteFill} /></TutorialTarget>
+        <TutorialTarget key={firstRunStage} active onRectChange={setTutorialRect} style={mobbyGuidePos ? { position: 'absolute', left: mobbyGuidePos.x, top: mobbyGuidePos.y, width: mobbyGuidePos.size, height: mobbyGuidePos.size } : { position: 'absolute', right: 8, top: mobbySpot.offset, width: 88, height: 88 }}><View style={StyleSheet.absoluteFill} /></TutorialTarget>
       </View>}
-      <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} items={mobbyMenu} badge={unreadNotices + giftsWaiting} open={mobbyMenuOpen} onOpenChange={handleMobbyOpenChange} bottomInset={navHeight} spotKey={mobbySpotKey} spot={mobbySpot} resetPositionOnMount={onboardingPreview} dragLocked={firstRunStage === 'floatingMenu'} />
+      <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} items={mobbyMenu} badge={unreadNotices + giftsWaiting} open={mobbyMenuOpen} onOpenChange={handleMobbyOpenChange} bottomInset={navHeight} spotKey={mobbySpotKey} spot={mobbySpot} resetPositionOnMount={onboardingPreview} dragLocked={firstRunStage === 'floatingMenu'} onPositionChange={handleMobbyPosition} />
     </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
