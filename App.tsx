@@ -538,7 +538,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const nextRoutePeekHeight = nextRoutePeekMetric.height * nextRoutePeekScale;
   const nextRoutePeekBottom = nextRoutePeekMetric.bottom * nextRoutePeekHeight;
   const omikujiDay = localOmikujiDay();
-  const omikujiDrawn = onboardingPreview ? tutorialPreviewDrawn : data.omikujiDay === omikujiDay;
+  // A failed storage read makes saving a no-op; the guide's own draw is also kept in memory so it can always finish.
+  const [guideDrawn, setGuideDrawn] = useState(false);
+  const omikujiDrawn = onboardingPreview ? tutorialPreviewDrawn : data.omikujiDay === omikujiDay || (firstRunStage === 'drawOmikuji' && guideDrawn);
   // The morning omikuji reminder: planned again when the app opens or comes back, without today's once it is drawn.
   const omikujiReminder = useOmikujiReminder();
   useEffect(() => {
@@ -690,6 +692,8 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // Fail-safe: if a guided step gets no response (a missed target, a slow asset, an unusual device), it moves on by itself so the first run can never dead-end.
   useEffect(() => {
     if (firstRunStage !== 'homeCompanion' && firstRunStage !== 'floatingMenu' && firstRunStage !== 'floatingDrag' && firstRunStage !== 'homeOmikuji') return undefined;
+    // Not while a screen opened from the menu is covering the guide: it would stack the next step on top of it.
+    if (homePopup || settings || detail || socialSheet || omikujiModal || gachaOpen) return undefined;
     const stage = firstRunStage;
     const timer = setTimeout(() => {
       setTutorialRect(null);
@@ -699,7 +703,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       else { setFirstRunStage('drawOmikuji'); setOmikujiModal(true); }
     }, 15000);
     return () => clearTimeout(timer);
-  }, [firstRunStage]);
+  }, [firstRunStage, homePopup, settings, detail, socialSheet, omikujiModal, gachaOpen]);
   const continueIntoApp = (firstRun: boolean) => {
     if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current);
     move('home');
@@ -1302,7 +1306,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           <View style={S.omikujiModalCard}>
             <Image source={!omikujiDrawn || omikujiAnimating ? OMIKUJI_ANIMATION_BACKGROUND : OMIKUJI_RESULT_BACKGROUND} contentFit="cover" style={[S.omikujiModalBackground, { opacity: !omikujiDrawn || omikujiAnimating ? 0.84 : 0.68 }]} accessible={false} />
             {!isFirstRunOmikuji && <View style={S.omikujiCardClose}><Close onPress={closeOmikuji} /></View>}
-            <OmikujiExperience pet={pet} fortune={dailyFortune} drawn={omikujiDrawn} visible={omikujiModal} onDraw={() => onboardingPreview ? setTutorialPreviewDrawn(true) : journey.drawDailyOmikuji()} onReset={() => onboardingPreview ? setTutorialPreviewDrawn(false) : journey.resetDailyOmikuji()} onAnimationStateChange={setOmikujiAnimating} guidedDraw={firstRunStage === 'drawOmikuji'} onGuidedTargetRectChange={setTutorialRect} />
+            <OmikujiExperience pet={pet} fortune={dailyFortune} drawn={omikujiDrawn} visible={omikujiModal} onDraw={() => { if (firstRunStage === 'drawOmikuji') setGuideDrawn(true); if (onboardingPreview) setTutorialPreviewDrawn(true); else journey.drawDailyOmikuji(); }} onReset={() => onboardingPreview ? setTutorialPreviewDrawn(false) : journey.resetDailyOmikuji()} onAnimationStateChange={setOmikujiAnimating} guidedDraw={firstRunStage === 'drawOmikuji'} onGuidedTargetRectChange={setTutorialRect} />
             {firstRunOmikujiComplete && <Button title="ホームへ進む" onPress={closeOmikuji} style={{ width: '90%', maxWidth: 330, alignSelf: 'center', marginTop: 8 }} />}
           </View>
         </View></FitToHeight>
