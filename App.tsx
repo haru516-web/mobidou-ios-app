@@ -687,6 +687,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       setFirstRunStage('homeOmikuji');
     }
   };
+  // Fail-safe: if a guided step gets no response (a missed target, a slow asset, an unusual device), it moves on by itself so the first run can never dead-end.
+  useEffect(() => {
+    if (firstRunStage !== 'homeCompanion' && firstRunStage !== 'floatingMenu' && firstRunStage !== 'floatingDrag' && firstRunStage !== 'homeOmikuji') return undefined;
+    const stage = firstRunStage;
+    const timer = setTimeout(() => {
+      setTutorialRect(null);
+      if (stage === 'homeCompanion') setFirstRunStage('floatingMenu');
+      else if (stage === 'floatingMenu') { setMobbyMenuOpen(true); setFirstRunStage('floatingDrag'); }
+      else if (stage === 'floatingDrag') { setMobbyMenuOpen(false); setFirstRunStage('homeOmikuji'); }
+      else { setFirstRunStage('drawOmikuji'); setOmikujiModal(true); }
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [firstRunStage]);
   const continueIntoApp = (firstRun: boolean) => {
     if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current);
     move('home');
