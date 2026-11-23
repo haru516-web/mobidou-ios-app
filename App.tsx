@@ -14,6 +14,8 @@ import { getPetCharacter, isPetId, PET_CHARACTERS, type PetId } from './src/petC
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView, localDay } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
+import * as StoreReview from 'expo-store-review';
+import { REVIEW_PROMPT_KEY, parseReviewState, shouldAskForReview, withReviewAsked, withReviewDay } from './src/services/reviewPrompt';
 import { syncWidget } from './src/services/widgetSync';
 import { hasStarter, ownsMobby, ticketCount } from './src/services/gacha';
 import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
@@ -994,6 +996,32 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       setOmikujiModal(true);
     }).catch(() => undefined);
   }, [tab, openingHomeReady, openingVisible, journey.ready, progress.routeId, omikujiDrawn, omikujiDay, firstRunStage, data.onboarded]);
+  // The App Store rating invitation: once the player has opened the app on a few different days, and only while the home is quiet
+  // (no guide, sheet, award or popup on top). One calm dialog; "あとで" is always allowed, and it is asked rarely.
+  const reviewQuiet = tab === 'home' && openingHomeReady && !openingVisible && journey.ready && data.onboarded && firstRunStage === null && !data.demo && !settings && !detail && !overlayBusy && !homePopup && !omikujiModal && eventSheet === null && !eventSettling && !eventPopupOpen && !gachaOpen && !eventGachaOpen && !socialSheet && !arrivalSummary && !lettersOpen && !pending;
+  const reviewAsking = useRef(false);
+  useEffect(() => {
+    // Dev only, web: ?review-preview=1 shows the invitation (with the browser's own dialog) so it can be seen without an iPhone.
+    const reviewPreview = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('review-preview');
+    if (reviewPreview && reviewQuiet && !reviewAsking.current) { reviewAsking.current = true; const t = setTimeout(() => { window.confirm('もび道を楽しんでいますか？ App Storeで評価をいただけると、とても励みになります。（OK＝評価する／キャンセル＝あとで）'); }, 3000); return () => clearTimeout(t); }
+    if (Platform.OS !== 'ios' || !reviewQuiet || reviewAsking.current) return undefined;
+    const timer = setTimeout(() => {
+      const now = new Date();
+      const day = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+      void AsyncStorage.getItem(REVIEW_PROMPT_KEY).then(raw => {
+        const state = withReviewDay(parseReviewState(raw), day);
+        const ask = shouldAskForReview(state, now.getTime());
+        void AsyncStorage.setItem(REVIEW_PROMPT_KEY, JSON.stringify(ask ? withReviewAsked(state, now.getTime()) : state)).catch(() => undefined);
+        if (!ask || reviewAsking.current) return;
+        reviewAsking.current = true;
+        Alert.alert('もび道を楽しんでいますか？', 'App Storeで評価をいただけると、とても励みになります。', [
+          { text: 'あとで', style: 'cancel' },
+          { text: '評価する', onPress: () => { void StoreReview.isAvailableAsync().then(ok => ok ? StoreReview.requestReview() : undefined).catch(() => undefined); } },
+        ]);
+      }).catch(() => undefined);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [reviewQuiet]);
   // What Mobby can mention when talked to: the time, a stop just reached, a long break, how close the pair feel.
   const [recentAward, setRecentAward] = useState<'goshuin' | 'completed' | null>(null);
   const recentAwardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
