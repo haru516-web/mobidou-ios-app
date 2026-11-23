@@ -1000,11 +1000,14 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   // (no guide, sheet, award or popup on top). One calm dialog; "あとで" is always allowed, and it is asked rarely.
   const reviewQuiet = tab === 'home' && openingHomeReady && !openingVisible && journey.ready && data.onboarded && firstRunStage === null && !data.demo && !settings && !detail && !overlayBusy && !homePopup && !omikujiModal && eventSheet === null && !eventSettling && !eventPopupOpen && !gachaOpen && !eventGachaOpen && !socialSheet && !arrivalSummary && !lettersOpen && !pending;
   const reviewAsking = useRef(false);
+  // Ask right after a shrine ceremony is over and the player is back on the home (a happy moment), not after idling there.
+  const reviewCelebrated = useRef(false);
+  if (pending || eventAwardSpot || arrivalSummary) reviewCelebrated.current = true;
   useEffect(() => {
     // Dev only, web: ?review-preview=1 shows the invitation (with the browser's own dialog) so it can be seen without an iPhone.
     const reviewPreview = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('review-preview');
     if (reviewPreview && reviewQuiet && !reviewAsking.current) { reviewAsking.current = true; const t = setTimeout(() => { window.confirm('もび道を楽しんでいますか？ App Storeで評価をいただけると、とても励みになります。（OK＝評価する／キャンセル＝あとで）'); }, 3000); return () => clearTimeout(t); }
-    if (Platform.OS !== 'ios' || !reviewQuiet || reviewAsking.current) return undefined;
+    if (Platform.OS !== 'ios' || !reviewQuiet || !reviewCelebrated.current || reviewAsking.current) return undefined;
     const timer = setTimeout(() => {
       const now = new Date();
       const day = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
@@ -1019,7 +1022,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           { text: '評価する', onPress: () => { void StoreReview.isAvailableAsync().then(ok => ok ? StoreReview.requestReview() : undefined).catch(() => undefined); } },
         ]);
       }).catch(() => undefined);
-    }, 8000);
+    }, 1500);
     return () => clearTimeout(timer);
   }, [reviewQuiet]);
   // What Mobby can mention when talked to: the time, a stop just reached, a long break, how close the pair feel.
