@@ -100,6 +100,13 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     await clearPendingQuestion();
     onClose();
   };
+  // The player may choose not to answer: nothing is saved as a letter, and the question is not asked again for this shrine.
+  const skipQuestion = async () => {
+    if (saving) return;
+    setSaving(true);
+    await clearPendingQuestion();
+    onClose();
+  };
   const miniature = useRef(new Animated.Value(0)).current;
   const reveal = useRef(new Animated.Value(0)).current;
   const paint = useRef(new Animated.Value(0)).current;
@@ -279,7 +286,10 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     const next = page === 'miniature' || page === 'saying' ? pageAfter(page) : null;
     const title = page === 'question' ? '手紙に残してホームへ' : page === 'goshuin' ? (revealDone ? '次へ' : 'ご縁を結んでいます…') : next ? '次へ' : 'ホームへ';
     const press = page === 'question' ? () => { void finish(); } : page === 'goshuin' ? () => setPage('miniature') : next ? () => setPage(next) : onClose;
-    return <Button title={title} disabled={page === 'question' ? !isValidAnswer(answer) || saving : !revealDone || !arrival} onPress={press} style={{ width: '100%', maxWidth: 350 }} />;
+    return <>
+      <Button title={title} disabled={page === 'question' ? !isValidAnswer(answer) || saving : !revealDone || !arrival} onPress={press} style={{ width: '100%', maxWidth: 350 }} />
+      {page === 'question' && <Button title="回答せずにホームへ" secondary disabled={saving} onPress={skipQuestion} style={{ width: '100%', maxWidth: 350, marginTop: 8 }} />}
+    </>;
   })()}</View></KeyboardAvoidingView>
   </SafeAreaView>;
 }
