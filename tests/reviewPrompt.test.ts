@@ -1,16 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyReviewState, parseReviewState, shouldAskForReview, withReviewAsked, withReviewDay, REVIEW_GAP_MS, REVIEW_MAX_ASKS } from '../src/services/reviewPrompt.ts';
+import { emptyReviewState, parseReviewState, shouldAskForReview, withReviewAsked, withReviewLaunch, REVIEW_GAP_MS, REVIEW_MAX_ASKS, REVIEW_MIN_LAUNCHES } from '../src/services/reviewPrompt.ts';
 
-const days = (n: number) => Array.from({ length: n }, (_, i) => `2026-12-0${i + 1}`).reduce(withReviewDay, emptyReviewState());
+const launched = (n: number) => Array.from({ length: n }).reduce<ReturnType<typeof emptyReviewState>>(state => withReviewLaunch(state), emptyReviewState());
 
-test('asks only after three different days', () => {
-  assert.equal(shouldAskForReview(days(2), 0), false);
-  assert.equal(shouldAskForReview(days(3), 0), true);
-  assert.equal(withReviewDay(days(1), '2026-12-01').days.length, 1);
+test('asks only from the fifteenth launch', () => {
+  assert.equal(REVIEW_MIN_LAUNCHES, 15);
+  assert.equal(shouldAskForReview(launched(14), 0), false);
+  assert.equal(shouldAskForReview(launched(15), 0), true);
+  assert.equal(parseReviewState(JSON.stringify(launched(15))).launches, 15);
 });
 test('waits between invitations and stops after the maximum', () => {
-  let state = withReviewAsked(days(3), 1000);
+  let state = withReviewAsked(launched(15), 1000);
   assert.equal(shouldAskForReview(state, 1000 + REVIEW_GAP_MS - 1), false);
   assert.equal(shouldAskForReview(state, 1000 + REVIEW_GAP_MS), true);
   for (let i = 1; i < REVIEW_MAX_ASKS; i++) state = withReviewAsked(state, 1000 + i);
