@@ -11,7 +11,7 @@ import { WashiPressable } from './Washi';
 import { CollectionRoom } from './CollectionRoom';
 import { ScrollPopup } from './ScrollPopup';
 import { LetterBoxButton, LettersPopup } from './LetterBox';
-import { useLetters } from '../services/letters';
+import { LETTERS_ENABLED, useLetters } from '../services/letters';
 import type { SpecialCollection } from '../services/specialRewards';
 import { PagedShrineGrid } from './GoshuinBook';
 import { attachSnapScroll } from './webSnapScroll';
@@ -220,7 +220,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
                 return <View key={shrine.id} style={[S.displayCell, { width: pageWidth, height: displayCellHeight, left: shiftX }]}>
                   <View style={[S.roomLabel, { top: Math.max(0, railY - hookHeightEstimate * .572 - roomLabelHeight + 13), height: roomLabelHeight, columnGap: Math.max(2, roomLabelFontSize * 0.35) }]}><Text style={[S.roomNumber, { fontSize: Math.max(6, roomLabelFontSize * 0.72) }]}>{String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[S.roomName, { fontSize: roomLabelFontSize }]}>{stampOwned ? shrine.name : 'まだ見ぬご縁'}</Text></View>
                   <KeychainArtwork shrine={shrine} locked={keychainCount === 0} impulse={swayImpulse} onPress={() => setDetail(shrine)} size={keychainSize} top={railY - hookHeightEstimate * .405} />
-                  {!eventName && <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: letterTop, alignItems: 'center', zIndex: 3 }}>
+                  {LETTERS_ENABLED && !eventName && <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: letterTop, alignItems: 'center', zIndex: 3 }}>
                     <LetterBoxButton count={letters.filter(letter => letter.shrineId === shrine.id).length} width={letterWidth} onPress={() => setLettersShrine(shrine)} />
                   </View>}
                   <DisplayedStamp shrine={shrine} owned={stampOwned} width={stampWidth} bottom={goshuinBottom} onPress={() => onSelectGoshuin(shrine)} />
@@ -230,7 +230,7 @@ export function CollectionGallery({ scrollX: scrollXValue, shrines, rewardIds, r
           </View>
         </Animated.ScrollView>
       </View>}
-      <LettersPopup visible={!!lettersShrine} letters={lettersShrine ? letters.filter(letter => letter.shrineId === lettersShrine.id) : []} onClose={() => setLettersShrine(null)} />
+      {LETTERS_ENABLED && <LettersPopup visible={!!lettersShrine} letters={lettersShrine ? letters.filter(letter => letter.shrineId === lettersShrine.id) : []} onClose={() => setLettersShrine(null)} />}
       <ScrollPopup event={!!eventName} visible={page === 'goshuin'} title="御朱印" onClose={onClosePage}>
         {paper => <PagedShrineGrid bare kind="goshuin" title="" shrines={showcase} ownedIds={[...rewarded]} onSelect={onSelectGoshuin} height={paper.height} />}
       </ScrollPopup>

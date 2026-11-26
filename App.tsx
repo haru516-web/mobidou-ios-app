@@ -35,7 +35,7 @@ import { PillText, WashiArt, WashiPressable as Pressable } from './src/component
 import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { LetterQuestionFlow } from './src/components/LetterQuestionFlow';
 import { pickLetterQuestion } from './src/data/letterQuestions';
-import { loadQuestionQueue, saveQuestionQueue, useLetters, type QueuedQuestion } from './src/services/letters';
+import { LETTERS_ENABLED, loadQuestionQueue, saveQuestionQueue, useLetters, type QueuedQuestion } from './src/services/letters';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from './src/data/pilgrimagePeekImages';
 import { roomArtGeometry } from './src/components/collectionRoomArt';
@@ -184,10 +184,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [letterQueue, setLetterQueue] = useState<QueuedQuestion[] | null>(null);
   const summaryAfterLetters = useRef<{ items: ArrivalSummaryItem[]; routeName?: string; firstGoshuinEver: boolean } | null>(null);
   const savedLetters = useLetters();
-  const lettersOpen = !!letterQueue?.length;
+  const lettersOpen = LETTERS_ENABLED && !!letterQueue?.length;
   useEffect(() => {
     // Questions left over when the app was closed in the middle come back first.
-    if (!journey.ready) return;
+    if (!LETTERS_ENABLED || !journey.ready) return;
     void loadQuestionQueue().then(queue => { if (queue.length) setLetterQueue(queue); });
   }, [journey.ready]);
   const [omikujiModal, setOmikujiModal] = useState(false);
@@ -644,6 +644,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         routeName: activeRoute?.name,
         firstGoshuinEver: !data.demo && collectionRewardIds.length <= ids.length && progress.lapBase === undefined,
       };
+      if (!LETTERS_ENABLED) { setArrivalSummary(summary); return; }
       // One question for every skipped place, none the same, asked in the order the places were reached.
       const taken = savedLetters.map(letter => letter.question);
       const queue: QueuedQuestion[] = ids.map(id => {

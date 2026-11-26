@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useSyncExternalStore } from 'react';
 
+/**
+ * The letter feature is switched off: no question is asked, and no letter button or letter is shown anywhere.
+ * The code and the letters already saved on a device are kept; set this to true to bring the feature back.
+ */
+export const LETTERS_ENABLED: boolean = false;
+
 /** What the player wrote at a place, kept as a private letter to themself. It lives only on this device and is never sent anywhere. */
 export type Letter = {
   id: string;

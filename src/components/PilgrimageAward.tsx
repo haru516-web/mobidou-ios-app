@@ -19,7 +19,7 @@ import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 import { SHRINE_SAYINGS } from '../data/shrineSayings';
 import { VerticalSaying } from './VerticalSaying';
 import { pickLetterQuestion } from '../data/letterQuestions';
-import { addLetter, useLetters, LETTER_MAX_LENGTH, isValidAnswer, savePendingQuestion, clearPendingQuestion, loadPendingQuestion } from '../services/letters';
+import { LETTERS_ENABLED, addLetter, useLetters, LETTER_MAX_LENGTH, isValidAnswer, savePendingQuestion, clearPendingQuestion, loadPendingQuestion } from '../services/letters';
 
 /** Set when the ceremony is for an event spot: the event's own goshuin and miniature, and no keychain roll (every spot gives its miniature). */
 export type EventAwardInfo = { name: string; goshuinImage: ImageSourcePropType; keychainImage: ImageSourcePropType; reached: number; total: number; complete: boolean; reward?: string };
@@ -73,7 +73,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   // The shrine's saying, written alone after the miniature. Event spots have none.
   const saying = event ? undefined : SHRINE_SAYINGS[shrine.id];
   // After the saying, one question is asked and the answer is kept as a letter. Event spots skip it.
-  const hasQuestion = !event;
+  const hasQuestion = LETTERS_ENABLED && !event;
   const savedLetters = useLetters();
   const [question, setQuestion] = useState(() => pickLetterQuestion(savedLetters.map(letter => letter.question)));
   // Closing the app on the question screen must bring the player back to it, so the question is kept until it is answered.
