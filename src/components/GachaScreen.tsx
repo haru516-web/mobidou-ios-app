@@ -482,8 +482,9 @@ export function GachaScreen({ priceLabels, freePulls: normalPulls, premiumPulls 
     if (canZoom && !autoZoomed.current) { autoZoomed.current = true; setZoomed(true); }
   }, [canZoom]);
   useEffect(() => {
-    if (zoomT >= .95 && !panelReady) setPanelReady(true);
-  }, [zoomT, panelReady]);
+    // Also once revealed, whatever the zoom: a tap that reversed the zoom early must not hide the finish button for good.
+    if ((zoomT >= .95 || done) && !panelReady) setPanelReady(true);
+  }, [zoomT, panelReady, done]);
   // Once the box has landed the room already dims a little, so the waiting light shows.
   const dim = playing ? Math.max(dimAt(open, opened ? openedFor : null), opened ? 0 : MAX_DIM * .4 * Math.min(1, Math.max(0, (clock - SETTLED_AT_MS) / 800))) : 0;
   const bloom = playing ? bloomAt(opened ? openedFor : null, open) : 0;

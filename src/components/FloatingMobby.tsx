@@ -102,7 +102,7 @@ function WalkFrame({ source, petId, frame }: { source: ImageSourcePropType; petI
  * tap opens a small guide: what to do next, with shortcuts. Navigation itself
  * lives in the tab bar and segmented controls, so Mobby is never required.
  */
-export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOpenChange, bottomInset, spotKey, spot, resetPositionOnMount = false, dragLocked = false }: { image: ImageSourcePropType; name: string; petId: PetId; items: readonly MobbyMenuItem[]; badge?: number; open: boolean; onOpenChange: (open: boolean) => void; bottomInset: number; spotKey: string; spot: MobbySpot; resetPositionOnMount?: boolean; /** Keep the Mobby where it is (taps still work), e.g. while a tutorial asks for a tap. */ dragLocked?: boolean }) {
+export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOpenChange, bottomInset, spotKey, spot, resetPositionOnMount = false, dragLocked = false, onPositionChange }: { /** Where the Mobby actually is (in this view's own coordinates), so a tutorial frame can follow it. */ onPositionChange?: (point: { x: number; y: number }, size: number) => void; image: ImageSourcePropType; name: string; petId: PetId; items: readonly MobbyMenuItem[]; badge?: number; open: boolean; onOpenChange: (open: boolean) => void; bottomInset: number; spotKey: string; spot: MobbySpot; resetPositionOnMount?: boolean; /** Keep the Mobby where it is (taps still work), e.g. while a tutorial asks for a tap. */ dragLocked?: boolean }) {
   const dragLockedRef = useRef(dragLocked);
   dragLockedRef.current = dragLocked;
   const [layout, setLayout] = useState<LayoutSize>({ width: 0, height: 0 });
@@ -175,6 +175,8 @@ export function FloatingMobby({ image, name, petId, items, badge = 0, open, onOp
     positionRef.current = next;
     setPosition(next);
   }, [hydrated, layout, resetPositionOnMount, bottomInset, spotKey, restingPoint]);
+
+  useEffect(() => { if (layout.width && layout.height) onPositionChange?.(position, MOBBY_SIZE); }, [position, layout.width, layout.height, onPositionChange]);
 
   const persist = useCallback((point: Point) => {
     if (!layout.width || !layout.height) return;

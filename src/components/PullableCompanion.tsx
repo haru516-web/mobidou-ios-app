@@ -357,6 +357,9 @@ export function PullableCompanion({
       setStatus('idle');
       resetPose();
       setLine('お参りの準備中です。少し待ってからタップしてね。');
+      // Never leave a tap without effect: the first-run tutorial advances on bond, so a prayer atlas that is slow or fails to load must not strand it.
+      const readyNow = Date.now();
+      if (readyNow - lastActionRef.current >= 700) { lastActionRef.current = readyNow; onBond(); }
       return;
     }
     const now = Date.now();
@@ -661,6 +664,7 @@ export function PullableCompanion({
                 key={`${pet.id}/${action}`}
                 source={prayerAtlas[action]}
                 onLoad={() => setPrayerLoaded(previous => ({ ...previous, [`${pet.id}/${action}`]: true }))}
+                onError={() => setPrayerLoaded(previous => ({ ...previous, [`${pet.id}/${action}`]: true }))}
                 contentFit="fill"
                 transition={0}
                 style={{ position: 'absolute', top: 0, left: -210 * ((prayerFrame ?? 0) % 8), width: 1680, height: 210,

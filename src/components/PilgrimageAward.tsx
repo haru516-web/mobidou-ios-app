@@ -18,9 +18,8 @@ import { COLLECTION_KEYCHAINS } from '../data/collectionKeychains';
 import { PULL_REACTION_FRAMES } from '../data/pullReactionFrames';
 import { SHRINE_SAYINGS } from '../data/shrineSayings';
 import { VerticalSaying } from './VerticalSaying';
-import { PrayerControls } from './PrayerControls';
 import { pickLetterQuestion } from '../data/letterQuestions';
-import { addLetter, useLetters, LETTER_MAX_LENGTH, isValidAnswer, savePendingQuestion, clearPendingQuestion, loadPendingQuestion } from '../services/letters';
+import { LETTERS_ENABLED, addLetter, useLetters, LETTER_MAX_LENGTH, isValidAnswer, savePendingQuestion, clearPendingQuestion, loadPendingQuestion } from '../services/letters';
 
 /** Set when the ceremony is for an event spot: the event's own goshuin and miniature, and no keychain roll (every spot gives its miniature). */
 export type EventAwardInfo = { name: string; goshuinImage: ImageSourcePropType; keychainImage: ImageSourcePropType; reached: number; total: number; complete: boolean; reward?: string };
@@ -60,8 +59,10 @@ function Sprite({ source, metric, frame, size, onLoad }: { source: ImageSourcePr
 }
 
 export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route, stopIndex, special, goshuinOwned = false, event, onArrive, onRedeemKeychainTicket, onClose, remaining = 1, onSkipAll }: { event?: EventAwardInfo; shrine: { id: string; name: string; theme: string }; pet: PetCharacter; walkSource?: ImageSourcePropType; demo: boolean; haptics: boolean; route?: Pilgrimage; stopIndex: number; special: SpecialCollection; goshuinOwned?: boolean; onArrive: (shrineId: string) => void; onRedeemKeychainTicket: (shrineId: string) => void; onClose: () => void; /** How many ceremonies are waiting, this one included. */ remaining?: number; /** Skips every waiting ceremony at once and goes to the summary. */ onSkipAll?: () => void }) {
-  // Each user action advances the authored ceremony frames. The explicit
-  // skip control remains available for users who want the reward directly.
+  // This is the core acquisition ceremony, so keep the authored sequence
+  // visible even when the browser has prefers-reduced-motion enabled. Users
+  // who want to leave early can use the explicit skip control below.
+  const reduced = false;
   // A goshuin the player already holds gets a short visit: skip the walk and go straight to the reveal.
   const [frame, setFrame] = useState(goshuinOwned ? TOTAL_FRAMES : 0);
   const [width, setWidth] = useState(380);
@@ -72,7 +73,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   // The shrine's saying, written alone after the miniature. Event spots have none.
   const saying = event ? undefined : SHRINE_SAYINGS[shrine.id];
   // After the saying, one question is asked and the answer is kept as a letter. Event spots skip it.
-  const hasQuestion = !event;
+  const hasQuestion = LETTERS_ENABLED && !event;
   const savedLetters = useLetters();
   const [question, setQuestion] = useState(() => pickLetterQuestion(savedLetters.map(letter => letter.question)));
   // Closing the app on the question screen must bring the player back to it, so the question is kept until it is answered.
@@ -99,6 +100,13 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
     await clearPendingQuestion();
     onClose();
   };
+  // The player may choose not to answer: nothing is saved as a letter, and the question is not asked again for this shrine.
+  const skipQuestion = async () => {
+    if (saving) return;
+    setSaving(true);
+    await clearPendingQuestion();
+    onClose();
+  };
   const miniature = useRef(new Animated.Value(0)).current;
   const reveal = useRef(new Animated.Value(0)).current;
   const paint = useRef(new Animated.Value(0)).current;
@@ -116,7 +124,8 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   const prayer = PRAYER_ATLASES[pet.id];
   // The clear reward belongs to the first finish only; a later lap is just a visit.
   const complete = event ? event.complete && !goshuinOwned : !!route && stopIndex === route.ids.length - 1 && !goshuinOwned;
-  // Reduce Motion is scoped to the post-prayer reward reveal.
+  // Keep the authored ceremony playback unchanged. Reduce Motion is scoped
+  // to the post-prayer reveal layer below so it never changes a prayer frame.
   const revealReducedMotion = useReducedMotion();
   // Walk sheets are generated incrementally for the roster.  The ceremony
   // must still play for a character whose sheet is not available yet, using
@@ -124,6 +133,15 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
   // keeps the authored two-rei-two-claps-one-bow motion.
   const allReady = ['stage', 'gate', 'rei', 'hakushu', ...(walkSource ? ['walk'] : [])].every(id => loaded[id]);
   const markLoaded = (id: string) => setLoaded(previous => previous[id] ? previous : { ...previous, [id]: true });
+  useEffect(() => {
+    if (reduced) { setFrame(TOTAL_FRAMES); return; }
+    if (!allReady) return;
+    const timer = setInterval(() => setFrame(value => {
+      if (value >= TOTAL_FRAMES) { clearInterval(timer); return value; }
+      return value + 1;
+    }), 95);
+    return () => clearInterval(timer);
+  }, [reduced, allReady]);
   useEffect(() => {
     if (phase.key !== 'reveal') return;
     reveal.setValue(0);
@@ -219,7 +237,7 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
         </View>}
       </View>
     </View>
-    {!showAward && <View style={S.phaseTrack}>{PHASES.map(p => <View key={p.key} style={[S.phaseDot, { backgroundColor: phase.key === p.key ? '#D4B387' : '#685C49' }]} />)}</View>}
+    {!showAward && <><View style={S.phaseTrack}>{PHASES.map(p => <View key={p.key} style={[S.phaseDot, { backgroundColor: phase.key === p.key ? '#D4B387' : '#685C49' }]} />)}</View><Button title="演出を省略して御朱印をみる" secondary onPress={() => setFrame(TOTAL_FRAMES)} style={S.skip} />{!event && !!onSkipAll && remaining > 1 && <Button title={`残りの${remaining}か所を、まとめて省略`} secondary onPress={onSkipAll} style={S.skip} />}</>}
     {showAward && page === 'goshuin' && <>
       <View style={S.rewardScene}>
         <AwardFx />
@@ -262,18 +280,16 @@ export function PilgrimageAward({ shrine, pet, walkSource, demo, haptics, route,
       <Text style={S.questionWarn}>書いた答えは、あとから変えられません。{'\n'}手紙として残り、いつでも見返せます。</Text>
     </View>}
   </View></FitToHeight>
-  {!showAward && <View style={{ padding: 12, alignItems: 'center', gap: 12 }}>
-    <PrayerControls ready={allReady} onFrame={setFrame} />
-    <Button title="演出を省略して御朱印をみる" secondary onPress={() => setFrame(TOTAL_FRAMES)} style={S.skip} />
-    {!event && !!onSkipAll && remaining > 1 && <Button title={`残りの${remaining}か所を、まとめて省略`} secondary onPress={onSkipAll} style={S.skip} />}
-  </View>}
   {/* Outside the scaled area, so it keeps its size and stays tappable however tall the content is. */}
   {/* Always present, so the room left for the scaled content does not change when the button appears. */}
-  <View style={[S.closeBar, !showAward && { display: 'none' }]}>{showAward && !event && !!onSkipAll && remaining > 1 && page !== 'saying' && page !== 'question' && <Button title={`残りの${remaining - 1}か所を、まとめて省略`} secondary onPress={onSkipAll} style={{ width: '100%', maxWidth: 350, marginBottom: 8 }} />}{showAward && (() => {
+  <View style={S.closeBar}>{showAward && !event && !!onSkipAll && remaining > 1 && page !== 'saying' && page !== 'question' && <Button title={`残りの${remaining - 1}か所を、まとめて省略`} secondary onPress={onSkipAll} style={{ width: '100%', maxWidth: 350, marginBottom: 8 }} />}{showAward && (() => {
     const next = page === 'miniature' || page === 'saying' ? pageAfter(page) : null;
     const title = page === 'question' ? '手紙に残してホームへ' : page === 'goshuin' ? (revealDone ? '次へ' : 'ご縁を結んでいます…') : next ? '次へ' : 'ホームへ';
     const press = page === 'question' ? () => { void finish(); } : page === 'goshuin' ? () => setPage('miniature') : next ? () => setPage(next) : onClose;
-    return <Button title={title} disabled={page === 'question' ? !isValidAnswer(answer) || saving : !revealDone || !arrival} onPress={press} style={{ width: '100%', maxWidth: 350 }} />;
+    return <>
+      <Button title={title} disabled={page === 'question' ? !isValidAnswer(answer) || saving : !revealDone || !arrival} onPress={press} style={{ width: '100%', maxWidth: 350 }} />
+      {page === 'question' && <Button title="回答せずにホームへ" secondary disabled={saving} onPress={skipQuestion} style={{ width: '100%', maxWidth: 350, marginTop: 8 }} />}
+    </>;
   })()}</View></KeyboardAvoidingView>
   </SafeAreaView>;
 }

@@ -30,7 +30,11 @@ export function TutorialTarget({ children, onRectChange, active: activeProp = tr
   return <View ref={ref} collapsable={false} onLayout={measure} style={style}>{children}</View>;
 }
 
-export function TutorialSpotlightOverlay({ targetRect, step, title, detail }: { targetRect: TutorialRect | null; step: string; title: string; detail: string }) {
+/**
+ * `blocking` lets only the framed target be tapped. Until the target has been measured nothing is blocked, so a missed measurement cannot trap the player.
+ * `dim={false}` leaves the rest of the screen bright, for a step where there is still something to read.
+ */
+export function TutorialSpotlightOverlay({ targetRect, step, title, detail, blocking = false, dim = true }: { targetRect: TutorialRect | null; step: string; title: string; detail: string; blocking?: boolean; dim?: boolean }) {
   const ref = useRef<View>(null);
   const [frame, setFrame] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const measureFrame = useCallback(() => {
@@ -67,11 +71,20 @@ export function TutorialSpotlightOverlay({ targetRect, step, title, detail }: { 
     ? belowTop
     : Math.max(12, (localRect?.y ?? hintHeight + 24) - hintHeight - 14);
 
-  return <View ref={ref} collapsable={false} onLayout={onLayout} pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={S.overlay}>
-    {targetRect && <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={StyleSheet.absoluteFill}>
-      <Path d={maskPath} fill="#89898499" fillRule="evenodd" />
-    </Svg>}
-    <View style={[S.hint, { left, top, width: hintWidth }]}>
+  return <View ref={ref} collapsable={false} onLayout={onLayout} pointerEvents={blocking ? 'box-none' : 'none'} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={S.overlay}>
+    {targetRect && <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        {dim && <Path d={maskPath} fill="#89898499" fillRule="evenodd" />}
+        {blocking && !!hole && <Path d={holePath} fill="none" stroke="#D9A441" strokeWidth={3} />}
+      </Svg>
+    </View>}
+    {blocking && !!hole && [
+      { left: 0, right: 0, top: 0, height: hole.y },
+      { left: 0, right: 0, top: hole.y + hole.height, bottom: 0 },
+      { left: 0, width: hole.x, top: hole.y, height: hole.height },
+      { left: hole.x + hole.width, right: 0, top: hole.y, height: hole.height },
+    ].map((box, index) => <View key={index} onStartShouldSetResponder={() => true} style={[S.blocker, box]} />)}
+    <View pointerEvents="none" style={[S.hint, { left, top, width: hintWidth }]}>
       <TutorialTapHint step={step} label={title} detail={detail} />
     </View>
   </View>;
@@ -85,4 +98,5 @@ function roundedRectPath(x: number, y: number, width: number, height: number, ra
 const S = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, zIndex: 200, overflow: 'visible' },
   hint: { position: 'absolute' },
+  blocker: { position: 'absolute' },
 });

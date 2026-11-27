@@ -14,6 +14,8 @@ import { getPetCharacter, isPetId, PET_CHARACTERS, type PetId } from './src/petC
 import { SHRINES, STAMP_IMAGES, type Shrine } from './src/data/shrines';
 import { DAILY_TARGETS, creditedSteps, expandPointTargets, lapView, localDay } from './src/services/progress';
 import { useJourney } from './src/services/useJourney';
+import * as StoreReview from 'expo-store-review';
+import { REVIEW_PROMPT_KEY, parseReviewState, shouldAskForReview, withReviewAsked, withReviewLaunch } from './src/services/reviewPrompt';
 import { syncWidget } from './src/services/widgetSync';
 import { hasStarter, ownsMobby, ticketCount } from './src/services/gacha';
 import { DEV_UNLOCK_ALL } from './src/services/devUnlock';
@@ -33,7 +35,7 @@ import { PillText, WashiArt, WashiPressable as Pressable } from './src/component
 import { PilgrimageAward } from './src/components/PilgrimageAward';
 import { LetterQuestionFlow } from './src/components/LetterQuestionFlow';
 import { pickLetterQuestion } from './src/data/letterQuestions';
-import { loadQuestionQueue, saveQuestionQueue, useLetters, type QueuedQuestion } from './src/services/letters';
+import { LETTERS_ENABLED, loadQuestionQueue, saveQuestionQueue, useLetters, type QueuedQuestion } from './src/services/letters';
 import { PILGRIMAGE_WALK_ATLASES } from './src/data/pilgrimageWalkAtlases';
 import { PILGRIMAGE_PEEK_IMAGES, PILGRIMAGE_PEEK_METRICS } from './src/data/pilgrimagePeekImages';
 import { roomArtGeometry } from './src/components/collectionRoomArt';
@@ -101,6 +103,7 @@ type FirstRunStage = 'route' | 'homeCompanion' | 'floatingMenu' | 'floatingDrag'
 const TUTORIAL_GIFT: Gift = { id: 'tutorial-first-ticket', title: 'はじめての木札', message: 'ようこそ、もび道へ。この木札で、最初のモビーに出会えます。', from: 'もび道', items: [{ kind: 'gachaTicket', quantity: 1 }], sentAt: '2026-01-01T00:00:00.000Z' };
 const FIRST_RUN_ROUTE_ID = 'firstStep';
 const OMIKUJI_PROMPT_KEY = '@mobidou/omikuji-prompt-day';
+const WORLD_GUIDE_KEY = '@mobidou/collection-world-guide-seen';
 // 御朱印帳 = the current pilgrimage; コレクション = everything collected so far.
 // Each tab is one integrated page; pop buttons jump to a section instead of
 // switching views (no segmented tabs).
@@ -183,10 +186,10 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const [letterQueue, setLetterQueue] = useState<QueuedQuestion[] | null>(null);
   const summaryAfterLetters = useRef<{ items: ArrivalSummaryItem[]; routeName?: string; firstGoshuinEver: boolean } | null>(null);
   const savedLetters = useLetters();
-  const lettersOpen = !!letterQueue?.length;
+  const lettersOpen = LETTERS_ENABLED && !!letterQueue?.length;
   useEffect(() => {
     // Questions left over when the app was closed in the middle come back first.
-    if (!journey.ready) return;
+    if (!LETTERS_ENABLED || !journey.ready) return;
     void loadQuestionQueue().then(queue => { if (queue.length) setLetterQueue(queue); });
   }, [journey.ready]);
   const [omikujiModal, setOmikujiModal] = useState(false);
@@ -543,7 +546,11 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
   const nextRoutePeekHeight = nextRoutePeekMetric.height * nextRoutePeekScale;
   const nextRoutePeekBottom = nextRoutePeekMetric.bottom * nextRoutePeekHeight;
   const omikujiDay = localOmikujiDay();
-  const omikujiDrawn = onboardingPreview ? tutorialPreviewDrawn : data.omikujiDay === omikujiDay;
+  // A failed storage read makes saving a no-op; the guide's own draw is also kept in memory so it can always finish.
+  const [guideDrawn, setGuideDrawn] = useState(false);
+  const [mobbyGuidePos, setMobbyGuidePos] = useState<{ x: number; y: number; size: number } | null>(null);
+  const handleMobbyPosition = useCallback((point: { x: number; y: number }, size: number) => setMobbyGuidePos(previous => previous && previous.x === point.x && previous.y === point.y && previous.size === size ? previous : { x: point.x, y: point.y, size }), []);
+  const omikujiDrawn = onboardingPreview ? tutorialPreviewDrawn : data.omikujiDay === omikujiDay || (firstRunStage === 'drawOmikuji' && guideDrawn);
   // The morning omikuji reminder: planned again when the app opens or comes back, without today's once it is drawn.
   const omikujiReminder = useOmikujiReminder();
   useEffect(() => {
@@ -650,6 +657,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
         routeName: activeRoute?.name,
         firstGoshuinEver: !data.demo && collectionRewardIds.length <= ids.length && progress.lapBase === undefined,
       };
+      if (!LETTERS_ENABLED) { setArrivalSummary(summary); return; }
       // One question for every skipped place, none the same, asked in the order the places were reached.
       const taken = savedLetters.map(letter => letter.question);
       const queue: QueuedQuestion[] = ids.map(id => {
@@ -699,6 +707,21 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       setFirstRunStage('homeOmikuji');
     }
   };
+  // Fail-safe: if a guided step gets no response (a missed target, a slow asset, an unusual device), it moves on by itself so the first run can never dead-end.
+  useEffect(() => {
+    if (firstRunStage !== 'homeCompanion' && firstRunStage !== 'floatingMenu' && firstRunStage !== 'floatingDrag' && firstRunStage !== 'homeOmikuji') return undefined;
+    // Not while a screen opened from the menu is covering the guide: it would stack the next step on top of it.
+    if (homePopup || settings || detail || socialSheet || omikujiModal || gachaOpen) return undefined;
+    const stage = firstRunStage;
+    const timer = setTimeout(() => {
+      setTutorialRect(null);
+      if (stage === 'homeCompanion') setFirstRunStage('floatingMenu');
+      else if (stage === 'floatingMenu') { setMobbyMenuOpen(true); setFirstRunStage('floatingDrag'); }
+      else if (stage === 'floatingDrag') { setMobbyMenuOpen(false); setFirstRunStage('homeOmikuji'); }
+      else { setFirstRunStage('drawOmikuji'); setOmikujiModal(true); }
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [firstRunStage, homePopup, settings, detail, socialSheet, omikujiModal, gachaOpen]);
   const continueIntoApp = (firstRun: boolean) => {
     if (openingHomeTimer.current) clearTimeout(openingHomeTimer.current);
     move('home');
@@ -987,6 +1010,39 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       setOmikujiModal(true);
     }).catch(() => undefined);
   }, [tab, openingHomeReady, openingVisible, journey.ready, progress.routeId, omikujiDrawn, omikujiDay, firstRunStage, data.onboarded]);
+  // The App Store rating invitation: from the 15th launch, shown as soon as the home is first quiet
+  // (no guide, sheet, award or popup on top). One calm dialog; "あとで" is always allowed, and it is asked rarely.
+  const reviewQuiet = tab === 'home' && openingHomeReady && !openingVisible && journey.ready && data.onboarded && firstRunStage === null && !data.demo && !settings && !detail && !overlayBusy && !homePopup && !omikujiModal && eventSheet === null && !eventSettling && !eventPopupOpen && !gachaOpen && !eventGachaOpen && !socialSheet && !arrivalSummary && !lettersOpen && !pending;
+  const reviewAsking = useRef(false);
+  // This launch is counted once, whether or not the home ever gets quiet.
+  const reviewLaunch = useRef<Promise<void> | null>(null);
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || reviewLaunch.current) return;
+    reviewLaunch.current = AsyncStorage.getItem(REVIEW_PROMPT_KEY)
+      .then(raw => AsyncStorage.setItem(REVIEW_PROMPT_KEY, JSON.stringify(withReviewLaunch(parseReviewState(raw)))))
+      .catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    // Dev only, web: ?review-preview=1 shows the invitation (with the browser's own dialog) so it can be seen without an iPhone.
+    const reviewPreview = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('review-preview');
+    if (reviewPreview && reviewQuiet && !reviewAsking.current) { reviewAsking.current = true; const t = setTimeout(() => { window.confirm('もび道を楽しんでいますか？ App Storeで評価をいただけると、とても励みになります。（OK＝評価する／キャンセル＝あとで）'); }, 3000); return () => clearTimeout(t); }
+    if (Platform.OS !== 'ios' || !reviewQuiet || reviewAsking.current) return undefined;
+    const timer = setTimeout(() => {
+      void (reviewLaunch.current ?? Promise.resolve()).then(() => AsyncStorage.getItem(REVIEW_PROMPT_KEY)).then(raw => {
+        const now = Date.now();
+        const state = parseReviewState(raw);
+        const ask = shouldAskForReview(state, now) && !reviewAsking.current;
+        if (ask) void AsyncStorage.setItem(REVIEW_PROMPT_KEY, JSON.stringify(withReviewAsked(state, now))).catch(() => undefined);
+        if (!ask || reviewAsking.current) return;
+        reviewAsking.current = true;
+        Alert.alert('もび道を楽しんでいますか？', 'App Storeで評価をいただけると、とても励みになります。', [
+          { text: 'あとで', style: 'cancel' },
+          { text: '評価する', onPress: () => { void StoreReview.isAvailableAsync().then(ok => ok ? StoreReview.requestReview() : undefined).catch(() => undefined); } },
+        ]);
+      }).catch(() => undefined);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [reviewQuiet]);
   // What Mobby can mention when talked to: the time, a stop just reached, a long break, how close the pair feel.
   const [recentAward, setRecentAward] = useState<'goshuin' | 'completed' | null>(null);
   const recentAwardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1096,6 +1152,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     return () => clearTimeout(timer);
   }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, lettersOpen, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen, autoPopupBlocked]);
   useAppAudioCues({ firstRunStage, openingVisible, mobbyMenuOpen, homeEditing: homePopup === 'custom', milestoneToast, error: journey.error ?? null, weeklyOpen, pet: data.pet });
+  // The first visit to the collection points at the 3D world button, then at the start button inside. Shown once per device.
+  const [worldGuideDue, setWorldGuideDue] = useState(false);
+  const [worldGuideRect, setWorldGuideRect] = useState<TutorialRect | null>(null);
+  useEffect(() => { void AsyncStorage.getItem(WORLD_GUIDE_KEY).then(value => setWorldGuideDue(value !== '1'), () => undefined); }, []);
+  const openCollectionWorld = () => setSpaceOpen(true);
+  const finishWorldGuide = () => { setWorldGuideDue(false); void AsyncStorage.setItem(WORLD_GUIDE_KEY, '1').catch(() => undefined); };
+  const worldGuideVisible = worldGuideDue && tab === 'collection' && collectionPage === 'room' && journey.ready && data.onboarded && hasStarter(data.mobbies) && firstRunStage === null && !openingVisible && !accountEntryVisible && !spaceOpen && !settings && !detail && !overlayBusy && !homePopup && !omikujiModal && !gachaOpen && !socialSheet && eventSheet === null && !eventSettling && !eventPopupOpen && !arrivalSummary && !lettersOpen && !awardVisible && !eventAwardVisible && !routeAdvanceVisible && !weeklyOpen && !tour && !tourRequest;
+  // The same fail-safe as the first-run steps: with no response it goes inside by itself, so the screen can never stay locked.
+  useEffect(() => {
+    if (!worldGuideVisible) return undefined;
+    const timer = setTimeout(openCollectionWorld, 15000);
+    return () => clearTimeout(timer);
+  }, [worldGuideVisible]); // eslint-disable-line react-hooks/exhaustive-deps
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
     if (!tourRequest || settings) return undefined;
@@ -1144,7 +1213,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       {tab === 'home'
         ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
         : tab === 'walk' ? <View />
-        : tab === 'collection' ? <Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="所持品の一覧を3Dで見る" onPress={() => setSpaceOpen(true)} style={S.glassButton}><Icon name="list" size={21} color={C.ink} /></Pressable>
+        : tab === 'collection' ? <TutorialTarget active={worldGuideVisible} onRectChange={setWorldGuideRect}><Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="所持品の一覧を3Dで見る" onPress={openCollectionWorld} style={S.glassButton}><Icon name="list" size={21} color={C.ink} /></Pressable></TutorialTarget>
         : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
         {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} premiumTickets={data.mobbies.paidTickets} miniaturePasses={journey.special.passes.keychainDrop} plusActive={data.keychainPlan === 'plus'} onAddTickets={openGachaShop} onAddPasses={openGachaShop} />}
@@ -1279,9 +1348,9 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {/* Keep the floating Mobby mounted through the fortune-card step so closing its menu cannot cancel an active drag. */}
     {(firstRunStage === null || firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag' || firstRunStage === 'homeOmikuji') && !homePopup && <>
       {(firstRunStage === 'floatingMenu' || firstRunStage === 'floatingDrag') && <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <TutorialTarget key={firstRunStage} active onRectChange={setTutorialRect} style={{ position: 'absolute', right: 8, top: mobbySpot.offset, width: 88, height: 88 }}><View style={StyleSheet.absoluteFill} /></TutorialTarget>
+        <TutorialTarget key={firstRunStage} active onRectChange={setTutorialRect} style={mobbyGuidePos ? { position: 'absolute', left: mobbyGuidePos.x, top: mobbyGuidePos.y, width: mobbyGuidePos.size, height: mobbyGuidePos.size } : { position: 'absolute', right: 8, top: mobbySpot.offset, width: 88, height: 88 }}><View style={StyleSheet.absoluteFill} /></TutorialTarget>
       </View>}
-      <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} items={mobbyMenu} badge={unreadNotices + giftsWaiting} open={mobbyMenuOpen} onOpenChange={handleMobbyOpenChange} bottomInset={navHeight} spotKey={mobbySpotKey} spot={mobbySpot} resetPositionOnMount={onboardingPreview} dragLocked={firstRunStage === 'floatingMenu'} />
+      <FloatingMobby image={pet.image} name={pet.name} petId={pet.id} items={mobbyMenu} badge={unreadNotices + giftsWaiting} open={mobbyMenuOpen} onOpenChange={handleMobbyOpenChange} bottomInset={navHeight} spotKey={mobbySpotKey} spot={mobbySpot} resetPositionOnMount={onboardingPreview} dragLocked={firstRunStage === 'floatingMenu'} onPositionChange={handleMobbyPosition} />
     </>}
     <NotificationsSheet visible={socialSheet === 'notifications'} notices={notices} readIds={readNoticeIds} onClose={() => setSocialSheet(null)} />
     <PresentBoxSheet visible={socialSheet === 'presents'} gifts={firstRunStage === 'presentBox' ? [TUTORIAL_GIFT] : gifts} receivedIds={firstRunStage === 'presentBox' ? new Set<string>() : receivedGiftIds} demo={data.demo} guide={firstRunStage === 'presentBox' ? '6 / 7　プレゼントが届いています。木札を受け取りましょう' : undefined} onReceive={receiveGift} onClose={() => { if (firstRunStage !== 'presentBox') setSocialSheet(null); }} />
@@ -1309,6 +1378,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="2 / 7" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
     {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="3 / 7" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
     {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="4 / 7" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
+    {worldGuideVisible && <TutorialSpotlightOverlay blocking targetRect={worldGuideRect} step="1 / 2" title="コレクションワールドへ行こう" detail="金色の枠のボタンをタップ。集めたものを3Dで見られるよ" />}
     {tour && <FeatureTour selection={tour} gacha={hasStarter(data.mobbies) && !onboardingPreview} bottomInset={navHeight} onNavigate={move} onScene={scene => setGachaOpen(scene === 'gacha')} onClose={() => { setTour(null); setGachaOpen(false); }} />}
     <Modal transparent visible={omikujiModal} animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => { if (!isFirstRunOmikuji) closeOmikuji(); }}>
       <SafeAreaView style={S.omikujiModal}>
@@ -1317,7 +1387,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
           <View style={S.omikujiModalCard}>
             <Image source={!omikujiDrawn || omikujiAnimating ? OMIKUJI_ANIMATION_BACKGROUND : OMIKUJI_RESULT_BACKGROUND} contentFit="cover" style={[S.omikujiModalBackground, { opacity: !omikujiDrawn || omikujiAnimating ? 0.84 : 0.68 }]} accessible={false} />
             {!isFirstRunOmikuji && <View style={S.omikujiCardClose}><Close onPress={closeOmikuji} /></View>}
-            <OmikujiExperience pet={pet} fortune={dailyFortune} drawn={omikujiDrawn} visible={omikujiModal} onDraw={() => onboardingPreview ? setTutorialPreviewDrawn(true) : journey.drawDailyOmikuji()} onReset={() => onboardingPreview ? setTutorialPreviewDrawn(false) : journey.resetDailyOmikuji()} onAnimationStateChange={setOmikujiAnimating} guidedDraw={firstRunStage === 'drawOmikuji'} onGuidedTargetRectChange={setTutorialRect} />
+            <OmikujiExperience pet={pet} fortune={dailyFortune} drawn={omikujiDrawn} visible={omikujiModal} onDraw={() => { if (firstRunStage === 'drawOmikuji') setGuideDrawn(true); if (onboardingPreview) setTutorialPreviewDrawn(true); else journey.drawDailyOmikuji(); }} onReset={() => onboardingPreview ? setTutorialPreviewDrawn(false) : journey.resetDailyOmikuji()} onAnimationStateChange={setOmikujiAnimating} guidedDraw={firstRunStage === 'drawOmikuji'} onGuidedTargetRectChange={setTutorialRect} />
             {firstRunOmikujiComplete && <Button title="ホームへ進む" onPress={closeOmikuji} style={{ width: '90%', maxWidth: 330, alignSelf: 'center', marginTop: 8 }} />}
           </View>
         </View></FitToHeight>
@@ -1363,7 +1433,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <CollectionSpace visible={spaceOpen} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} special={inEventCollection ? eventSpecial : journey.special} mobbies={spaceMobbies} onClose={() => setSpaceOpen(false)} />
+    <CollectionSpace visible={spaceOpen} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} special={inEventCollection ? eventSpecial : journey.special} mobbies={spaceMobbies} guided={worldGuideDue} onGuideDone={finishWorldGuide} onClose={() => setSpaceOpen(false)} />
     <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} gacha={hasStarter(data.mobbies)} onStartTour={selection => { setSettings(false); setTourRequest(selection); }} appleLinked={appleLinked} />
 
 

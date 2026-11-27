@@ -73,9 +73,10 @@ export function OmikujiExperience({ pet, fortune, drawn, visible, onDraw, onRese
       Animated.delay(170),
       Animated.timing(effectProgress, { toValue: 1, duration: effect.duration, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }),
       Animated.delay(150),
-    ]).start(({ finished }) => {
+    ]).start(() => {
       setRevealing(false);
-      if (finished) onAnimationStateChange(false);
+      // Also when interrupted: the flag must never stay on, or the guide's "next" button never appears.
+      onAnimationStateChange(false);
     });
   };
   playRevealRef.current = playReveal;

@@ -5,6 +5,8 @@ import { Asset } from 'expo-asset';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BackSide, RepeatWrapping, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { SerialModal as Modal } from './SerialModal';
+import { TutorialSpotlightOverlay, TutorialTarget, type TutorialRect } from './TutorialSpotlight';
+import { FitToHeight } from './PagedBody';
 import { Canvas, useFrame, useLoader } from './r3f';
 import { BRUSH, C, Icon } from '../components';
 import { Image } from './AppImage';
@@ -224,7 +226,7 @@ function World({ items, directions, look, shared }: { items: SpaceItem[]; direct
 }
 
 /** Everything the player owns, floating around them in a small 3D world. Drag to look around, flick to keep turning, pinch to zoom, tap a thing to pick it up. */
-export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies = [], onClose }: { visible: boolean; shrines: readonly Shrine[]; rewardIds: readonly string[]; special: SpecialCollection; mobbies?: readonly { id: string; name: string; image: any; count?: number }[]; onClose: () => void }) {
+export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies = [], guided = false, onGuideDone, onClose }: { visible: boolean; shrines: readonly Shrine[]; rewardIds: readonly string[]; special: SpecialCollection; mobbies?: readonly { id: string; name: string; image: any; count?: number }[]; /** The first visit: the how-to always opens and the player is led to its start button. */ guided?: boolean; onGuideDone?: () => void; onClose: () => void }) {
   const items = useMemo<SpaceItem[]>(() => {
     const owned = new Set(rewardIds);
     // A picture the 3D view does not have is left out: its WebP original would crash the view on a device.
@@ -254,17 +256,41 @@ export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies 
     const artWidth = width / SCROLL_WIDTH;
     return { width, height: width / SCROLL_ASPECT, artWidth, artHeight: (artWidth * 1400) / 1024 };
   }, [screen.width, screen.height]);
+  // The ten letters of the title (each spaced by 3) stay on one line however narrow the scroll is.
+  const guideTitleSize = Math.min(22, Math.floor((scroll.width * .76) / 10) - 3);
   useEffect(() => { if (guideOpen) playSfx('sfx_scroll_open'); }, [guideOpen]);
+  const [startRect, setStartRect] = useState<TutorialRect | null>(null);
+  const [guideLifted, setGuideLifted] = useState(false);
+  // Read when the view opens only: finishing the guide must not open the how-to a second time.
+  const guidedRef = useRef(guided);
+  guidedRef.current = guided;
   useEffect(() => {
+    setStartRect(null);
+    setGuideLifted(false);
     if (!visible) { setGuideOpen(false); return; }
     let alive = true;
-    AsyncStorage.getItem(GUIDE_HIDDEN_KEY).then(value => { if (alive) setGuideOpen(value !== '1'); }, () => { if (alive) setGuideOpen(true); });
+    AsyncStorage.getItem(GUIDE_HIDDEN_KEY).then(value => { if (alive) setGuideOpen(guidedRef.current || value !== '1'); }, () => { if (alive) setGuideOpen(true); });
     return () => { alive = false; };
   }, [visible]);
+  const startGuide = guided && guideOpen && !guideLifted;
+  // The how-to takes a while to read, so the fail-safe is slow, and it only unlocks the screen: nothing is closed for the player.
+  useEffect(() => {
+    if (!startGuide) return undefined;
+    const timer = setTimeout(() => setGuideLifted(true), 30000);
+    return () => clearTimeout(timer);
+  }, [startGuide]);
+  const finishGuide = () => { if (guided) onGuideDone?.(); };
+  const startWorld = () => {
+    playSfx('sfx_close');
+    setGuideOpen(false);
+    finishGuide();
+  };
   const hideGuideForever = () => {
     setGuideOpen(false);
     AsyncStorage.setItem(GUIDE_HIDDEN_KEY, '1').catch(() => undefined);
+    finishGuide();
   };
+  const close = () => { finishGuide(); onClose(); };
   // Every time the view opens it starts afresh: facing front, nothing picked, the things flying in.
   useEffect(() => {
     if (!visible) return;
@@ -371,7 +397,7 @@ export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [items, directions]);
   const onLayout = (event: LayoutChangeEvent) => { size.current = { width: Math.max(1, event.nativeEvent.layout.width), height: Math.max(1, event.nativeEvent.layout.height) }; };
-  return <Modal visible={visible} animationType="fade" onRequestClose={onClose} supportedOrientations={['portrait']}>
+  return <Modal visible={visible} animationType="fade" onRequestClose={close} supportedOrientations={['portrait']}>
     <View style={S.root}>
       <View style={S.canvasWrap} onLayout={onLayout} {...responder.panHandlers}>
         <Canvas camera={{ fov: FOV_BASE, near: 0.1, far: 90, position: [0, 0, 0] }} dpr={[1, 1.6]} style={{ flex: 1, backgroundColor: '#1B1426', touchAction: 'none' } as object}>
@@ -391,9 +417,10 @@ export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies 
         <View accessibilityViewIsModal accessibilityLabel="コレクションワールドの歩き方" style={{ width: scroll.width, height: scroll.height, overflow: 'hidden' }}>
           <Image accessible={false} source={SCROLL_ART} contentFit="fill" pointerEvents="none" style={{ position: 'absolute', left: -SCROLL_LEFT * scroll.artWidth, top: 0, width: scroll.artWidth, height: scroll.artHeight }} />
           <View style={[S.guideContent, { left: scroll.width * .12, right: scroll.width * .12, top: scroll.height * .165, height: scroll.height * .745 }]}>
-            <Text accessibilityRole="header" style={S.guideTitle}>コレクションワールド</Text>
+            <Text accessibilityRole="header" numberOfLines={1} style={[S.guideTitle, { fontSize: guideTitleSize }]}>コレクションワールド</Text>
             <Text style={S.guideSubtitle}>歩き方</Text>
-            <View style={S.guideSteps}>
+            {/* On a short screen the steps shrink as a whole, so they never run into the start button. */}
+            <FitToHeight style={S.guideSteps}>
               {GUIDE_STEPS.map((step, index) => <View key={step.title} style={S.guideRow}>
                 <Text style={S.guideNumber}>{index + 1}</Text>
                 <View style={S.guideText}>
@@ -401,16 +428,20 @@ export function CollectionSpace({ visible, shrines, rewardIds, special, mobbies 
                   <Text style={S.guideBody}>{step.body}</Text>
                 </View>
               </View>)}
-            </View>
-            <Pressable accessibilityRole="button" onPress={() => { playSfx('sfx_close'); setGuideOpen(false); }} style={S.guideStart}>
-              <Text style={S.guideStartText}>はじめる</Text>
-              <Image accessible={false} source={UNDERLINE_BRUSH} contentFit="fill" style={S.guideLine} />
-            </Pressable>
+            </FitToHeight>
+            {/* Keyed by the scroll's size: a resized window moves the button, so the frame has to be measured again. */}
+            <TutorialTarget key={scroll.width} active={startGuide} onRectChange={setStartRect} style={S.guideStartTarget}>
+              <Pressable accessibilityRole="button" onPress={startWorld} style={S.guideStart}>
+                <Text style={S.guideStartText}>はじめる</Text>
+                <Image accessible={false} source={UNDERLINE_BRUSH} contentFit="fill" style={S.guideLine} />
+              </Pressable>
+            </TutorialTarget>
             <Pressable accessibilityRole="button" onPress={hideGuideForever} style={S.guideHide}><Text style={S.guideHideText}>今後表示しない</Text></Pressable>
           </View>
         </View>
       </View>}
-      <Pressable accessibilityRole="button" accessibilityLabel="一覧を閉じる" onPress={onClose} style={S.close}><Icon name="close" size={21} color="#FBF6EC" /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="一覧を閉じる" onPress={close} style={S.close}><Icon name="close" size={21} color="#FBF6EC" /></Pressable>
+      {startGuide && <TutorialSpotlightOverlay blocking dim={false} targetRect={startRect} step="2 / 2" title="「はじめる」をタップ" detail="歩き方を読んだら、金色の枠のボタンで中へ" />}
     </View>
   </Modal>;
 }
@@ -431,6 +462,7 @@ const S = StyleSheet.create({
   guideText: { flex: 1 },
   guideStep: { fontFamily: BRUSH, fontSize: 16, color: C.ink, letterSpacing: 1 },
   guideBody: { color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
+  guideStartTarget: { alignSelf: 'center' },
   guideStart: { alignSelf: 'center', alignItems: 'center', minHeight: 44, minWidth: 120, justifyContent: 'center' },
   guideStartText: { fontFamily: BRUSH, fontSize: 18, color: C.red, letterSpacing: 4 },
   guideLine: { width: 96, height: 8, marginTop: -1 },

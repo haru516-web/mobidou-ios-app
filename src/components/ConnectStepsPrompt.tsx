@@ -12,7 +12,7 @@ export function ConnectStepsPrompt({ visible, busy, error, onConnect, onLater }:
         <Text style={S.body}>iPhoneの歩数を、旅の道のりに使います。位置情報は使いません。歩いた分だけ、御朱印が集まります。</Text>
         {!!error && <Text style={S.error}>{error}</Text>}
         <Button title={busy ? 'つないでいます…' : '歩数をつなぐ'} icon="footsteps-outline" disabled={busy} onPress={onConnect} />
-        <Button title="あとで（設定やホームからつなげます）" secondary disabled={busy} onPress={onLater} />
+        <Button title="あとで（設定やホームからつなげます）" secondary onPress={onLater} />
       </View>
     </View>
   </Modal>;
