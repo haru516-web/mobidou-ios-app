@@ -51,11 +51,12 @@ export function CharacterIntroPopup({ visible, onNext }: { visible: boolean; onN
 }
 
 /** The second popup of an event: the Mobbies that only the event gives. */
-export function EventMobbiesBody({ paper, eventName, onOpenEvent }: { paper: ScrollPaper; eventName: string; onOpenEvent: () => void }) {
+export function EventMobbiesBody({ paper, eventName, onOpenEvent, buttonTitle = 'イベントを見る' }: { paper: ScrollPaper; eventName: string; onOpenEvent: () => void; buttonTitle?: string }) {
   return <View style={S.body}>
     <Text style={S.lead}>「{eventName}」でしか会えない{EVENT_PET_CHARACTERS.length}人です。</Text>
-    <Grid pets={EVENT_PET_CHARACTERS} columns={2} paper={paper} reserved={110} showCatchphrase />
-    <Button title="イベントを見る" onPress={onOpenEvent} />
+    {/* 90, not 110: the period under the title already takes 20 of the paper, and the pictures keep their size. */}
+    <Grid pets={EVENT_PET_CHARACTERS} columns={2} paper={paper} reserved={90} showCatchphrase />
+    <Button title={buttonTitle} onPress={onOpenEvent} />
   </View>;
 }
 

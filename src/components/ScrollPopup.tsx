@@ -59,7 +59,8 @@ export function ScrollPopup({ visible, title, subtitle, onClose, hideClose = fal
       <View accessibilityViewIsModal style={{ width: scrollWidth, height: scrollHeight, overflow: 'hidden' }}>
         <Image accessible={false} source={event ? EVENT_FEEL.scroll : SCROLL_ART} contentFit="fill" pointerEvents="none" style={{ position: 'absolute', left: -SCROLL_LEFT * artWidth, top: 0, width: artWidth, height: artHeight }} />
         <View style={[S.content, { left: scrollWidth * .12, right: scrollWidth * .12, top: scrollHeight * .165, height: paperHeight }]}>
-          <Text accessibilityRole="header" style={S.title}>{title}</Text>
+          {/* A long title shrinks to stay on one line (each letter is spaced by 4): the content's height counts on it. */}
+          <Text accessibilityRole="header" numberOfLines={1} style={[S.title, { fontSize: Math.min(24, Math.floor(paperWidth / title.length) - 4) }]}>{title}</Text>
           {!!subtitle && <Text numberOfLines={1} style={S.subtitle}>{subtitle}</Text>}
           <View style={{ flex: 1, minHeight: 0 }}>{children({ width: paperWidth, height: paperHeight - headingHeight - closeHeight })}</View>
           {!hideClose && <Pressable soundless artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => { playSfx('sfx_close'); onClose(); }} style={S.close}>

@@ -27,7 +27,7 @@ const TICKET_NAMES: Record<GiftItem['kind'], string> = {
 };
 
 /** Page sheet shared by the social screens and the book index. */
-export function Sheet({ visible, title, onClose, children, event = false }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; /** The event's own paper and header. */ event?: boolean }) {
+export function Sheet({ visible, title, note, onClose, children, event = false }: { visible: boolean; title: string; /** One line under the header that stays on every page. */ note?: string; onClose: () => void; children: React.ReactNode; /** The event's own paper and header. */ event?: boolean }) {
   return <Modal visible={visible} onShow={() => playSfx('sfx_open')} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
     <SafeAreaView style={S.sheet}>
       <Image pointerEvents="none" accessible={false} source={event ? EVENT_FEEL.sheetBackground : IMG7.sheetBg} contentFit="cover" style={StyleSheet.absoluteFillObject} />
@@ -36,6 +36,7 @@ export function Sheet({ visible, title, onClose, children, event = false }: { vi
         <Text accessibilityRole="header" style={[S.sheetTitle, event && S.sheetTitleEvent]}>{title}</Text>
         <Pressable soundless plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="閉じる" onPress={() => { playSfx('sfx_close'); onClose(); }} style={S.close}><Icon name="close" size={21} /></Pressable>
       </View>
+      {!!note && <Text style={S.sheetNote}>{note}</Text>}
       <PagedBody style={S.sheetBody}>{children}</PagedBody>
     </SafeAreaView>
   </Modal>;
@@ -278,6 +279,7 @@ const S = StyleSheet.create({
   // The event sheet has no band of its own: the title sits on the event paper like the rest,.
   sheetHeaderEvent: { paddingLeft: 40 },
   sheetTitleEvent: { color: '#2F4A6B' },
+  sheetNote: { fontFamily: BRUSH, fontSize: 13, color: '#2F4A6B', paddingLeft: 40, paddingRight: 22, marginTop: -10 },
   close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' },
   sheetBody: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 4, minHeight: 34, paddingHorizontal: 16 },

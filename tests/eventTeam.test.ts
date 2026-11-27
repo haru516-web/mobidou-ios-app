@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TOKI_MEGURU } from '../src/data/events.ts';
+import { readFileSync } from 'node:fs';
+import { eventPeriodLabel, TOKI_MEGURU } from '../src/data/events.ts';
 import { canJoin, canLeave, eventProgress, isTeamCode, startBlocker, teamCodeFromUrl, teamInviteLink, teamSteps, type EventTeam } from '../src/services/eventTeam.ts';
 
 const member = (id: string, steps = 0) => ({ id, name: id, petId: 'mobibou', steps });
@@ -13,6 +14,15 @@ test('the first event is a fixed-goal map of 2 to 4 people with rising spot thre
   assert.ok(spots.length > 0);
   assert.deepEqual(spots.map(s => s.at), [...spots.map(s => s.at)].sort((a, b) => a - b));
   assert.equal(spots.at(-1)?.at, TOKI_MEGURU.goalSteps);
+});
+
+test('the period is shown in Japan time and matches what the server is given', () => {
+  assert.equal(eventPeriodLabel(TOKI_MEGURU), '開催期間 10月13日〜12月23日');
+  assert.equal(eventPeriodLabel({}), undefined);
+  const sql = (name: string) => readFileSync(`server/migrations/${name}`, 'utf8');
+  const seed = sql('0003_seed_toki_meguru.sql');
+  assert.ok(seed.includes(`'${TOKI_MEGURU.startsAt}', '${TOKI_MEGURU.endsAt}'`));
+  assert.ok(sql('0013_end_toki_meguru_on_dec23.sql').includes(`SET ends_at = '${TOKI_MEGURU.endsAt}'`));
 });
 
 test('progress follows the summed steps and clears at the goal', () => {

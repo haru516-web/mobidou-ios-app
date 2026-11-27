@@ -33,6 +33,9 @@ export const TOKI_MEGURU: PilgrimageEvent = {
   id: 'toki-meguru',
   name: '時をめぐる道',
   status: 'open',
+  // The server decides what can be played (the events table). These are the same instants, for showing the period: change both together.
+  startsAt: '2026-10-12T15:00:00.000Z',
+  endsAt: '2026-12-23T15:00:00.000Z',
   tagline: '昭和から平成へ。時代の宝物を祀る社を、友だちと歩いてたどる旅。',
   minMembers: 2,
   maxMembers: 4,
@@ -56,6 +59,15 @@ export const TOKI_MEGURU: PilgrimageEvent = {
     spot('heisei-strap', '平成', 'ミレニアムの星祭り社', 'デコストラップ', 360000),
   ],
 };
+
+/** 「開催期間 10月13日〜12月23日」, in Japan time wherever the phone is. endsAt is the first instant after the event, so the last day is the one before it. */
+export function eventPeriodLabel(event: Pick<PilgrimageEvent, 'startsAt' | 'endsAt'>): string | undefined {
+  const start = Date.parse(event.startsAt ?? '');
+  const end = Date.parse(event.endsAt ?? '');
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return undefined;
+  const day = (instant: number) => { const japan = new Date(instant + 9 * 3_600_000); return `${japan.getUTCMonth() + 1}月${japan.getUTCDate()}日`; };
+  return `開催期間 ${day(start)}〜${day(end - 1)}`;
+}
 
 /** Events the app knows about. The status becomes date-driven when the server is connected. */
 export const EVENTS: PilgrimageEvent[] = [TOKI_MEGURU];

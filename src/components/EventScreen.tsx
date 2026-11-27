@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AppState, Share, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import { Image } from './AppImage';
-import type { PilgrimageEvent } from '../data/events';
+import { eventPeriodLabel, type PilgrimageEvent } from '../data/events';
 import { EVENT_MAP_IMAGE } from '../data/eventImages';
 import type { PetCharacter } from '../petCatalog';
 import { BRUSH, Button, C, Icon } from '../components';
@@ -270,7 +270,7 @@ export function EventScreen({ visible, onClose, event, pet, initialCode = '', on
     </View>
   </View>);
 
-  return <Sheet event visible={visible} title="イベント巡礼" onClose={onClose}>{body}</Sheet>;
+  return <Sheet event visible={visible} title="イベント巡礼" note={eventPeriodLabel(event)} onClose={onClose}>{body}</Sheet>;
 }
 
 const S = StyleSheet.create({
