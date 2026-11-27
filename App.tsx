@@ -102,6 +102,7 @@ type FirstRunStage = 'route' | 'homeCompanion' | 'floatingMenu' | 'floatingDrag'
 const TUTORIAL_GIFT: Gift = { id: 'tutorial-first-ticket', title: 'はじめての木札', message: 'ようこそ、もび道へ。この木札で、最初のモビーに出会えます。', from: 'もび道', items: [{ kind: 'gachaTicket', quantity: 1 }], sentAt: '2026-01-01T00:00:00.000Z' };
 const FIRST_RUN_ROUTE_ID = 'firstStep';
 const OMIKUJI_PROMPT_KEY = '@mobidou/omikuji-prompt-day';
+const WORLD_GUIDE_KEY = '@mobidou/collection-world-guide-seen';
 // 御朱印帳 = the current pilgrimage; コレクション = everything collected so far.
 // Each tab is one integrated page; pop buttons jump to a section instead of
 // switching views (no segmented tabs).
@@ -1139,6 +1140,19 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     return () => clearTimeout(timer);
   }, [weeklyOpen, onboardingPreview, journey.ready, data.onboarded, data.demo, firstRunStage, tab, openingHomeReady, openingVisible, omikujiModal, pending, eventAwardSpot, dueRoute, arrivalSummary, lettersOpen, settings, detail, homePopup, accountEntryVisible, gachaOpen, socialSheet, eventAnnounceOpen, autoPopupBlocked]);
   useAppAudioCues({ firstRunStage, openingVisible, mobbyMenuOpen, homeEditing: homePopup === 'custom', milestoneToast, error: journey.error ?? null, weeklyOpen, pet: data.pet });
+  // The first visit to the collection points at the 3D world button, then at the start button inside. Shown once per device.
+  const [worldGuideDue, setWorldGuideDue] = useState(false);
+  const [worldGuideRect, setWorldGuideRect] = useState<TutorialRect | null>(null);
+  useEffect(() => { void AsyncStorage.getItem(WORLD_GUIDE_KEY).then(value => setWorldGuideDue(value !== '1'), () => undefined); }, []);
+  const openCollectionWorld = () => setSpaceOpen(true);
+  const finishWorldGuide = () => { setWorldGuideDue(false); void AsyncStorage.setItem(WORLD_GUIDE_KEY, '1').catch(() => undefined); };
+  const worldGuideVisible = worldGuideDue && tab === 'collection' && collectionPage === 'room' && journey.ready && data.onboarded && hasStarter(data.mobbies) && firstRunStage === null && !openingVisible && !accountEntryVisible && !spaceOpen && !settings && !detail && !overlayBusy && !homePopup && !omikujiModal && !gachaOpen && !socialSheet && eventSheet === null && !eventSettling && !eventPopupOpen && !arrivalSummary && !lettersOpen && !awardVisible && !eventAwardVisible && !routeAdvanceVisible && !weeklyOpen && !tour && !tourRequest;
+  // The same fail-safe as the first-run steps: with no response it goes inside by itself, so the screen can never stay locked.
+  useEffect(() => {
+    if (!worldGuideVisible) return undefined;
+    const timer = setTimeout(openCollectionWorld, 15000);
+    return () => clearTimeout(timer);
+  }, [worldGuideVisible]); // eslint-disable-line react-hooks/exhaustive-deps
   // The tour starts once the settings sheet has finished sliding away.
   useEffect(() => {
     if (!tourRequest || settings) return undefined;
@@ -1187,7 +1201,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       {tab === 'home'
         ? <Pressable artwork={false} disabled={firstRunStage !== null} accessibilityRole="header" accessibilityLabel="もび道" onPress={() => move('home')} style={S.brand}><Image source={require('./assets/mobidou-wordmark-brush.webp')} style={S.headerLogo} contentFit="contain" /><Image source={require('./assets/mobidou-icon.webp')} style={S.logoMark} contentFit="contain" /></Pressable>
         : tab === 'walk' ? <View />
-        : tab === 'collection' ? <Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="所持品の一覧を3Dで見る" onPress={() => setSpaceOpen(true)} style={S.glassButton}><Icon name="list" size={21} color={C.ink} /></Pressable>
+        : tab === 'collection' ? <TutorialTarget active={worldGuideVisible} onRectChange={setWorldGuideRect}><Pressable plate="round" artwork={false} accessibilityRole="button" accessibilityLabel="所持品の一覧を3Dで見る" onPress={openCollectionWorld} style={S.glassButton}><Icon name="list" size={21} color={C.ink} /></Pressable></TutorialTarget>
         : <Text accessibilityRole="header" numberOfLines={1} style={S.largeTitle}>{TAB_TITLES[tab]}</Text>}
       <View style={S.headerActions}>
         {tab === 'home' && firstRunStage === null && hasStarter(data.mobbies) && <HomeStatusBar tickets={data.mobbies.freePulls} premiumTickets={data.mobbies.paidTickets} miniaturePasses={journey.special.passes.keychainDrop} plusActive={data.keychainPlan === 'plus'} onAddTickets={openGachaShop} onAddPasses={openGachaShop} />}
@@ -1336,6 +1350,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
     {firstRunStage === 'floatingMenu' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="2 / 7" title="画面のモビーをタップ" detail="メニューが開いて、いろいろな機能を使えるよ。" />}
     {firstRunStage === 'floatingDrag' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="3 / 7" title="モビーを好きな場所へ" detail="ドラッグすると、画面内の好きな場所に動かせるよ。" />}
     {firstRunStage === 'homeOmikuji' && <TutorialSpotlightOverlay targetRect={tutorialRect} step="4 / 7" title="おみくじカードを開こう" detail="金色の枠で囲まれたカードをタップ" />}
+    {worldGuideVisible && <TutorialSpotlightOverlay blocking targetRect={worldGuideRect} step="1 / 2" title="コレクションワールドへ行こう" detail="金色の枠のボタンをタップ。集めたものを3Dで見られるよ" />}
     {tour && <FeatureTour selection={tour} gacha={hasStarter(data.mobbies) && !onboardingPreview} bottomInset={navHeight} onNavigate={move} onScene={scene => setGachaOpen(scene === 'gacha')} onClose={() => { setTour(null); setGachaOpen(false); }} />}
     <Modal transparent visible={omikujiModal} animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => { if (!isFirstRunOmikuji) closeOmikuji(); }}>
       <SafeAreaView style={S.omikujiModal}>
@@ -1390,7 +1405,7 @@ function Main({ fontsReady }: { fontsReady: boolean }) {
       </SafeAreaView>
     </Modal>
 
-    <CollectionSpace visible={spaceOpen} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} special={inEventCollection ? eventSpecial : journey.special} mobbies={spaceMobbies} onClose={() => setSpaceOpen(false)} />
+    <CollectionSpace visible={spaceOpen} shrines={inEventCollection ? EVENT_SHRINES : COLLECTION_SHRINES} rewardIds={inEventCollection ? eventOwnedIds : collectionRewardIds} special={inEventCollection ? eventSpecial : journey.special} mobbies={spaceMobbies} guided={worldGuideDue} onGuideDone={finishWorldGuide} onClose={() => setSpaceOpen(false)} />
     <SettingsModal visible={settings && !accountPage} accountOpen={!!accountPage} journey={journey} onShow={() => setOverlayBusy(true)} onDismiss={() => setOverlayBusy(false)} onClose={() => { setSettings(false); setAccountPage(null); }} onOpenAccount={() => setAccountPage('manage')} onToggleDemo={() => { journey.enter(!data.demo); setSettings(false); move('home'); }} gacha={hasStarter(data.mobbies)} onStartTour={selection => { setSettings(false); setTourRequest(selection); }} appleLinked={appleLinked} />
 
 
